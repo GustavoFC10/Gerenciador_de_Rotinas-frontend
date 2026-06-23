@@ -15,6 +15,15 @@ npm install
 npm run dev
 ```
 
+## Build e deploy na Vercel
+
+```bash
+npm run build
+```
+
+O projeto possui um `vercel.json` configurado para Vite, com saída em `dist` e
+rewrite para `index.html`, garantindo que rotas do React funcionem no deploy.
+
 ## Estrutura
 
 ```text
