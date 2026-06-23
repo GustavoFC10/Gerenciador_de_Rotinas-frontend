@@ -1,4 +1,4 @@
-import { routineStatusConfig } from '../../constants/routineStatus.js'
+import { routineStatusConfig } from '../../../constants/routineStatus.js'
 
 function RoutineStatusSelect({ value, onChange, className = '' }) {
   return (

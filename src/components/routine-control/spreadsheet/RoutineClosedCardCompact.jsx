@@ -1,4 +1,4 @@
-import { routineStatusConfig } from '../../constants/routineStatus.js'
+import { routineStatusConfig } from '../../../constants/routineStatus.js'
 
 const accountingClosedCardClass = {
   pending: 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',

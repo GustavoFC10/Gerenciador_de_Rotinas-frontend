@@ -1,5 +1,5 @@
-import RoutineCardActions from './RoutineCardActions.jsx'
-import RoutineEditableFields from './RoutineEditableFields.jsx'
+import RoutineCardActions from '../shared/RoutineCardActions.jsx'
+import RoutineEditableFields from '../shared/RoutineEditableFields.jsx'
 
 function RoutineDetailsCardPanel({
   task,

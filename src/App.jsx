@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import RoutineControlTable from './components/routines/RoutineControlTable.jsx'
-import RoutineDetailsCard from './components/routines/RoutineDetailsCard.jsx'
-import RoutineDetailsCardCompact from './components/routines/RoutineDetailsCardCompact.jsx'
-import RoutineDetailsCardPanel from './components/routines/RoutineDetailsCardPanel.jsx'
+import RoutineDetailsCard from './components/routine-control/details/RoutineDetailsCard.jsx'
+import RoutineDetailsCardCompact from './components/routine-control/details/RoutineDetailsCardCompact.jsx'
+import RoutineDetailsCardPanel from './components/routine-control/details/RoutineDetailsCardPanel.jsx'
+import RoutineListComparison from './components/routine-control/list/RoutineListComparison.jsx'
+import { buildRoutineListSampleItems } from './components/routine-control/list/routineListSample.js'
+import RoutineControlTable from './components/routine-control/spreadsheet/RoutineControlTable.jsx'
 import { routineStatusConfig } from './constants/routineStatus.js'
 import { getRoutineControl } from './services/routineControlService.js'
 
@@ -13,15 +15,32 @@ const detailsCardByDepartment = {
   'dept-personnel': RoutineDetailsCardPanel,
 }
 
-const comparisonOptions = [
-  { id: 'dept-fiscal', name: 'Opção 1' },
-  { id: 'dept-personnel', name: 'Opção 2' },
-  { id: 'dept-accounting', name: 'Opção 3' },
+const spreadsheetComparisonOptions = [
+  { id: 'dept-fiscal', name: 'Opcao 1' },
+  { id: 'dept-personnel', name: 'Opcao 2' },
+  { id: 'dept-accounting', name: 'Opcao 3' },
 ]
+
+const pageOptions = [
+  { id: 'spreadsheet', label: 'Planilha' },
+  { id: 'list', label: 'Lista' },
+]
+
+const listPageSurfaceClass = {
+  compact: 'bg-slate-100',
+  cards: 'bg-blue-50',
+  ledger: 'bg-zinc-100',
+}
 
 function App() {
   const [response, setResponse] = useState(null)
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState('dept-fiscal')
+  const [selectedPageId, setSelectedPageId] = useState('spreadsheet')
+  const [selectedDepartmentId, setSelectedDepartmentId] =
+    useState('dept-fiscal')
+  const [selectedListOptionId, setSelectedListOptionId] = useState('compact')
+  const [listSampleItems, setListSampleItems] = useState(() =>
+    buildRoutineListSampleItems(),
+  )
   const [selectedTask, setSelectedTask] = useState(null)
 
   useEffect(() => {
@@ -53,7 +72,7 @@ function App() {
     )
 
     return {
-      departments: comparisonOptions,
+      departments: spreadsheetComparisonOptions,
       employees,
       routines: visibleRoutines,
       tasks: visibleTasks,
@@ -66,20 +85,56 @@ function App() {
       return {}
     }
 
+    const selectedListItem = listSampleItems.find(
+      (item) => item.task.id === selectedTask.id,
+    )
+
+    if (selectedListItem) {
+      return {
+        client: selectedListItem.client,
+        routine: selectedListItem.routine,
+        department: selectedListItem.department,
+        assignee: selectedListItem.employees.find(
+          (item) => item.id === selectedTask.assigneeId,
+        ),
+        employees: selectedListItem.employees,
+      }
+    }
+
     const { clients, routines, employees } = response.data
 
     return {
       client: clients.find((item) => item.id === selectedTask.clientId),
       routine: routines.find((item) => item.id === selectedTask.routineId),
-      department: comparisonOptions.find(
+      department: spreadsheetComparisonOptions.find(
         (item) => item.id === selectedTask.departmentId,
       ),
       assignee: employees.find((item) => item.id === selectedTask.assigneeId),
       employees,
     }
-  }, [response, selectedTask])
+  }, [listSampleItems, response, selectedTask])
 
   function updateTask(taskId, changes) {
+    setListSampleItems((currentItems) =>
+      currentItems.map((item) => {
+        if (item.task.id !== taskId) return item
+
+        const nextTask = { ...item.task, ...changes }
+        const nextAssignee = item.employees.find(
+          (employee) => employee.id === nextTask.assigneeId,
+        )
+
+        return {
+          ...item,
+          ...changes,
+          assigneeName: nextAssignee?.name ?? 'Nao atribuido',
+          dueDate: nextTask.dueDate,
+          status: nextTask.status,
+          task: nextTask,
+        }
+      }),
+    )
+
     setResponse((currentResponse) => {
       if (!currentResponse) return currentResponse
 
@@ -113,10 +168,56 @@ function App() {
     updateTask(taskId, { dueDate })
   }
 
+  function handleListItemOpen(item) {
+    setSelectedTask(item.task)
+  }
+
+  function handleListItemQuickAction(item, action) {
+    setListSampleItems((currentItems) =>
+      currentItems.map((currentItem) => {
+        if (currentItem.id !== item.id) return currentItem
+
+        const nextIndicators = { ...currentItem.indicators }
+
+        if (action === 'attach') {
+          nextIndicators.attachments += 1
+        }
+
+        return {
+          ...currentItem,
+          indicators: nextIndicators,
+          task: {
+            ...currentItem.task,
+            indicators: nextIndicators,
+          },
+        }
+      }),
+    )
+  }
+
+  function handleListItemNoteChange(item, notes) {
+    setListSampleItems((currentItems) =>
+      currentItems.map((currentItem) =>
+        currentItem.id === item.id
+          ? {
+              ...currentItem,
+              notes,
+              task: {
+                ...currentItem.task,
+                notes,
+              },
+            }
+          : currentItem,
+      ),
+    )
+  }
+
   if (!visibleData) {
     return (
       <main className="grid min-h-screen place-items-center bg-slate-50">
-        <p className="text-sm font-medium text-slate-500">Carregando rotinas…</p>
+        <p className="text-sm font-medium text-slate-500">
+          Carregando rotinas...
+        </p>
       </main>
     )
   }
@@ -126,9 +227,15 @@ function App() {
   )
   const SelectedDetailsCard =
     detailsCardByDepartment[selectedTask?.departmentId] ?? RoutineDetailsCard
+  const pageSurfaceClass =
+    selectedPageId === 'list'
+      ? listPageSurfaceClass[selectedListOptionId]
+      : 'bg-slate-100'
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
+    <main
+      className={`min-h-screen px-4 py-8 text-slate-900 transition-colors sm:px-6 lg:px-8 ${pageSurfaceClass}`}
+    >
       <div className="mx-auto max-w-7xl">
         <header className="mb-7 flex flex-wrap items-end justify-between gap-5">
           <div>
@@ -139,50 +246,89 @@ function App() {
               Rotinas de junho
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-500">
-              Base reutilizável da visualização em planilha. Compare três
-              modelos usando as mesmas rotinas do Fiscal.
+              Compare a visualizacao em planilha e a visualizacao em lista em
+              paginas separadas.
             </p>
           </div>
 
-          <label className="text-sm font-medium text-slate-600">
-            Visualização
-            <select
-              value={selectedDepartmentId}
-              onChange={(event) => {
-                setSelectedDepartmentId(event.target.value)
-                setSelectedTask(null)
-              }}
-              className="ml-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            >
-              {comparisonOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {selectedPageId === 'spreadsheet' && (
+            <label className="text-sm font-medium text-slate-600">
+              Visualizacao
+              <select
+                value={selectedDepartmentId}
+                onChange={(event) => {
+                  setSelectedDepartmentId(event.target.value)
+                  setSelectedTask(null)
+                }}
+                className="ml-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                {spreadsheetComparisonOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </header>
 
-        <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2">
-          {Object.entries(routineStatusConfig).map(([status, config]) => (
-            <div
-              key={status}
-              className="flex items-center gap-2 text-xs font-medium text-slate-500"
-            >
-              <span className={`size-2.5 rounded-full ${config.dotClass}`} />
-              {config.label}
-            </div>
-          ))}
+        <div className="mb-5 inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+          {pageOptions.map((page) => {
+            const isSelected = selectedPageId === page.id
+
+            return (
+              <button
+                key={page.id}
+                type="button"
+                onClick={() => {
+                  setSelectedPageId(page.id)
+                  setSelectedTask(null)
+                }}
+                className={`min-h-9 rounded-lg px-4 text-sm font-bold transition ${
+                  isSelected
+                    ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                {page.label}
+              </button>
+            )
+          })}
         </div>
 
-        <RoutineControlTable
-          title={selectedDepartment?.name ?? 'Opção 1'}
-          description="Clientes nas linhas e rotinas nas colunas"
-          clients={visibleData.clients}
-          routines={visibleData.routines}
-          tasks={visibleData.tasks}
-          onTaskOpen={setSelectedTask}
-        />
+        {selectedPageId === 'spreadsheet' && (
+          <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2">
+            {Object.entries(routineStatusConfig).map(([status, config]) => (
+              <div
+                key={status}
+                className="flex items-center gap-2 text-xs font-medium text-slate-500"
+              >
+                <span className={`size-2.5 rounded-full ${config.dotClass}`} />
+                {config.label}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {selectedPageId === 'spreadsheet' ? (
+          <RoutineControlTable
+            title={selectedDepartment?.name ?? 'Opcao 1'}
+            description="Clientes nas linhas e rotinas nas colunas"
+            clients={visibleData.clients}
+            routines={visibleData.routines}
+            tasks={visibleData.tasks}
+            onTaskOpen={setSelectedTask}
+          />
+        ) : (
+          <RoutineListComparison
+            selectedOptionId={selectedListOptionId}
+            items={listSampleItems}
+            onItemOpen={handleListItemOpen}
+            onItemQuickAction={handleListItemQuickAction}
+            onItemNoteChange={handleListItemNoteChange}
+            onOptionChange={setSelectedListOptionId}
+          />
+        )}
       </div>
 
       {selectedTask && (
