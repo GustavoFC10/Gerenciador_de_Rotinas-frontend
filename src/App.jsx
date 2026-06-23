@@ -15,8 +15,8 @@ const detailsCardByDepartment = {
 
 const comparisonOptions = [
   { id: 'dept-fiscal', name: 'Opção 1' },
-  { id: 'dept-accounting', name: 'Opção 2' },
-  { id: 'dept-personnel', name: 'Opção 3' },
+  { id: 'dept-personnel', name: 'Opção 2' },
+  { id: 'dept-accounting', name: 'Opção 3' },
 ]
 
 function App() {
