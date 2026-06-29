@@ -1,7 +1,7 @@
 function FiscalPlaceholder() {
   return (
     <span
-      className="mx-auto block size-5 cursor-default rounded-full bg-slate-400 shadow-sm ring-4 ring-white"
+      className="mx-auto block size-5 cursor-default rounded-full bg-[var(--status-pending-dot)] shadow-[var(--shadow-panel)] ring-4 ring-[var(--color-table-bg)]"
       aria-hidden="true"
     />
   )
@@ -9,25 +9,25 @@ function FiscalPlaceholder() {
 
 function AccountingPlaceholder() {
   return (
-    <div className="flex h-9 w-full cursor-default items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+    <div className="flex h-9 w-full cursor-default items-center justify-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--status-pending-border)] bg-[var(--status-pending-soft-bg)] px-2 text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-subtle)]">
       <span
-        className="size-1.5 rounded-full bg-slate-300"
+        className="size-1.5 rounded-full bg-[var(--status-pending-dot)]"
         aria-hidden="true"
       />
-      Não se aplica
+      Nao se aplica
     </div>
   )
 }
 
 function PersonnelPlaceholder() {
   return (
-    <div className="relative flex h-10 w-full cursor-default items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-100">
+    <div className="relative flex h-10 w-full cursor-default items-center justify-center overflow-hidden rounded-[var(--radius-control)] border border-[var(--status-pending-border)] bg-[var(--status-pending-soft-bg)]">
       <span
-        className="absolute inset-y-0 left-0 w-1.5 bg-slate-300"
+        className="absolute inset-y-0 left-0 w-1.5 bg-[var(--status-pending-dot)]"
         aria-hidden="true"
       />
-      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-        Não se aplica
+      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-subtle)]">
+        Nao se aplica
       </span>
     </div>
   )
@@ -44,7 +44,7 @@ function RoutineNotApplicableCard({ departmentId }) {
     placeholderByDepartment[departmentId] ?? FiscalPlaceholder
 
   return (
-    <div aria-label="Não se aplica" title="Não se aplica">
+    <div aria-label="Nao se aplica" title="Nao se aplica">
       <Placeholder />
     </div>
   )

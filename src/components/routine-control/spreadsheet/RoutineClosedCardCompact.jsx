@@ -1,26 +1,28 @@
 import { routineStatusConfig } from '../../../constants/routineStatus.js'
 
-const accountingClosedCardClass = {
-  pending: 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+const routineClosedCardClass = {
+  pending:
+    'border-[var(--status-pending-border)] bg-[var(--status-pending-bg)] text-[var(--status-pending-text)] hover:bg-[var(--status-pending-hover-bg)]',
   in_progress:
-    'border-amber-500 bg-amber-500 text-white shadow-amber-100 hover:bg-amber-600',
-  error: 'border-red-600 bg-red-600 text-white shadow-red-100 hover:bg-red-700',
+    'border-[var(--status-progress-border)] bg-[var(--status-progress-strong-bg)] text-[var(--status-progress-strong-text)] hover:bg-[var(--status-progress-hover-bg)] hover:text-[var(--status-progress-text)]',
+  error:
+    'border-[var(--status-error-border)] bg-[var(--status-error-strong-bg)] text-[var(--status-error-strong-text)] hover:bg-[var(--status-error-hover-bg)] hover:text-[var(--status-error-text)]',
   completed:
-    'border-emerald-600 bg-emerald-600 text-white shadow-emerald-100 hover:bg-emerald-700',
+    'border-[var(--status-completed-border)] bg-[var(--status-completed-strong-bg)] text-[var(--status-completed-strong-text)] hover:bg-[var(--status-completed-hover-bg)] hover:text-[var(--status-completed-text)]',
 }
 
 function RoutineClosedCardCompact({ task, label, onOpen }) {
   const status = routineStatusConfig[task.status]
   const colorClass =
-    accountingClosedCardClass[task.status] ?? accountingClosedCardClass.pending
+    routineClosedCardClass[task.status] ?? routineClosedCardClass.pending
 
   return (
     <button
       type="button"
       onClick={() => onOpen?.(task)}
-      className={`flex h-9 w-full items-center justify-center rounded-lg border px-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${colorClass}`}
+      className={`flex h-9 w-full items-center justify-center rounded-[var(--radius-control)] border px-2 text-center shadow-[var(--shadow-panel)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-floating)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${colorClass}`}
       aria-label={`Abrir ${label}. Status: ${status.label}`}
-      title={`${label} — ${status.label}`}
+      title={`${label} - ${status.label}`}
     >
       <span className="text-[10px] font-extrabold uppercase tracking-wide">
         {status.label}

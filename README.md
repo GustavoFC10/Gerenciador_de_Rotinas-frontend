@@ -49,9 +49,7 @@ src/
 ## Componentes iniciais de controle de rotina
 
 - `spreadsheet/RoutineControlTable`: tabela configuravel por departamento ou visao geral.
-- `spreadsheet/RoutineClosedCard`: ponto minimalista usado pelo departamento Fiscal.
-- `spreadsheet/RoutineClosedCardCompact`: etiqueta compacta usada pelo Contabil.
-- `spreadsheet/RoutineClosedCardCell`: celula colorida usada pelo Departamento Pessoal.
+- `spreadsheet/RoutineClosedCardCompact`: etiqueta compacta usada na planilha operacional.
 - `spreadsheet/RoutineNotApplicableCard`: placeholder nao clicavel para celulas sem rotina.
 - `details/RoutineDetailsCard`, `details/RoutineDetailsCardCompact` e
   `details/RoutineDetailsCardPanel`: tres modelos abertos correspondentes.
