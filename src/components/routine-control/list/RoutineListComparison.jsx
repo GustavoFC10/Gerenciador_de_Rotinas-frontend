@@ -4,7 +4,6 @@ import RoutineListCardOptionOne from './RoutineListCardOptionOne.jsx'
 import RoutineListCardOptionThree from './RoutineListCardOptionThree.jsx'
 import RoutineListCardOptionTwo from './RoutineListCardOptionTwo.jsx'
 import RoutineListSection from './RoutineListSection.jsx'
-import { routineListSampleRoutine } from './routineListSample.js'
 import { groupRoutineListItemsByStatus } from './routineListUtils.js'
 
 const listComparisonOptions = [
@@ -15,11 +14,14 @@ const listComparisonOptions = [
     description: 'Pagina densa para varrer muitas empresas rapidamente.',
     Card: RoutineListCardOptionOne,
     sectionVariant: 'compact',
-    shellClass: 'bg-white',
+    shellClass: 'bg-[var(--color-list-panel-bg)]',
+    shellNoHeaderClass: 'bg-transparent',
     headerClass:
-      'border-b border-slate-200 bg-white px-5 py-4 sm:px-6',
-    eyebrowClass: 'text-blue-600',
-    contentClass: 'space-y-3 bg-slate-100 p-4 sm:p-5',
+      'border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-4 sm:px-6',
+    eyebrowClass: 'text-[var(--color-brand)]',
+    contentClass: 'space-y-3 bg-[var(--color-list-bg)] p-4 sm:p-5',
+    noHeaderContentClass:
+      'space-y-2 rounded-[var(--radius-panel)] border border-[var(--color-list-border)] bg-[var(--color-list-bg)] p-3 sm:p-4',
   },
   {
     id: 'cards',
@@ -28,12 +30,15 @@ const listComparisonOptions = [
     description: 'Pagina mais visual, com resumo em destaque e secoes amplas.',
     Card: RoutineListCardOptionTwo,
     sectionVariant: 'cards',
-    shellClass: 'bg-blue-50/70',
+    shellClass: 'bg-[var(--color-list-bg)]',
+    shellNoHeaderClass: 'bg-transparent',
     headerClass:
-      'rounded-t-2xl border border-blue-100 bg-white px-5 py-5 shadow-sm sm:px-6',
-    eyebrowClass: 'text-blue-700',
+      'rounded-t-2xl border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-5 shadow-[var(--shadow-panel)] sm:px-6',
+    eyebrowClass: 'text-[var(--color-accent)]',
     contentClass:
-      'space-y-5 rounded-b-2xl border-x border-b border-blue-100 bg-blue-50/70 p-4 sm:p-6',
+      'space-y-5 rounded-b-2xl border-x border-b border-[var(--color-list-border)] bg-[var(--color-list-bg)] p-4 sm:p-6',
+    noHeaderContentClass:
+      'space-y-5 rounded-2xl border border-[var(--color-list-border)] bg-[var(--color-list-bg)] p-4 sm:p-6',
   },
   {
     id: 'ledger',
@@ -42,22 +47,28 @@ const listComparisonOptions = [
     description: 'Pagina com leitura de controle, mais parecida com protocolo.',
     Card: RoutineListCardOptionThree,
     sectionVariant: 'ledger',
-    shellClass: 'bg-zinc-50',
+    shellClass: 'bg-[var(--color-list-panel-bg)]',
+    shellNoHeaderClass: 'bg-transparent',
     headerClass:
-      'border border-zinc-300 bg-white px-5 py-5 text-slate-950 sm:px-6',
-    eyebrowClass: 'text-zinc-600',
+      'border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-5 text-[var(--color-text-strong)] sm:px-6',
+    eyebrowClass: 'text-[var(--color-text-muted)]',
     contentClass:
-      'space-y-0 border-x border-b border-zinc-300 bg-white p-0',
+      'space-y-0 border-x border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] p-0',
+    noHeaderContentClass:
+      'space-y-0 border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] p-0',
   },
 ]
 
 function RoutineListComparison({
   selectedOptionId,
+  title,
+  description,
   items,
   onItemOpen,
   onItemQuickAction,
   onItemNoteChange,
   onOptionChange,
+  showHeader = true,
 }) {
   const groups = useMemo(
     () => groupRoutineListItemsByStatus(items),
@@ -68,10 +79,17 @@ function RoutineListComparison({
     listComparisonOptions.find((option) => option.id === selectedOptionId) ??
     listComparisonOptions[0]
   const SelectedCard = selectedOption.Card
+  const contentClass = showHeader
+    ? selectedOption.contentClass
+    : selectedOption.noHeaderContentClass ?? selectedOption.contentClass
+  const shellClass = showHeader
+    ? selectedOption.shellClass
+    : selectedOption.shellNoHeaderClass ?? selectedOption.shellClass
 
   return (
-    <section className={`overflow-hidden rounded-2xl ${selectedOption.shellClass}`}>
-      <header className={selectedOption.headerClass}>
+    <section className={`overflow-hidden ${showHeader ? 'rounded-2xl' : ''} ${shellClass}`}>
+      {showHeader && (
+        <header className={selectedOption.headerClass}>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p
@@ -80,27 +98,19 @@ function RoutineListComparison({
               Lista operacional
             </p>
             <h2 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl">
-              {routineListSampleRoutine.name}
+              {title}
             </h2>
-            <p
-              className={`mt-2 max-w-3xl text-sm ${
-                selectedOption.id === 'ledger' ? 'text-zinc-600' : 'text-slate-500'
-              }`}
-            >
-              {selectedOption.title}: {selectedOption.description}
+            <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">
+              {description ?? `${selectedOption.title}: ${selectedOption.description}`}
             </p>
           </div>
 
-          <label
-            className={`text-sm font-medium ${
-              selectedOption.id === 'ledger' ? 'text-zinc-700' : 'text-slate-600'
-            }`}
-          >
+          <label className="text-sm font-medium text-[var(--color-text-muted)]">
             Display da lista
             <select
               value={selectedOption.id}
               onChange={(event) => onOptionChange?.(event.target.value)}
-              className="ml-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="ml-3 rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2 text-sm text-[var(--color-control-text)] outline-none focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)]"
             >
               {listComparisonOptions.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -110,9 +120,19 @@ function RoutineListComparison({
             </select>
           </label>
         </div>
-      </header>
+        </header>
+      )}
 
-      <div className={selectedOption.contentClass}>
+      {!showHeader && (
+        <div className="mb-3 flex justify-end">
+          <ListDisplaySelect
+            selectedOption={selectedOption}
+            onOptionChange={onOptionChange}
+          />
+        </div>
+      )}
+
+      <div className={contentClass}>
         {groups.map((group) => (
           <RoutineListSection
             key={group.status}
@@ -132,6 +152,25 @@ function RoutineListComparison({
         ))}
       </div>
     </section>
+  )
+}
+
+function ListDisplaySelect({ selectedOption, onOptionChange }) {
+  return (
+    <label className="text-sm font-medium text-[var(--color-text-muted)]">
+      Display da lista
+      <select
+        value={selectedOption.id}
+        onChange={(event) => onOptionChange?.(event.target.value)}
+        className="ml-3 rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2 text-sm text-[var(--color-control-text)] outline-none focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)]"
+      >
+        {listComparisonOptions.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 

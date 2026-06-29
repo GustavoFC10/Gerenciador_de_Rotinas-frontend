@@ -4,29 +4,37 @@ import { routineStatusConfig } from '../../../constants/routineStatus.js'
 
 const sectionStyles = {
   compact: {
-    section: 'overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm',
+    section:
+      'overflow-hidden rounded-md border border-[var(--color-list-border)] bg-[var(--color-list-section-bg)] shadow-[var(--shadow-panel)]',
     header:
-      'border-b border-slate-100 bg-slate-50 px-4 py-3 hover:bg-slate-100',
-    body: 'divide-y divide-slate-100',
-    count: 'bg-white text-slate-500 ring-1 ring-slate-200',
-    icon: 'text-slate-500',
+      'border-b border-[var(--color-list-border)] bg-[var(--color-list-section-header-bg)] px-3 py-2.5 hover:bg-[var(--color-list-section-hover-bg)]',
+    body: 'divide-y divide-[var(--color-list-border)]',
+    count:
+      'bg-[var(--color-list-panel-bg)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-list-border)]',
+    icon: 'text-[var(--color-text-muted)]',
+    label: 'text-[var(--color-text-main)]',
   },
   cards: {
     section:
-      'overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm shadow-blue-900/5',
+      'overflow-hidden rounded-2xl border border-[var(--color-list-border)] bg-[var(--color-list-section-bg)] shadow-[var(--shadow-panel)]',
     header:
-      'border-b border-blue-50 bg-white px-5 py-4 hover:bg-blue-50/60',
-    body: 'bg-blue-50/30',
-    count: 'bg-blue-50 text-blue-700 ring-1 ring-blue-100',
-    icon: 'text-blue-600',
+      'border-b border-[var(--color-list-border)] bg-[var(--color-list-section-bg)] px-5 py-4 hover:bg-[var(--color-list-section-hover-bg)]',
+    body: 'bg-[var(--color-list-muted-bg)]',
+    count:
+      'bg-[var(--color-brand-soft)] text-[var(--color-brand)] ring-1 ring-[var(--color-brand)]',
+    icon: 'text-[var(--color-brand)]',
+    label: 'text-[var(--color-text-main)]',
   },
   ledger: {
-    section: 'border-b border-zinc-300 bg-white last:border-b-0',
+    section:
+      'border-b border-[var(--color-list-border)] bg-[var(--color-list-section-bg)] last:border-b-0',
     header:
-      'border-b border-zinc-200 bg-zinc-100 px-4 py-2.5 hover:bg-zinc-200/70',
-    body: 'divide-y divide-zinc-200',
-    count: 'bg-white text-zinc-600 ring-1 ring-zinc-300',
-    icon: 'text-zinc-600',
+      'border-b border-[var(--color-list-border)] bg-[var(--color-list-section-header-bg)] px-4 py-2.5 hover:bg-[var(--color-list-section-hover-bg)]',
+    body: 'divide-y divide-[var(--color-list-border)]',
+    count:
+      'bg-[var(--color-list-panel-bg)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-list-border)]',
+    icon: 'text-[var(--color-text-muted)]',
+    label: 'text-[var(--color-text-main)]',
   },
 }
 
@@ -45,7 +53,7 @@ function RoutineListSection({ group, children, variant = 'compact' }) {
       >
         <span className="flex items-center gap-2">
           <span className={`size-2.5 rounded-full ${statusConfig.dotClass}`} />
-          <span className="text-sm font-bold text-slate-800">
+          <span className={`text-sm font-bold ${styles.label}`}>
             {group.label}
           </span>
         </span>

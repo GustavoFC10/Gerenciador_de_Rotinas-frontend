@@ -15,25 +15,25 @@ function RoutineDetailsCardPanel({
   if (!task) return null
 
   return (
-    <article className="overflow-hidden rounded-3xl bg-white shadow-2xl shadow-indigo-950/20">
-      <header className="bg-indigo-950 px-5 py-4 text-white">
+    <article className="overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-floating)]">
+      <header className="bg-[var(--color-brand)] px-5 py-4 text-[var(--color-button-primary-text)]">
         <div className="flex items-start justify-between gap-5">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-indigo-300">
+            <span className="text-xs font-semibold uppercase tracking-wide opacity-75">
               {department?.name}
             </span>
             <h2 className="mt-2 text-xl font-bold">{routine?.name}</h2>
-            <p className="mt-1 text-sm text-indigo-200">
-              {client?.code} · {client?.name}
+            <p className="mt-1 text-sm opacity-80">
+              {client?.code} - {client?.name}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="grid size-9 place-items-center rounded-full bg-white/10 text-xl text-indigo-200 hover:bg-white/20 hover:text-white"
+            className="grid size-9 place-items-center rounded-full bg-[var(--color-brand-soft)] text-xl text-[var(--color-brand)] hover:bg-[var(--color-accent-soft)]"
             aria-label="Fechar detalhes"
           >
-            ×
+            x
           </button>
         </div>
       </header>
@@ -46,11 +46,11 @@ function RoutineDetailsCardPanel({
           onDueDateChange={onDueDateChange}
         />
 
-        <div className="mt-4 rounded-xl border border-slate-100 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Descrição da rotina
+        <div className="mt-4 rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-soft-bg)] p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+            Descricao da rotina
           </p>
-          <p className="mt-1.5 text-sm leading-5 text-slate-500">
+          <p className="mt-1.5 text-sm leading-5 text-[var(--color-text-muted)]">
             {routine?.description}
           </p>
         </div>

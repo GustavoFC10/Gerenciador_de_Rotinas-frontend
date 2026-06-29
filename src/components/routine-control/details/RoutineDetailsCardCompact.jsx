@@ -15,29 +15,31 @@ function RoutineDetailsCardCompact({
   if (!task) return null
 
   return (
-    <article className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900 text-white shadow-2xl">
+    <article className="overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] text-[var(--color-text-main)] shadow-[var(--shadow-floating)]">
       <div className="p-4">
         <header className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
               {department?.name}
             </p>
-            <h2 className="mt-2 text-lg font-semibold">{routine?.name}</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              {client?.code} · {client?.name}
+            <h2 className="mt-2 text-lg font-semibold text-[var(--color-text-strong)]">
+              {routine?.name}
+            </h2>
+            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+              {client?.code} - {client?.name}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="grid size-8 place-items-center rounded-md bg-slate-800 text-lg text-slate-400 hover:text-white"
+            className="grid size-8 place-items-center rounded-[var(--radius-control)] bg-[var(--color-control-bg)] text-lg text-[var(--color-text-muted)] ring-1 ring-[var(--color-control-border)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)]"
             aria-label="Fechar detalhes"
           >
-            ×
+            x
           </button>
         </header>
 
-        <p className="mt-4 text-sm leading-5 text-slate-300">
+        <p className="mt-4 text-sm leading-5 text-[var(--color-text-muted)]">
           {routine?.description}
         </p>
 
@@ -46,7 +48,6 @@ function RoutineDetailsCardCompact({
           employees={employees}
           onAssigneeChange={onAssigneeChange}
           onDueDateChange={onDueDateChange}
-          dark
           className="mt-4"
         />
 

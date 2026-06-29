@@ -13,7 +13,7 @@ function RoutineListNoteField({
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
       onChange={(event) => onChange?.(item, event.target.value)}
-      className={`w-full resize-none rounded-lg border px-2.5 py-2 text-sm text-slate-700 outline-none transition focus:ring-2 ${className}`}
+      className={`w-full resize-none rounded-[var(--radius-control)] border px-2.5 py-2 text-sm text-[var(--color-control-text)] outline-none transition placeholder:text-[var(--color-control-placeholder)] focus:ring-2 ${className}`}
       aria-label={`Observacao de ${item.companyName}`}
     />
   )

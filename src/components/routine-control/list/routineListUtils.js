@@ -56,34 +56,42 @@ export function formatShortDate(dateValue) {
 
 export const routineListStatusTone = {
   error: {
-    card: 'border-red-200 bg-red-50/35 hover:bg-red-50/70',
-    accent: 'bg-red-500',
-    border: 'border-l-red-500',
-    code: 'bg-red-100 text-red-800',
-    field: 'border-red-100 bg-white/80 focus:border-red-300 focus:ring-red-100',
+    card:
+      'border-[var(--status-error-border)] bg-[var(--status-error-bg)] hover:bg-[var(--status-error-hover-bg)]',
+    accent: 'bg-[var(--status-error-dot)]',
+    border: 'border-l-[var(--status-error-dot)]',
+    code: 'bg-[var(--status-error-soft-bg)] text-[var(--status-error-text)]',
+    field:
+      'border-[var(--status-error-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--status-error-dot)] focus:ring-[var(--color-focus-ring)]',
   },
   in_progress: {
-    card: 'border-amber-200 bg-amber-50/40 hover:bg-amber-50/75',
-    accent: 'bg-amber-400',
-    border: 'border-l-amber-400',
-    code: 'bg-amber-100 text-amber-900',
+    card:
+      'border-[var(--status-progress-border)] bg-[var(--status-progress-bg)] hover:bg-[var(--status-progress-hover-bg)]',
+    accent: 'bg-[var(--status-progress-dot)]',
+    border: 'border-l-[var(--status-progress-dot)]',
+    code:
+      'bg-[var(--status-progress-soft-bg)] text-[var(--status-progress-text)]',
     field:
-      'border-amber-100 bg-white/80 focus:border-amber-300 focus:ring-amber-100',
+      'border-[var(--status-progress-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--status-progress-dot)] focus:ring-[var(--color-focus-ring)]',
   },
   pending: {
-    card: 'border-slate-200 bg-white hover:bg-slate-50',
-    accent: 'bg-slate-300',
-    border: 'border-l-slate-300',
-    code: 'bg-slate-100 text-slate-700',
+    card:
+      'border-[var(--status-pending-border)] bg-[var(--status-pending-bg)] hover:bg-[var(--status-pending-hover-bg)]',
+    accent: 'bg-[var(--status-pending-dot)]',
+    border: 'border-l-[var(--status-pending-border)]',
+    code:
+      'bg-[var(--status-pending-soft-bg)] text-[var(--status-pending-text)]',
     field:
-      'border-slate-200 bg-white focus:border-blue-300 focus:ring-blue-100',
+      'border-[var(--status-pending-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--color-control-focus)] focus:ring-[var(--color-focus-ring)]',
   },
   completed: {
-    card: 'border-emerald-200 bg-emerald-50/35 hover:bg-emerald-50/70',
-    accent: 'bg-emerald-500',
-    border: 'border-l-emerald-500',
-    code: 'bg-emerald-100 text-emerald-800',
+    card:
+      'border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] hover:bg-[var(--status-completed-hover-bg)]',
+    accent: 'bg-[var(--status-completed-dot)]',
+    border: 'border-l-[var(--status-completed-dot)]',
+    code:
+      'bg-[var(--status-completed-soft-bg)] text-[var(--status-completed-text)]',
     field:
-      'border-emerald-100 bg-white/80 focus:border-emerald-300 focus:ring-emerald-100',
+      'border-[var(--status-completed-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--status-completed-dot)] focus:ring-[var(--color-focus-ring)]',
   },
 }
