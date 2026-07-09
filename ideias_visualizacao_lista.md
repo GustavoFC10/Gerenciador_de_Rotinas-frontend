@@ -256,15 +256,15 @@ Motivo: se a prioridade for uma interface mais confortavel e moderna, ela e a me
 
 ## Comparacao Rapida
 
-| Opcao | Melhor para | Densidade | Clareza gerencial | Mobile | Risco principal |
-| --- | --- | --- | --- | --- | --- |
-| 1 - Operacional compacta | Alto volume de itens | Alta | Media | Media | Simples demais |
-| 2 - Cartoes horizontais | Uso geral | Media | Alta | Alta | Menos itens por tela |
-| 3 - Agrupada por secoes | Prioridade e gestao | Media | Alta | Alta | Grupos demais |
-| 4 - Timeline por prazo | Execucao diaria | Media | Media | Alta | Menos comparativa |
-| 5 - Mestre-detalhe | Revisao continua | Alta | Alta | Media | Exige largura |
-| 6 - Bloco de prioridade | Dashboard operacional | Media | Alta | Alta | Duplicacao visual |
-| 7 - Colunas flexiveis | Transicao da planilha | Alta | Media | Media | Parecida com tabela |
+| Opcao                    | Melhor para           | Densidade | Clareza gerencial | Mobile | Risco principal      |
+| ------------------------ | --------------------- | --------- | ----------------- | ------ | -------------------- |
+| 1 - Operacional compacta | Alto volume de itens  | Alta      | Media             | Media  | Simples demais       |
+| 2 - Cartoes horizontais  | Uso geral             | Media     | Alta              | Alta   | Menos itens por tela |
+| 3 - Agrupada por secoes  | Prioridade e gestao   | Media     | Alta              | Alta   | Grupos demais        |
+| 4 - Timeline por prazo   | Execucao diaria       | Media     | Media             | Alta   | Menos comparativa    |
+| 5 - Mestre-detalhe       | Revisao continua      | Alta      | Alta              | Media  | Exige largura        |
+| 6 - Bloco de prioridade  | Dashboard operacional | Media     | Alta              | Alta   | Duplicacao visual    |
+| 7 - Colunas flexiveis    | Transicao da planilha | Alta      | Media             | Media  | Parecida com tabela  |
 
 ## Campos Minimos do Item de Lista
 
@@ -384,21 +384,14 @@ Props sugeridas:
   status="pending"
   items={pendingItems}
   defaultOpen
-  renderItem={(item) => (
-    <RoutineListCard item={item} onOpen={onTaskOpen} />
-  )}
+  renderItem={(item) => <RoutineListCard item={item} onOpen={onTaskOpen} />}
 />
 ```
 
 Ordem padrao das secoes:
 
 ```js
-const routineListStatusOrder = [
-  'error',
-  'in_progress',
-  'pending',
-  'completed',
-]
+const routineListStatusOrder = ['error', 'in_progress', 'pending', 'completed']
 ```
 
 Essa ordem coloca problema e andamento antes do pendente, mantendo concluido por ultimo.
@@ -471,10 +464,7 @@ Responsabilidades:
 Props sugeridas:
 
 ```jsx
-<RoutineListQuickActions
-  item={item}
-  actions={['attach']}
-/>
+<RoutineListQuickActions item={item} actions={['attach']} />
 ```
 
 #### 6. RoutineStatusBadge

@@ -157,7 +157,14 @@ Funcoes sugeridas:
 
 ```js
 buildTaskRelations(task, data)
-buildRoutineListItems({ tasks, clients, routines, employees, departments, mode })
+buildRoutineListItems({
+  tasks,
+  clients,
+  routines,
+  employees,
+  departments,
+  mode,
+})
 filterTasksByClient(tasks, clientId)
 filterTasksByRoutine(tasks, routineId)
 ```
@@ -643,21 +650,21 @@ Recomendacao:
 
 ## Matriz Esforco x Recompensa
 
-| Melhoria | Recompensa | Esforco | Prioridade |
-| --- | --- | --- | --- |
-| Tokens de cores/status | Alta | Baixo | Alta |
-| Componentes base UI | Alta | Medio | Alta |
-| Separar dados da UI | Alta | Medio | Alta |
-| Hooks de dados/tarefas | Alta | Medio | Alta |
-| Layout principal | Alta | Medio | Alta |
-| Competencia centralizada | Alta | Baixo/Medio | Alta |
-| Paginas reais | Alta | Medio | Alta |
-| Roteamento | Alta | Medio/Alto | Media |
-| Permissoes frontend | Media/Alta | Medio | Media |
-| Estado global | Media | Medio/Alto | Media |
-| Testes de utilitarios | Media/Alta | Medio | Media |
-| Modal para painel lateral | Media | Medio | Baixa agora |
-| Migrar para features/ | Media | Medio | Baixa agora |
+| Melhoria                  | Recompensa | Esforco     | Prioridade  |
+| ------------------------- | ---------- | ----------- | ----------- |
+| Tokens de cores/status    | Alta       | Baixo       | Alta        |
+| Componentes base UI       | Alta       | Medio       | Alta        |
+| Separar dados da UI       | Alta       | Medio       | Alta        |
+| Hooks de dados/tarefas    | Alta       | Medio       | Alta        |
+| Layout principal          | Alta       | Medio       | Alta        |
+| Competencia centralizada  | Alta       | Baixo/Medio | Alta        |
+| Paginas reais             | Alta       | Medio       | Alta        |
+| Roteamento                | Alta       | Medio/Alto  | Media       |
+| Permissoes frontend       | Media/Alta | Medio       | Media       |
+| Estado global             | Media      | Medio/Alto  | Media       |
+| Testes de utilitarios     | Media/Alta | Medio       | Media       |
+| Modal para painel lateral | Media      | Medio       | Baixa agora |
+| Migrar para features/     | Media      | Medio       | Baixa agora |
 
 ## Ordem Recomendada de Implementacao
 

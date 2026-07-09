@@ -116,7 +116,7 @@
   --radius-nav-item: 0;
 }
 
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   color: #e5e7eb;
   background: #0f172a;
 
@@ -234,7 +234,7 @@
   --radius-nav-item: 0;
 }
 
-:root[data-theme="jaral"] {
+:root[data-theme='jaral'] {
   color: #2d277f;
   background: #eef8ff;
 

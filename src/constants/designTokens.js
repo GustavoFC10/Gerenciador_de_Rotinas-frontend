@@ -50,12 +50,10 @@ export const statusTone = {
     dot: 'border border-[var(--status-pending-border)] bg-[var(--status-pending-dot)]',
     surface:
       'border-[var(--status-pending-border)] bg-[var(--status-pending-bg)] text-[var(--status-pending-text)]',
-    card:
-      'border-[var(--status-pending-border)] bg-[var(--status-pending-bg)] hover:bg-[var(--status-pending-hover-bg)]',
+    card: 'border-[var(--status-pending-border)] bg-[var(--status-pending-bg)] hover:bg-[var(--status-pending-hover-bg)]',
     accent: 'bg-[var(--status-pending-dot)]',
     border: 'border-l-[var(--status-pending-border)]',
-    code:
-      'bg-[var(--status-pending-soft-bg)] text-[var(--status-pending-text)]',
+    code: 'bg-[var(--status-pending-soft-bg)] text-[var(--status-pending-text)]',
     field:
       'border-[var(--status-pending-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--color-control-focus)] focus:ring-[var(--color-focus-ring)]',
   },
@@ -64,12 +62,10 @@ export const statusTone = {
     dot: 'bg-[var(--status-progress-dot)]',
     surface:
       'border-[var(--status-progress-border)] bg-[var(--status-progress-bg)] text-[var(--status-progress-text)]',
-    card:
-      'border-[var(--status-progress-border)] bg-[var(--status-progress-bg)] hover:bg-[var(--status-progress-hover-bg)]',
+    card: 'border-[var(--status-progress-border)] bg-[var(--status-progress-bg)] hover:bg-[var(--status-progress-hover-bg)]',
     accent: 'bg-[var(--status-progress-dot)]',
     border: 'border-l-[var(--status-progress-dot)]',
-    code:
-      'bg-[var(--status-progress-soft-bg)] text-[var(--status-progress-text)]',
+    code: 'bg-[var(--status-progress-soft-bg)] text-[var(--status-progress-text)]',
     field:
       'border-[var(--status-progress-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--status-progress-dot)] focus:ring-[var(--color-focus-ring)]',
   },
@@ -78,12 +74,10 @@ export const statusTone = {
     dot: 'bg-[var(--status-error-dot)]',
     surface:
       'border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error-text)]',
-    card:
-      'border-[var(--status-error-border)] bg-[var(--status-error-bg)] hover:bg-[var(--status-error-hover-bg)]',
+    card: 'border-[var(--status-error-border)] bg-[var(--status-error-bg)] hover:bg-[var(--status-error-hover-bg)]',
     accent: 'bg-[var(--status-error-dot)]',
     border: 'border-l-[var(--status-error-dot)]',
-    code:
-      'bg-[var(--status-error-soft-bg)] text-[var(--status-error-text)]',
+    code: 'bg-[var(--status-error-soft-bg)] text-[var(--status-error-text)]',
     field:
       'border-[var(--status-error-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--status-error-dot)] focus:ring-[var(--color-focus-ring)]',
   },
@@ -92,12 +86,10 @@ export const statusTone = {
     dot: 'bg-[var(--status-completed-dot)]',
     surface:
       'border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]',
-    card:
-      'border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] hover:bg-[var(--status-completed-hover-bg)]',
+    card: 'border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] hover:bg-[var(--status-completed-hover-bg)]',
     accent: 'bg-[var(--status-completed-dot)]',
     border: 'border-l-[var(--status-completed-dot)]',
-    code:
-      'bg-[var(--status-completed-soft-bg)] text-[var(--status-completed-text)]',
+    code: 'bg-[var(--status-completed-soft-bg)] text-[var(--status-completed-text)]',
     field:
       'border-[var(--status-completed-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--status-completed-dot)] focus:ring-[var(--color-focus-ring)]',
   },

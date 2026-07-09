@@ -13,8 +13,8 @@ import ListPage from './pages/ListPage.jsx'
 import MyTasksPage from './pages/MyTasksPage.jsx'
 import PlaceholderPage from './pages/PlaceholderPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
-import SearchPage from './pages/SearchPage.jsx'
 import SpreadsheetPage from './pages/SpreadsheetPage.jsx'
+import TasksPage from './pages/TasksPage.jsx'
 import { useRoutineControl } from './hooks/useRoutineControl.js'
 import { useTaskUpdates } from './hooks/useTaskUpdates.js'
 import { buildTaskRelations } from './utils/routineRelations.js'
@@ -36,7 +36,7 @@ const listPageSurfaceClass = {
   ledger: '',
 }
 
-const listRoutes = new Set([ROUTES.LIST, ROUTES.SEARCH, ROUTES.MY_TASKS])
+const listRoutes = new Set([ROUTES.LIST, ROUTES.TASKS, ROUTES.MY_TASKS])
 
 function App() {
   const location = useLocation()
@@ -63,9 +63,7 @@ function App() {
       ...task,
       departmentId: selectedSpreadsheetPresentation.id,
     }))
-    const visibleClientIds = new Set(
-      visibleTasks.map((task) => task.clientId),
-    )
+    const visibleClientIds = new Set(visibleTasks.map((task) => task.clientId))
 
     return {
       departments: [selectedSpreadsheetPresentation],
@@ -93,11 +91,11 @@ function App() {
 
     return {
       ...relations,
-      client: {
+      client: relations.client ?? {
         code: 'AV',
         name: 'Tarefa avulsa',
       },
-      routine: {
+      routine: relations.routine ?? {
         name: selectedTask.title,
         description: selectedTask.description ?? selectedTask.notes,
       },
@@ -130,6 +128,14 @@ function App() {
 
   function handleListItemNoteChange(item, notes) {
     taskUpdates.updateNotes(item.task.id, notes)
+  }
+
+  function handleListItemStatusChange(item, status) {
+    taskUpdates.updateStatus(item.task.id, status)
+  }
+
+  function handleLooseTaskCreate(task) {
+    taskUpdates.createLooseTask(task)
   }
 
   if (isLoading) {
@@ -173,19 +179,21 @@ function App() {
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
+                onItemStatusChange={handleListItemStatusChange}
                 onOptionChange={setSelectedListOptionId}
               />
             }
           />
           <Route
-            path={ROUTES.SEARCH}
+            path={ROUTES.TASKS}
             element={
-              <SearchPage
-                data={data}
+              <TasksPage
+                data={visibleData}
                 selectedOptionId={selectedListOptionId}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
+                onItemStatusChange={handleListItemStatusChange}
                 onOptionChange={setSelectedListOptionId}
               />
             }
@@ -199,7 +207,9 @@ function App() {
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
+                onItemStatusChange={handleListItemStatusChange}
                 onOptionChange={setSelectedListOptionId}
+                onLooseTaskCreate={handleLooseTaskCreate}
               />
             }
           />

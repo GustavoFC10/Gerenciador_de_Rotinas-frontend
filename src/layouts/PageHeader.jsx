@@ -28,18 +28,26 @@ function PageHeader({
   const styles = sizeClass[size] ?? sizeClass.default
 
   return (
-    <header className={`flex flex-wrap items-end justify-between gap-4 border-b ${styles.header} ${appThemeClass.pageHeader}`}>
+    <header
+      className={`flex flex-wrap items-end justify-between gap-4 border-b ${styles.header} ${appThemeClass.pageHeader}`}
+    >
       <div>
         {eyebrow && (
-          <p className={`text-xs font-bold uppercase tracking-[0.18em] ${appThemeClass.brandText}`}>
+          <p
+            className={`text-xs font-bold uppercase tracking-[0.18em] ${appThemeClass.brandText}`}
+          >
             {eyebrow}
           </p>
         )}
-        <h1 className={`font-black tracking-tight ${styles.title} ${appThemeClass.strongText}`}>
+        <h1
+          className={`font-black tracking-tight ${styles.title} ${appThemeClass.strongText}`}
+        >
           {title}
         </h1>
         {description && (
-          <p className={`max-w-4xl text-sm leading-6 ${styles.description} ${appThemeClass.mutedText}`}>
+          <p
+            className={`max-w-4xl text-sm leading-6 ${styles.description} ${appThemeClass.mutedText}`}
+          >
             {description}
           </p>
         )}

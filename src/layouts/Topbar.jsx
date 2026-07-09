@@ -13,7 +13,9 @@ function Topbar() {
   } = useAppState()
 
   return (
-    <header className={`sticky top-0 z-40 flex min-h-14 items-center justify-between border-b px-4 backdrop-blur ${appThemeClass.topbar}`}>
+    <header
+      className={`sticky top-0 z-40 flex min-h-14 items-center justify-between border-b px-4 backdrop-blur ${appThemeClass.topbar}`}
+    >
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -70,15 +72,8 @@ function UserIcon() {
       stroke="currentColor"
       aria-hidden="true"
     >
-      <path
-        d="M20 21a8 8 0 0 0-16 0"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"
-        strokeWidth="1.8"
-      />
+      <path d="M20 21a8 8 0 0 0-16 0" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" strokeWidth="1.8" />
     </svg>
   )
 }

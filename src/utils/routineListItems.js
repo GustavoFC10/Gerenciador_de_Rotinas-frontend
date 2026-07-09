@@ -6,7 +6,6 @@ export const ROUTINE_LIST_MODE = {
   ROUTINE: 'routine',
   GLOBAL: 'global',
   MY_TASKS: 'my_tasks',
-  SEARCH: 'search',
 }
 
 export function buildRoutineListViewData({ data, filter }) {
@@ -53,19 +52,17 @@ function getListTitle(filter, selectedClient, selectedRoutine) {
     return 'Minhas tarefas avulsas'
   }
 
-  if (filter.type === ROUTINE_LIST_MODE.SEARCH) {
-    return 'Busca'
-  }
-
-  return 'Lista global'
+  return 'Tarefas - Fiscal'
 }
 
 function getListDescription(filter) {
-  if (filter.type === ROUTINE_LIST_MODE.CLIENT) return 'Todas as rotinas desta empresa.'
-  if (filter.type === ROUTINE_LIST_MODE.ROUTINE) return 'Todas as empresas vinculadas a esta rotina.'
-  if (filter.type === ROUTINE_LIST_MODE.MY_TASKS) return 'Tarefas sem rotina ou empresa obrigatoria.'
-  if (filter.type === ROUTINE_LIST_MODE.SEARCH) return 'Resultados exibidos no mesmo formato da lista operacional.'
-  return 'Todas as tarefas acessiveis ao usuario.'
+  if (filter.type === ROUTINE_LIST_MODE.CLIENT)
+    return 'Todas as rotinas desta empresa.'
+  if (filter.type === ROUTINE_LIST_MODE.ROUTINE)
+    return 'Todas as empresas vinculadas a esta rotina.'
+  if (filter.type === ROUTINE_LIST_MODE.MY_TASKS)
+    return 'Tarefas sem rotina ou empresa obrigatoria.'
+  return 'Todas as tarefas fiscais acessiveis ao usuario.'
 }
 
 function buildRoutineListItem(task, filter, relations) {
@@ -74,8 +71,20 @@ function buildRoutineListItem(task, filter, relations) {
   const employee = relations.employeesById.get(task.assigneeId)
   const department = relations.departmentsById.get(task.departmentId)
   const isClientMode = filter.type === ROUTINE_LIST_MODE.CLIENT
+  const isRoutineMode = filter.type === ROUTINE_LIST_MODE.ROUTINE
   const isLooseTask = Boolean(task.isLoose)
   const looseTitle = task.title ?? 'Tarefa avulsa'
+  const clientName = client?.name ?? 'Sem empresa'
+  const routineName = routine?.name ?? 'Sem rotina'
+  const looseContextLabel =
+    [client?.name, routine?.name].filter(Boolean).join(' - ') || 'Tarefa avulsa'
+  const primaryLabel = isLooseTask
+    ? looseTitle
+    : isClientMode
+      ? routineName
+      : isRoutineMode
+        ? clientName
+        : `${clientName} - ${routineName}`
 
   return {
     id: task.id,
@@ -83,18 +92,12 @@ function buildRoutineListItem(task, filter, relations) {
     client,
     routine,
     department,
-    title: isLooseTask
-      ? looseTitle
-      : isClientMode
-        ? routine?.name ?? 'Sem rotina'
-        : client?.name ?? 'Sem empresa',
-    companyCode: isLooseTask ? 'AV' : client?.code ?? '--',
-    companyName: isLooseTask
-      ? looseTitle
-      : isClientMode
-        ? routine?.name ?? 'Sem rotina'
-        : client?.name ?? 'Sem empresa',
-    routineName: isLooseTask ? 'Tarefa avulsa' : routine?.name ?? 'Sem rotina',
+    originType: filter.type,
+    primaryLabel,
+    title: primaryLabel,
+    companyCode: isLooseTask ? (client?.code ?? 'AV') : (client?.code ?? '--'),
+    companyName: primaryLabel,
+    routineName: isLooseTask ? looseContextLabel : routineName,
     departmentName: department?.name ?? 'Sem departamento',
     period: task.period,
     status: task.status,

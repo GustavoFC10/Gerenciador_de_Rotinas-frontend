@@ -40,8 +40,7 @@ const placeholderByDepartment = {
 }
 
 function RoutineNotApplicableCard({ departmentId }) {
-  const Placeholder =
-    placeholderByDepartment[departmentId] ?? FiscalPlaceholder
+  const Placeholder = placeholderByDepartment[departmentId] ?? FiscalPlaceholder
 
   return (
     <div aria-label="Nao se aplica" title="Nao se aplica">

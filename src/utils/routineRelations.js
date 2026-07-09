@@ -1,6 +1,8 @@
 export function buildTaskRelations(task, data, fallbackDepartment = null) {
   const clientsById = new Map(data.clients.map((client) => [client.id, client]))
-  const routinesById = new Map(data.routines.map((routine) => [routine.id, routine]))
+  const routinesById = new Map(
+    data.routines.map((routine) => [routine.id, routine]),
+  )
   const employeesById = new Map(
     data.employees.map((employee) => [employee.id, employee]),
   )

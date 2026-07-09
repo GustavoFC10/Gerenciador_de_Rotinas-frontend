@@ -62,21 +62,24 @@ const routines = [
     departmentId: fiscalDepartment.id,
     name: 'Gerar Das',
     shortName: 'Gerar DAS',
-    description: 'Conferencia do faturamento, apuracao e emissao da guia mensal do Simples Nacional.',
+    description:
+      'Conferencia do faturamento, apuracao e emissao da guia mensal do Simples Nacional.',
   },
   {
     id: 'routine-enviar-das',
     departmentId: fiscalDepartment.id,
     name: 'Enviar Das',
     shortName: 'Enviar DAS',
-    description: 'Envio da guia mensal do Simples Nacional apos conferencia e apuracao.',
+    description:
+      'Envio da guia mensal do Simples Nacional apos conferencia e apuracao.',
   },
   {
     id: 'routine-efd-reinf',
     departmentId: fiscalDepartment.id,
     name: 'EFD Reinf',
     shortName: 'EFD Reinf',
-    description: 'Conferencia e transmissao dos eventos fiscais periodicos da EFD Reinf.',
+    description:
+      'Conferencia e transmissao dos eventos fiscais periodicos da EFD Reinf.',
   },
 ]
 
@@ -151,7 +154,10 @@ function getOperationalNote(status, client, routine) {
 
 function buildTask(client, routine, clientIndex, routineIndex) {
   const status = getOperationalStatus(routineIndex, clientIndex)
-  const day = String(18 + ((clientIndex + routineIndex * 2) % 11)).padStart(2, '0')
+  const day = String(18 + ((clientIndex + routineIndex * 2) % 11)).padStart(
+    2,
+    '0',
+  )
   const employee = employees[(clientIndex + routineIndex) % employees.length]
   const note = getOperationalNote(status, client, routine)
 
@@ -160,7 +166,10 @@ function buildTask(client, routine, clientIndex, routineIndex) {
     clientId: client.id,
     routineId: routine.id,
     departmentId: routine.departmentId,
-    assigneeId: status === 'pending' && (clientIndex + routineIndex) % 7 === 0 ? null : employee.id,
+    assigneeId:
+      status === 'pending' && (clientIndex + routineIndex) % 7 === 0
+        ? null
+        : employee.id,
     status,
     period: '2026-06',
     dueDate: `2026-06-${day}`,
@@ -172,12 +181,7 @@ function buildTask(client, routine, clientIndex, routineIndex) {
         status === 'completed'
           ? 2 + ((clientIndex + routineIndex) % 3)
           : (clientIndex + routineIndex) % 2,
-      comments:
-        status === 'error'
-          ? 3
-          : status === 'in_progress'
-            ? 1
-            : 0,
+      comments: status === 'error' ? 3 : status === 'in_progress' ? 1 : 0,
       alerts: 0,
     },
   }
@@ -194,7 +198,8 @@ const looseTasks = [
     id: 'loose-task-conferir-certificado',
     isLoose: true,
     title: 'Conferir vencimento de certificado digital',
-    description: 'Verificar certificados que vencem nos proximos 30 dias e registrar retorno.',
+    description:
+      'Verificar certificados que vencem nos proximos 30 dias e registrar retorno.',
     clientId: null,
     routineId: null,
     departmentId: fiscalDepartment.id,
@@ -214,7 +219,8 @@ const looseTasks = [
     id: 'loose-task-organizar-pendencias',
     isLoose: true,
     title: 'Organizar pendencias recebidas por e-mail',
-    description: 'Separar pendencias por empresa e encaminhar para a rotina correta quando necessario.',
+    description:
+      'Separar pendencias por empresa e encaminhar para a rotina correta quando necessario.',
     clientId: null,
     routineId: null,
     departmentId: fiscalDepartment.id,
@@ -254,7 +260,8 @@ const looseTasks = [
     id: 'loose-task-atualizar-checklist',
     isLoose: true,
     title: 'Atualizar checklist interno do fiscal',
-    description: 'Registrar ajustes observados durante a execucao das rotinas de junho.',
+    description:
+      'Registrar ajustes observados durante a execucao das rotinas de junho.',
     clientId: null,
     routineId: null,
     departmentId: fiscalDepartment.id,

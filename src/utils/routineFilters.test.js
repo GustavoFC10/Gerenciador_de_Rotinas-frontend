@@ -34,9 +34,7 @@ const relations = {
     ['client-1', { code: '001', name: 'Alpha Ltda' }],
     ['client-2', { code: '002', name: 'Beta Comercio' }],
   ]),
-  routinesById: new Map([
-    ['routine-1', { name: 'Enviar DAS' }],
-  ]),
+  routinesById: new Map([['routine-1', { name: 'Enviar DAS' }]]),
   employeesById: new Map([
     ['employee-1', { name: 'Ana Souza' }],
     ['employee-2', { name: 'Bruno Lima' }],

@@ -1,15 +1,13 @@
 import { useMemo } from 'react'
-import { Navigate, useSearchParams } from 'react-router-dom'
 
 import RoutineListComparison from '../components/routine-control/list/RoutineListComparison.jsx'
-import { ROUTES } from '../constants/routes.js'
 import PageHeader from '../layouts/PageHeader.jsx'
 import {
-  ROUTINE_LIST_MODE,
   buildRoutineListViewData,
+  ROUTINE_LIST_MODE,
 } from '../utils/routineListItems.js'
 
-function ListPage({
+function TasksPage({
   data,
   selectedOptionId,
   onItemOpen,
@@ -18,38 +16,25 @@ function ListPage({
   onItemStatusChange,
   onOptionChange,
 }) {
-  const [searchParams] = useSearchParams()
-  const type = searchParams.get('type') ?? ROUTINE_LIST_MODE.GLOBAL
-  const id = searchParams.get('id')
-  const isContextualList =
-    (type === ROUTINE_LIST_MODE.CLIENT || type === ROUTINE_LIST_MODE.ROUTINE) &&
-    id
-
   const listViewData = useMemo(
     () =>
       buildRoutineListViewData({
         data,
-        filter: { type, id },
+        filter: { type: ROUTINE_LIST_MODE.GLOBAL },
       }),
-    [data, id, type],
+    [data],
   )
-
-  if (!isContextualList) {
-    return <Navigate to={ROUTES.TASKS} replace />
-  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader
-        title={listViewData.title}
-        description={listViewData.description}
+        title="Tarefas - Fiscal"
+        description="Todas as tarefas fiscais acessiveis em formato de lista operacional."
       />
 
       <div className="min-h-0 flex-1">
         <RoutineListComparison
           selectedOptionId={selectedOptionId}
-          title={listViewData.title}
-          description={listViewData.description}
           items={listViewData.items}
           onItemOpen={onItemOpen}
           onItemQuickAction={onItemQuickAction}
@@ -63,4 +48,4 @@ function ListPage({
   )
 }
 
-export default ListPage
+export default TasksPage

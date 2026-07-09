@@ -15,14 +15,27 @@ export function useTaskUpdates({ setResponse, setSelectedTask }) {
     })
 
     setSelectedTask?.((currentTask) =>
-      currentTask?.id === taskId
-        ? { ...currentTask, ...changes }
-        : currentTask,
+      currentTask?.id === taskId ? { ...currentTask, ...changes } : currentTask,
     )
+  }
+
+  function createLooseTask(task) {
+    setResponse((currentResponse) => {
+      if (!currentResponse) return currentResponse
+
+      return {
+        ...currentResponse,
+        data: {
+          ...currentResponse.data,
+          tasks: [task, ...currentResponse.data.tasks],
+        },
+      }
+    })
   }
 
   return {
     updateTask,
+    createLooseTask,
     updateStatus: (taskId, status) => updateTask(taskId, { status }),
     updateAssignee: (taskId, assigneeId) => updateTask(taskId, { assigneeId }),
     updateDueDate: (taskId, dueDate) => updateTask(taskId, { dueDate }),
