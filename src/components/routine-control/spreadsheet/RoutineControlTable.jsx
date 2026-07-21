@@ -41,6 +41,7 @@ function RoutineControlTable({
   clients,
   routines,
   tasks,
+  variant = 'label',
   onClientOpen,
   onRoutineOpen,
   onTaskOpen,
@@ -80,9 +81,11 @@ function RoutineControlTable({
                 <th
                   key={routine.id}
                   className={`border-b border-r border-[var(--color-table-border)] p-0 text-center text-xs font-semibold text-[var(--color-table-heading-text)] last:border-r-0 ${
-                    routine.departmentId === 'dept-fiscal'
-                      ? 'w-28 min-w-28 max-w-28'
-                      : 'w-36 min-w-36 max-w-36'
+                    variant === 'round'
+                      ? 'w-20 min-w-20 max-w-20'
+                      : routine.departmentId === 'dept-fiscal'
+                        ? 'w-28 min-w-28 max-w-28'
+                        : 'w-36 min-w-36 max-w-36'
                   }`}
                   title={routine.name}
                 >
@@ -107,12 +110,15 @@ function RoutineControlTable({
                   return (
                     <td
                       key={routine.id}
-                      className="h-16 border-b border-r border-[var(--color-table-border)] bg-[var(--color-table-cell-bg)] p-2 text-center last:border-r-0 group-hover:bg-[var(--color-table-row-hover-bg)]"
+                      className={`border-b border-r border-[var(--color-table-border)] bg-[var(--color-table-cell-bg)] text-center last:border-r-0 group-hover:bg-[var(--color-table-row-hover-bg)] ${
+                        variant === 'round' ? 'h-12 p-1.5' : 'h-16 p-2'
+                      }`}
                     >
                       {task ? (
                         <RoutineClosedCardCompact
                           task={task}
                           label={`${routine.name} de ${client.name}`}
+                          variant={variant}
                           onOpen={onTaskOpen}
                         />
                       ) : (

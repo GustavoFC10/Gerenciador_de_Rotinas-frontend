@@ -21,8 +21,16 @@ function LayoutGridIcon() {
   )
 }
 
-function SpreadsheetViewMenu() {
+const spreadsheetViewOptions = [
+  { id: 'label', name: 'Opcao 1' },
+  { id: 'round', name: 'Opcao 2' },
+]
+
+function SpreadsheetViewMenu({ selectedOptionId, onOptionChange }) {
   const [isOpen, setIsOpen] = useState(false)
+  const selectedOption =
+    spreadsheetViewOptions.find((option) => option.id === selectedOptionId) ??
+    spreadsheetViewOptions[0]
 
   return (
     <div className="relative">
@@ -43,14 +51,24 @@ function SpreadsheetViewMenu() {
           role="menu"
           className="absolute right-0 z-20 mt-1 min-w-32 rounded-[var(--radius-control)] border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] p-1 shadow-[var(--shadow-floating)]"
         >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => setIsOpen(false)}
-            className="block w-full rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] px-3 py-2 text-left text-xs font-bold uppercase text-[var(--color-brand)]"
-          >
-            Opcao 1
-          </button>
+          {spreadsheetViewOptions.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onOptionChange?.(option.id)
+                setIsOpen(false)
+              }}
+              className={`block w-full rounded-[var(--radius-control)] px-3 py-2 text-left text-xs font-bold uppercase ${
+                selectedOption.id === option.id
+                  ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                  : 'text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)]'
+              }`}
+            >
+              {option.name}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -63,6 +81,9 @@ function SpreadsheetPage({
   onRoutineOpen,
   onTaskOpen,
 }) {
+  const [selectedSpreadsheetOptionId, setSelectedSpreadsheetOptionId] =
+    useState(spreadsheetViewOptions[0].id)
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader
@@ -71,7 +92,10 @@ function SpreadsheetPage({
         description="Clientes nas linhas e rotinas nas colunas. Clique nos cabecalhos para abrir listas especificas sem sair do fluxo operacional."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <SpreadsheetViewMenu />
+            <SpreadsheetViewMenu
+              selectedOptionId={selectedSpreadsheetOptionId}
+              onOptionChange={setSelectedSpreadsheetOptionId}
+            />
             <div className="rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-3 py-2 text-sm font-bold text-[var(--color-text-muted)] shadow-[var(--shadow-panel)]">
               {visibleData.clients.length} clientes -{' '}
               {visibleData.routines.length} rotinas
@@ -88,6 +112,7 @@ function SpreadsheetPage({
           clients={visibleData.clients}
           routines={visibleData.routines}
           tasks={visibleData.tasks}
+          variant={selectedSpreadsheetOptionId}
           onClientOpen={onClientOpen}
           onRoutineOpen={onRoutineOpen}
           onTaskOpen={onTaskOpen}

@@ -1,5 +1,6 @@
 import { filterTasksByClient, filterTasksByRoutine } from './routineFilters.js'
 import { normalizeRoutineData } from './normalizeRoutineData.js'
+import { getRoutineStatusDetailLabel } from '../constants/routineStatus.js'
 
 export const ROUTINE_LIST_MODE = {
   CLIENT: 'client',
@@ -78,6 +79,10 @@ function buildRoutineListItem(task, filter, relations) {
   const routineName = routine?.name ?? 'Sem rotina'
   const looseContextLabel =
     [client?.name, routine?.name].filter(Boolean).join(' - ') || 'Tarefa avulsa'
+  const statusDetailLabel = getRoutineStatusDetailLabel(
+    task.status,
+    task.statusDetail,
+  )
   const primaryLabel = isLooseTask
     ? looseTitle
     : isClientMode
@@ -101,6 +106,8 @@ function buildRoutineListItem(task, filter, relations) {
     departmentName: department?.name ?? 'Sem departamento',
     period: task.period,
     status: task.status,
+    statusDetail: task.statusDetail,
+    statusDetailLabel,
     dueDate: task.dueDate,
     assigneeName: employee?.name ?? 'Nao atribuido',
     notes: task.notes,

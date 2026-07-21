@@ -36,7 +36,8 @@ export function useTaskUpdates({ setResponse, setSelectedTask }) {
   return {
     updateTask,
     createLooseTask,
-    updateStatus: (taskId, status) => updateTask(taskId, { status }),
+    updateStatus: (taskId, status) =>
+      updateTask(taskId, { status, statusDetail: null }),
     updateAssignee: (taskId, assigneeId) => updateTask(taskId, { assigneeId }),
     updateDueDate: (taskId, dueDate) => updateTask(taskId, { dueDate }),
     updateNotes: (taskId, notes) => updateTask(taskId, { notes }),

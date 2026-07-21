@@ -21,7 +21,7 @@ function RoutineListCardOptionOne({
           onOpen?.(item)
         }
       }}
-      className={`grid w-full gap-3 border-l-4 px-4 py-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-control-focus)] lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)] lg:items-start ${tone.card} ${tone.border}`}
+      className={`grid w-full gap-3 border-l-4 px-4 py-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-control-focus)] lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)] lg:items-start ${tone.card} ${tone.border}`}
     >
       <div className="min-w-0">
         <div className="flex min-w-0 gap-3">
@@ -57,8 +57,6 @@ function RoutineListCardOptionOne({
             </div>
           </div>
         </div>
-
-      
       </div>
 
       <RoutineListExecutionPanel

@@ -93,6 +93,14 @@ const employees = [
 function getOperationalStatus(routineIndex, clientIndex) {
   const position = clientIndex + 1
 
+  if (routineIndex === 6 && [7, 18].includes(position)) {
+    return 'not_applicable'
+  }
+
+  if (routineIndex === 4 && [8, 16].includes(position)) {
+    return 'no_movement'
+  }
+
   if (routineIndex === 0) {
     if (position === 17) return 'error'
     if (position <= 22) return 'completed'
@@ -137,6 +145,14 @@ function getOperationalStatus(routineIndex, clientIndex) {
 }
 
 function getOperationalNote(status, client, routine) {
+  if (status === 'not_applicable') {
+    return `${routine.shortName} nao se aplica para ${client.name} neste periodo.`
+  }
+
+  if (status === 'no_movement') {
+    return `Sem movimento identificado em ${routine.shortName} para ${client.name}.`
+  }
+
   if (status === 'error') {
     return `Pendencia identificada em ${routine.shortName} para ${client.name}.`
   }
@@ -173,14 +189,14 @@ function buildTask(client, routine, clientIndex, routineIndex) {
     status,
     period: '2026-06',
     dueDate: `2026-06-${day}`,
-    completedAt:
-      status === 'completed' ? `2026-06-${day}T16:00:00-03:00` : null,
+    completedAt: ['completed', 'no_movement', 'not_applicable'].includes(status)
+      ? `2026-06-${day}T16:00:00-03:00`
+      : null,
     notes: note,
     indicators: {
-      attachments:
-        status === 'completed'
-          ? 2 + ((clientIndex + routineIndex) % 3)
-          : (clientIndex + routineIndex) % 2,
+      attachments: ['completed', 'no_movement'].includes(status)
+        ? 2 + ((clientIndex + routineIndex) % 3)
+        : (clientIndex + routineIndex) % 2,
       comments: status === 'error' ? 3 : status === 'in_progress' ? 1 : 0,
       alerts: 0,
     },

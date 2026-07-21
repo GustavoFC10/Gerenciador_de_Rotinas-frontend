@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Route, Routes, useNavigate } from 'react-router-dom'
 
 import ErrorState from './components/common/ErrorState.jsx'
 import LoadingState from './components/common/LoadingState.jsx'
@@ -30,20 +30,10 @@ const selectedSpreadsheetPresentation = {
   name: 'Planilha operacional',
 }
 
-const listPageSurfaceClass = {
-  compact: '',
-  cards: '',
-  ledger: '',
-}
-
-const listRoutes = new Set([ROUTES.LIST, ROUTES.TASKS, ROUTES.MY_TASKS])
-
 function App() {
-  const location = useLocation()
   const navigate = useNavigate()
   const { response, setResponse, data, isLoading, error } = useRoutineControl()
   const [selectedTask, setSelectedTask] = useState(null)
-  const [selectedListOptionId, setSelectedListOptionId] = useState('compact')
   const taskUpdates = useTaskUpdates({ setResponse, setSelectedTask })
 
   const visibleData = useMemo(() => {
@@ -102,9 +92,7 @@ function App() {
     }
   }, [data, selectedTask])
 
-  const pageSurfaceClass = listRoutes.has(location.pathname)
-    ? listPageSurfaceClass[selectedListOptionId]
-    : ''
+  const pageSurfaceClass = ''
 
   function handleRoutineListOpen(routine) {
     setSelectedTask(null)
@@ -130,8 +118,16 @@ function App() {
     taskUpdates.updateNotes(item.task.id, notes)
   }
 
-  function handleListItemStatusChange(item, status) {
-    taskUpdates.updateStatus(item.task.id, status)
+  function handleListItemStatusChange(item, change) {
+    if (typeof change === 'string') {
+      taskUpdates.updateStatus(item.task.id, change)
+      return
+    }
+
+    taskUpdates.updateTask(item.task.id, {
+      status: change.status,
+      statusDetail: change.statusDetail ?? null,
+    })
   }
 
   function handleLooseTaskCreate(task) {
@@ -175,12 +171,10 @@ function App() {
             element={
               <ListPage
                 data={data}
-                selectedOptionId={selectedListOptionId}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
                 onItemStatusChange={handleListItemStatusChange}
-                onOptionChange={setSelectedListOptionId}
               />
             }
           />
@@ -189,12 +183,10 @@ function App() {
             element={
               <TasksPage
                 data={visibleData}
-                selectedOptionId={selectedListOptionId}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
                 onItemStatusChange={handleListItemStatusChange}
-                onOptionChange={setSelectedListOptionId}
               />
             }
           />
@@ -203,12 +195,10 @@ function App() {
             element={
               <MyTasksPage
                 data={data}
-                selectedOptionId={selectedListOptionId}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
                 onItemStatusChange={handleListItemStatusChange}
-                onOptionChange={setSelectedListOptionId}
                 onLooseTaskCreate={handleLooseTaskCreate}
               />
             }

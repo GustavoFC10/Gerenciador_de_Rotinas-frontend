@@ -11,12 +11,10 @@ import {
 
 function ListPage({
   data,
-  selectedOptionId,
   onItemOpen,
   onItemQuickAction,
   onItemNoteChange,
   onItemStatusChange,
-  onOptionChange,
 }) {
   const [searchParams] = useSearchParams()
   const type = searchParams.get('type') ?? ROUTINE_LIST_MODE.GLOBAL
@@ -47,7 +45,6 @@ function ListPage({
 
       <div className="min-h-0 flex-1">
         <RoutineListComparison
-          selectedOptionId={selectedOptionId}
           title={listViewData.title}
           description={listViewData.description}
           items={listViewData.items}
@@ -55,7 +52,6 @@ function ListPage({
           onItemQuickAction={onItemQuickAction}
           onItemNoteChange={onItemNoteChange}
           onItemStatusChange={onItemStatusChange}
-          onOptionChange={onOptionChange}
           showHeader={false}
         />
       </div>

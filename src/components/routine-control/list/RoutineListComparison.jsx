@@ -1,63 +1,21 @@
 import { useMemo, useState } from 'react'
 
 import RoutineListCardOptionOne from './RoutineListCardOptionOne.jsx'
-import RoutineListCardOptionThree from './RoutineListCardOptionThree.jsx'
-import RoutineListCardOptionTwo from './RoutineListCardOptionTwo.jsx'
 import RoutineListSection from './RoutineListSection.jsx'
 import { groupRoutineListItemsByStatus } from './routineListUtils.js'
 
-const listComparisonOptions = [
-  {
-    id: 'compact',
-    name: 'Opcao 1',
-    title: 'Fila compacta',
-    description: 'Pagina densa para varrer muitas empresas rapidamente.',
-    Card: RoutineListCardOptionOne,
-    sectionVariant: 'compact',
-    shellClass: 'bg-[var(--color-list-panel-bg)]',
-    shellNoHeaderClass: 'bg-transparent',
-    headerClass:
-      'border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-4 sm:px-6',
-    eyebrowClass: 'text-[var(--color-brand)]',
-    contentClass: 'space-y-3 bg-[var(--color-list-bg)] p-4 sm:p-5',
-    noHeaderContentClass:
-      'space-y-2 rounded-[var(--radius-panel)] border border-[var(--color-list-border)] bg-[var(--color-list-bg)] p-3 sm:p-4',
-  },
-  {
-    id: 'cards',
-    name: 'Opcao 2',
-    title: 'Painel de acompanhamento',
-    description: 'Pagina mais visual, com resumo em destaque e secoes amplas.',
-    Card: RoutineListCardOptionTwo,
-    sectionVariant: 'cards',
-    shellClass: 'bg-[var(--color-list-bg)]',
-    shellNoHeaderClass: 'bg-transparent',
-    headerClass:
-      'rounded-t-2xl border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-5 shadow-[var(--shadow-panel)] sm:px-6',
-    eyebrowClass: 'text-[var(--color-accent)]',
-    contentClass:
-      'space-y-5 rounded-b-2xl border-x border-b border-[var(--color-list-border)] bg-[var(--color-list-bg)] p-4 sm:p-6',
-    noHeaderContentClass:
-      'space-y-5 rounded-2xl border border-[var(--color-list-border)] bg-[var(--color-list-bg)] p-4 sm:p-6',
-  },
-  {
-    id: 'ledger',
-    name: 'Opcao 3',
-    title: 'Registro operacional',
-    description: 'Pagina com leitura de controle, mais parecida com protocolo.',
-    Card: RoutineListCardOptionThree,
-    sectionVariant: 'ledger',
-    shellClass: 'bg-[var(--color-list-panel-bg)]',
-    shellNoHeaderClass: 'bg-transparent',
-    headerClass:
-      'border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-5 text-[var(--color-text-strong)] sm:px-6',
-    eyebrowClass: 'text-[var(--color-text-muted)]',
-    contentClass:
-      'space-y-0 border-x border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] p-0',
-    noHeaderContentClass:
-      'space-y-0 border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] p-0',
-  },
-]
+const listPresentation = {
+  Card: RoutineListCardOptionOne,
+  sectionVariant: 'compact',
+  shellClass: 'bg-[var(--color-list-panel-bg)]',
+  shellNoHeaderClass: 'bg-transparent',
+  headerClass:
+    'border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-4 sm:px-6',
+  eyebrowClass: 'text-[var(--color-brand)]',
+  contentClass: 'space-y-3 bg-[var(--color-list-bg)] p-4 sm:p-5',
+  noHeaderContentClass:
+    'space-y-2 rounded-[var(--radius-panel)] border border-[var(--color-list-border)] bg-[var(--color-list-bg)] p-3 sm:p-4',
+}
 
 function normalizeSearchValue(value) {
   return String(value ?? '')
@@ -77,13 +35,13 @@ function itemMatchesSearch(item, term) {
     item.routineName,
     item.assigneeName,
     item.departmentName,
+    item.statusDetailLabel,
     item.period,
     item.notes,
   ].some((value) => normalizeSearchValue(value).includes(normalizedTerm))
 }
 
 function RoutineListComparison({
-  selectedOptionId,
   title,
   description,
   items,
@@ -91,18 +49,17 @@ function RoutineListComparison({
   onItemQuickAction,
   onItemNoteChange,
   onItemStatusChange,
-  onOptionChange,
   showHeader = true,
 }) {
-  const [pendingStatusById, setPendingStatusById] = useState({})
+  const [pendingChangeById, setPendingChangeById] = useState({})
   const [searchTerm, setSearchTerm] = useState('')
   const groupedItems = useMemo(() => {
     return items.map((item) => ({
       ...item,
-      pendingStatus: pendingStatusById[item.id],
-      displayStatus: pendingStatusById[item.id] ?? item.status,
+      pendingChange: pendingChangeById[item.id],
+      displayStatus: pendingChangeById[item.id]?.status ?? item.status,
     }))
-  }, [items, pendingStatusById])
+  }, [items, pendingChangeById])
   const visibleItems = useMemo(
     () => groupedItems.filter((item) => itemMatchesSearch(item, searchTerm)),
     [groupedItems, searchTerm],
@@ -112,25 +69,30 @@ function RoutineListComparison({
     [visibleItems],
   )
 
-  const selectedOption =
-    listComparisonOptions.find((option) => option.id === selectedOptionId) ??
-    listComparisonOptions[0]
-  const SelectedCard = selectedOption.Card
+  const SelectedCard = listPresentation.Card
   const contentClass = showHeader
-    ? selectedOption.contentClass
-    : (selectedOption.noHeaderContentClass ?? selectedOption.contentClass)
+    ? listPresentation.contentClass
+    : listPresentation.noHeaderContentClass
   const shellClass = showHeader
-    ? selectedOption.shellClass
-    : (selectedOption.shellNoHeaderClass ?? selectedOption.shellClass)
+    ? listPresentation.shellClass
+    : listPresentation.shellNoHeaderClass
 
-  function handlePendingStatusChange(item, status) {
-    setPendingStatusById((current) => {
+  function handlePendingStatusChange(item, change) {
+    const nextChange = normalizePendingChange(change)
+
+    if (!nextChange.status) return
+
+    setPendingChangeById((current) => {
       const next = { ...current }
 
-      if (status === item.status) {
+      if (
+        nextChange.status === item.status &&
+        normalizeStatusDetail(nextChange.statusDetail) ===
+          normalizeStatusDetail(item.statusDetail)
+      ) {
         delete next[item.id]
       } else {
-        next[item.id] = status
+        next[item.id] = nextChange
       }
 
       return next
@@ -138,7 +100,7 @@ function RoutineListComparison({
   }
 
   function handlePendingStatusCancel(item) {
-    setPendingStatusById((current) => {
+    setPendingChangeById((current) => {
       const next = { ...current }
       delete next[item.id]
       return next
@@ -146,9 +108,9 @@ function RoutineListComparison({
   }
 
   function handlePendingStatusConfirm(item) {
-    if (!item.pendingStatus) return
+    if (!item.pendingChange) return
 
-    onItemStatusChange?.(item, item.pendingStatus)
+    onItemStatusChange?.(item, item.pendingChange)
     handlePendingStatusCancel(item)
   }
 
@@ -157,11 +119,11 @@ function RoutineListComparison({
       className={`overflow-hidden ${showHeader ? 'rounded-2xl' : ''} ${shellClass}`}
     >
       {showHeader && (
-        <header className={selectedOption.headerClass}>
+        <header className={listPresentation.headerClass}>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p
-                className={`text-xs font-bold uppercase tracking-[0.18em] ${selectedOption.eyebrowClass}`}
+                className={`text-xs font-bold uppercase tracking-[0.18em] ${listPresentation.eyebrowClass}`}
               >
                 Lista operacional
               </p>
@@ -169,26 +131,16 @@ function RoutineListComparison({
                 {title}
               </h2>
               <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">
-                {description ??
-                  `${selectedOption.title}: ${selectedOption.description}`}
+                {description}
               </p>
             </div>
-
-            <ListDisplaySelect
-              selectedOption={selectedOption}
-              onOptionChange={onOptionChange}
-            />
           </div>
         </header>
       )}
 
       {!showHeader && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <ListSearchInput value={searchTerm} onChange={setSearchTerm} />
-          <ListDisplaySelect
-            selectedOption={selectedOption}
-            onOptionChange={onOptionChange}
-          />
         </div>
       )}
 
@@ -203,7 +155,7 @@ function RoutineListComparison({
           <RoutineListSection
             key={group.status}
             group={group}
-            variant={selectedOption.sectionVariant}
+            variant={listPresentation.sectionVariant}
           >
             {group.items.map((item) => (
               <SelectedCard
@@ -237,23 +189,19 @@ function ListSearchInput({ value, onChange }) {
   )
 }
 
-function ListDisplaySelect({ selectedOption, onOptionChange }) {
-  return (
-    <label className="text-sm font-medium text-[var(--color-text-muted)]">
-      Display da lista
-      <select
-        value={selectedOption.id}
-        onChange={(event) => onOptionChange?.(event.target.value)}
-        className="ml-3 rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2 text-sm text-[var(--color-control-text)] outline-none focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)]"
-      >
-        {listComparisonOptions.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
+function normalizePendingChange(change) {
+  if (typeof change === 'string') {
+    return { status: change, statusDetail: null }
+  }
+
+  return {
+    status: change?.status,
+    statusDetail: change?.statusDetail ?? null,
+  }
+}
+
+function normalizeStatusDetail(detail) {
+  return detail ?? ''
 }
 
 export default RoutineListComparison

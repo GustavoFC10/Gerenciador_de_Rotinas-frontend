@@ -9,12 +9,10 @@ import {
 
 function TasksPage({
   data,
-  selectedOptionId,
   onItemOpen,
   onItemQuickAction,
   onItemNoteChange,
   onItemStatusChange,
-  onOptionChange,
 }) {
   const listViewData = useMemo(
     () =>
@@ -34,13 +32,11 @@ function TasksPage({
 
       <div className="min-h-0 flex-1">
         <RoutineListComparison
-          selectedOptionId={selectedOptionId}
           items={listViewData.items}
           onItemOpen={onItemOpen}
           onItemQuickAction={onItemQuickAction}
           onItemNoteChange={onItemNoteChange}
           onItemStatusChange={onItemStatusChange}
-          onOptionChange={onOptionChange}
           showHeader={false}
         />
       </div>
