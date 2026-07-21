@@ -66,7 +66,7 @@ O frontend usa variaveis expostas pelo Vite.
 | Variavel        | Padrao                  | Uso                                                                     |
 | --------------- | ----------------------- | ----------------------------------------------------------------------- |
 | `VITE_API_URL`  | `http://localhost:3000` | URL base planejada para a futura API. Hoje os dados ainda sao mockados. |
-| `FRONTEND_PORT` | `8080`                  | Porta usada pelo `docker-compose.yml` para publicar o Nginx.            |
+| `FRONTEND_PORT` | `8080`                  | Porta usada pelo Docker para publicar o frontend localmente.            |
 
 Exemplo:
 
@@ -77,35 +77,55 @@ FRONTEND_PORT=8080
 
 ## Docker
 
-O projeto possui um `Dockerfile` multi-stage:
+O projeto possui um `Dockerfile` multi-stage com dois modos principais:
 
-1. usa `node:22-alpine` para instalar dependencias com `npm ci`;
-2. executa `npm run build`;
-3. copia o `dist/` para uma imagem `nginx:1.27-alpine`;
-4. serve a aplicacao estatica com a configuracao de `nginx.conf`.
+- `development`: roda o Vite dentro do container e sincroniza o codigo por volume;
+- `production`: gera o `dist/` e serve a aplicacao estatica com Nginx.
 
-Subir com Compose:
+### Desenvolvimento com hot reload
+
+Use o compose principal durante o desenvolvimento:
 
 ```bash
-docker compose up --build
+docker-compose up --build
 ```
 
 Subir em background:
 
 ```bash
-docker compose up --build -d
+docker-compose up --build -d
 ```
 
-Aplicacao via Docker:
+Aplicacao via Docker em desenvolvimento:
 
 ```text
 http://localhost:8080
 ```
 
+Neste modo, alteracoes em `src/` sao refletidas pelo Vite sem rebuild da imagem. Se instalar ou remover dependencias, recrie o container:
+
+```bash
+docker-compose up --build --force-recreate
+```
+
+### Build de producao com Nginx
+
+Use o compose de producao quando quiser testar a imagem estatica final:
+
+```bash
+docker-compose -f docker-compose.prod.yml up --build
+```
+
+Subir em background:
+
+```bash
+docker-compose -f docker-compose.prod.yml up --build -d
+```
+
 Build manual da imagem:
 
 ```bash
-docker build --build-arg VITE_API_URL=http://localhost:3000 -t gerenciador-de-rotinas-frontend .
+docker build --target production --build-arg VITE_API_URL=http://localhost:3000 -t gerenciador-de-rotinas-frontend .
 docker run --rm -p 8080:80 gerenciador-de-rotinas-frontend
 ```
 
