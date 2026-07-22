@@ -93,4 +93,28 @@ export const statusTone = {
     field:
       'border-[var(--status-completed-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--status-completed-dot)] focus:ring-[var(--color-focus-ring)]',
   },
+  no_movement: {
+    label: 'Sem movimento',
+    dot: 'bg-[var(--color-brand)]',
+    surface:
+      'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]',
+    card: 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] hover:bg-[var(--color-accent-soft)]',
+    accent: 'bg-[var(--color-brand)]',
+    border: 'border-l-[var(--color-brand)]',
+    code: 'bg-[var(--color-accent-soft)] text-[var(--color-brand)]',
+    field:
+      'border-[var(--color-brand)] bg-[var(--color-list-field-bg)] focus:border-[var(--color-brand)] focus:ring-[var(--color-focus-ring)]',
+  },
+  not_applicable: {
+    label: 'Não se aplica',
+    dot: 'bg-[var(--color-text-subtle)]',
+    surface:
+      'border-[var(--color-text-subtle)] bg-[var(--color-panel-soft-bg)] text-[var(--color-text-muted)]',
+    card: 'border-[var(--color-text-subtle)] bg-[var(--color-panel-soft-bg)] hover:bg-[var(--color-control-hover-bg)]',
+    accent: 'bg-[var(--color-text-subtle)]',
+    border: 'border-l-[var(--color-text-subtle)]',
+    code: 'bg-[var(--color-list-muted-bg)] text-[var(--color-text-muted)]',
+    field:
+      'border-[var(--color-text-subtle)] bg-[var(--color-list-field-bg)] focus:border-[var(--color-text-subtle)] focus:ring-[var(--color-focus-ring)]',
+  },
 }

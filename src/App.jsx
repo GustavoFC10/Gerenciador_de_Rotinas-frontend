@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
 
 import ErrorState from './components/common/ErrorState.jsx'
@@ -19,10 +19,16 @@ import { useRoutineControl } from './hooks/useRoutineControl.js'
 import { useTaskUpdates } from './hooks/useTaskUpdates.js'
 import { buildTaskRelations } from './utils/routineRelations.js'
 
-const detailsCardByDepartment = {
-  'dept-fiscal': RoutineDetailsCard,
-  'dept-accounting': RoutineDetailsCardCompact,
-  'dept-personnel': RoutineDetailsCardPanel,
+const detailsCardByView = {
+  document: RoutineDetailsCard,
+  compact: RoutineDetailsCardCompact,
+  panel: RoutineDetailsCardPanel,
+}
+
+const detailsModalWidthByView = {
+  document: 'max-w-5xl',
+  compact: 'max-w-4xl',
+  panel: 'max-w-6xl',
 }
 
 const selectedSpreadsheetPresentation = {
@@ -34,7 +40,84 @@ function App() {
   const navigate = useNavigate()
   const { response, setResponse, data, isLoading, error } = useRoutineControl()
   const [selectedTask, setSelectedTask] = useState(null)
+  const [selectedDetailsView, setSelectedDetailsView] = useState(null)
+  const dialogRef = useRef(null)
+  const returnFocusRef = useRef(null)
   const taskUpdates = useTaskUpdates({ setResponse, setSelectedTask })
+  const selectedTaskId = selectedTask?.id
+
+  useEffect(() => {
+    if (!selectedTaskId || !dialogRef.current) return undefined
+
+    const dialog = dialogRef.current
+    const returnFocusTarget = returnFocusRef.current ?? document.activeElement
+    returnFocusRef.current = returnFocusTarget
+    const focusableSelector = [
+      'button:not([disabled])',
+      'select:not([disabled])',
+      'input:not([disabled])',
+      'textarea:not([disabled])',
+      'summary',
+      '[href]',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',')
+
+    function getFocusableElements() {
+      return [...dialog.querySelectorAll(focusableSelector)].filter(
+        (element) =>
+          element.getClientRects().length > 0 &&
+          (!element.matches('input[type="radio"]') || element.checked),
+      )
+    }
+
+    function handleDialogKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setSelectedTask(null)
+        return
+      }
+
+      if (event.key !== 'Tab') return
+
+      const focusableElements = getFocusableElements()
+
+      if (focusableElements.length === 0) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements.at(-1)
+
+      if (!dialog.contains(document.activeElement)) {
+        event.preventDefault()
+        const nextElement = event.shiftKey ? lastElement : firstElement
+        nextElement.focus()
+      } else if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault()
+        lastElement.focus()
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault()
+        firstElement.focus()
+      }
+    }
+
+    const initialFocus =
+      dialog.querySelector('[data-dialog-close]') ??
+      getFocusableElements()[0] ??
+      dialog
+    initialFocus.focus()
+    document.addEventListener('keydown', handleDialogKeyDown)
+
+    return () => {
+      document.removeEventListener('keydown', handleDialogKeyDown)
+      if (returnFocusTarget?.isConnected) {
+        returnFocusTarget.focus()
+      }
+      returnFocusRef.current = null
+    }
+  }, [selectedTaskId])
 
   const visibleData = useMemo(() => {
     if (!data) return null
@@ -105,6 +188,7 @@ function App() {
   }
 
   function handleListItemOpen(item) {
+    returnFocusRef.current = document.activeElement
     setSelectedTask(item.task)
   }
 
@@ -148,7 +232,8 @@ function App() {
   }
 
   const SelectedDetailsCard =
-    detailsCardByDepartment[selectedTask?.departmentId] ?? RoutineDetailsCard
+    detailsCardByView[selectedDetailsView] ?? RoutineDetailsCard
+  const activeDetailsView = selectedDetailsView ?? 'document'
 
   return (
     <>
@@ -271,13 +356,24 @@ function App() {
             }
           }}
         >
-          <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-3xl">
+          <div
+            ref={dialogRef}
+            className={`max-h-[calc(100vh-2rem)] w-full overflow-y-auto overscroll-contain rounded-[var(--radius-panel)] ${detailsModalWidthByView[activeDetailsView]}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`routine-details-title-${selectedTask.id}`}
+            tabIndex={-1}
+          >
             <SelectedDetailsCard
               task={selectedTask}
               {...selectedRelations}
+              viewMode={activeDetailsView}
+              onViewModeChange={setSelectedDetailsView}
               onStatusChange={taskUpdates.updateStatus}
               onAssigneeChange={taskUpdates.updateAssignee}
               onDueDateChange={taskUpdates.updateDueDate}
+              onAttachmentAdd={taskUpdates.incrementAttachments}
+              onNotesChange={taskUpdates.updateNotes}
               onClose={() => setSelectedTask(null)}
             />
           </div>
