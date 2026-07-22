@@ -109,6 +109,7 @@ function buildRoutineListItem(task, filter, relations) {
     statusDetail: task.statusDetail,
     statusDetailLabel,
     dueDate: task.dueDate,
+    assigneeId: task.assigneeId,
     assigneeName: employee?.name ?? 'Nao atribuido',
     notes: task.notes,
     indicators: task.indicators,

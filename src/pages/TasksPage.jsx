@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 
 import RoutineListComparison from '../components/routine-control/list/RoutineListComparison.jsx'
+import RoutineListViewSwitcher from '../components/routine-control/list/RoutineListViewSwitcher.jsx'
 import PageHeader from '../layouts/PageHeader.jsx'
 import {
   buildRoutineListViewData,
@@ -9,6 +10,8 @@ import {
 
 function TasksPage({
   data,
+  viewMode,
+  onViewModeChange,
   onItemOpen,
   onItemQuickAction,
   onItemNoteChange,
@@ -28,11 +31,18 @@ function TasksPage({
       <PageHeader
         title="Tarefas - Fiscal"
         description="Todas as tarefas fiscais acessiveis em formato de lista operacional."
+        actions={
+          <RoutineListViewSwitcher
+            value={viewMode}
+            onChange={onViewModeChange}
+          />
+        }
       />
 
       <div className="min-h-0 flex-1">
         <RoutineListComparison
           items={listViewData.items}
+          viewMode={viewMode}
           onItemOpen={onItemOpen}
           onItemQuickAction={onItemQuickAction}
           onItemNoteChange={onItemNoteChange}

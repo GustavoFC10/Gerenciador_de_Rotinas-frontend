@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 
 import LooseTaskFormModal from '../components/routine-control/forms/LooseTaskFormModal.jsx'
 import RoutineListComparison from '../components/routine-control/list/RoutineListComparison.jsx'
+import RoutineListViewSwitcher from '../components/routine-control/list/RoutineListViewSwitcher.jsx'
 import { useAppState } from '../contexts/AppStateContext.jsx'
 import PageHeader from '../layouts/PageHeader.jsx'
 import {
@@ -11,6 +12,8 @@ import {
 
 function MyTasksPage({
   data,
+  viewMode,
+  onViewModeChange,
   onItemOpen,
   onItemQuickAction,
   onItemNoteChange,
@@ -38,6 +41,10 @@ function MyTasksPage({
         description="Fila pessoal de tarefas avulsas, sem obrigacao de vinculo com rotina ou empresa."
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <RoutineListViewSwitcher
+              value={viewMode}
+              onChange={onViewModeChange}
+            />
             <div className="rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-3 py-2 text-sm font-bold text-[var(--color-text-muted)] shadow-[var(--shadow-panel)]">
               {listViewData.items.length} tarefas
             </div>
@@ -57,6 +64,7 @@ function MyTasksPage({
       <div className="min-h-0 flex-1">
         <RoutineListComparison
           items={listViewData.items}
+          viewMode={viewMode}
           onItemOpen={onItemOpen}
           onItemQuickAction={onItemQuickAction}
           onItemNoteChange={onItemNoteChange}

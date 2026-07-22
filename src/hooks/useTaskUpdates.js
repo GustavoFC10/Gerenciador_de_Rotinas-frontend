@@ -50,10 +50,10 @@ export function useTaskUpdates({ setResponse, setSelectedTask }) {
   return {
     updateTask,
     createLooseTask,
-    updateStatus: (taskId, status) =>
+    updateStatus: (taskId, status, statusDetail = null) =>
       updateTask(taskId, (task) => ({
         status,
-        statusDetail: null,
+        statusDetail,
         completedAt: terminalStatuses.has(status)
           ? (task.completedAt ?? new Date().toISOString())
           : null,

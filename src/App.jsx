@@ -6,6 +6,7 @@ import LoadingState from './components/common/LoadingState.jsx'
 import RoutineDetailsCard from './components/routine-control/details/RoutineDetailsCard.jsx'
 import RoutineDetailsCardCompact from './components/routine-control/details/RoutineDetailsCardCompact.jsx'
 import RoutineDetailsCardPanel from './components/routine-control/details/RoutineDetailsCardPanel.jsx'
+import { ROUTINE_LIST_PRESENTATION } from './components/routine-control/list/routineListUtils.js'
 import { ROUTES } from './constants/routes.js'
 import AppLayout from './layouts/AppLayout.jsx'
 import HomePage from './pages/HomePage.jsx'
@@ -41,6 +42,9 @@ function App() {
   const { response, setResponse, data, isLoading, error } = useRoutineControl()
   const [selectedTask, setSelectedTask] = useState(null)
   const [selectedDetailsView, setSelectedDetailsView] = useState(null)
+  const [selectedListView, setSelectedListView] = useState(
+    ROUTINE_LIST_PRESENTATION.OPERATIONAL,
+  )
   const dialogRef = useRef(null)
   const returnFocusRef = useRef(null)
   const taskUpdates = useTaskUpdates({ setResponse, setSelectedTask })
@@ -208,10 +212,11 @@ function App() {
       return
     }
 
-    taskUpdates.updateTask(item.task.id, {
-      status: change.status,
-      statusDetail: change.statusDetail ?? null,
-    })
+    taskUpdates.updateStatus(
+      item.task.id,
+      change.status,
+      change.statusDetail ?? null,
+    )
   }
 
   function handleLooseTaskCreate(task) {
@@ -256,6 +261,8 @@ function App() {
             element={
               <ListPage
                 data={data}
+                viewMode={selectedListView}
+                onViewModeChange={setSelectedListView}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
@@ -268,6 +275,8 @@ function App() {
             element={
               <TasksPage
                 data={visibleData}
+                viewMode={selectedListView}
+                onViewModeChange={setSelectedListView}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
@@ -280,6 +289,8 @@ function App() {
             element={
               <MyTasksPage
                 data={data}
+                viewMode={selectedListView}
+                onViewModeChange={setSelectedListView}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}

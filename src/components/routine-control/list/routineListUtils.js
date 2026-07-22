@@ -1,5 +1,11 @@
 import { ROUTINE_STATUS } from '../../../constants/routineStatus.js'
 
+export const ROUTINE_LIST_PRESENTATION = {
+  OPERATIONAL: 'operational',
+  TRACKING: 'tracking',
+  LEDGER: 'ledger',
+}
+
 export const routineListStatusOrder = [
   ROUTINE_STATUS.ERROR,
   ROUTINE_STATUS.IN_PROGRESS,
@@ -50,6 +56,53 @@ export function groupRoutineListItemsByStatus(
       status,
       label: routineListStatusLabel[status],
       items: groups.get(status) ?? [],
+    }))
+    .filter((group) => group.items.length > 0)
+}
+
+export function groupRoutineListItemsByFlow(items) {
+  const definitions = [
+    {
+      key: 'attention',
+      label: 'Requer atenção',
+      meta: 'Erros e impedimentos da operação',
+      status: ROUTINE_STATUS.ERROR,
+      statuses: [ROUTINE_STATUS.ERROR],
+    },
+    {
+      key: 'active',
+      label: 'Em execução',
+      meta: 'Trabalho em andamento neste período',
+      status: ROUTINE_STATUS.IN_PROGRESS,
+      statuses: [ROUTINE_STATUS.IN_PROGRESS],
+    },
+    {
+      key: 'planned',
+      label: 'A iniciar',
+      meta: 'Itens aguardando início',
+      status: ROUTINE_STATUS.PENDING,
+      statuses: [ROUTINE_STATUS.PENDING],
+    },
+    {
+      key: 'closed',
+      label: 'Encerradas',
+      meta: 'Concluídas e baixas operacionais',
+      status: ROUTINE_STATUS.COMPLETED,
+      statuses: [
+        ROUTINE_STATUS.COMPLETED,
+        ROUTINE_STATUS.NO_MOVEMENT,
+        ROUTINE_STATUS.NOT_APPLICABLE,
+      ],
+      defaultOpen: false,
+    },
+  ]
+
+  return definitions
+    .map((definition) => ({
+      ...definition,
+      items: sortRoutineListItems(
+        items.filter((item) => definition.statuses.includes(item.status)),
+      ),
     }))
     .filter((group) => group.items.length > 0)
 }
