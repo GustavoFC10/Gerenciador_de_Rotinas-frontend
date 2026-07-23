@@ -3,7 +3,6 @@ import {
   routineStatusConfig,
 } from '../../../constants/routineStatus.js'
 import {
-  RoutineAttachmentButton,
   RoutineAttachmentsPanel,
   RoutineNotesPanel,
   RoutineStatusControl,
@@ -31,6 +30,7 @@ function RoutineDetailsCard({
   onAssigneeChange,
   onDueDateChange,
   onAttachmentAdd,
+  onAttachmentRemove,
   onNotesChange,
   onClose,
   viewMode = 'document',
@@ -45,6 +45,7 @@ function RoutineDetailsCard({
   const model = buildDetailsModel({ task, client, routine, department })
   const Layout = detailsLayoutByVariant[variant] ?? RoutineIssueLayout
   const titleId = `routine-details-title-${task.id}`
+  const isPanel = variant === 'panel'
   const sharedLayoutProps = {
     task,
     client,
@@ -60,13 +61,16 @@ function RoutineDetailsCard({
     onAssigneeChange,
     onDueDateChange,
     onAttachmentAdd,
+    onAttachmentRemove,
     onNotesChange,
     onClose,
   }
 
   return (
     <article
-      className="relative flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] text-[var(--color-text-main)] shadow-[var(--shadow-floating)]"
+      className={`relative flex flex-col overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] text-[var(--color-text-main)] shadow-[var(--shadow-floating)] ${
+        isPanel ? 'h-[calc(100dvh-2rem)]' : 'max-h-[calc(100dvh-2rem)]'
+      }`}
       aria-labelledby={titleId}
       data-details-view={variant}
     >
@@ -80,13 +84,14 @@ function RoutineDetailsCard({
 }
 
 function RoutineIssueLayout(props) {
-  const { task, model, onAttachmentAdd, onNotesChange } = props
+  const { task, model, onAttachmentAdd, onAttachmentRemove, onNotesChange } =
+    props
 
   return (
     <>
       <RoutineIdentityHeader {...props} mode="issue" />
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <main className="min-w-0 space-y-5 overflow-y-auto p-4 sm:p-5">
+        <main className="min-w-0 space-y-4 overflow-y-auto p-4 sm:p-5">
           <section aria-labelledby={`description-title-${task.id}`}>
             <SectionHeading
               id={`description-title-${task.id}`}
@@ -99,30 +104,28 @@ function RoutineIssueLayout(props) {
             </p>
           </section>
 
-          <RoutineAttachmentsPanel
-            task={task}
-            onAttachmentAdd={onAttachmentAdd}
-            variant="list"
-            description="Documentos vinculados a esta competência"
-          />
-
-          <section aria-labelledby={`activity-title-${task.id}`}>
-            <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
-              <SectionHeading
-                id={`activity-title-${task.id}`}
-                title="Atividade"
-                icon={<ActivityIcon />}
+          <section
+            className="overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)]"
+            data-execution-context="combined"
+            aria-label="Anexos e registro da execução"
+          >
+            <div className="p-3">
+              <RoutineAttachmentsPanel
+                task={task}
+                onAttachmentAdd={onAttachmentAdd}
+                onAttachmentRemove={onAttachmentRemove}
+                variant="preview"
               />
-              <ExecutionMetrics task={task} compact />
             </div>
-            <RoutineNotesPanel
-              task={task}
-              onNotesChange={onNotesChange}
-              variant="callout"
-              title="Registro da execução"
-              description="Observações operacionais e contexto para a equipe"
-              rows={2}
-            />
+            <div className="border-t border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-3">
+              <RoutineNotesPanel
+                task={task}
+                onNotesChange={onNotesChange}
+                variant="embedded"
+                title="Registro da execução"
+                rows={2}
+              />
+            </div>
           </section>
         </main>
 
@@ -135,7 +138,14 @@ function RoutineIssueLayout(props) {
 }
 
 function RoutineContextLayout(props) {
-  const { task, model, onAttachmentAdd, onNotesChange, onStatusChange } = props
+  const {
+    task,
+    model,
+    onAttachmentAdd,
+    onAttachmentRemove,
+    onNotesChange,
+    onStatusChange,
+  } = props
 
   return (
     <>
@@ -167,6 +177,7 @@ function RoutineContextLayout(props) {
               <RoutineAttachmentsPanel
                 task={task}
                 onAttachmentAdd={onAttachmentAdd}
+                onAttachmentRemove={onAttachmentRemove}
                 variant="embedded"
               />
               <div className="my-3 h-px bg-[var(--color-divider)]" />
@@ -203,6 +214,7 @@ function RoutineFlowLayout(props) {
     onAssigneeChange,
     onDueDateChange,
     onAttachmentAdd,
+    onAttachmentRemove,
     onNotesChange,
   } = props
 
@@ -218,8 +230,11 @@ function RoutineFlowLayout(props) {
           />
         </aside>
 
-        <main className="min-w-0 space-y-3 overflow-y-auto p-3 sm:p-4">
-          <div className="flex items-start justify-between gap-3">
+        <main
+          className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden p-3 sm:p-4"
+          data-flow-main
+        >
+          <div className="flex shrink-0 items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
                 Área principal
@@ -232,7 +247,7 @@ function RoutineFlowLayout(props) {
           </div>
 
           {model.description && (
-            <p className="text-sm leading-5 text-[var(--color-text-muted)]">
+            <p className="shrink-0 text-sm leading-5 text-[var(--color-text-muted)]">
               {model.description}
             </p>
           )}
@@ -240,8 +255,10 @@ function RoutineFlowLayout(props) {
           <RoutineAttachmentsPanel
             task={task}
             onAttachmentAdd={onAttachmentAdd}
+            onAttachmentRemove={onAttachmentRemove}
             variant="gallery"
             title="Galeria de anexos"
+            className="min-h-0 flex-1"
           />
 
           <RoutineNotesPanel
@@ -250,6 +267,7 @@ function RoutineFlowLayout(props) {
             variant="callout"
             title="Nota de contexto"
             rows={2}
+            className="shrink-0"
           />
         </main>
 
@@ -280,18 +298,14 @@ function RoutineFlowLayout(props) {
 }
 
 function RoutineIdentityHeader({
-  task,
   model,
   statusConfig,
   titleId,
   viewMode,
   onViewModeChange,
-  onStatusChange,
-  onAttachmentAdd,
   onClose,
   mode,
 }) {
-  const isIssue = mode === 'issue'
   const isFlow = mode === 'flow'
 
   return (
@@ -335,27 +349,6 @@ function RoutineIdentityHeader({
           {model.title}
         </h2>
       </div>
-
-      {isIssue && (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <RoutineAttachmentButton
-              task={task}
-              onAttachmentAdd={onAttachmentAdd}
-              compact
-            />
-            <HeaderMetric icon={<CommentIcon />}>
-              {model.commentCount} comentários
-            </HeaderMetric>
-            <HeaderMetric>{model.typeLabel}</HeaderMetric>
-          </div>
-          <RoutineStatusControl
-            task={task}
-            onStatusChange={onStatusChange}
-            variant="menu"
-          />
-        </div>
-      )}
     </header>
   )
 }
@@ -403,6 +396,7 @@ function DetailsSidebar({
   task,
   employees,
   model,
+  onStatusChange,
   onAssigneeChange,
   onDueDateChange,
 }) {
@@ -415,7 +409,11 @@ function DetailsSidebar({
         >
           Detalhes
         </h3>
-        <DetailsIcon />
+        <RoutineStatusControl
+          task={task}
+          onStatusChange={onStatusChange}
+          variant="menu"
+        />
       </div>
 
       <div className="mt-3 space-y-1 rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-1">
@@ -500,15 +498,6 @@ function ExecutionMetrics({ task, compact = false }) {
   )
 }
 
-function HeaderMetric({ icon, children }) {
-  return (
-    <span className="inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-control)] bg-[var(--color-panel-soft-bg)] px-2.5 text-xs font-semibold text-[var(--color-text-muted)]">
-      {icon}
-      {children}
-    </span>
-  )
-}
-
 function SectionHeading({ id, title, icon }) {
   return (
     <div className="flex items-center gap-2">
@@ -562,7 +551,6 @@ function buildDetailsModel({ task, client, routine, department }) {
     periodLabel: formatPeriod(task.period),
     typeLabel: task.isLoose ? 'Tarefa avulsa' : 'Rotina recorrente',
     completedLabel: formatDateTime(task.completedAt),
-    commentCount: Number(task.indicators?.comments) || 0,
   }
 }
 
@@ -625,61 +613,6 @@ function DescriptionIcon() {
       <path
         d="M5 6h14M5 10h14M5 14h9M5 18h6"
         strokeWidth="1.9"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function ActivityIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-4"
-      fill="none"
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        d="M4 12h3l2-5 4 10 2-5h5"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function CommentIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-3.5"
-      fill="none"
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        d="M5 5.5h14v12H9l-4 3v-15Z"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function DetailsIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-4 text-[var(--color-text-subtle)]"
-      fill="none"
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        d="M5 7h14M5 12h14M5 17h9"
-        strokeWidth="1.8"
         strokeLinecap="round"
       />
     </svg>

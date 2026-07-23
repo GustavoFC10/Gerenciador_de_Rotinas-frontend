@@ -60,6 +60,7 @@ export function RoutineAttachmentButton({
 export function RoutineAttachmentsPanel({
   task,
   onAttachmentAdd,
+  onAttachmentRemove,
   variant = 'list',
   title = 'Anexos',
   description,
@@ -68,21 +69,48 @@ export function RoutineAttachmentsPanel({
   const attachments = getRoutineAttachments(task)
   const attachmentCount = attachments.length
   const isGallery = variant === 'gallery'
-  const isEmbedded = variant === 'embedded'
+  const isPreview = variant === 'preview'
+  const isCompact = variant === 'embedded'
+  const isEmbedded = variant === 'embedded' || isPreview
+  const layoutName = isPreview
+    ? 'single-row'
+    : isGallery
+      ? 'vertical-two-rows'
+      : isCompact
+        ? 'fixed-three-rows'
+        : 'grid'
+  const viewportClass = isPreview
+    ? 'h-48 overflow-x-auto overscroll-x-contain pb-2'
+    : isGallery
+      ? 'min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3'
+      : isCompact
+        ? 'h-40 overflow-y-auto overscroll-contain pr-1'
+        : 'p-2.5'
+  const itemsClass = isPreview
+    ? 'flex min-w-max gap-2'
+    : isGallery
+      ? 'grid grid-cols-1 gap-2 sm:grid-cols-2'
+      : isCompact
+        ? 'grid auto-rows-[3rem] grid-cols-1 gap-2 sm:grid-cols-2'
+        : 'grid grid-cols-1 gap-2 sm:grid-cols-2'
 
   return (
     <section
       className={`${
         isEmbedded
           ? ''
-          : 'overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)]'
+          : `overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] ${
+              isGallery ? 'flex min-h-0 flex-col' : ''
+            }`
       } ${className}`}
       aria-labelledby={`attachments-title-${task.id}`}
     >
       <header
-        className={`flex items-center justify-between gap-3 ${
+        className={`flex shrink-0 items-center justify-between gap-3 ${
           isEmbedded
-            ? 'mb-2'
+            ? isPreview
+              ? 'mb-3'
+              : 'mb-2'
             : 'min-h-11 border-b border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-3 py-2'
         }`}
       >
@@ -113,21 +141,24 @@ export function RoutineAttachmentsPanel({
         />
       </header>
 
-      <div className={isEmbedded ? '' : isGallery ? 'p-3' : 'p-2.5'}>
+      <div
+        className={viewportClass}
+        data-attachment-layout={layoutName}
+        data-scroll-owner={isGallery ? 'attachments' : undefined}
+      >
         {attachmentCount > 0 ? (
-          <div
-            className={`grid gap-2 ${
-              isGallery
-                ? 'grid-cols-2 sm:grid-cols-3'
-                : 'grid-cols-1 sm:grid-cols-2'
-            }`}
-          >
+          <div className={itemsClass}>
             {attachments.map((attachment, index) => (
               <AttachmentTile
                 key={attachment.id}
                 attachment={attachment}
                 index={index}
                 variant={variant}
+                onRemove={
+                  onAttachmentRemove
+                    ? () => onAttachmentRemove(task.id, attachment.id)
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -401,18 +432,58 @@ export function RoutineStatusControl({
   )
 }
 
-function AttachmentTile({ attachment, index, variant }) {
+function AttachmentTile({ attachment, index, variant, onRemove }) {
   const name = attachment.name ?? `Anexo ${String(index + 1).padStart(2, '0')}`
   const isGallery = variant === 'gallery'
+  const isPreview = variant === 'preview'
+  const showsPreview = isGallery || isPreview
+  const previewKind = getAttachmentPreviewKind(attachment, name)
+  const extension = getAttachmentExtension(name)
+
+  if (showsPreview) {
+    return (
+      <article
+        className={`group relative min-w-0 overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] transition hover:border-[var(--color-control-focus)] hover:shadow-[var(--shadow-panel)] ${
+          isPreview ? 'w-72 shrink-0' : 'w-full'
+        }`}
+        title={name}
+        data-attachment-kind={previewKind}
+      >
+        {onRemove && (
+          <AttachmentRemoveButton name={name} onRemove={onRemove} overlay />
+        )}
+        <AttachmentPreview
+          attachment={attachment}
+          name={name}
+          previewKind={previewKind}
+          compact={isGallery}
+        />
+        <div className="flex min-w-0 items-center gap-2.5 p-2.5">
+          <span className="shrink-0 rounded bg-[var(--color-brand-soft)] px-1.5 py-1 text-[9px] font-extrabold uppercase tracking-wide text-[var(--color-brand)]">
+            {extension}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-xs font-bold text-[var(--color-text-strong)]">
+              {name}
+            </span>
+            <span className="mt-0.5 block truncate text-[10px] text-[var(--color-text-muted)]">
+              {attachment.sizeLabel ?? 'Arquivo da execução'}
+            </span>
+          </span>
+        </div>
+      </article>
+    )
+  }
 
   return (
     <div
-      className={`min-w-0 rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] transition hover:border-[var(--color-control-focus)] hover:bg-[var(--color-control-hover-bg)] ${
+      className={`relative min-w-0 rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] transition hover:border-[var(--color-control-focus)] hover:bg-[var(--color-control-hover-bg)] ${
         isGallery
           ? 'flex min-h-24 flex-col items-start justify-between p-3'
-          : 'flex items-center gap-2 p-2'
+          : 'flex h-full items-center gap-2 p-2'
       }`}
       title={name}
+      data-attachment-kind={previewKind}
     >
       <span
         className={`grid shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-[var(--color-brand)] ${
@@ -431,15 +502,243 @@ function AttachmentTile({ attachment, index, variant }) {
           </span>
         )}
       </span>
+      {onRemove && <AttachmentRemoveButton name={name} onRemove={onRemove} />}
     </div>
   )
+}
+
+function AttachmentRemoveButton({ name, onRemove, overlay = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onRemove}
+      className={`grid size-7 shrink-0 place-items-center rounded-full border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] text-[var(--color-text-muted)] shadow-[var(--shadow-panel)] transition hover:border-[var(--status-error-border)] hover:bg-[var(--status-error-soft-bg)] hover:text-[var(--status-error-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${
+        overlay ? 'absolute top-2 right-2 z-10' : 'ml-auto'
+      }`}
+      aria-label={`Excluir ${name}`}
+      title={`Excluir ${name}`}
+    >
+      <CloseSmallIcon />
+    </button>
+  )
+}
+
+function AttachmentPreview({ attachment, name, previewKind, compact = false }) {
+  const previewTitle = attachment.previewTitle ?? 'Documento da execução'
+  const previewClass = `${
+    compact ? 'h-24' : 'h-28 sm:h-32'
+  } overflow-hidden border-b border-[var(--color-divider)]`
+
+  if (previewKind === 'pdf') {
+    return (
+      <div
+        className={`${previewClass} flex items-center justify-center bg-[var(--status-error-soft-bg)] p-3`}
+        role="img"
+        aria-label={`Prévia de PDF: ${name}`}
+      >
+        <div className="relative h-full w-3/4 max-w-44 rounded-sm bg-white px-3 pt-7 shadow-[var(--shadow-panel)] ring-1 ring-[var(--color-panel-border)]">
+          <span className="absolute top-2 left-3 rounded bg-[var(--status-error-strong-bg)] px-1.5 py-0.5 text-[8px] font-black text-white">
+            PDF
+          </span>
+          <span className="block truncate text-[9px] font-extrabold text-[var(--color-text-strong)]">
+            {previewTitle}
+          </span>
+          <span className="mt-2 block h-1 rounded-full bg-[var(--color-divider)]" />
+          <span className="mt-1.5 block h-1 w-4/5 rounded-full bg-[var(--color-divider)]" />
+          <span className="mt-1.5 block h-1 w-3/5 rounded-full bg-[var(--color-divider)]" />
+        </div>
+      </div>
+    )
+  }
+
+  if (previewKind === 'spreadsheet') {
+    const cells = [
+      'Data',
+      'Doc.',
+      'Valor',
+      'Sit.',
+      '18/06',
+      '1542',
+      '4.820',
+      'OK',
+      '19/06',
+      '1548',
+      '2.390',
+      'OK',
+    ]
+
+    return (
+      <div
+        className={`${previewClass} bg-[var(--status-completed-soft-bg)] p-3`}
+        role="img"
+        aria-label={`Prévia de planilha: ${name}`}
+      >
+        <div className="grid h-full grid-cols-4 gap-px overflow-hidden rounded border border-[var(--status-completed-border)] bg-[var(--status-completed-border)] shadow-[var(--shadow-panel)]">
+          {cells.map((cell, cellIndex) => (
+            <span
+              key={`${cell}-${cellIndex}`}
+              className={`flex items-center justify-center truncate px-1 text-[8px] ${
+                cellIndex < 4
+                  ? 'bg-[var(--status-completed-strong-bg)] font-extrabold text-white'
+                  : 'bg-[var(--color-panel-bg)] font-semibold text-[var(--color-text-muted)]'
+              }`}
+            >
+              {cell}
+            </span>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (previewKind === 'xml') {
+    return (
+      <div
+        className={`${previewClass} bg-[var(--color-list-muted-bg)] p-3 font-mono text-[9px] leading-4 text-[var(--color-text-muted)]`}
+        role="img"
+        aria-label={`Prévia de XML: ${name}`}
+      >
+        <span className="block text-[var(--color-brand)]">&lt;evento&gt;</span>
+        <span className="block pl-3">
+          &lt;periodo&gt;2026-06&lt;/periodo&gt;
+        </span>
+        <span className="block pl-3">
+          &lt;status&gt;processado&lt;/status&gt;
+        </span>
+        <span className="block text-[var(--color-brand)]">&lt;/evento&gt;</span>
+      </div>
+    )
+  }
+
+  if (previewKind === 'image') {
+    return (
+      <div
+        className={`${previewClass} relative bg-[var(--color-brand-soft)]`}
+        role="img"
+        aria-label={`Prévia de imagem: ${name}`}
+      >
+        <svg
+          viewBox="0 0 320 160"
+          className="h-full w-full text-[var(--color-brand)]"
+          fill="none"
+          aria-hidden="true"
+        >
+          <rect x="42" y="18" width="236" height="124" rx="9" fill="white" />
+          <rect
+            x="60"
+            y="36"
+            width="92"
+            height="8"
+            rx="4"
+            fill="currentColor"
+            opacity=".22"
+          />
+          <rect
+            x="60"
+            y="54"
+            width="168"
+            height="6"
+            rx="3"
+            fill="currentColor"
+            opacity=".12"
+          />
+          <path
+            d="m62 119 43-38 29 24 32-31 58 45H62Z"
+            fill="currentColor"
+            opacity=".2"
+          />
+          <circle cx="221" cy="77" r="13" fill="currentColor" opacity=".35" />
+        </svg>
+        <span className="absolute right-2 bottom-2 rounded bg-white/90 px-2 py-1 text-[9px] font-bold text-[var(--color-brand)] shadow-sm">
+          Comprovante
+        </span>
+      </div>
+    )
+  }
+
+  if (previewKind === 'document') {
+    return (
+      <div
+        className={`${previewClass} flex items-center justify-center bg-[var(--color-brand-soft)] p-3`}
+        role="img"
+        aria-label={`Prévia de documento: ${name}`}
+      >
+        <div className="h-full w-3/4 max-w-44 rounded-sm bg-white p-3 shadow-[var(--shadow-panel)] ring-1 ring-[var(--color-panel-border)]">
+          <span className="block truncate text-[9px] font-extrabold text-[var(--color-brand)]">
+            {previewTitle}
+          </span>
+          {[100, 84, 92, 68].map((width) => (
+            <span
+              key={width}
+              className="mt-2 block h-1 rounded-full bg-[var(--color-divider)]"
+              style={{ width: `${width}%` }}
+            />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`${previewClass} grid place-items-center bg-[var(--color-panel-soft-bg)] text-[var(--color-text-subtle)]`}
+      role="img"
+      aria-label={`Prévia indisponível: ${name}`}
+    >
+      <span className="grid size-12 place-items-center rounded-[var(--radius-control)] bg-[var(--color-panel-bg)] ring-1 ring-[var(--color-panel-border)]">
+        <FileIcon />
+      </span>
+    </div>
+  )
+}
+
+function getAttachmentPreviewKind(attachment, name) {
+  if (attachment.previewType) return attachment.previewType
+
+  const mimeType = String(
+    attachment.mimeType ?? attachment.type ?? '',
+  ).toLowerCase()
+  const extension = getAttachmentExtension(name).toLowerCase()
+
+  if (mimeType.includes('pdf') || extension === 'pdf') return 'pdf'
+  if (
+    mimeType.startsWith('image/') ||
+    ['png', 'jpg', 'jpeg'].includes(extension)
+  ) {
+    return 'image'
+  }
+  if (
+    mimeType.includes('spreadsheet') ||
+    mimeType.includes('excel') ||
+    mimeType.includes('csv') ||
+    ['xls', 'xlsx', 'csv'].includes(extension)
+  ) {
+    return 'spreadsheet'
+  }
+  if (mimeType.includes('xml') || extension === 'xml') return 'xml'
+  if (
+    mimeType.includes('word') ||
+    mimeType.includes('document') ||
+    ['doc', 'docx', 'txt'].includes(extension)
+  ) {
+    return 'document'
+  }
+
+  return 'file'
+}
+
+function getAttachmentExtension(name) {
+  const extension = name.includes('.') ? name.split('.').pop() : ''
+  return extension?.slice(0, 5).toUpperCase() || 'ARQ'
 }
 
 function AttachmentEmptyState({ variant }) {
   return (
     <div
       className={`flex items-center justify-center gap-3 rounded-[var(--radius-control)] border border-dashed border-[var(--color-control-border)] bg-[var(--color-panel-soft-bg)] px-3 text-left ${
-        variant === 'gallery' ? 'min-h-28' : 'min-h-16'
+        ['gallery', 'preview', 'embedded'].includes(variant)
+          ? 'h-full min-h-0'
+          : 'min-h-16'
       }`}
     >
       <span className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-panel-bg)] text-[var(--color-text-subtle)] ring-1 ring-[var(--color-panel-border)]">
@@ -454,6 +753,20 @@ function AttachmentEmptyState({ variant }) {
         </span>
       </span>
     </div>
+  )
+}
+
+function CloseSmallIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="size-3.5"
+      fill="none"
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path d="m8 8 8 8m0-8-8 8" strokeWidth="2" strokeLinecap="round" />
+    </svg>
   )
 }
 

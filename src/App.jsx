@@ -369,7 +369,11 @@ function App() {
         >
           <div
             ref={dialogRef}
-            className={`max-h-[calc(100vh-2rem)] w-full overflow-y-auto overscroll-contain rounded-[var(--radius-panel)] ${detailsModalWidthByView[activeDetailsView]}`}
+            className={`max-h-[calc(100vh-2rem)] w-full overscroll-contain rounded-[var(--radius-panel)] ${
+              activeDetailsView === 'panel'
+                ? 'overflow-hidden'
+                : 'overflow-y-auto'
+            } ${detailsModalWidthByView[activeDetailsView]}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby={`routine-details-title-${selectedTask.id}`}
@@ -384,6 +388,7 @@ function App() {
               onAssigneeChange={taskUpdates.updateAssignee}
               onDueDateChange={taskUpdates.updateDueDate}
               onAttachmentAdd={taskUpdates.incrementAttachments}
+              onAttachmentRemove={taskUpdates.removeAttachment}
               onNotesChange={taskUpdates.updateNotes}
               onClose={() => setSelectedTask(null)}
             />
