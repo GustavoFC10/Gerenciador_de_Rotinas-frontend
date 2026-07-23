@@ -80,7 +80,7 @@ export function RoutineAttachmentsPanel({
         ? 'fixed-three-rows'
         : 'grid'
   const viewportClass = isPreview
-    ? 'h-48 overflow-x-auto overscroll-x-contain pb-2'
+    ? 'h-52 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-4'
     : isGallery
       ? 'min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3'
       : isCompact

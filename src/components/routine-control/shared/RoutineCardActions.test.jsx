@@ -44,6 +44,9 @@ describe('RoutineAttachmentsPanel previews', () => {
     expect(markup).toContain('Prévia de documento')
     expect(markup).toContain('data-attachment-layout="single-row"')
     expect(markup).toContain('aria-label="Excluir guia.pdf"')
+    expect(markup).toContain('overflow-y-hidden')
+    expect(markup).toContain('h-52')
+    expect(markup).toContain('pb-4')
   })
 
   it('uses stable row limits for the three card options', () => {
