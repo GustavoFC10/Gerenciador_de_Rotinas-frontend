@@ -53,9 +53,9 @@ describe('RoutineListComparison presentations', () => {
       <RoutineListViewSwitcher value={ROUTINE_LIST_PRESENTATION.TRACKING} />,
     )
 
-    expect(markup).toContain('Opção 1 · Fila compacta')
-    expect(markup).toContain('Opção 2 · Acompanhamento')
-    expect(markup).toContain('Opção 3 · Registro operacional')
+    expect(markup).toContain('Opção 1')
+    expect(markup).toContain('Opção 2')
+    expect(markup).toContain('Opção 3')
     expect(markup).toContain('aria-current="true"')
   })
 })

@@ -57,16 +57,32 @@ function RoutineClosedCardCompact({ task, label, onOpen, variant = 'label' }) {
 
   const colorClass =
     routineClosedCardClass[task.status] ?? routineClosedCardClass.pending
+  const isDense = variant === 'dense'
 
   return (
     <button
       type="button"
       onClick={() => onOpen?.(task)}
-      className={`flex h-9 w-full items-center justify-center rounded-[var(--radius-control)] border px-2 text-center shadow-[var(--shadow-panel)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-floating)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${colorClass}`}
+      className={`flex w-full items-center rounded-[var(--radius-control)] border text-center transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${
+        isDense
+          ? 'h-7 justify-start gap-1.5 px-1.5 hover:z-10 hover:shadow-[var(--shadow-panel)]'
+          : 'h-9 justify-center px-2 shadow-[var(--shadow-panel)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-floating)]'
+      } ${colorClass}`}
       aria-label={`Abrir ${label}. Status: ${status.label}`}
       title={`${label} - ${status.label}`}
+      data-cell-variant={variant}
     >
-      <span className="text-[10px] font-extrabold uppercase tracking-wide">
+      {isDense ? (
+        <span
+          className={`size-1.5 shrink-0 rounded-full ${status.dotClass}`}
+          aria-hidden="true"
+        />
+      ) : null}
+      <span
+        className={`truncate font-extrabold uppercase ${
+          isDense ? 'text-[9px] tracking-[0.02em]' : 'text-[10px] tracking-wide'
+        }`}
+      >
         {status.label}
       </span>
     </button>

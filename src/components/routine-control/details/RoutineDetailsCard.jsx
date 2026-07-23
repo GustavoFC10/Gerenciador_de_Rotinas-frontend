@@ -12,6 +12,7 @@ import RoutineEditableFields, {
   RoutineAssigneeField,
   RoutineDueDateField,
 } from '../shared/RoutineEditableFields.jsx'
+import ViewStyleSwitcher from '../../ui/ViewStyleSwitcher.jsx'
 import { getRoutineAttachments } from './routineDetailsUtils.js'
 
 const detailsLayoutByVariant = {
@@ -522,56 +523,27 @@ function SectionHeading({ id, title, icon }) {
 const detailsViewOptions = [
   {
     id: 'document',
-    label: 'Ficha detalhada',
-    description: 'Estrutura inspirada em registros do Jira',
+    label: 'Opção 1',
   },
   {
     id: 'compact',
-    label: 'Contexto',
-    description: 'Arquivos e observações em um workspace',
+    label: 'Opção 2',
   },
   {
     id: 'panel',
-    label: 'Fluxo',
-    description: 'Estado, evidências e ficha em três áreas',
+    label: 'Opção 3',
   },
 ]
 
 function RoutineDetailsViewMenu({ selectedView, onViewChange }) {
   return (
-    <details className="group relative">
-      <summary
-        className="grid size-8 cursor-pointer list-none place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] transition marker:hidden hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
-        aria-label="Visualizar outras apresentações do card"
-        title="Alterar visualização"
-      >
-        <LayoutIcon />
-      </summary>
-
-      <div className="absolute right-0 z-40 mt-1 w-64 rounded-[var(--radius-control)] border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] p-1 shadow-[var(--shadow-floating)]">
-        {detailsViewOptions.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            onClick={(event) => {
-              onViewChange?.(option.id)
-              event.currentTarget.closest('details')?.removeAttribute('open')
-            }}
-            className={`block w-full rounded-[var(--radius-control)] px-3 py-2 text-left transition ${
-              selectedView === option.id
-                ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
-                : 'text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)]'
-            }`}
-            aria-current={selectedView === option.id ? 'true' : undefined}
-          >
-            <span className="block text-xs font-bold">{option.label}</span>
-            <span className="mt-0.5 block text-[10px] opacity-80">
-              {option.description}
-            </span>
-          </button>
-        ))}
-      </div>
-    </details>
+    <ViewStyleSwitcher
+      value={selectedView}
+      options={detailsViewOptions}
+      onChange={onViewChange}
+      ariaLabel="Trocar visualização do card"
+      title="Visualização do card"
+    />
   )
 }
 
@@ -625,24 +597,6 @@ function formatDateTime(value) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date)
-}
-
-function LayoutIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-4"
-      fill="none"
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        d="M4 5h16v14H4zM4 10h16M10 10v9"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
 }
 
 function CloseIcon() {
