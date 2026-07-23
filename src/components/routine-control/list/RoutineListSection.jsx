@@ -19,7 +19,7 @@ const sectionStyles = {
       'overflow-hidden rounded-2xl border border-[var(--color-list-border)] bg-[var(--color-list-section-bg)] shadow-[var(--shadow-panel)]',
     header:
       'border-b border-[var(--color-list-border)] bg-[var(--color-list-section-bg)] px-5 py-4 hover:bg-[var(--color-list-section-hover-bg)]',
-    body: 'bg-[var(--color-list-muted-bg)]',
+    body: 'grid gap-3 bg-[var(--color-list-muted-bg)] p-3 xl:grid-cols-2',
     count:
       'bg-[var(--color-brand-soft)] text-[var(--color-brand)] ring-1 ring-[var(--color-brand)]',
     icon: 'text-[var(--color-brand)]',
@@ -39,7 +39,7 @@ const sectionStyles = {
 }
 
 function RoutineListSection({ group, children, variant = 'compact' }) {
-  const [isOpen, setIsOpen] = useState(true)
+  const [isOpen, setIsOpen] = useState(group.defaultOpen ?? true)
   const statusConfig = routineStatusConfig[group.status]
   const styles = sectionStyles[variant] ?? sectionStyles.compact
 
@@ -52,10 +52,17 @@ function RoutineListSection({ group, children, variant = 'compact' }) {
         aria-expanded={isOpen}
       >
         <span className="flex items-center gap-2">
-          <span className={`size-2.5 rounded-full ${statusConfig.dotClass}`} />
+          <span
+            className={`size-2.5 rounded-full ${statusConfig?.dotClass ?? ''}`}
+          />
           <span className={`text-sm font-bold ${styles.label}`}>
             {group.label}
           </span>
+          {group.meta && (
+            <span className="hidden text-xs font-medium text-[var(--color-text-subtle)] sm:inline">
+              {group.meta}
+            </span>
+          )}
         </span>
         <span className="flex items-center gap-2">
           <span

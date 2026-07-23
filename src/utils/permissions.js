@@ -15,11 +15,18 @@ export function canAccessDepartment(user, departmentId) {
 }
 
 export function canEditRoutine(user, departmentId) {
-  return isManager(user) || (user?.role === USER_ROLE.LEADER && canAccessDepartment(user, departmentId))
+  return (
+    isManager(user) ||
+    (user?.role === USER_ROLE.LEADER && canAccessDepartment(user, departmentId))
+  )
 }
 
 export function canAssignTask(user, task) {
-  return isManager(user) || (user?.role === USER_ROLE.LEADER && canAccessDepartment(user, task.departmentId))
+  return (
+    isManager(user) ||
+    (user?.role === USER_ROLE.LEADER &&
+      canAccessDepartment(user, task.departmentId))
+  )
 }
 
 export function canManageEmployees(user) {

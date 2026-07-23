@@ -3,8 +3,7 @@ const cardVariantClass = {
     'rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-panel)]',
   metric:
     'rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-panel)]',
-  flat:
-    'border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)]',
+  flat: 'border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)]',
   quiet: 'bg-transparent',
 }
 

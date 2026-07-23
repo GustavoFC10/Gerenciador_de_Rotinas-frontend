@@ -57,4 +57,13 @@ describe('routine list items', () => {
     expect(view.title).toBe('Alpha Ltda')
     expect(view.items[0].title).toBe('Enviar DAS')
   })
+
+  it('shows company and routine for a global task list item', () => {
+    const view = buildRoutineListViewData({
+      data,
+      filter: { type: ROUTINE_LIST_MODE.GLOBAL },
+    })
+
+    expect(view.items[0].primaryLabel).toBe('Alpha Ltda - Enviar DAS')
+  })
 })

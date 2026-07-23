@@ -1,8 +1,14 @@
-import RoutineListQuickActions from './RoutineListQuickActions.jsx'
+import RoutineListExecutionPanel from './RoutineListExecutionPanel.jsx'
 import { formatShortDate, routineListStatusTone } from './routineListUtils.js'
 
-function RoutineListCardOptionOne({ item, onOpen, onQuickAction }) {
-  const tone = routineListStatusTone[item.status]
+function RoutineListCardOptionOne({
+  item,
+  onOpen,
+  onQuickAction,
+  onStatusChange,
+  onStatusConfirm,
+}) {
+  const tone = routineListStatusTone[item.displayStatus ?? item.status]
 
   return (
     <article
@@ -15,49 +21,50 @@ function RoutineListCardOptionOne({ item, onOpen, onQuickAction }) {
           onOpen?.(item)
         }
       }}
-      className={`grid w-full gap-3 border-l-4 px-4 py-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-control-focus)] md:grid-cols-[72px_minmax(0,1fr)_auto] md:items-center ${tone.card} ${tone.border}`}
+      className={`grid w-full gap-3 border-l-4 px-4 py-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-control-focus)] lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)] lg:items-start ${tone.card} ${tone.border}`}
     >
-      <div className={`rounded-[var(--radius-control)] px-2 py-1 ${tone.code}`}>
-        <span className="block text-xs font-bold uppercase text-[var(--color-text-subtle)]">
-          Codigo
-        </span>
-        <span className="mt-0.5 block text-base font-bold">
-          {item.companyCode}
-        </span>
-      </div>
-
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <h4 className="truncate text-sm font-bold text-[var(--color-text-strong)]">
-            {item.companyName}
-          </h4>
+        <div className="flex min-w-0 gap-3">
+          <div
+            className={`grid size-12 shrink-0 place-items-center rounded-[var(--radius-control)] text-sm font-bold ${tone.code}`}
+          >
+            {item.companyCode}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <h4 className="truncate text-base font-bold text-[var(--color-text-strong)]">
+              {item.primaryLabel ?? item.companyName}
+            </h4>
+            <div className="mt-1 grid gap-2 text-sm text-[var(--color-text-muted)] sm:grid-cols-3">
+              <span>
+                <span className="font-semibold text-[var(--color-text-subtle)]">
+                  Prazo:
+                </span>{' '}
+                {formatShortDate(item.dueDate)}
+              </span>
+              <span className="truncate">
+                <span className="font-semibold text-[var(--color-text-subtle)]">
+                  Resp.:
+                </span>{' '}
+                {item.assigneeName}
+              </span>
+              <span>
+                <span className="font-semibold text-[var(--color-text-subtle)]">
+                  Periodo:
+                </span>{' '}
+                {item.period}
+              </span>
+            </div>
+          </div>
         </div>
-        <p className="mt-1 truncate text-sm text-[var(--color-text-muted)]">
-          Responsavel: {item.assigneeName}
-        </p>
-        {item.notes && (
-          <p className="mt-1 line-clamp-1 text-xs text-[var(--color-text-subtle)]">
-            {item.notes}
-          </p>
-        )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 md:justify-end">
-        <div className="text-sm">
-          <span className="block text-xs font-semibold uppercase text-[var(--color-text-subtle)]">
-            Prazo
-          </span>
-          <span className="font-bold text-[var(--color-text-strong)]">
-            {formatShortDate(item.dueDate)}
-          </span>
-        </div>
-        
-        <RoutineListQuickActions
-          item={item}
-          actions={['attach']}
-          onAction={onQuickAction}
-        />
-      </div>
+      <RoutineListExecutionPanel
+        item={item}
+        onQuickAction={onQuickAction}
+        onStatusChange={onStatusChange}
+        onStatusConfirm={onStatusConfirm}
+      />
     </article>
   )
 }

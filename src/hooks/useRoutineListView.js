@@ -29,6 +29,5 @@ export function useRoutineListView(data) {
     openGlobalList: () => setListFilter({ type: ROUTINE_LIST_MODE.GLOBAL }),
     openMyTasks: (assigneeId) =>
       setListFilter({ type: ROUTINE_LIST_MODE.MY_TASKS, assigneeId }),
-    openSearch: () => setListFilter({ type: ROUTINE_LIST_MODE.SEARCH }),
   }
 }

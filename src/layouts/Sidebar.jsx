@@ -3,18 +3,25 @@ import { NavLink } from 'react-router-dom'
 import { appThemeClass } from '../constants/designTokens.js'
 import { ROUTES } from '../constants/routes.js'
 import { useAppState } from '../contexts/AppStateContext.jsx'
-import { canManageEmployees, isLeader, isManager } from '../utils/permissions.js'
+import {
+  canManageEmployees,
+  isLeader,
+  isManager,
+} from '../utils/permissions.js'
 
-const baseNavClass =
-  'block border-l-4 px-3 py-2.5 text-sm font-bold transition'
+const baseNavClass = 'block border-l-4 px-3 py-2.5 text-sm font-bold transition'
 
 function Sidebar() {
   const { user } = useAppState()
 
   return (
-    <aside className={`hidden w-60 shrink-0 border-r p-3 lg:block ${appThemeClass.sidebar}`}>
+    <aside
+      className={`hidden w-60 shrink-0 border-r p-3 lg:block ${appThemeClass.sidebar}`}
+    >
       <div className="mb-5 border-b border-[var(--color-divider)] pb-4">
-        <p className={`text-xs font-bold uppercase tracking-[0.18em] ${appThemeClass.brandText}`}>
+        <p
+          className={`text-xs font-bold uppercase tracking-[0.18em] ${appThemeClass.brandText}`}
+        >
           Rotinas
         </p>
         <h1 className={`mt-1 text-lg font-black ${appThemeClass.strongText}`}>
@@ -29,8 +36,8 @@ function Sidebar() {
 
         <NavGroup title="Operacao">
           <NavItem to={ROUTES.SPREADSHEET}>Planilha - Fiscal</NavItem>
+          <NavItem to={ROUTES.TASKS}>Tarefas - Fiscal</NavItem>
           <NavItem to={ROUTES.MY_TASKS}>Minhas tarefas</NavItem>
-          <NavItem to={ROUTES.SEARCH}>Busca</NavItem>
         </NavGroup>
 
         {isLeader(user) && (
@@ -50,7 +57,6 @@ function Sidebar() {
             )}
           </NavGroup>
         )}
-
       </nav>
     </aside>
   )

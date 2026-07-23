@@ -62,21 +62,24 @@ const routines = [
     departmentId: fiscalDepartment.id,
     name: 'Gerar Das',
     shortName: 'Gerar DAS',
-    description: 'Conferencia do faturamento, apuracao e emissao da guia mensal do Simples Nacional.',
+    description:
+      'Conferencia do faturamento, apuracao e emissao da guia mensal do Simples Nacional.',
   },
   {
     id: 'routine-enviar-das',
     departmentId: fiscalDepartment.id,
     name: 'Enviar Das',
     shortName: 'Enviar DAS',
-    description: 'Envio da guia mensal do Simples Nacional apos conferencia e apuracao.',
+    description:
+      'Envio da guia mensal do Simples Nacional apos conferencia e apuracao.',
   },
   {
     id: 'routine-efd-reinf',
     departmentId: fiscalDepartment.id,
     name: 'EFD Reinf',
     shortName: 'EFD Reinf',
-    description: 'Conferencia e transmissao dos eventos fiscais periodicos da EFD Reinf.',
+    description:
+      'Conferencia e transmissao dos eventos fiscais periodicos da EFD Reinf.',
   },
 ]
 
@@ -89,6 +92,14 @@ const employees = [
 
 function getOperationalStatus(routineIndex, clientIndex) {
   const position = clientIndex + 1
+
+  if (routineIndex === 6 && [7, 18].includes(position)) {
+    return 'not_applicable'
+  }
+
+  if (routineIndex === 4 && [8, 16].includes(position)) {
+    return 'no_movement'
+  }
 
   if (routineIndex === 0) {
     if (position === 17) return 'error'
@@ -134,6 +145,14 @@ function getOperationalStatus(routineIndex, clientIndex) {
 }
 
 function getOperationalNote(status, client, routine) {
+  if (status === 'not_applicable') {
+    return `${routine.shortName} nao se aplica para ${client.name} neste periodo.`
+  }
+
+  if (status === 'no_movement') {
+    return `Sem movimento identificado em ${routine.shortName} para ${client.name}.`
+  }
+
   if (status === 'error') {
     return `Pendencia identificada em ${routine.shortName} para ${client.name}.`
   }
@@ -149,35 +168,111 @@ function getOperationalNote(status, client, routine) {
   return ''
 }
 
+const attachmentCatalog = [
+  {
+    name: 'Notas_entrada_junho.csv',
+    mimeType: 'text/csv',
+    sizeLabel: '86 KB',
+    previewType: 'spreadsheet',
+    previewTitle: 'Notas de entrada',
+  },
+  {
+    name: 'NFe_352606001542.xml',
+    mimeType: 'application/xml',
+    sizeLabel: '24 KB',
+    previewType: 'xml',
+    previewTitle: 'Nota fiscal eletrônica',
+  },
+  {
+    name: 'Memoria_de_calculo_junho.xlsx',
+    mimeType:
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    sizeLabel: '118 KB',
+    previewType: 'spreadsheet',
+    previewTitle: 'Memória de cálculo',
+  },
+  {
+    name: 'DAS_06-2026.pdf',
+    mimeType: 'application/pdf',
+    sizeLabel: '184 KB',
+    previewType: 'pdf',
+    previewTitle: 'Documento de arrecadação',
+  },
+  {
+    name: 'Comprovante_de_envio.png',
+    mimeType: 'image/png',
+    sizeLabel: '412 KB',
+    previewType: 'image',
+    previewTitle: 'Comprovante de envio',
+  },
+  {
+    name: 'Relatorio_de_conferencia.docx',
+    mimeType:
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    sizeLabel: '76 KB',
+    previewType: 'document',
+    previewTitle: 'Relatório de conferência',
+  },
+  {
+    name: 'Recibo_EFD-Reinf.pdf',
+    mimeType: 'application/pdf',
+    sizeLabel: '205 KB',
+    previewType: 'pdf',
+    previewTitle: 'Recibo de transmissão',
+  },
+]
+
+function buildMockAttachments(taskId, count, offset = 0) {
+  return Array.from({ length: count }, (_, index) => {
+    const template =
+      attachmentCatalog[(offset + index) % attachmentCatalog.length]
+
+    return {
+      ...template,
+      id: `${taskId}-attachment-${index + 1}`,
+      uploadedAt: `2026-06-${String(18 + (index % 6)).padStart(2, '0')}T15:40:00-03:00`,
+    }
+  })
+}
+
 function buildTask(client, routine, clientIndex, routineIndex) {
   const status = getOperationalStatus(routineIndex, clientIndex)
-  const day = String(18 + ((clientIndex + routineIndex * 2) % 11)).padStart(2, '0')
+  const day = String(18 + ((clientIndex + routineIndex * 2) % 11)).padStart(
+    2,
+    '0',
+  )
   const employee = employees[(clientIndex + routineIndex) % employees.length]
   const note = getOperationalNote(status, client, routine)
+  const taskId = `task-${client.code}-${routine.id.replace('routine-', '')}`
+  const attachmentCount = ['completed', 'no_movement'].includes(status)
+    ? 2 + ((clientIndex + routineIndex) % 3)
+    : (clientIndex + routineIndex) % 2
+  const attachments = buildMockAttachments(
+    taskId,
+    attachmentCount,
+    clientIndex + routineIndex * 2,
+  )
 
   return {
-    id: `task-${client.code}-${routine.id.replace('routine-', '')}`,
+    id: taskId,
     clientId: client.id,
     routineId: routine.id,
     departmentId: routine.departmentId,
-    assigneeId: status === 'pending' && (clientIndex + routineIndex) % 7 === 0 ? null : employee.id,
+    assigneeId:
+      status === 'pending' && (clientIndex + routineIndex) % 7 === 0
+        ? null
+        : employee.id,
     status,
     period: '2026-06',
     dueDate: `2026-06-${day}`,
-    completedAt:
-      status === 'completed' ? `2026-06-${day}T16:00:00-03:00` : null,
+    completedAt: ['completed', 'no_movement', 'not_applicable'].includes(status)
+      ? `2026-06-${day}T16:00:00-03:00`
+      : null,
     notes: note,
+    attachments,
     indicators: {
-      attachments:
-        status === 'completed'
-          ? 2 + ((clientIndex + routineIndex) % 3)
-          : (clientIndex + routineIndex) % 2,
-      comments:
-        status === 'error'
-          ? 3
-          : status === 'in_progress'
-            ? 1
-            : 0,
+      attachments: attachments.length,
+      comments: status === 'error' ? 3 : status === 'in_progress' ? 1 : 0,
       alerts: 0,
     },
   }
@@ -194,7 +289,8 @@ const looseTasks = [
     id: 'loose-task-conferir-certificado',
     isLoose: true,
     title: 'Conferir vencimento de certificado digital',
-    description: 'Verificar certificados que vencem nos proximos 30 dias e registrar retorno.',
+    description:
+      'Verificar certificados que vencem nos proximos 30 dias e registrar retorno.',
     clientId: null,
     routineId: null,
     departmentId: fiscalDepartment.id,
@@ -204,6 +300,7 @@ const looseTasks = [
     dueDate: '2026-06-18',
     completedAt: null,
     notes: 'Priorizar empresas com emissao de nota ativa.',
+    attachments: buildMockAttachments('loose-task-conferir-certificado', 1, 2),
     indicators: {
       attachments: 1,
       comments: 0,
@@ -214,7 +311,8 @@ const looseTasks = [
     id: 'loose-task-organizar-pendencias',
     isLoose: true,
     title: 'Organizar pendencias recebidas por e-mail',
-    description: 'Separar pendencias por empresa e encaminhar para a rotina correta quando necessario.',
+    description:
+      'Separar pendencias por empresa e encaminhar para a rotina correta quando necessario.',
     clientId: null,
     routineId: null,
     departmentId: fiscalDepartment.id,
@@ -224,6 +322,7 @@ const looseTasks = [
     dueDate: '2026-06-21',
     completedAt: null,
     notes: '',
+    attachments: [],
     indicators: {
       attachments: 0,
       comments: 0,
@@ -244,6 +343,7 @@ const looseTasks = [
     dueDate: '2026-06-19',
     completedAt: null,
     notes: 'Alguns acessos retornaram erro de permissao.',
+    attachments: [],
     indicators: {
       attachments: 0,
       comments: 2,
@@ -254,7 +354,8 @@ const looseTasks = [
     id: 'loose-task-atualizar-checklist',
     isLoose: true,
     title: 'Atualizar checklist interno do fiscal',
-    description: 'Registrar ajustes observados durante a execucao das rotinas de junho.',
+    description:
+      'Registrar ajustes observados durante a execucao das rotinas de junho.',
     clientId: null,
     routineId: null,
     departmentId: fiscalDepartment.id,
@@ -264,6 +365,7 @@ const looseTasks = [
     dueDate: '2026-06-16',
     completedAt: '2026-06-16T15:30:00-03:00',
     notes: 'Checklist atualizado com os novos prazos.',
+    attachments: buildMockAttachments('loose-task-atualizar-checklist', 2, 5),
     indicators: {
       attachments: 2,
       comments: 0,

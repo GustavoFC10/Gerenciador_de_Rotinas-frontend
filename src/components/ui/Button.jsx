@@ -1,4 +1,8 @@
-import { buttonTone, controlSize, focusRing } from '../../constants/designTokens.js'
+import {
+  buttonTone,
+  controlSize,
+  focusRing,
+} from '../../constants/designTokens.js'
 
 function Button({
   children,

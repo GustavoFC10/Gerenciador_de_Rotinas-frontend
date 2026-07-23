@@ -31,9 +31,9 @@ function HomePage({ data }) {
           description="Visao principal por empresas e rotinas."
         />
         <ActionLink
-          to={ROUTES.SEARCH}
-          title="Buscar tarefas"
-          description="Busca global exibida no formato de lista operacional."
+          to={ROUTES.TASKS}
+          title="Tarefas - Fiscal"
+          description="Todas as tarefas fiscais em lista, com busca local."
         />
       </div>
     </>

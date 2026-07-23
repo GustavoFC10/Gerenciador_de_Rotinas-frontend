@@ -2,17 +2,22 @@ import { useMemo } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 
 import RoutineListComparison from '../components/routine-control/list/RoutineListComparison.jsx'
+import RoutineListViewSwitcher from '../components/routine-control/list/RoutineListViewSwitcher.jsx'
 import { ROUTES } from '../constants/routes.js'
 import PageHeader from '../layouts/PageHeader.jsx'
-import { ROUTINE_LIST_MODE, buildRoutineListViewData } from '../utils/routineListItems.js'
+import {
+  ROUTINE_LIST_MODE,
+  buildRoutineListViewData,
+} from '../utils/routineListItems.js'
 
 function ListPage({
   data,
-  selectedOptionId,
+  viewMode,
+  onViewModeChange,
   onItemOpen,
   onItemQuickAction,
   onItemNoteChange,
-  onOptionChange,
+  onItemStatusChange,
 }) {
   const [searchParams] = useSearchParams()
   const type = searchParams.get('type') ?? ROUTINE_LIST_MODE.GLOBAL
@@ -31,7 +36,7 @@ function ListPage({
   )
 
   if (!isContextualList) {
-    return <Navigate to={ROUTES.SEARCH} replace />
+    return <Navigate to={ROUTES.TASKS} replace />
   }
 
   return (
@@ -39,18 +44,24 @@ function ListPage({
       <PageHeader
         title={listViewData.title}
         description={listViewData.description}
+        actions={
+          <RoutineListViewSwitcher
+            value={viewMode}
+            onChange={onViewModeChange}
+          />
+        }
       />
 
       <div className="min-h-0 flex-1">
         <RoutineListComparison
-          selectedOptionId={selectedOptionId}
           title={listViewData.title}
           description={listViewData.description}
           items={listViewData.items}
+          viewMode={viewMode}
           onItemOpen={onItemOpen}
           onItemQuickAction={onItemQuickAction}
           onItemNoteChange={onItemNoteChange}
-          onOptionChange={onOptionChange}
+          onItemStatusChange={onItemStatusChange}
           showHeader={false}
         />
       </div>

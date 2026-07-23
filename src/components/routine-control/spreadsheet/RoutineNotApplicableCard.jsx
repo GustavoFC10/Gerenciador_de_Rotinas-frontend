@@ -39,13 +39,28 @@ const placeholderByDepartment = {
   'dept-personnel': PersonnelPlaceholder,
 }
 
-function RoutineNotApplicableCard({ departmentId }) {
-  const Placeholder =
-    placeholderByDepartment[departmentId] ?? FiscalPlaceholder
+function DensePlaceholder() {
+  return (
+    <div className="flex h-7 w-full cursor-default items-center justify-start gap-1.5 rounded-[var(--radius-control)] border border-[var(--status-pending-border)] bg-[var(--status-pending-soft-bg)] px-1.5 text-[9px] font-bold uppercase tracking-[0.02em] text-[var(--color-text-subtle)]">
+      <span
+        className="size-1.5 shrink-0 rounded-full bg-[var(--status-pending-dot)]"
+        aria-hidden="true"
+      />
+      <span className="truncate">Nao se aplica</span>
+    </div>
+  )
+}
+
+function RoutineNotApplicableCard({ departmentId, variant = 'label' }) {
+  const Placeholder = placeholderByDepartment[departmentId] ?? FiscalPlaceholder
 
   return (
-    <div aria-label="Nao se aplica" title="Nao se aplica">
-      <Placeholder />
+    <div
+      aria-label="Nao se aplica"
+      title="Nao se aplica"
+      data-cell-variant={variant}
+    >
+      {variant === 'dense' ? <DensePlaceholder /> : <Placeholder />}
     </div>
   )
 }

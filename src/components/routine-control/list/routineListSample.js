@@ -5,7 +5,8 @@ export const routineListSampleRoutine = {
   departmentId: 'dept-fiscal',
   name: 'Enviar DAS',
   shortName: 'Enviar DAS',
-  description: 'Envio da guia mensal do Simples Nacional apos conferencia e apuracao.',
+  description:
+    'Envio da guia mensal do Simples Nacional apos conferencia e apuracao.',
   departmentName: 'Fiscal',
   period: '2026-06',
 }
@@ -176,7 +177,10 @@ export function buildRoutineListSampleItems() {
       status: item.status,
       period: routineListSampleRoutine.period,
       dueDate: item.dueDate,
-      completedAt: item.status === ROUTINE_STATUS.COMPLETED ? `${item.dueDate}T16:00:00-03:00` : null,
+      completedAt:
+        item.status === ROUTINE_STATUS.COMPLETED
+          ? `${item.dueDate}T16:00:00-03:00`
+          : null,
       notes: item.notes,
       indicators: item.indicators,
       listSample: true,

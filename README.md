@@ -1,64 +1,277 @@
 # Gerenciador de Rotinas - Frontend
 
-Estrutura inicial do frontend para o sistema de controle de rotinas contabeis.
+Frontend do MVP para um sistema de controle de rotinas contabeis. A proposta do produto e substituir gradualmente planilhas operacionais por uma interface unica para acompanhar empresas, rotinas, responsaveis, status, prazos, observacoes e tarefas avulsas.
 
-## Tecnologias
+O foco atual do MVP e validar a experiencia operacional:
 
-- React
-- Vite
-- Tailwind CSS
+- planilha de empresas x rotinas como tela central;
+- listas reutilizaveis para focar por rotina, empresa, tarefas fiscais ou responsavel;
+- tarefas avulsas no mesmo modelo visual das tarefas de rotina;
+- detalhe de tarefa com atualizacao de status, responsavel, prazo e observacao;
+- base de navegacao por perfil para funcionario, lider e manager;
+- estrutura preparada para troca dos mocks por API REST.
 
-## Executando o projeto
+## Stack
+
+- React 19
+- React Router 7
+- Vite 8
+- Tailwind CSS 4
+- Vitest
+- Docker multi-stage com Nginx para producao
+
+## Requisitos
+
+- Node.js 22+
+- npm
+- Docker Desktop, opcional para execucao via container
+
+## Execucao local
+
+Instale as dependencias:
 
 ```bash
 npm install
+```
+
+Inicie o Vite:
+
+```bash
 npm run dev
 ```
 
-## Build e deploy na Vercel
+Por padrao, o Vite disponibiliza a aplicacao em:
 
-```bash
-npm run build
+```text
+http://localhost:5173
 ```
 
-O projeto possui um `vercel.json` configurado para Vite, com saida em `dist` e
-rewrite para `index.html`, garantindo que rotas do React funcionem no deploy.
+## Scripts
 
-## Estrutura
+| Comando                | Descricao                                                 |
+| ---------------------- | --------------------------------------------------------- |
+| `npm run dev`          | Inicia o servidor local do Vite.                          |
+| `npm run build`        | Gera o build de producao em `dist/`.                      |
+| `npm run preview`      | Serve localmente o build gerado pelo Vite.                |
+| `npm run test`         | Executa os testes unitarios com Vitest.                   |
+| `npm run lint`         | Verifica problemas de codigo com ESLint.                  |
+| `npm run lint:fix`     | Corrige automaticamente problemas suportados pelo ESLint. |
+| `npm run format`       | Formata o projeto com Prettier.                           |
+| `npm run format:check` | Verifica se os arquivos seguem o padrao do Prettier.      |
+
+## Variaveis de ambiente
+
+O frontend usa variaveis expostas pelo Vite.
+
+| Variavel        | Padrao                  | Uso                                                                     |
+| --------------- | ----------------------- | ----------------------------------------------------------------------- |
+| `VITE_API_URL`  | `http://localhost:3000` | URL base planejada para a futura API. Hoje os dados ainda sao mockados. |
+| `FRONTEND_PORT` | `8080`                  | Porta usada pelo Docker para publicar o frontend localmente.            |
+
+Exemplo:
+
+```bash
+VITE_API_URL=http://localhost:3000
+FRONTEND_PORT=8080
+```
+
+## Docker
+
+O projeto possui um `Dockerfile` multi-stage com dois modos principais:
+
+- `development`: roda o Vite dentro do container e sincroniza o codigo por volume;
+- `production`: gera o `dist/` e serve a aplicacao estatica com Nginx.
+
+### Desenvolvimento com hot reload
+
+Use o compose principal durante o desenvolvimento:
+
+```bash
+docker-compose up --build
+```
+
+Subir em background:
+
+```bash
+docker-compose up --build -d
+```
+
+Aplicacao via Docker em desenvolvimento:
+
+```text
+http://localhost:8080
+```
+
+Neste modo, alteracoes em `src/` sao refletidas pelo Vite sem rebuild da imagem. Se instalar ou remover dependencias, recrie o container:
+
+```bash
+docker-compose up --build --force-recreate
+```
+
+### Build de producao com Nginx
+
+Use o compose de producao quando quiser testar a imagem estatica final:
+
+```bash
+docker-compose -f docker-compose.prod.yml up --build
+```
+
+Subir em background:
+
+```bash
+docker-compose -f docker-compose.prod.yml up --build -d
+```
+
+Build manual da imagem:
+
+```bash
+docker build --target production --build-arg VITE_API_URL=http://localhost:3000 -t gerenciador-de-rotinas-frontend .
+docker run --rm -p 8080:80 gerenciador-de-rotinas-frontend
+```
+
+## Deploy
+
+O projeto inclui `vercel.json` para deploy do frontend Vite na Vercel.
+
+Configuracao esperada:
+
+- comando de build: `npm run build`;
+- diretorio de saida: `dist`;
+- rewrite para `index.html`, garantindo suporte a rotas client-side do React Router.
+
+## Estado atual do MVP
+
+### Implementado no frontend
+
+- Layout base com sidebar, topbar e area de conteudo.
+- Home operacional com atalhos e resumo.
+- Planilha operacional por departamento.
+- Clique em rotina para abrir lista filtrada por rotina.
+- Clique em empresa para abrir lista filtrada por empresa.
+- Lista global reutilizavel.
+- Tarefas fiscais em lista com busca local.
+- Minhas tarefas com suporte a tarefas avulsas.
+- Perfil simples.
+- Detalhe de tarefa em overlay.
+- Atualizacao local de status, responsavel, prazo, observacao e anexos simulados.
+- Componentes compartilhados de UI, formulario, loading, erro e vazio.
+- Testes unitarios para utilitarios criticos de competencia, filtros e montagem de listas.
+
+### Planejado / placeholder
+
+As rotas abaixo existem na proposta de navegacao do MVP:
+
+- Dashboard do departamento;
+- Dashboard geral;
+- Rotinas;
+- Empresas;
+- Funcionarios;
+- Cargos.
+
+Essas telas representam a direcao do MVP final, mas ainda precisam de implementacao funcional e integracao com backend.
+
+## Regras de produto consideradas
+
+O MVP parte destes conceitos:
+
+- toda task de rotina pertence a uma empresa, rotina, departamento e competencia;
+- tarefas avulsas podem nao ter empresa ou rotina;
+- status operacional inicial: pendente, em andamento, erro e concluido;
+- alteracoes de status, prazo e responsavel devem gerar historico quando o backend existir;
+- funcionarios enxergam apenas seu escopo operacional;
+- lideres devem operar e acompanhar seu departamento;
+- managers devem ter visao global e acesso administrativo;
+- a planilha deve continuar sendo o centro da operacao, mas listas resolvem foco, busca e execucao diaria.
+
+## Rotas principais
+
+| Rota                      | Tela                                             |
+| ------------------------- | ------------------------------------------------ |
+| `/`                       | Home operacional                                 |
+| `/planilha`               | Planilha operacional                             |
+| `/lista`                  | Lista filtravel por rotina ou empresa            |
+| `/tarefas-fiscal`         | Todas as tarefas fiscais em lista                |
+| `/minhas-tarefas`         | Tarefas atribuidas ao usuario, incluindo avulsas |
+| `/perfil`                 | Perfil do usuario                                |
+| `/dashboard-departamento` | Dashboard do lider                               |
+| `/dashboard-geral`        | Dashboard do manager                             |
+| `/rotinas`                | Cadastro/manutencao de rotinas                   |
+| `/empresas`               | Cadastro/manutencao de empresas                  |
+| `/funcionarios`           | Funcionarios                                     |
+| `/cargos`                 | Cargos e permissoes                              |
+
+## Estrutura esperada do projeto
 
 ```text
 src/
-|-- assets/          # Imagens, icones e outros arquivos estaticos
+|-- assets/                  # Arquivos estaticos
 |-- components/
-|   |-- common/      # Componentes compartilhados globais
-|   `-- routine-control/
-|       |-- details/     # Cartoes e paineis abertos da task
-|       |-- list/        # Visualizacao em lista agrupada por status
-|       |-- shared/      # Campos, status e acoes reutilizaveis
-|       `-- spreadsheet/ # Visualizacao em planilha/matriz
-|-- constants/       # Estados e configuracoes compartilhadas
-|-- hooks/           # Hooks customizados
-|-- layouts/         # Estruturas de layout
-|-- mocks/           # Respostas ficticias no formato da futura API
-|-- pages/           # Paginas da aplicacao
-|-- services/        # Comunicacao com APIs e servicos externos
-|-- styles/          # Estilos globais
-`-- utils/           # Funcoes utilitarias
+|   |-- common/              # Estados compartilhados: loading, erro, vazio
+|   |-- forms/               # Shell, secoes e acoes de formularios
+|   |-- routine-control/     # Componentes especificos da operacao de rotinas
+|   |   |-- details/         # Cartoes/paineis de detalhe de task
+|   |   |-- list/            # Cards, secoes e utilitarios da lista operacional
+|   |   |-- shared/          # Campos e acoes reutilizaveis de task
+|   |   `-- spreadsheet/     # Planilha empresas x rotinas
+|   `-- ui/                  # Componentes primitivos de UI
+|-- constants/               # Rotas, papeis, status e tokens
+|-- contexts/                # Estado global da aplicacao
+|-- hooks/                   # Hooks de competencia, listas, form e updates
+|-- layouts/                 # Sidebar, topbar, header e layout principal
+|-- mocks/                   # Dados ficticios no formato esperado pela UI
+|-- pages/                   # Telas roteadas
+|-- services/                # Camada de acesso a dados, hoje mockada
+|-- styles/                  # CSS global e temas
+`-- utils/                   # Regras puras e utilitarios testaveis
 ```
 
-## Componentes iniciais de controle de rotina
+## Dados e integracao
 
-- `spreadsheet/RoutineControlTable`: tabela configuravel por departamento ou visao geral.
-- `spreadsheet/RoutineClosedCardCompact`: etiqueta compacta usada na planilha operacional.
-- `spreadsheet/RoutineNotApplicableCard`: placeholder nao clicavel para celulas sem rotina.
-- `details/RoutineDetailsCard`, `details/RoutineDetailsCardCompact` e
-  `details/RoutineDetailsCardPanel`: tres modelos abertos correspondentes.
-- `shared/RoutineStatusSelect`: controle compartilhado para alteracao do estado.
-- `shared/RoutineCardActions`: observacao, anexo e acao principal para concluir.
+A aplicacao deve consumir dados por uma camada `services/`. Na fase de MVP visual, essa camada pode apontar para mocks locais. Quando a API estiver pronta, a troca deve acontecer dentro da camada `services/`, preservando os contratos usados pela interface sempre que possivel.
 
-O padrao visual dos estados e: pendente em branco, em andamento em amarelo,
-erro em vermelho e concluido em verde.
+Dados esperados:
 
-Os dados ficticios ficam separados da interface e sao acessados por
-`routineControlService`. Quando a API REST estiver disponivel, o mock podera ser
-substituido por uma chamada HTTP sem alterar as propriedades dos componentes.
+- departamentos;
+- empresas/clientes;
+- rotinas modelo;
+- funcionarios;
+- tasks de rotina;
+- tasks avulsas;
+- metadados de competencia.
+
+## Testes
+
+Executar todos os testes:
+
+```bash
+npm run test
+```
+
+Cobertura recomendada para o MVP:
+
+- competencia;
+- filtros de rotinas;
+- montagem de itens de lista;
+- permissoes por perfil;
+- atualizacoes de status, prazo e responsavel.
+
+## Padroes de desenvolvimento
+
+- Preferir componentes pequenos e especificos ao dominio.
+- Manter regras puras em `utils/` quando puderem ser testadas sem React.
+- Manter acesso a dados em `services/`.
+- Reaproveitar o sistema de lista para tarefas fiscais, minhas tarefas e listas filtradas.
+- Evitar acoplar telas diretamente ao mock.
+- Preservar a planilha como visualizacao macro e usar listas para execucao focada.
+
+## Proximos passos tecnicos
+
+- Restaurar ou consolidar a base React/Vite no branch de trabalho.
+- Implementar backend e contrato REST.
+- Criar client HTTP centralizado com tratamento de erro e autenticacao.
+- Substituir mocks por chamadas reais.
+- Implementar login, sessao e RBAC.
+- Persistir updates de status, prazo, responsavel, comentarios e anexos.
+- Implementar dashboards simples e clicaveis para lider e manager.
+- Implementar cadastros de rotinas, empresas, funcionarios e cargos.
+- Adicionar lint, formatacao, CI e testes de componentes/fluxos.

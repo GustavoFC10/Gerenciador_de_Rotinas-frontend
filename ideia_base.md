@@ -10,12 +10,12 @@
 
 Desenvolver um sistema de controle de rotinas para uma empresa contábil específica, focado em:
 
-* Organização operacional;
-* Distribuição de tarefas;
-* Acompanhamento gerencial;
-* Rastreabilidade;
-* Facilidade de uso;
-* Substituição gradual do uso de planilhas.
+- Organização operacional;
+- Distribuição de tarefas;
+- Acompanhamento gerencial;
+- Rastreabilidade;
+- Facilidade de uso;
+- Substituição gradual do uso de planilhas.
 
 O sistema deve priorizar velocidade operacional e simplicidade visual, evitando navegação excessiva entre telas.
 
@@ -25,29 +25,29 @@ O sistema deve priorizar velocidade operacional e simplicidade visual, evitando 
 
 ## Incluído
 
-* Autenticação
-* Cadastro de Empresas
-* Cadastro de Funcionários
-* Cadastro de Departamentos
-* Definição de Líderes
-* Cadastro de Rotinas Modelo
-* Geração Automática de Tasks
-* Atribuição de Tasks
-* Dashboard Gerencial
-* Tela Operacional do Funcionário
-* Comentários
-* Avisos
-* Histórico
-* Upload de Arquivos
+- Autenticação
+- Cadastro de Empresas
+- Cadastro de Funcionários
+- Cadastro de Departamentos
+- Definição de Líderes
+- Cadastro de Rotinas Modelo
+- Geração Automática de Tasks
+- Atribuição de Tasks
+- Dashboard Gerencial
+- Tela Operacional do Funcionário
+- Comentários
+- Avisos
+- Histórico
+- Upload de Arquivos
 
 ## Não Incluído
 
-* Integrações externas
-* Aplicativo mobile
-* Automações por IA
-* Relatórios avançados
-* API pública
-* Integrações governamentais
+- Integrações externas
+- Aplicativo mobile
+- Automações por IA
+- Relatórios avançados
+- API pública
+- Integrações governamentais
 
 ---
 
@@ -59,12 +59,12 @@ Responsável pela administração geral do sistema.
 
 Permissões:
 
-* Cadastro de clientes
-* Cadastro de departamentos
-* Cadastro de funcionários
-* Configuração de rotinas
-* Visualização global
-* Reatribuição de tarefas
+- Cadastro de clientes
+- Cadastro de departamentos
+- Cadastro de funcionários
+- Configuração de rotinas
+- Visualização global
+- Reatribuição de tarefas
 
 ---
 
@@ -74,10 +74,10 @@ Responsável pela gestão operacional do setor.
 
 Permissões:
 
-* Visualizar tarefas do departamento
-* Atribuir responsáveis
-* Reatribuir tarefas
-* Acompanhar andamento
+- Visualizar tarefas do departamento
+- Atribuir responsáveis
+- Reatribuir tarefas
+- Acompanhar andamento
 
 ---
 
@@ -87,11 +87,11 @@ Responsável pela execução das rotinas.
 
 Permissões:
 
-* Visualizar tarefas atribuídas
-* Atualizar status
-* Anexar arquivos
-* Adicionar comentários
-* Enviar avisos
+- Visualizar tarefas atribuídas
+- Atualizar status
+- Anexar arquivos
+- Adicionar comentários
+- Enviar avisos
 
 ---
 
@@ -402,10 +402,10 @@ Permitir autenticação.
 
 ## Componentes
 
-* Campo E-mail
-* Campo Senha
-* Botão Entrar
-* Recuperar Senha
+- Campo E-mail
+- Campo Senha
+- Botão Entrar
+- Recuperar Senha
 
 ---
 
@@ -419,25 +419,25 @@ Apresentar visão inicial.
 
 ### Manager
 
-* Total pendentes
-* Total concluídas
-* Total em espera
-* Total com problema
-* Total canceladas
-* Atrasadas
-* Próximas do vencimento
+- Total pendentes
+- Total concluídas
+- Total em espera
+- Total com problema
+- Total canceladas
+- Atrasadas
+- Próximas do vencimento
 
 ### Líder
 
-* Pendentes do setor
-* Sem responsável
-* Avisos
+- Pendentes do setor
+- Sem responsável
+- Avisos
 
 ### Funcionário
 
-* Minhas pendentes
-* Minhas atrasadas
-* Avisos
+- Minhas pendentes
+- Minhas atrasadas
+- Avisos
 
 ---
 
@@ -459,12 +459,12 @@ Exibir todas as tarefas em uma única tela.
 
 ## Filtros Superiores
 
-* Mês
-* Cliente
-* Rotina
-* Status
-* Responsável
-* Pesquisa
+- Mês
+- Cliente
+- Rotina
+- Status
+- Responsável
+- Pesquisa
 
 [PREENCHER]
 
@@ -474,8 +474,8 @@ Exibir todas as tarefas em uma única tela.
 
 Contém:
 
-* Erro/Problema
-* Atrasadas
+- Erro/Problema
+- Atrasadas
 
 Expandida por padrão.
 
@@ -507,21 +507,21 @@ Recolhida por padrão.
 
 Campos visíveis:
 
-* Código do Cliente
-* Nome do Cliente
-* Rotina
-* Prazo
-* Status
-* Responsável
-* Indicador de anexos
-* Indicador de comentários
-* Indicador de avisos
+- Código do Cliente
+- Nome do Cliente
+- Rotina
+- Prazo
+- Status
+- Responsável
+- Indicador de anexos
+- Indicador de comentários
+- Indicador de avisos
 
 Ações:
 
-* Abrir
-* Anexar
-* Alterar Status
+- Abrir
+- Anexar
+- Alterar Status
 
 [PREENCHER]
 
@@ -537,18 +537,18 @@ Executar atividade.
 
 ### Cabeçalho
 
-* Cliente
-* Rotina
-* Departamento
-* Responsável
-* Prazo
+- Cliente
+- Rotina
+- Departamento
+- Responsável
+- Prazo
 
 ---
 
 ### Informações
 
-* Descrição
-* Observações
+- Descrição
+- Observações
 
 ---
 
@@ -584,10 +584,10 @@ Distribuição de tarefas.
 
 ## Componentes
 
-* Lista de tarefas
-* Filtros
-* Seleção de responsável
-* Reatribuição
+- Lista de tarefas
+- Filtros
+- Seleção de responsável
+- Reatribuição
 
 [PREENCHER]
 
@@ -597,13 +597,13 @@ Distribuição de tarefas.
 
 ## Componentes
 
-* Código Interno
-* Razão Social
-* Nome Fantasia
-* CNPJ
-* Regime Tributário
-* Status
-* Observações
+- Código Interno
+- Razão Social
+- Nome Fantasia
+- CNPJ
+- Regime Tributário
+- Status
+- Observações
 
 ---
 
@@ -617,12 +617,12 @@ Distribuição de tarefas.
 
 ## Componentes
 
-* Nome
-* Departamento
-* Periodicidade
-* Prazo
-* Regras de aplicação
-* Observações
+- Nome
+- Departamento
+- Periodicidade
+- Prazo
+- Regras de aplicação
+- Observações
 
 ---
 
@@ -636,13 +636,13 @@ Distribuição de tarefas.
 
 ## Indicadores
 
-* Pendentes
-* Concluídas
-* Em Espera
-* Problemas
-* Canceladas
-* Atrasadas
-* Próximas do vencimento
+- Pendentes
+- Concluídas
+- Em Espera
+- Problemas
+- Canceladas
+- Atrasadas
+- Próximas do vencimento
 
 ---
 
@@ -694,13 +694,13 @@ RN15 – [PREENCHER]
 
 # 9. Decisões de UX
 
-* Priorizar uma única tela operacional.
-* Evitar excesso de menus.
-* Evitar múltiplas abas aninhadas.
-* Utilizar filtros ao invés de navegação profunda.
-* Separar tarefas por estado.
-* Mostrar primeiro tarefas que exigem atenção.
-* Permitir visualização alternativa em grade para líderes e gestores.
+- Priorizar uma única tela operacional.
+- Evitar excesso de menus.
+- Evitar múltiplas abas aninhadas.
+- Utilizar filtros ao invés de navegação profunda.
+- Separar tarefas por estado.
+- Mostrar primeiro tarefas que exigem atenção.
+- Permitir visualização alternativa em grade para líderes e gestores.
 
 ---
 
