@@ -33,15 +33,8 @@ function RoutineListCardOptionThree({
           <span className="block truncate text-sm font-bold text-[var(--color-text-strong)]">
             {item.primaryLabel ?? item.companyName}
           </span>
-          <span className="mt-0.5 block truncate text-[11px] text-[var(--color-text-muted)]">
-            {item.routineName} · {item.departmentName} · {item.period}
-            <span className="xl:hidden"> · {item.assigneeName}</span>
-          </span>
-          {item.notes && (
-            <span className="mt-0.5 block truncate text-[10px] text-[var(--color-text-subtle)]">
-              {item.notes}
-            </span>
-          )}
+          
+          
         </span>
       </button>
 
