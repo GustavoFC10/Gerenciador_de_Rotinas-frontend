@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 
 import RoutineListComparison from '../components/routine-control/list/RoutineListComparison.jsx'
-import RoutineListViewSwitcher from '../components/routine-control/list/RoutineListViewSwitcher.jsx'
 import { ROUTES } from '../constants/routes.js'
 import PageHeader from '../layouts/PageHeader.jsx'
 import {
@@ -12,8 +11,6 @@ import {
 
 function ListPage({
   data,
-  viewMode,
-  onViewModeChange,
   onItemOpen,
   onItemQuickAction,
   onItemNoteChange,
@@ -44,12 +41,6 @@ function ListPage({
       <PageHeader
         title={listViewData.title}
         description={listViewData.description}
-        actions={
-          <RoutineListViewSwitcher
-            value={viewMode}
-            onChange={onViewModeChange}
-          />
-        }
       />
 
       <div className="min-h-0 flex-1">
@@ -57,7 +48,6 @@ function ListPage({
           title={listViewData.title}
           description={listViewData.description}
           items={listViewData.items}
-          viewMode={viewMode}
           onItemOpen={onItemOpen}
           onItemQuickAction={onItemQuickAction}
           onItemNoteChange={onItemNoteChange}

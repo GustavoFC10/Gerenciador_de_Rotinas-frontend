@@ -4,9 +4,6 @@ import { Route, Routes, useNavigate } from 'react-router-dom'
 import ErrorState from './components/common/ErrorState.jsx'
 import LoadingState from './components/common/LoadingState.jsx'
 import RoutineDetailsCard from './components/routine-control/details/RoutineDetailsCard.jsx'
-import RoutineDetailsCardCompact from './components/routine-control/details/RoutineDetailsCardCompact.jsx'
-import RoutineDetailsCardPanel from './components/routine-control/details/RoutineDetailsCardPanel.jsx'
-import { ROUTINE_LIST_PRESENTATION } from './components/routine-control/list/routineListUtils.js'
 import { ROUTES } from './constants/routes.js'
 import AppLayout from './layouts/AppLayout.jsx'
 import HomePage from './pages/HomePage.jsx'
@@ -20,18 +17,6 @@ import { useRoutineControl } from './hooks/useRoutineControl.js'
 import { useTaskUpdates } from './hooks/useTaskUpdates.js'
 import { buildTaskRelations } from './utils/routineRelations.js'
 
-const detailsCardByView = {
-  document: RoutineDetailsCard,
-  compact: RoutineDetailsCardCompact,
-  panel: RoutineDetailsCardPanel,
-}
-
-const detailsModalWidthByView = {
-  document: 'max-w-5xl',
-  compact: 'max-w-4xl',
-  panel: 'max-w-6xl',
-}
-
 const selectedSpreadsheetPresentation = {
   id: 'dept-accounting',
   name: 'Planilha operacional',
@@ -41,10 +26,6 @@ function App() {
   const navigate = useNavigate()
   const { response, setResponse, data, isLoading, error } = useRoutineControl()
   const [selectedTask, setSelectedTask] = useState(null)
-  const [selectedDetailsView, setSelectedDetailsView] = useState(null)
-  const [selectedListView, setSelectedListView] = useState(
-    ROUTINE_LIST_PRESENTATION.OPERATIONAL,
-  )
   const dialogRef = useRef(null)
   const returnFocusRef = useRef(null)
   const taskUpdates = useTaskUpdates({ setResponse, setSelectedTask })
@@ -236,10 +217,6 @@ function App() {
     )
   }
 
-  const SelectedDetailsCard =
-    detailsCardByView[selectedDetailsView] ?? RoutineDetailsCard
-  const activeDetailsView = selectedDetailsView ?? 'document'
-
   return (
     <>
       <Routes>
@@ -261,8 +238,6 @@ function App() {
             element={
               <ListPage
                 data={data}
-                viewMode={selectedListView}
-                onViewModeChange={setSelectedListView}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
@@ -275,8 +250,6 @@ function App() {
             element={
               <TasksPage
                 data={visibleData}
-                viewMode={selectedListView}
-                onViewModeChange={setSelectedListView}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
@@ -289,8 +262,6 @@ function App() {
             element={
               <MyTasksPage
                 data={data}
-                viewMode={selectedListView}
-                onViewModeChange={setSelectedListView}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
@@ -369,21 +340,15 @@ function App() {
         >
           <div
             ref={dialogRef}
-            className={`max-h-[calc(100vh-2rem)] w-full overscroll-contain rounded-[var(--radius-panel)] ${
-              activeDetailsView === 'panel'
-                ? 'overflow-hidden'
-                : 'overflow-y-auto'
-            } ${detailsModalWidthByView[activeDetailsView]}`}
+            className="max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-y-auto overscroll-contain rounded-[var(--radius-panel)]"
             role="dialog"
             aria-modal="true"
             aria-labelledby={`routine-details-title-${selectedTask.id}`}
             tabIndex={-1}
           >
-            <SelectedDetailsCard
+            <RoutineDetailsCard
               task={selectedTask}
               {...selectedRelations}
-              viewMode={activeDetailsView}
-              onViewModeChange={setSelectedDetailsView}
               onStatusChange={taskUpdates.updateStatus}
               onAssigneeChange={taskUpdates.updateAssignee}
               onDueDateChange={taskUpdates.updateDueDate}

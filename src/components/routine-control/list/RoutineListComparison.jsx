@@ -1,64 +1,9 @@
 import { useMemo, useState } from 'react'
 
-import {
-  ROUTINE_STATUS,
-  routineStatusConfig,
-} from '../../../constants/routineStatus.js'
-import RoutineListCardOptionOne from './RoutineListCardOptionOne.jsx'
+import { ROUTINE_STATUS } from '../../../constants/routineStatus.js'
 import RoutineListCardOptionThree from './RoutineListCardOptionThree.jsx'
-import RoutineListCardOptionTwo from './RoutineListCardOptionTwo.jsx'
 import RoutineListSection from './RoutineListSection.jsx'
-import {
-  ROUTINE_LIST_PRESENTATION,
-  groupRoutineListItemsByFlow,
-  groupRoutineListItemsByStatus,
-} from './routineListUtils.js'
-
-const listPresentations = {
-  [ROUTINE_LIST_PRESENTATION.OPERATIONAL]: {
-    Card: RoutineListCardOptionOne,
-    groupItems: groupRoutineListItemsByStatus,
-    sectionVariant: 'compact',
-    shellClass: 'bg-[var(--color-list-panel-bg)]',
-    shellNoHeaderClass: 'bg-transparent',
-    headerClass:
-      'border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-4 sm:px-6',
-    eyebrowClass: 'text-[var(--color-brand)]',
-    contentClass: 'space-y-3 bg-[var(--color-list-bg)] p-4 sm:p-5',
-    noHeaderContentClass:
-      'space-y-2 rounded-[var(--radius-panel)] border border-[var(--color-list-border)] bg-[var(--color-list-bg)] p-3 sm:p-4',
-  },
-  [ROUTINE_LIST_PRESENTATION.TRACKING]: {
-    Card: RoutineListCardOptionTwo,
-    groupItems: groupRoutineListItemsByFlow,
-    sectionVariant: 'cards',
-    overviewVariant: 'flow',
-    shellClass: 'bg-[var(--color-panel-soft-bg)]',
-    shellNoHeaderClass: 'bg-transparent',
-    headerClass:
-      'border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-4 sm:px-6',
-    eyebrowClass: 'text-[var(--color-brand)]',
-    contentClass: 'space-y-4 bg-[var(--color-panel-soft-bg)] p-4 sm:p-5',
-    noHeaderContentClass:
-      'space-y-4 rounded-[var(--radius-panel)] border border-[var(--color-list-border)] bg-[var(--color-panel-soft-bg)] p-3 sm:p-4',
-  },
-  [ROUTINE_LIST_PRESENTATION.LEDGER]: {
-    Card: RoutineListCardOptionThree,
-    groupItems: groupRoutineListItemsByStatus,
-    sectionVariant: 'ledger',
-    overviewVariant: 'ledger',
-    showColumnHeader: true,
-    shellClass: 'bg-[var(--color-list-panel-bg)]',
-    shellNoHeaderClass: 'bg-transparent',
-    headerClass:
-      'border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-4 sm:px-6',
-    eyebrowClass: 'text-[var(--color-brand)]',
-    contentClass:
-      'overflow-hidden bg-[var(--color-list-panel-bg)] shadow-[var(--shadow-panel)]',
-    noHeaderContentClass:
-      'overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] shadow-[var(--shadow-panel)]',
-  },
-}
+import { groupRoutineListItemsByStatus } from './routineListUtils.js'
 
 function normalizeSearchValue(value) {
   return String(value ?? '')
@@ -90,7 +35,6 @@ function RoutineListComparison({
   title,
   description,
   items,
-  viewMode = ROUTINE_LIST_PRESENTATION.OPERATIONAL,
   onItemOpen,
   onItemQuickAction,
   onItemNoteChange,
@@ -99,9 +43,6 @@ function RoutineListComparison({
 }) {
   const [pendingChangeById, setPendingChangeById] = useState({})
   const [searchTerm, setSearchTerm] = useState('')
-  const presentation =
-    listPresentations[viewMode] ??
-    listPresentations[ROUTINE_LIST_PRESENTATION.OPERATIONAL]
   const groupedItems = useMemo(() => {
     return items.map((item) => ({
       ...item,
@@ -114,17 +55,13 @@ function RoutineListComparison({
     [groupedItems, searchTerm],
   )
   const groups = useMemo(
-    () => presentation.groupItems(visibleItems),
-    [presentation, visibleItems],
+    () => groupRoutineListItemsByStatus(visibleItems),
+    [visibleItems],
   )
 
-  const SelectedCard = presentation.Card
   const contentClass = showHeader
-    ? presentation.contentClass
-    : presentation.noHeaderContentClass
-  const shellClass = showHeader
-    ? presentation.shellClass
-    : presentation.shellNoHeaderClass
+    ? 'overflow-hidden bg-[var(--color-list-panel-bg)] shadow-[var(--shadow-panel)]'
+    : 'overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] shadow-[var(--shadow-panel)]'
 
   function handlePendingStatusChange(item, change) {
     const nextChange = normalizePendingChange(change)
@@ -165,16 +102,14 @@ function RoutineListComparison({
 
   return (
     <section
-      className={`overflow-hidden ${showHeader ? 'rounded-2xl' : ''} ${shellClass}`}
-      data-list-view={viewMode}
+      className={`overflow-hidden ${showHeader ? 'rounded-2xl bg-[var(--color-list-panel-bg)]' : 'bg-transparent'}`}
+      data-list-view="ledger"
     >
       {showHeader && (
-        <header className={presentation.headerClass}>
+        <header className="border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-4 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p
-                className={`text-xs font-bold uppercase tracking-[0.18em] ${presentation.eyebrowClass}`}
-              >
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-brand)]">
                 Lista operacional
               </p>
               <h2 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl">
@@ -200,26 +135,20 @@ function RoutineListComparison({
         </div>
       )}
 
-      {presentation.overviewVariant && (
-        <ListOverview
-          variant={presentation.overviewVariant}
-          groups={groups}
-          items={visibleItems}
-        />
-      )}
+      <ListOverview items={visibleItems} />
 
       <div className={contentClass}>
-        {presentation.showColumnHeader && <LedgerColumnHeader />}
+        <LedgerColumnHeader />
 
         {groups.length > 0 ? (
           groups.map((group) => (
             <RoutineListSection
               key={group.key ?? group.status}
               group={group}
-              variant={presentation.sectionVariant}
+              variant="ledger"
             >
               {group.items.map((item) => (
-                <SelectedCard
+                <RoutineListCardOptionThree
                   key={item.id}
                   item={item}
                   onOpen={onItemOpen}
@@ -239,36 +168,7 @@ function RoutineListComparison({
   )
 }
 
-function ListOverview({ variant, groups, items }) {
-  if (variant === 'flow') {
-    return (
-      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {groups.map((group) => {
-          const statusConfig = routineStatusConfig[group.status]
-
-          return (
-            <div
-              key={group.key}
-              className="flex min-w-0 items-center gap-3 rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-3 py-2.5 shadow-[var(--shadow-panel)]"
-            >
-              <span
-                className={`size-3 shrink-0 rounded-full ${statusConfig.dotClass}`}
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-                  {group.label}
-                </span>
-                <span className="block text-lg font-black leading-5 text-[var(--color-text-strong)]">
-                  {group.items.length}
-                </span>
-              </span>
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
-
+function ListOverview({ items }) {
   const errorCount = items.filter(
     (item) => item.status === ROUTINE_STATUS.ERROR,
   ).length

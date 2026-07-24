@@ -49,19 +49,9 @@ const sharedProps = {
   onAttachmentRemove: () => {},
 }
 
-function renderVariant(variant) {
-  return renderToStaticMarkup(
-    <RoutineDetailsCard
-      {...sharedProps}
-      variant={variant}
-      viewMode={variant}
-    />,
-  )
-}
-
-describe('RoutineDetailsCard layouts', () => {
-  it('combines attachment previews and the execution record in option one', () => {
-    const markup = renderVariant('document')
+describe('RoutineDetailsCard', () => {
+  it('keeps the selected document layout', () => {
+    const markup = renderToStaticMarkup(<RoutineDetailsCard {...sharedProps} />)
 
     expect(markup).toContain('data-details-view="document"')
     expect(markup).toContain('Descrição')
@@ -82,43 +72,6 @@ describe('RoutineDetailsCard layouts', () => {
     expect(markup.indexOf('Detalhes')).toBeLessThan(
       markup.indexOf('Responsável'),
     )
-  })
-
-  it('renders the context workspace with ownership above operations', () => {
-    const markup = renderVariant('compact')
-
-    expect(markup).toContain('data-details-view="compact"')
-    expect(markup).toContain('Responsabilidade')
-    expect(markup).toContain('Contexto')
-    expect(markup).toContain('Fluxo da execução')
-    expect(markup.indexOf('Responsabilidade')).toBeLessThan(
-      markup.indexOf('Contexto', markup.indexOf('</header>')),
-    )
-  })
-
-  it('renders the flow layout with status, evidence and ownership columns', () => {
-    const markup = renderVariant('panel')
-
-    expect(markup).toContain('data-details-view="panel"')
-    expect(markup).toContain('Exceções')
-    expect(markup).toContain('Área principal')
-    expect(markup).toContain('Galeria de anexos')
-    expect(markup).toContain('Responsabilidade')
-    expect(markup).toContain('data-flow-main="true"')
-    expect(markup).toContain('data-attachment-layout="vertical-two-rows"')
-    expect(markup).toContain('data-scroll-owner="attachments"')
-    expect(markup.indexOf('Exceções')).toBeLessThan(
-      markup.indexOf('Galeria de anexos'),
-    )
-    expect(markup.indexOf('Galeria de anexos')).toBeLessThan(
-      markup.indexOf('Responsabilidade'),
-    )
-
-    const mainStart = markup.indexOf('data-flow-main="true"')
-    const mainEnd = markup.indexOf('</main>', mainStart)
-    const mainMarkup = markup.slice(mainStart, mainEnd)
-
-    expect(mainMarkup).toContain('Galeria de anexos')
-    expect(mainMarkup).toContain('Nota de contexto')
+    expect(markup).not.toContain('Trocar visualização do card')
   })
 })

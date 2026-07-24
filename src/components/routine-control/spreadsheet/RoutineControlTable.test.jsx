@@ -30,43 +30,25 @@ const tasks = [
   },
 ]
 
-function renderTable(variant) {
+function renderTable() {
   return renderToStaticMarkup(
     <RoutineControlTable
       clients={clients}
       routines={routines}
       tasks={tasks}
-      variant={variant}
       showHeader={false}
     />,
   )
 }
 
 describe('RoutineControlTable presentations', () => {
-  it('keeps the comfortable textual cells as the default option', () => {
-    const markup = renderTable('label')
-
-    expect(markup).toContain('data-spreadsheet-variant="label"')
-    expect(markup).toContain('data-cell-variant="label"')
-    expect(markup).toContain('Em andamento')
-  })
-
-  it('keeps the icon-only grid as option two', () => {
-    const markup = renderTable('round')
+  it('keeps the selected icon-only grid', () => {
+    const markup = renderTable()
 
     expect(markup).toContain('data-spreadsheet-variant="round"')
     expect(markup).toContain(
       'Abrir Apurar impostos de Empresa Alpha. Status: Em andamento',
     )
-  })
-
-  it('renders compact textual cells and marginal totals in option three', () => {
-    const markup = renderTable('dense')
-
-    expect(markup).toContain('data-spreadsheet-variant="dense"')
-    expect(markup).toContain('data-cell-variant="dense"')
-    expect(markup).toContain('Em andamento')
     expect(markup).toContain('Nao se aplica')
-    expect(markup).toContain('0/1 encerr.')
   })
 })
