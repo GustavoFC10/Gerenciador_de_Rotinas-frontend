@@ -1,5 +1,5 @@
-import PageHeader from '../layouts/PageHeader'
 import EmptyState from '../components/common/EmptyState'
+import WorkspaceBar from '../layouts/WorkspaceBar'
 
 function PlaceholderPage({
   title,
@@ -10,11 +10,8 @@ function PlaceholderPage({
 }) {
   return (
     <>
-      <PageHeader size="compact" title={title} description={description} />
-      <EmptyState
-        title="Tela planejada"
-        description="A estrutura de rota e navegacao ja existe para esta area."
-      />
+      <WorkspaceBar title={title} />
+      <EmptyState title="Área em desenvolvimento" description={description} />
     </>
   )
 }

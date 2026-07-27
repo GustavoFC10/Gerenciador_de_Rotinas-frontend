@@ -12,6 +12,12 @@ describe('SpreadsheetPage', () => {
     )
 
     expect(markup).toContain('data-spreadsheet-variant="round"')
+    expect(markup).toContain('Planilha')
+    expect(markup).toContain('Fiscal')
+    expect(markup).toContain('0 empresas · 0 rotinas')
+    expect(markup).toContain('Planilha Fiscal</caption>')
+    expect(markup).not.toContain('Planilha operacional')
+    expect(markup).not.toContain('Controle operacional')
     expect(markup).not.toContain('Trocar visualização da planilha')
   })
 })

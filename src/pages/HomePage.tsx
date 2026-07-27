@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 import Card from '../components/ui/Card'
 import { ROUTES } from '../constants/routes'
-import PageHeader from '../layouts/PageHeader'
+import WorkspaceBar from '../layouts/WorkspaceBar'
 import type { RoutineControlData } from '../types/domain'
 
 function HomePage({ data }: { data?: RoutineControlData }) {
@@ -14,10 +14,7 @@ function HomePage({ data }: { data?: RoutineControlData }) {
 
   return (
     <>
-      <PageHeader
-        title="Home operacional"
-        description="Acesse rapidamente a planilha, listas e tarefas do periodo."
-      />
+      <WorkspaceBar title="Visão geral" />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <HomeCard label="Total de tarefas" value={totalTasks} />
@@ -27,14 +24,14 @@ function HomePage({ data }: { data?: RoutineControlData }) {
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <ActionLink
-          to={ROUTES.SPREADSHEET}
-          title="Abrir planilha"
-          description="Visao principal por empresas e rotinas."
+          to={`${ROUTES.SPREADSHEET}?sheetId=fiscal`}
+          title="Planilha Fiscal"
+          description="Acesse empresas, rotinas e tarefas no fluxo principal."
         />
         <ActionLink
           to={ROUTES.TASKS}
-          title="Tarefas - Fiscal"
-          description="Todas as tarefas fiscais em lista, com busca local."
+          title="Todas as tarefas"
+          description="Consulte as tarefas da planilha em formato de lista."
         />
       </div>
     </>

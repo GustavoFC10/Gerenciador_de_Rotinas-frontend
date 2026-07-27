@@ -47,7 +47,7 @@ function RoutineListComparison({
   onItemQuickAction,
   onItemNoteChange,
   onItemStatusChange,
-  showHeader = true,
+  showHeader = false,
 }: {
   title?: string
   description?: string
@@ -137,10 +137,7 @@ function RoutineListComparison({
         <header className="border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-4 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-brand)]">
-                Lista operacional
-              </p>
-              <h2 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl">
+              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
                 {title}
               </h2>
               <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">

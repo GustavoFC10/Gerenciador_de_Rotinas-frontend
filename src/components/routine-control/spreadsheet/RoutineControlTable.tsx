@@ -50,7 +50,8 @@ function ClientRowButton({
 function RoutineControlTable({
   title,
   description,
-  showHeader = true,
+  accessibleName,
+  showHeader = false,
   clients,
   routines,
   tasks,
@@ -60,6 +61,7 @@ function RoutineControlTable({
 }: {
   title?: string
   description?: string
+  accessibleName?: string
   showHeader?: boolean
   clients: Client[]
   routines: Routine[]
@@ -105,6 +107,9 @@ function RoutineControlTable({
 
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full min-w-max border-collapse text-left">
+          <caption className="sr-only">
+            {accessibleName ?? title ?? 'Planilha de rotinas'}
+          </caption>
           <thead>
             <tr className="bg-[var(--color-table-header-bg)]">
               <th className="sticky left-0 z-20 min-w-64 border-b border-r border-[var(--color-table-border)] bg-[var(--color-table-header-bg)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-table-heading-text)]">

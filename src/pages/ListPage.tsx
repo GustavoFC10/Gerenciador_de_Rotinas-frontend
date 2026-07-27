@@ -1,9 +1,14 @@
 import { useMemo } from 'react'
-import { Navigate, useSearchParams } from 'react-router-dom'
+import {
+  Navigate,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from 'react-router'
 
 import RoutineListComparison from '../components/routine-control/list/RoutineListComparison'
 import { ROUTES } from '../constants/routes'
-import PageHeader from '../layouts/PageHeader'
+import WorkspaceBar from '../layouts/WorkspaceBar'
 import type {
   RoutineListInteractionProps,
   RoutineListMode,
@@ -15,12 +20,19 @@ import {
 
 function ListPage({
   data,
+  spreadsheetName = 'Fiscal',
   onItemOpen,
   onItemQuickAction,
   onItemNoteChange,
   onItemStatusChange,
-}: RoutineListInteractionProps) {
+}: RoutineListInteractionProps & { spreadsheetName?: string }) {
   const [searchParams] = useSearchParams()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const spreadsheetId = searchParams.get('sheetId') ?? 'fiscal'
+  const wasOpenedFromSpreadsheet = Boolean(
+    (location.state as { fromSpreadsheet?: boolean } | null)?.fromSpreadsheet,
+  )
   const requestedType = searchParams.get('type')
   const type: RoutineListMode =
     requestedType === ROUTINE_LIST_MODE.CLIENT ||
@@ -42,20 +54,28 @@ function ListPage({
   )
 
   if (!isContextualList) {
-    return <Navigate to={ROUTES.TASKS} replace />
+    return (
+      <Navigate
+        to={`${ROUTES.TASKS}?sheetId=${encodeURIComponent(spreadsheetId)}`}
+        replace
+      />
+    )
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader
+      <WorkspaceBar
+        context={{
+          label: `Planilha ${spreadsheetName}`,
+          to: `${ROUTES.SPREADSHEET}?sheetId=${encodeURIComponent(spreadsheetId)}`,
+          onBack: wasOpenedFromSpreadsheet ? () => navigate(-1) : undefined,
+        }}
+        label={type === ROUTINE_LIST_MODE.CLIENT ? 'Empresa' : 'Rotina'}
         title={listViewData.title}
-        description={listViewData.description}
       />
 
       <div className="min-h-0 flex-1">
         <RoutineListComparison
-          title={listViewData.title}
-          description={listViewData.description}
           items={listViewData.items}
           onItemOpen={onItemOpen}
           onItemQuickAction={onItemQuickAction}

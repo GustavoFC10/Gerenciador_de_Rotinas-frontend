@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 
 import RoutineListComparison from '../components/routine-control/list/RoutineListComparison'
-import PageHeader from '../layouts/PageHeader'
+import { ROUTES } from '../constants/routes'
+import WorkspaceBar from '../layouts/WorkspaceBar'
 import type { RoutineListInteractionProps } from '../types/domain'
 import {
   buildRoutineListViewData,
@@ -10,11 +11,16 @@ import {
 
 function TasksPage({
   data,
+  spreadsheetId = 'fiscal',
+  spreadsheetName = 'Fiscal',
   onItemOpen,
   onItemQuickAction,
   onItemNoteChange,
   onItemStatusChange,
-}: RoutineListInteractionProps) {
+}: RoutineListInteractionProps & {
+  spreadsheetId?: string
+  spreadsheetName?: string
+}) {
   const listViewData = useMemo(
     () =>
       buildRoutineListViewData({
@@ -26,9 +32,14 @@ function TasksPage({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader
-        title="Tarefas - Fiscal"
-        description="Todas as tarefas fiscais acessiveis em formato de lista operacional."
+      <WorkspaceBar
+        context={{
+          label: `Planilha ${spreadsheetName}`,
+          to: `${ROUTES.SPREADSHEET}?sheetId=${encodeURIComponent(
+            spreadsheetId,
+          )}`,
+        }}
+        title="Todas as tarefas"
       />
 
       <div className="min-h-0 flex-1">

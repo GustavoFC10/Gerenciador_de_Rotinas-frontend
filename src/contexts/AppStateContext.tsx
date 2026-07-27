@@ -21,7 +21,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = preferences.theme
-  }, [preferences.theme])
+    document.documentElement.dataset.density = preferences.density
+  }, [preferences.density, preferences.theme])
 
   const value = useMemo(
     () => ({

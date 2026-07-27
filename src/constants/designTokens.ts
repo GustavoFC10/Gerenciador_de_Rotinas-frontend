@@ -15,10 +15,9 @@ export const appThemeOptions: Array<{ value: AppTheme; label: string }> = [
 export const appThemeClass = {
   shell: 'bg-[var(--color-app-bg)] text-[var(--color-text-main)]',
   sidebar:
-    'border-[var(--color-nav-group-border)] bg-[var(--color-sidebar-bg)] text-[var(--color-text-main)]',
+    'border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] text-[var(--color-text-main)]',
   topbar:
     'border-[var(--color-divider)] bg-[var(--color-topbar-bg)] text-[var(--color-text-main)]',
-  pageHeader: 'border-[var(--color-page-header-border)]',
   panel:
     'border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-panel)]',
   mutedText: 'text-[var(--color-text-muted)]',

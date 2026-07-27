@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Route, Routes, useNavigate } from 'react-router-dom'
+import { Route, Routes, useNavigate } from 'react-router'
 
 import ErrorState from './components/common/ErrorState'
 import LoadingState from './components/common/LoadingState'
 import RoutineDetailsCard from './components/routine-control/details/RoutineDetailsCard'
 import { ROUTES } from './constants/routes'
 import AppLayout from './layouts/AppLayout'
+import type { SpreadsheetNavigationItem } from './layouts/Sidebar'
 import HomePage from './pages/HomePage'
 import ListPage from './pages/ListPage'
 import MyTasksPage from './pages/MyTasksPage'
@@ -29,9 +30,20 @@ import type {
 } from './types/domain'
 
 const selectedSpreadsheetPresentation: Department = {
-  id: 'dept-accounting',
-  name: 'Planilha operacional',
+  id: 'dept-fiscal',
+  name: 'Fiscal',
 }
+
+const selectedSpreadsheetId = 'fiscal'
+
+const spreadsheetNavigationItems: SpreadsheetNavigationItem[] = [
+  {
+    id: selectedSpreadsheetId,
+    name: 'Fiscal',
+    description: 'Clientes e rotinas',
+    to: `${ROUTES.SPREADSHEET}?sheetId=${selectedSpreadsheetId}`,
+  },
+]
 
 function App() {
   const navigate = useNavigate()
@@ -183,16 +195,28 @@ function App() {
     }
   }, [data, selectedTask])
 
-  const pageSurfaceClass = ''
-
   function handleRoutineListOpen(routine: Routine) {
     setSelectedTask(null)
-    navigate(`${ROUTES.LIST}?type=routine&id=${routine.id}`)
+    const searchParams = new URLSearchParams({
+      sheetId: selectedSpreadsheetId,
+      type: 'routine',
+      id: routine.id,
+    })
+    navigate(`${ROUTES.LIST}?${searchParams.toString()}`, {
+      state: { fromSpreadsheet: true },
+    })
   }
 
   function handleClientListOpen(client: Client) {
     setSelectedTask(null)
-    navigate(`${ROUTES.LIST}?type=client&id=${client.id}`)
+    const searchParams = new URLSearchParams({
+      sheetId: selectedSpreadsheetId,
+      type: 'client',
+      id: client.id,
+    })
+    navigate(`${ROUTES.LIST}?${searchParams.toString()}`, {
+      state: { fromSpreadsheet: true },
+    })
   }
 
   function handleListItemOpen(item: RoutineListItem) {
@@ -249,12 +273,15 @@ function App() {
   return (
     <>
       <Routes>
-        <Route element={<AppLayout pageSurfaceClass={pageSurfaceClass} />}>
+        <Route
+          element={<AppLayout spreadsheets={spreadsheetNavigationItems} />}
+        >
           <Route index element={<HomePage data={data} />} />
           <Route
             path={ROUTES.SPREADSHEET}
             element={
               <SpreadsheetPage
+                spreadsheetName={selectedSpreadsheetPresentation.name}
                 visibleData={visibleData}
                 onClientOpen={handleClientListOpen}
                 onRoutineOpen={handleRoutineListOpen}
@@ -266,7 +293,8 @@ function App() {
             path={ROUTES.LIST}
             element={
               <ListPage
-                data={data}
+                data={visibleData}
+                spreadsheetName={selectedSpreadsheetPresentation.name}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
@@ -279,6 +307,8 @@ function App() {
             element={
               <TasksPage
                 data={visibleData}
+                spreadsheetId={selectedSpreadsheetId}
+                spreadsheetName={selectedSpreadsheetPresentation.name}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}

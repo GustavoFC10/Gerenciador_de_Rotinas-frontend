@@ -1,8 +1,9 @@
 import RoutineControlTable from '../components/routine-control/spreadsheet/RoutineControlTable'
-import PageHeader from '../layouts/PageHeader'
+import WorkspaceBar from '../layouts/WorkspaceBar'
 import type { Client, Routine, Task } from '../types/domain'
 
 interface SpreadsheetPageProps {
+  spreadsheetName?: string
   visibleData: {
     clients: Client[]
     routines: Routine[]
@@ -14,6 +15,7 @@ interface SpreadsheetPageProps {
 }
 
 function SpreadsheetPage({
+  spreadsheetName = 'Fiscal',
   visibleData,
   onClientOpen,
   onRoutineOpen,
@@ -21,16 +23,15 @@ function SpreadsheetPage({
 }: SpreadsheetPageProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader
-        size="workspace"
-        title="Planilha operacional"
-        description="Clientes nas linhas e rotinas nas colunas. Clique nos cabecalhos para abrir listas especificas sem sair do fluxo operacional."
+      <WorkspaceBar
+        label="Planilha"
+        title={spreadsheetName}
+        meta={`${visibleData.clients.length} empresas · ${visibleData.routines.length} rotinas`}
       />
 
       <div className="min-h-0 flex-1">
         <RoutineControlTable
-          title="Planilha operacional"
-          description="Clique em uma rotina para listar empresas, ou em uma empresa para listar rotinas."
+          accessibleName={`Planilha ${spreadsheetName}`}
           showHeader={false}
           clients={visibleData.clients}
           routines={visibleData.routines}

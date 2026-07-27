@@ -1,10 +1,19 @@
-import { Link } from 'react-router-dom'
+import type { RefObject } from 'react'
+import { Link } from 'react-router'
 
-import { appThemeClass } from '../constants/designTokens'
+import { appThemeClass, focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
 
-function Topbar() {
+function Topbar({
+  isNavigationOpen,
+  onNavigationOpen,
+  menuButtonRef,
+}: {
+  isNavigationOpen: boolean
+  onNavigationOpen: () => void
+  menuButtonRef: RefObject<HTMLButtonElement | null>
+}) {
   const {
     formattedCompetence,
     goToNextCompetence,
@@ -18,31 +27,42 @@ function Topbar() {
     >
       <div className="flex items-center gap-2">
         <button
+          ref={menuButtonRef}
           type="button"
-          onClick={goToPreviousCompetence}
-          className="grid size-8 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)]"
-          aria-label="Competencia anterior"
+          onClick={onNavigationOpen}
+          className={`mr-1 grid size-9 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] lg:hidden ${focusRing}`}
+          aria-label="Abrir navegação"
+          aria-controls="app-sidebar"
+          aria-expanded={isNavigationOpen}
         >
-          &lt;
+          <MenuIcon />
         </button>
         <button
           type="button"
-          className="min-h-8 rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 text-sm font-bold text-[var(--color-control-text)]"
+          onClick={goToPreviousCompetence}
+          className={`grid size-8 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] ${focusRing}`}
+          aria-label="Competência anterior"
+        >
+          <ChevronIcon direction="left" />
+        </button>
+        <span
+          className="inline-flex min-h-8 items-center rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 text-sm font-bold text-[var(--color-control-text)]"
+          aria-label={`Competência atual: ${formattedCompetence}`}
         >
           {formattedCompetence}
-        </button>
+        </span>
         <button
           type="button"
           onClick={goToNextCompetence}
-          className="grid size-8 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)]"
-          aria-label="Proxima competencia"
+          className={`grid size-8 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] ${focusRing}`}
+          aria-label="Próxima competência"
         >
-          &gt;
+          <ChevronIcon direction="right" />
         </button>
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="text-right">
+        <div className="hidden text-right sm:block">
           <p className="text-sm font-bold text-[var(--color-text-main)]">
             {user.name}
           </p>
@@ -74,6 +94,39 @@ function UserIcon() {
     >
       <path d="M20 21a8 8 0 0 0-16 0" strokeWidth="1.8" strokeLinecap="round" />
       <path d="M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
+function MenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  )
+}
+
+function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={direction === 'left' ? 'm15 18-6-6 6-6' : 'm9 18 6-6-6-6'} />
     </svg>
   )
 }
