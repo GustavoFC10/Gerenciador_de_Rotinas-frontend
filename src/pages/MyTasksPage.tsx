@@ -38,7 +38,7 @@ function MyTasksPage({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <WorkspaceBar
-        title="Minhas tarefas avulsas"
+        title="Minhas tarefas"
         actions={
           <button
             type="button"

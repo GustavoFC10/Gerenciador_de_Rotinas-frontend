@@ -13,6 +13,15 @@ export const ROUTINE_STATUS = {
   NO_MOVEMENT: 'no_movement',
 } as const satisfies Record<string, RoutineStatus>
 
+export const terminalRoutineStatuses: ReadonlySet<RoutineStatus> = new Set([
+  ROUTINE_STATUS.COMPLETED,
+  ROUTINE_STATUS.NO_MOVEMENT,
+])
+
+export function isTerminalRoutineStatus(status: RoutineStatus): boolean {
+  return terminalRoutineStatuses.has(status)
+}
+
 export const routineStatusConfig: Record<RoutineStatus, RoutineStatusConfig> = {
   [ROUTINE_STATUS.PENDING]: {
     label: statusTone.pending.label,

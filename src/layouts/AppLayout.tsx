@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router'
 
 import { appThemeClass, focusRing } from '../constants/designTokens'
-import Sidebar, { type SpreadsheetNavigationItem } from './Sidebar'
+import type { SpreadsheetNavigationItem } from '../types/navigation'
+import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = 'routine-manager.sidebar-collapsed'

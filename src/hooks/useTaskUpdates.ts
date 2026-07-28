@@ -1,16 +1,7 @@
-import { ROUTINE_STATUS } from '../constants/routineStatus'
+import { isTerminalRoutineStatus } from '../constants/routineStatus'
 import type { Dispatch, SetStateAction } from 'react'
-import type {
-  EntityId,
-  RoutineControlResponse,
-  RoutineStatus,
-  Task,
-} from '../types/domain'
-
-const terminalStatuses = new Set<RoutineStatus>([
-  ROUTINE_STATUS.COMPLETED,
-  ROUTINE_STATUS.NO_MOVEMENT,
-])
+import type { EntityId, RoutineControlResponse, Task } from '../types/domain'
+import type { RoutineStatus } from '../types/domain'
 
 type AttachmentTaskShape = Pick<Task, 'attachments' | 'indicators'>
 type TaskChanges = Partial<Task> | ((task: Task) => Partial<Task>)
@@ -95,7 +86,7 @@ export function useTaskUpdates({
       updateTask(taskId, (task) => ({
         status,
         statusDetail,
-        completedAt: terminalStatuses.has(status)
+        completedAt: isTerminalRoutineStatus(status)
           ? (task.completedAt ?? new Date().toISOString())
           : null,
       })),

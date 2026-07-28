@@ -8,17 +8,20 @@ import { USER_ROLE } from '../constants/roles'
 import { AppStateContext } from '../contexts/appStateContextDefinition'
 import type { AppStateContextValue } from '../contexts/appStateContextDefinition'
 import type { AppUser, UserRole } from '../types/domain'
-import Sidebar, { type SpreadsheetNavigationItem } from './Sidebar'
+import type { SpreadsheetNavigationItem } from '../types/navigation'
+import Sidebar from './Sidebar'
 
 const spreadsheets: SpreadsheetNavigationItem[] = [
   {
     id: 'fiscal',
+    departmentId: 'dept-fiscal',
     name: 'Fiscal',
     description: 'Clientes e rotinas',
     to: '/planilha?sheetId=fiscal',
   },
   {
     id: 'pessoal',
+    departmentId: 'dept-pessoal',
     name: 'Departamento pessoal',
     to: '/planilha?sheetId=pessoal',
   },
@@ -88,11 +91,15 @@ function getCurrentLink(markup: string): string {
 }
 
 describe('Sidebar', () => {
-  it('places spreadsheets before secondary navigation with stronger semantics', () => {
+  it('keeps home as a global landmark and spreadsheets above secondary access', () => {
     const markup = renderSidebar()
 
     expect(markup).toContain('aria-label="Navegação principal"')
+    expect(markup).toContain('aria-label="Ir para o início"')
     expect(markup).toContain('data-navigation-priority="spreadsheet"')
+    expect(markup.indexOf('>Início</span>')).toBeLessThan(
+      markup.indexOf('Fiscal'),
+    )
     expect(markup.indexOf('Fiscal')).toBeLessThan(
       markup.indexOf('Minhas tarefas'),
     )

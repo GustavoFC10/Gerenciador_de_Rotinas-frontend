@@ -1,78 +1,96 @@
-import { Link } from 'react-router'
+import { useMemo } from 'react'
 
-import Card from '../components/ui/Card'
-import { ROUTES } from '../constants/routes'
+import HomePersonalPeriodCard from '../components/home/HomePersonalPeriodCard'
+import HomePrioritySection from '../components/home/HomePrioritySection'
+import HomeRoleOverviewSection from '../components/home/HomeRoleOverviewSection'
+import HomeSpreadsheetSection from '../components/home/HomeSpreadsheetSection'
+import { useAppState } from '../hooks/useAppState'
 import WorkspaceBar from '../layouts/WorkspaceBar'
-import type { RoutineControlData } from '../types/domain'
+import type { RoutineControlData, Task } from '../types/domain'
+import type { SpreadsheetNavigationItem } from '../types/navigation'
+import { buildHomeOverview } from '../utils/homeOverview'
+import { isManager } from '../utils/permissions'
 
-function HomePage({ data }: { data?: RoutineControlData }) {
-  const totalTasks = data?.tasks.length ?? 0
-  const pendingTasks =
-    data?.tasks.filter((task) => task.status === 'pending').length ?? 0
-  const errorTasks =
-    data?.tasks.filter((task) => task.status === 'error').length ?? 0
+interface HomePageProps {
+  data: RoutineControlData
+  spreadsheets: SpreadsheetNavigationItem[]
+  generatedAt: string
+  onTaskOpen: (task: Task) => void
+}
+
+function HomePage({
+  data,
+  spreadsheets,
+  generatedAt,
+  onTaskOpen,
+}: HomePageProps) {
+  const { user, competence, formattedCompetence } = useAppState()
+  const referenceDate = getReferenceDate(generatedAt, competence)
+  const overview = useMemo(
+    () =>
+      buildHomeOverview({
+        data,
+        user,
+        competence,
+        referenceDate,
+        spreadsheets,
+      }),
+    [competence, data, referenceDate, spreadsheets, user],
+  )
 
   return (
-    <>
-      <WorkspaceBar title="Visão geral" />
+    <div className="mx-auto w-full max-w-[90rem]">
+      <WorkspaceBar
+        title="Início"
+        meta={
+          <span className="whitespace-nowrap">
+            {formattedCompetence} · {formatUpdatedAt(generatedAt)}
+          </span>
+        }
+      />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <HomeCard label="Total de tarefas" value={totalTasks} />
-        <HomeCard label="Pendentes" value={pendingTasks} />
-        <HomeCard label="Com erro" value={errorTasks} />
+      <HomeSpreadsheetSection summaries={overview.spreadsheets} />
+
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.75fr)]">
+        <HomePrioritySection
+          priorities={overview.personal.priorities}
+          openCount={overview.personal.open}
+          referenceDate={overview.referenceDate}
+          onTaskOpen={onTaskOpen}
+        />
+
+        <HomePersonalPeriodCard overview={overview.personal} />
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <ActionLink
-          to={`${ROUTES.SPREADSHEET}?sheetId=fiscal`}
-          title="Planilha Fiscal"
-          description="Acesse empresas, rotinas e tarefas no fluxo principal."
+      {overview.role && (
+        <HomeRoleOverviewSection
+          overview={overview.role}
+          manager={isManager(user)}
+          referenceDate={overview.referenceDate}
+          onTaskOpen={onTaskOpen}
         />
-        <ActionLink
-          to={ROUTES.TASKS}
-          title="Todas as tarefas"
-          description="Consulte as tarefas da planilha em formato de lista."
-        />
-      </div>
-    </>
+      )}
+    </div>
   )
 }
 
-function HomeCard({ label, value }: { label: string; value: number }) {
-  return (
-    <Card variant="metric" className="p-4">
-      <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-black text-[var(--color-text-main)]">
-        {value}
-      </p>
-    </Card>
-  )
+function getReferenceDate(generatedAt: string, competence: string): string {
+  const generatedDate = generatedAt.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(generatedDate)
+    ? generatedDate
+    : `${competence}-01`
 }
 
-function ActionLink({
-  to,
-  title,
-  description,
-}: {
-  to: string
-  title: string
-  description: string
-}) {
-  return (
-    <Link
-      to={to}
-      className="block rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-5 shadow-[var(--shadow-panel)] transition hover:border-[var(--color-accent)] hover:bg-[var(--color-panel-soft-bg)]"
-    >
-      <h2 className="text-base font-bold text-[var(--color-text-main)]">
-        {title}
-      </h2>
-      <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-        {description}
-      </p>
-    </Link>
-  )
+function formatUpdatedAt(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'dados atualizados'
+
+  return `atualizado ${new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)}`
 }
 
 export default HomePage

@@ -5,14 +5,8 @@ import { appThemeClass, focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
 import type { EntityId } from '../types/domain'
+import type { SpreadsheetNavigationItem } from '../types/navigation'
 import { canManageEmployees, isLeader, isManager } from '../utils/permissions'
-
-export interface SpreadsheetNavigationItem {
-  id: EntityId
-  name: string
-  description?: string
-  to: string
-}
 
 interface SidebarProps {
   spreadsheets: SpreadsheetNavigationItem[]
@@ -48,12 +42,6 @@ const secondaryNavigation = [
     to: ROUTES.TASKS,
     label: 'Todas as tarefas',
     icon: 'list',
-  },
-  {
-    to: ROUTES.HOME,
-    label: 'Visão geral',
-    icon: 'home',
-    end: true,
   },
 ] as const
 
@@ -109,10 +97,13 @@ function Sidebar({
           isCollapsed ? 'lg:justify-center lg:px-2' : ''
         }`}
       >
-        <div
-          className={`min-w-0 flex-1 items-center gap-2.5 ${
+        <Link
+          to={ROUTES.HOME}
+          onClick={onMobileClose}
+          className={`min-w-0 flex-1 items-center gap-2.5 rounded-[var(--radius-control)] ${
             isCollapsed ? 'flex lg:hidden' : 'flex'
-          }`}
+          } ${focusRing}`}
+          aria-label="Ir para o início"
         >
           <span className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-sidebar-icon-bg)] text-[var(--color-sidebar-icon-text)]">
             <NavigationIcon name="spreadsheet" className="size-5" />
@@ -125,7 +116,7 @@ function Sidebar({
               Controle por planilhas
             </p>
           </div>
-        </div>
+        </Link>
 
         <button
           ref={closeButtonRef}
@@ -159,6 +150,22 @@ function Sidebar({
         }`}
         aria-label="Navegação principal"
       >
+        <ul
+          className={`mb-4 border-b border-[var(--color-sidebar-border)] pb-4 ${
+            isCollapsed ? 'lg:mx-0.5' : ''
+          }`}
+          aria-label="Acesso global"
+        >
+          <NavigationLink
+            to={ROUTES.HOME}
+            label="Início"
+            icon="home"
+            isCollapsed={isCollapsed}
+            end
+            onNavigate={onMobileClose}
+          />
+        </ul>
+
         <NavigationSection
           title="Planilhas"
           isCollapsed={isCollapsed}
@@ -193,7 +200,6 @@ function Sidebar({
               label={item.label}
               icon={item.icon}
               isCollapsed={isCollapsed}
-              end={'end' in item ? item.end : false}
               onNavigate={onMobileClose}
             />
           ))}

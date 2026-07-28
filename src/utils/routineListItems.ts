@@ -29,9 +29,7 @@ export function buildRoutineListViewData({
 }): RoutineListViewData {
   const relations = normalizeRoutineData(data)
   const linkedCells = new Set(
-    data.clientRoutineLinks.map(
-      (link) => `${link.clientId}:${link.routineId}`,
-    ),
+    data.clientRoutineLinks.map((link) => `${link.clientId}:${link.routineId}`),
   )
   const operationalTasks = data.tasks.filter(
     (task) =>
@@ -65,9 +63,7 @@ function selectTasks(tasks: Task[], filter: RoutineListFilter): Task[] {
   }
 
   if (filter.type === ROUTINE_LIST_MODE.MY_TASKS) {
-    return tasks.filter(
-      (task) => task.isLoose && task.assigneeId === filter.assigneeId,
-    )
+    return tasks.filter((task) => task.assigneeId === filter.assigneeId)
   }
 
   return tasks
@@ -87,7 +83,7 @@ function getListTitle(
   }
 
   if (filter.type === ROUTINE_LIST_MODE.MY_TASKS) {
-    return 'Minhas tarefas avulsas'
+    return 'Minhas tarefas'
   }
 
   return 'Tarefas - Fiscal'
@@ -99,7 +95,7 @@ function getListDescription(filter: RoutineListFilter): string {
   if (filter.type === ROUTINE_LIST_MODE.ROUTINE)
     return 'Todas as empresas vinculadas a esta rotina.'
   if (filter.type === ROUTINE_LIST_MODE.MY_TASKS)
-    return 'Tarefas sem rotina ou empresa obrigatoria.'
+    return 'Tarefas de rotina e avulsas atribuidas a voce.'
   return 'Todas as tarefas fiscais acessiveis ao usuario.'
 }
 

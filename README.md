@@ -144,7 +144,8 @@ Configuracao esperada:
 ### Implementado no frontend
 
 - Layout base com sidebar, topbar e area de conteudo.
-- Home operacional com atalhos e resumo.
+- Home operacional personalizada por usuário e competência, com planilhas,
+  prioridades, andamento pessoal e expansão por cargo.
 - Planilha operacional por departamento.
 - Clique em rotina para abrir lista filtrada por rotina.
 - Clique em empresa para abrir lista filtrada por empresa.
@@ -206,6 +207,7 @@ O MVP parte destes conceitos:
 src/
 |-- assets/                  # Arquivos estaticos
 |-- components/
+|   |-- home/                # Blocos operacionais e responsivos da Home
 |   |-- common/              # Estados compartilhados: loading, erro, vazio
 |   |-- forms/               # Shell, secoes e acoes de formularios
 |   |-- routine-control/     # Componentes especificos da operacao de rotinas

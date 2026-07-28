@@ -6,7 +6,6 @@ import LoadingState from './components/common/LoadingState'
 import RoutineDetailsCard from './components/routine-control/details/RoutineDetailsCard'
 import { ROUTES } from './constants/routes'
 import AppLayout from './layouts/AppLayout'
-import type { SpreadsheetNavigationItem } from './layouts/Sidebar'
 import HomePage from './pages/HomePage'
 import ListPage from './pages/ListPage'
 import MyTasksPage from './pages/MyTasksPage'
@@ -28,6 +27,7 @@ import type {
   Task,
   TaskRelations,
 } from './types/domain'
+import type { SpreadsheetNavigationItem } from './types/navigation'
 
 const selectedSpreadsheetPresentation: Department = {
   id: 'dept-fiscal',
@@ -39,6 +39,7 @@ const selectedSpreadsheetId = 'fiscal'
 const spreadsheetNavigationItems: SpreadsheetNavigationItem[] = [
   {
     id: selectedSpreadsheetId,
+    departmentId: selectedSpreadsheetPresentation.id,
     name: 'Fiscal',
     description: 'Clientes e rotinas',
     to: `${ROUTES.SPREADSHEET}?sheetId=${selectedSpreadsheetId}`,
@@ -285,7 +286,17 @@ function App() {
         <Route
           element={<AppLayout spreadsheets={spreadsheetNavigationItems} />}
         >
-          <Route index element={<HomePage data={data} />} />
+          <Route
+            index
+            element={
+              <HomePage
+                data={data}
+                spreadsheets={spreadsheetNavigationItems}
+                generatedAt={response.meta.generatedAt}
+                onTaskOpen={setSelectedTask}
+              />
+            }
+          />
           <Route
             path={ROUTES.SPREADSHEET}
             element={
