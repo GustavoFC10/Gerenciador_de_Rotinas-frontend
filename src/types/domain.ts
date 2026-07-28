@@ -6,7 +6,6 @@ export type RoutineStatus =
   | 'error'
   | 'completed'
   | 'no_movement'
-  | 'not_applicable'
 
 export interface Department {
   id: EntityId
@@ -25,6 +24,12 @@ export interface Routine {
   name: string
   shortName: string
   description?: string
+}
+
+export interface ClientRoutineLink {
+  id: EntityId
+  clientId: EntityId
+  routineId: EntityId
 }
 
 export interface Employee {
@@ -73,6 +78,7 @@ export interface RoutineControlData {
   departments: Department[]
   clients: Client[]
   routines: Routine[]
+  clientRoutineLinks: ClientRoutineLink[]
   employees: Employee[]
   tasks: Task[]
 }

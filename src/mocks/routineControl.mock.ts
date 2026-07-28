@@ -1,5 +1,6 @@
 import type {
   Client,
+  ClientRoutineLink,
   Department,
   Employee,
   Routine,
@@ -107,10 +108,6 @@ function getOperationalStatus(
 ): RoutineStatus {
   const position = clientIndex + 1
 
-  if (routineIndex === 6 && [7, 18].includes(position)) {
-    return 'not_applicable'
-  }
-
   if (routineIndex === 4 && [8, 16].includes(position)) {
     return 'no_movement'
   }
@@ -163,10 +160,6 @@ function getOperationalNote(
   client: Client,
   routine: Routine,
 ): string {
-  if (status === 'not_applicable') {
-    return `${routine.shortName} nao se aplica para ${client.name} neste periodo.`
-  }
-
   if (status === 'no_movement') {
     return `Sem movimento identificado em ${routine.shortName} para ${client.name}.`
   }
@@ -292,7 +285,7 @@ function buildTask(
     status,
     period: '2026-06',
     dueDate: `2026-06-${day}`,
-    completedAt: ['completed', 'no_movement', 'not_applicable'].includes(status)
+    completedAt: ['completed', 'no_movement'].includes(status)
       ? `2026-06-${day}T16:00:00-03:00`
       : null,
     notes: note,
@@ -305,9 +298,35 @@ function buildTask(
   }
 }
 
+function isClientRoutineLinked(
+  routineIndex: number,
+  clientIndex: number,
+): boolean {
+  const clientPosition = clientIndex + 1
+
+  return !(routineIndex === 6 && [7, 18].includes(clientPosition))
+}
+
+const clientRoutineLinks: ClientRoutineLink[] = clients.flatMap(
+  (client, clientIndex) =>
+    routines.flatMap((routine, routineIndex) =>
+      isClientRoutineLinked(routineIndex, clientIndex)
+        ? [
+            {
+              id: `link-${client.id}-${routine.id}`,
+              clientId: client.id,
+              routineId: routine.id,
+            },
+          ]
+        : [],
+    ),
+)
+
 const tasks = clients.flatMap((client, clientIndex) =>
-  routines.map((routine, routineIndex) =>
-    buildTask(client, routine, clientIndex, routineIndex),
+  routines.flatMap((routine, routineIndex) =>
+    isClientRoutineLinked(routineIndex, clientIndex)
+      ? [buildTask(client, routine, clientIndex, routineIndex)]
+      : [],
   ),
 )
 
@@ -406,6 +425,7 @@ export const routineControlMock: RoutineControlResponse = {
     departments: [fiscalDepartment],
     clients,
     routines,
+    clientRoutineLinks,
     employees,
     tasks: [...tasks, ...looseTasks],
   },

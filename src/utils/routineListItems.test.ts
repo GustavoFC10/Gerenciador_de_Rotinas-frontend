@@ -12,9 +12,22 @@ const data = {
       shortName: 'Enviar DAS',
       departmentId: 'dept-fiscal',
     },
+    {
+      id: 'routine-unlinked',
+      name: 'Rotina histórica desvinculada',
+      shortName: 'Desvinculada',
+      departmentId: 'dept-fiscal',
+    },
   ],
   employees: [{ id: 'employee-1', name: 'Ana Souza' }],
   departments: [{ id: 'dept-fiscal', name: 'Fiscal' }],
+  clientRoutineLinks: [
+    {
+      id: 'link-1',
+      clientId: 'client-1',
+      routineId: 'routine-1',
+    },
+  ],
   tasks: [
     {
       id: 'task-1',
@@ -27,6 +40,19 @@ const data = {
       dueDate: '2026-06-20',
       completedAt: null,
       notes: 'Aguardando guia',
+      indicators: { attachments: 0, comments: 0 },
+    },
+    {
+      id: 'task-unlinked-history',
+      clientId: 'client-1',
+      routineId: 'routine-unlinked',
+      departmentId: 'dept-fiscal',
+      assigneeId: 'employee-1',
+      period: '2026-05',
+      status: 'completed',
+      dueDate: '2026-05-20',
+      completedAt: '2026-05-20T12:00:00-03:00',
+      notes: 'Histórico preservado após desvinculação',
       indicators: { attachments: 0, comments: 0 },
     },
   ],
@@ -65,5 +91,6 @@ describe('routine list items', () => {
     })
 
     expect(view.items[0].primaryLabel).toBe('Alpha Ltda - Enviar DAS')
+    expect(view.items).toHaveLength(1)
   })
 })

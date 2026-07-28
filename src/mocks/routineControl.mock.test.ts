@@ -31,4 +31,31 @@ describe('routineControlMock attachments', () => {
       ),
     ).toBe(true)
   })
+
+  it('models non-applicability as an absent client-routine link, not a task status', () => {
+    const { clientRoutineLinks, tasks } = routineControlMock.data
+    const absentPairs = [
+      ['client-007', 'routine-efd-reinf'],
+      ['client-018', 'routine-efd-reinf'],
+    ]
+
+    expect(
+      tasks.every((task) => String(task.status) !== 'not_applicable'),
+    ).toBe(true)
+
+    absentPairs.forEach(([clientId, routineId]) => {
+      expect(
+        clientRoutineLinks.some(
+          (link) =>
+            link.clientId === clientId && link.routineId === routineId,
+        ),
+      ).toBe(false)
+      expect(
+        tasks.some(
+          (task) =>
+            task.clientId === clientId && task.routineId === routineId,
+        ),
+      ).toBe(false)
+    })
+  })
 })

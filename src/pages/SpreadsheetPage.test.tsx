@@ -7,7 +7,12 @@ describe('SpreadsheetPage', () => {
   it('renders the selected spreadsheet without a style switcher', () => {
     const markup = renderToStaticMarkup(
       <SpreadsheetPage
-        visibleData={{ clients: [], routines: [], tasks: [] }}
+        visibleData={{
+          clients: [],
+          routines: [],
+          clientRoutineLinks: [],
+          tasks: [],
+        }}
       />,
     )
 
@@ -18,6 +23,7 @@ describe('SpreadsheetPage', () => {
     expect(markup).toContain('Planilha Fiscal</caption>')
     expect(markup).not.toContain('Planilha operacional')
     expect(markup).not.toContain('Controle operacional')
+    expect(markup).not.toContain('Editar vínculos')
     expect(markup).not.toContain('Trocar visualização da planilha')
   })
 })

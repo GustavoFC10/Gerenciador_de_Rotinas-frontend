@@ -82,6 +82,7 @@
   --color-list-border: #cbd5e1;
   --color-list-field-bg: #ffffff;
   --color-list-muted-bg: #f8fafc;
+  --color-applicability-empty-marker: #94a3b8;
 
   --status-pending-bg: #ffffff;
   --status-pending-hover-bg: #f8fafc;
@@ -213,6 +214,7 @@
   --color-list-border: #334155;
   --color-list-field-bg: #0f172a;
   --color-list-muted-bg: #111827;
+  --color-applicability-empty-marker: #64748b;
 
   --status-pending-bg: #111827;
   --status-pending-hover-bg: #1f2937;
@@ -340,6 +342,7 @@
   --color-list-border: #8bd2f3;
   --color-list-field-bg: #ffffff;
   --color-list-muted-bg: #eaf7ff;
+  --color-applicability-empty-marker: #7890b8;
 
   --status-pending-bg: #ffffff;
   --status-pending-hover-bg: #f7fcff;

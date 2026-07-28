@@ -1,6 +1,11 @@
 import RoutineClosedCardCompact from './RoutineClosedCardCompact'
 import RoutineNotApplicableCard from './RoutineNotApplicableCard'
-import type { Client, Routine, Task } from '../../../types/domain'
+import type {
+  Client,
+  ClientRoutineLink,
+  Routine,
+  Task,
+} from '../../../types/domain'
 
 function RoutineHeaderButton({
   routine,
@@ -54,6 +59,7 @@ function RoutineControlTable({
   showHeader = false,
   clients,
   routines,
+  clientRoutineLinks,
   tasks,
   onClientOpen,
   onRoutineOpen,
@@ -65,6 +71,7 @@ function RoutineControlTable({
   showHeader?: boolean
   clients: Client[]
   routines: Routine[]
+  clientRoutineLinks: ClientRoutineLink[]
   tasks: Task[]
   onClientOpen?: (client: Client) => void
   onRoutineOpen?: (routine: Routine) => void
@@ -72,6 +79,9 @@ function RoutineControlTable({
 }) {
   const clientIds = new Set(clients.map((client) => client.id))
   const routineIds = new Set(routines.map((routine) => routine.id))
+  const linkedCells = new Set(
+    clientRoutineLinks.map((link) => `${link.clientId}:${link.routineId}`),
+  )
   const tableTasks = tasks.filter(
     (task) =>
       task.clientId !== null &&
@@ -138,22 +148,32 @@ function RoutineControlTable({
                 </th>
 
                 {routines.map((routine) => {
-                  const task = taskByCell.get(`${client.id}:${routine.id}`)
+                  const cellKey = `${client.id}:${routine.id}`
+                  const isApplicable = linkedCells.has(cellKey)
+                  const task = taskByCell.get(cellKey)
+
                   return (
                     <td
                       key={routine.id}
-                      className="h-12 border-b border-r border-[var(--color-table-border)] bg-[var(--color-table-cell-bg)] p-1.5 text-center last:border-r-0 group-hover:bg-[var(--color-table-row-hover-bg)]"
+                      data-routine-applicability={
+                        isApplicable ? 'applicable' : 'not-applicable'
+                      }
+                      className={`h-12 border-b border-r border-[var(--color-table-border)] bg-[var(--color-table-cell-bg)] p-1.5 text-center last:border-r-0 ${
+                        isApplicable && task
+                          ? 'group-hover:bg-[var(--color-table-row-hover-bg)]'
+                          : ''
+                      }`}
                     >
-                      {task ? (
+                      {!isApplicable ? (
+                        <RoutineNotApplicableCard />
+                      ) : task ? (
                         <RoutineClosedCardCompact
                           task={task}
                           label={`${routine.name} de ${client.name}`}
                           onOpen={onTaskOpen}
                         />
                       ) : (
-                        <RoutineNotApplicableCard
-                          departmentId={routine.departmentId}
-                        />
+                        <RoutineExecutionUnavailable />
                       )}
                     </td>
                   )
@@ -164,6 +184,21 @@ function RoutineControlTable({
         </table>
       </div>
     </section>
+  )
+}
+
+function RoutineExecutionUnavailable() {
+  return (
+    <div
+      className="mx-auto grid h-9 w-full select-none place-items-center"
+      data-routine-execution="unavailable"
+      aria-label="Execução ainda não disponível"
+    >
+      <span
+        className="size-3 rounded-full border border-dashed border-[var(--color-text-subtle)]"
+        aria-hidden="true"
+      />
+    </div>
   )
 }
 

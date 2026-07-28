@@ -1,12 +1,13 @@
 import RoutineControlTable from '../components/routine-control/spreadsheet/RoutineControlTable'
 import WorkspaceBar from '../layouts/WorkspaceBar'
-import type { Client, Routine, Task } from '../types/domain'
+import type { Client, ClientRoutineLink, Routine, Task } from '../types/domain'
 
 interface SpreadsheetPageProps {
   spreadsheetName?: string
   visibleData: {
     clients: Client[]
     routines: Routine[]
+    clientRoutineLinks: ClientRoutineLink[]
     tasks: Task[]
   }
   onClientOpen?: (client: Client) => void
@@ -35,6 +36,7 @@ function SpreadsheetPage({
           showHeader={false}
           clients={visibleData.clients}
           routines={visibleData.routines}
+          clientRoutineLinks={visibleData.clientRoutineLinks}
           tasks={visibleData.tasks}
           onClientOpen={onClientOpen}
           onRoutineOpen={onRoutineOpen}

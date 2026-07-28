@@ -141,6 +141,12 @@ function App() {
     const fiscalRoutines = data.routines.filter(
       (routine) => routine.departmentId === 'dept-fiscal',
     )
+    const fiscalRoutineIds = new Set(
+      fiscalRoutines.map((routine) => routine.id),
+    )
+    const fiscalClientRoutineLinks = data.clientRoutineLinks.filter((link) =>
+      fiscalRoutineIds.has(link.routineId),
+    )
     const fiscalTasks = data.tasks.filter(
       (task) => task.departmentId === 'dept-fiscal',
     )
@@ -152,12 +158,15 @@ function App() {
       ...task,
       departmentId: selectedSpreadsheetPresentation.id,
     }))
-    const visibleClientIds = new Set(visibleTasks.map((task) => task.clientId))
+    const visibleClientIds = new Set(
+      fiscalClientRoutineLinks.map((link) => link.clientId),
+    )
 
     return {
       departments: [selectedSpreadsheetPresentation],
       employees: data.employees,
       routines: visibleRoutines,
+      clientRoutineLinks: fiscalClientRoutineLinks,
       tasks: visibleTasks,
       clients: data.clients.filter((client) => visibleClientIds.has(client.id)),
     }

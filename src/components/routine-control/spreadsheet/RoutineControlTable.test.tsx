@@ -37,11 +37,20 @@ const tasks: Task[] = [
   },
 ]
 
-function renderTable() {
+function renderTable(
+  clientRoutineLinks = [
+    {
+      id: 'link-1',
+      clientId: 'client-1',
+      routineId: 'routine-1',
+    },
+  ],
+) {
   return renderToStaticMarkup(
     <RoutineControlTable
       clients={clients}
       routines={routines}
+      clientRoutineLinks={clientRoutineLinks}
       tasks={tasks}
       showHeader={false}
     />,
@@ -56,6 +65,34 @@ describe('RoutineControlTable presentations', () => {
     expect(markup).toContain(
       'Abrir Apurar impostos de Empresa Alpha. Status: Em andamento',
     )
-    expect(markup).toContain('Nao se aplica')
+    expect(markup).toContain('Não se aplica: rotina não vinculada à empresa')
+    expect(markup).not.toContain('Abrir Fechar balancete de Empresa Alpha')
+    expect(markup).toContain('data-routine-applicability="not-applicable"')
+    const inactiveCell =
+      markup.match(
+        /<td[^>]*data-routine-applicability="not-applicable"[^>]*>/,
+      )?.[0] ?? ''
+
+    expect(inactiveCell).not.toMatch(/group-hover:|hover:|focus-visible:/)
+  })
+
+  it('distinguishes a linked routine without an execution from non-applicability', () => {
+    const markup = renderTable([
+      {
+        id: 'link-1',
+        clientId: 'client-1',
+        routineId: 'routine-1',
+      },
+      {
+        id: 'link-2',
+        clientId: 'client-1',
+        routineId: 'routine-2',
+      },
+    ])
+
+    expect(markup).toContain('Execução ainda não disponível')
+    expect(markup).not.toContain(
+      'Não se aplica: rotina não vinculada à empresa',
+    )
   })
 })

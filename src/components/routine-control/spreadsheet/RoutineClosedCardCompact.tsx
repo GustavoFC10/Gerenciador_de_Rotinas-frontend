@@ -16,8 +16,6 @@ const roundCellClass: Record<RoutineStatus, string> = {
     'bg-[var(--status-completed-strong-bg)] text-white hover:bg-[var(--status-completed-dot)]',
   [ROUTINE_STATUS.NO_MOVEMENT]:
     'bg-[var(--color-brand)] text-white hover:bg-[var(--color-brand-strong)]',
-  [ROUTINE_STATUS.NOT_APPLICABLE]:
-    'bg-[var(--color-text-subtle)] text-white hover:bg-[var(--color-text-muted)]',
 }
 
 function RoutineClosedCardCompact({

@@ -63,7 +63,6 @@ const selectableStatusOrder: RoutineStatus[] = [
   ROUTINE_STATUS.ERROR,
   ROUTINE_STATUS.NO_MOVEMENT,
   ROUTINE_STATUS.COMPLETED,
-  ROUTINE_STATUS.NOT_APPLICABLE,
 ]
 
 const selectableStatusEntries = selectableStatusOrder.map(
@@ -299,7 +298,6 @@ export function RoutineStatusControl({
         statuses: [
           ROUTINE_STATUS.ERROR,
           ROUTINE_STATUS.NO_MOVEMENT,
-          ROUTINE_STATUS.NOT_APPLICABLE,
         ],
       },
     ]

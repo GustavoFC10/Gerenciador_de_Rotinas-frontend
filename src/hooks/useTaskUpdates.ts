@@ -10,7 +10,6 @@ import type {
 const terminalStatuses = new Set<RoutineStatus>([
   ROUTINE_STATUS.COMPLETED,
   ROUTINE_STATUS.NO_MOVEMENT,
-  ROUTINE_STATUS.NOT_APPLICABLE,
 ])
 
 type AttachmentTaskShape = Pick<Task, 'attachments' | 'indicators'>

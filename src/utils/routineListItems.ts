@@ -28,7 +28,19 @@ export function buildRoutineListViewData({
   filter: RoutineListFilter
 }): RoutineListViewData {
   const relations = normalizeRoutineData(data)
-  const tasks = selectTasks(data.tasks, filter)
+  const linkedCells = new Set(
+    data.clientRoutineLinks.map(
+      (link) => `${link.clientId}:${link.routineId}`,
+    ),
+  )
+  const operationalTasks = data.tasks.filter(
+    (task) =>
+      task.isLoose ||
+      (task.clientId !== null &&
+        task.routineId !== null &&
+        linkedCells.has(`${task.clientId}:${task.routineId}`)),
+  )
+  const tasks = selectTasks(operationalTasks, filter)
   const selectedClient = filter.id
     ? relations.clientsById.get(filter.id)
     : undefined

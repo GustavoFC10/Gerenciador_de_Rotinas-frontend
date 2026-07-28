@@ -11,7 +11,6 @@ export const ROUTINE_STATUS = {
   ERROR: 'error',
   COMPLETED: 'completed',
   NO_MOVEMENT: 'no_movement',
-  NOT_APPLICABLE: 'not_applicable',
 } as const satisfies Record<string, RoutineStatus>
 
 export const routineStatusConfig: Record<RoutineStatus, RoutineStatusConfig> = {
@@ -55,14 +54,6 @@ export const routineStatusConfig: Record<RoutineStatus, RoutineStatusConfig> = {
     accentClass: statusTone.no_movement.accent,
     borderClass: statusTone.no_movement.border,
   },
-  [ROUTINE_STATUS.NOT_APPLICABLE]: {
-    label: statusTone.not_applicable.label,
-    dotClass: statusTone.not_applicable.dot,
-    surfaceClass: statusTone.not_applicable.surface,
-    cardClass: statusTone.not_applicable.card,
-    accentClass: statusTone.not_applicable.accent,
-    borderClass: statusTone.not_applicable.border,
-  },
 }
 
 export const defaultRoutineStatusDetailOption: RoutineStatusDetailOption = {
@@ -85,9 +76,6 @@ export const routineStatusDetailOptions: Partial<
     { id: 'waiting_client', label: 'Aguardando cliente' },
     { id: 'waiting_document', label: 'Aguardando documento' },
     { id: 'system_issue', label: 'Erro no sistema' },
-  ],
-  [ROUTINE_STATUS.COMPLETED]: [
-    { id: 'not_applicable', label: 'Nao se aplica' },
   ],
 }
 

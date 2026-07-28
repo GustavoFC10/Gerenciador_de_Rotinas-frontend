@@ -61,18 +61,6 @@ function RoutineStatusIcon({
     )
   }
 
-  if (status === ROUTINE_STATUS.NOT_APPLICABLE) {
-    return (
-      <svg {...iconProps}>
-        <path
-          d="m7 7 10 10M17 7 7 17"
-          strokeWidth="2.3"
-          strokeLinecap="round"
-        />
-      </svg>
-    )
-  }
-
   return (
     <svg {...iconProps}>
       <path
