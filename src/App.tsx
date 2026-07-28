@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Route, Routes, useNavigate } from 'react-router'
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router'
 
 import ErrorState from './components/common/ErrorState'
 import LoadingState from './components/common/LoadingState'
@@ -8,12 +14,14 @@ import { ROUTES } from './constants/routes'
 import AppLayout from './layouts/AppLayout'
 import HomePage from './pages/HomePage'
 import ListPage from './pages/ListPage'
+import LoginPage from './pages/LoginPage'
 import MyTasksPage from './pages/MyTasksPage'
 import PlaceholderPage from './pages/PlaceholderPage'
 import ProfilePage from './pages/ProfilePage'
 import SpreadsheetPage from './pages/SpreadsheetPage'
 import TasksPage from './pages/TasksPage'
 import { useRoutineControl } from './hooks/useRoutineControl'
+import { useAuth } from './hooks/useAuth'
 import { useTaskUpdates } from './hooks/useTaskUpdates'
 import { buildTaskRelations } from './utils/routineRelations'
 import type {
@@ -47,6 +55,37 @@ const spreadsheetNavigationItems: SpreadsheetNavigationItem[] = [
 ]
 
 function App() {
+  const { isAuthenticated } = useAuth()
+  const location = useLocation()
+
+  if (!isAuthenticated) {
+    const requestedRoute = `${location.pathname}${location.search}${location.hash}`
+
+    return (
+      <Routes>
+        <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to={ROUTES.LOGIN}
+              replace
+              state={{ from: requestedRoute }}
+            />
+          }
+        />
+      </Routes>
+    )
+  }
+
+  if (location.pathname === ROUTES.LOGIN) {
+    return <LoginPage />
+  }
+
+  return <AuthenticatedApp />
+}
+
+function AuthenticatedApp() {
   const navigate = useNavigate()
   const { response, setResponse, data, isLoading, error } = useRoutineControl()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
