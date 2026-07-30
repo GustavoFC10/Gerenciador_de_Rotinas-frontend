@@ -111,10 +111,11 @@ function getCurrentLink(markup: string): string {
 }
 
 describe('Sidebar', () => {
-  it('keeps home as a global landmark and spreadsheets above secondary access', () => {
+  it('keeps home as a global landmark and workspaces above secondary access', () => {
     const markup = renderSidebar()
 
     expect(markup).toContain('aria-label="Navegação principal"')
+    expect(markup).toContain('aria-label="Áreas de trabalho"')
     expect(markup).toContain('aria-label="Ir para o início"')
     expect(markup).toContain('data-navigation-priority="spreadsheet"')
     expect(markup.indexOf('>Início</span>')).toBeLessThan(
@@ -164,11 +165,36 @@ describe('Sidebar', () => {
 
     expect(employeeMarkup).not.toContain('Visão do departamento')
     expect(employeeMarkup).not.toContain('Cargos e permissões')
+    expect(employeeMarkup).not.toContain('Criar rotina')
+    expect(employeeMarkup).not.toContain('Adicionar empresa')
+    expect(employeeMarkup).not.toContain('Adicionar funcionário')
     expect(leaderMarkup).toContain('Visão do departamento')
     expect(leaderMarkup).not.toContain('Cargos e permissões')
+    expect(leaderMarkup).toContain('href="/rotinas/nova"')
+    expect(leaderMarkup).toContain('Criar rotina')
+    expect(leaderMarkup).toContain('href="/empresas/nova"')
+    expect(leaderMarkup).toContain('Adicionar empresa')
+    expect(leaderMarkup).not.toContain('Adicionar funcionário')
     expect(managerMarkup).toContain('Visão geral da empresa')
     expect(managerMarkup).toContain('Cargos e permissões')
+    expect(managerMarkup).toContain('href="/funcionarios/novo"')
+    expect(managerMarkup).toContain('Adicionar funcionário')
   })
+
+  it.each([
+    ['/rotinas/nova?sheetId=fiscal', '/rotinas/nova'],
+    ['/empresas/nova?sheetId=fiscal', '/empresas/nova'],
+  ])(
+    'keeps creation route %s out of the spreadsheet context',
+    (entry, expectedHref) => {
+      const markup = renderSidebar({ entry, role: USER_ROLE.LEADER })
+      const currentLink = getCurrentLink(markup)
+
+      expect(currentLink).toContain(`href="${expectedHref}"`)
+      expect(currentLink).not.toContain('data-navigation-priority')
+      expect(markup.match(/aria-current="page"/g)).toHaveLength(1)
+    },
+  )
 
   it('preserves accessible link text and titles when collapsed', () => {
     const markup = renderSidebar({
@@ -197,7 +223,7 @@ describe('Sidebar', () => {
   it('keeps secondary navigation available when no spreadsheet is registered', () => {
     const markup = renderSidebar({ items: [] })
 
-    expect(markup).toContain('Nenhuma planilha disponível')
+    expect(markup).toContain('Nenhuma área de trabalho disponível')
     expect(markup).not.toContain('data-navigation-priority="spreadsheet"')
     expect(markup).toContain('Minhas tarefas')
   })

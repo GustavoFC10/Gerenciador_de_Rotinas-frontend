@@ -3,10 +3,14 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 
 import ErrorState from './components/common/ErrorState'
 import LoadingState from './components/common/LoadingState'
+import RequirePermission from './components/auth/RequirePermission'
 import RoutineDetailsCard from './components/routine-control/details/RoutineDetailsCard'
 import { ROUTES } from './constants/routes'
 import AppLayout from './layouts/AppLayout'
 import EntityDetailPage from './pages/EntityDetailPage'
+import CreateCompanyPage from './pages/CreateCompanyPage'
+import CreateEmployeePage from './pages/CreateEmployeePage'
+import CreateRoutinePage from './pages/CreateRoutinePage'
 import HomePage from './pages/HomePage'
 import ListPage from './pages/ListPage'
 import LoginPage from './pages/LoginPage'
@@ -17,7 +21,20 @@ import SpreadsheetPage from './pages/SpreadsheetPage'
 import TasksPage from './pages/TasksPage'
 import { useRoutineControl } from './hooks/useRoutineControl'
 import { useAuth } from './hooks/useAuth'
+import { useAppState } from './hooks/useAppState'
 import { useTaskUpdates } from './hooks/useTaskUpdates'
+import { registerMockAuthAccount } from './services/authService'
+import {
+  createClientFromPreset,
+  createEmployeeProfile,
+  createRoutineTemplate,
+} from './utils/creationCommands'
+import {
+  APP_PERMISSION,
+  canCreateCompany,
+  canCreateEmployee,
+  canCreateRoutine,
+} from './utils/permissions'
 import { scopeRoutineControlData } from './utils/routineControlScope'
 import { buildTaskRelations } from './utils/routineRelations'
 import {
@@ -27,6 +44,10 @@ import {
 } from './utils/spreadsheetNavigation'
 import type {
   Client,
+  CreateClientInput,
+  CreateEmployeeInput,
+  CreateRoutineInput,
+  Employee,
   PendingStatusChange,
   Routine,
   RoutineControlData,
@@ -72,6 +93,7 @@ function App() {
 function AuthenticatedApp() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, competence } = useAppState()
   const { response, setResponse, data, isLoading, error } = useRoutineControl()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const dialogRef = useRef<HTMLDivElement | null>(null)
@@ -356,6 +378,80 @@ function AuthenticatedApp() {
     })
   }
 
+  function handleRoutineCreate(input: CreateRoutineInput): Routine {
+    if (!canCreateRoutine(user, input.departmentId)) {
+      throw new Error(
+        'Você não tem permissão para criar rotinas neste departamento.',
+      )
+    }
+
+    const result = createRoutineTemplate(data!, input, {
+      period: competence,
+      generatedAt: new Date().toISOString(),
+    })
+
+    setResponse((currentResponse) =>
+      currentResponse
+        ? { ...currentResponse, data: result.data }
+        : currentResponse,
+    )
+    return result.routine
+  }
+
+  function handleCompanyCreate(input: CreateClientInput) {
+    if (!canCreateCompany(user, [input.departmentId])) {
+      throw new Error(
+        'Você não tem permissão para criar empresas neste departamento.',
+      )
+    }
+
+    const result = createClientFromPreset(data!, input, {
+      period: competence,
+      generatedAt: new Date().toISOString(),
+    })
+
+    setResponse((currentResponse) =>
+      currentResponse
+        ? { ...currentResponse, data: result.data }
+        : currentResponse,
+    )
+
+    return {
+      client: result.client,
+      createdTaskCount: result.tasks.length,
+      linkedRoutineCount: result.links.length,
+    }
+  }
+
+  function handleEmployeeCreate(input: CreateEmployeeInput): Employee {
+    if (!canCreateEmployee(user)) {
+      throw new Error('Você não tem permissão para adicionar funcionários.')
+    }
+
+    const result = createEmployeeProfile(data!, input)
+    const employee = result.employee
+
+    registerMockAuthAccount(
+      {
+        id: `user-${employee.id}`,
+        employeeId: employee.id,
+        name: employee.name,
+        email: employee.login!,
+        role: employee.role!,
+        departmentIds: employee.departmentIds ?? [],
+        avatarUrl: '',
+      },
+      input.password,
+    )
+
+    setResponse((currentResponse) =>
+      currentResponse
+        ? { ...currentResponse, data: result.data }
+        : currentResponse,
+    )
+    return employee
+  }
+
   if (isLoading) {
     return <LoadingState message="Carregando rotinas..." />
   }
@@ -417,7 +513,7 @@ function AuthenticatedApp() {
             element={
               <EntityDetailPage
                 type="client"
-                data={visibleData}
+                data={data}
                 spreadsheetId={selectedSpreadsheet.id}
                 spreadsheetName={selectedSpreadsheet.name}
                 spreadsheetDepartmentId={selectedDepartment.id}
@@ -436,7 +532,7 @@ function AuthenticatedApp() {
             element={
               <EntityDetailPage
                 type="routine"
-                data={visibleData}
+                data={data}
                 spreadsheetId={selectedSpreadsheet.id}
                 spreadsheetName={selectedSpreadsheet.name}
                 spreadsheetDepartmentId={selectedDepartment.id}
@@ -480,6 +576,38 @@ function AuthenticatedApp() {
             }
           />
           <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
+          <Route
+            path={ROUTES.ROUTINE_CREATE}
+            element={
+              <RequirePermission permission={APP_PERMISSION.CREATE_ROUTINE}>
+                <CreateRoutinePage
+                  data={data}
+                  period={competence}
+                  onCreate={handleRoutineCreate}
+                  onCancel={() => navigate(ROUTES.HOME)}
+                />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path={ROUTES.COMPANY_CREATE}
+            element={
+              <RequirePermission permission={APP_PERMISSION.CREATE_COMPANY}>
+                <CreateCompanyPage data={data} onCreate={handleCompanyCreate} />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path={ROUTES.EMPLOYEE_CREATE}
+            element={
+              <RequirePermission permission={APP_PERMISSION.CREATE_EMPLOYEE}>
+                <CreateEmployeePage
+                  data={data}
+                  onCreate={handleEmployeeCreate}
+                />
+              </RequirePermission>
+            }
+          />
           <Route
             path={ROUTES.DEPARTMENT_DASHBOARD}
             element={
@@ -576,6 +704,14 @@ function AuthenticatedApp() {
 }
 
 function isSpreadsheetContextRoute(pathname: string): boolean {
+  if (
+    pathname === ROUTES.COMPANY_CREATE ||
+    pathname === ROUTES.ROUTINE_CREATE ||
+    pathname === ROUTES.EMPLOYEE_CREATE
+  ) {
+    return false
+  }
+
   return (
     pathname === ROUTES.SPREADSHEET ||
     pathname === ROUTES.LIST ||

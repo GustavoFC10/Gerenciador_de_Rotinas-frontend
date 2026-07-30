@@ -15,3 +15,29 @@ export const currentUserMock: AppUser = {
   departmentIds: ['dept-fiscal'],
   avatarUrl: '',
 }
+
+export const leaderUserMock: AppUser = {
+  id: 'user-002',
+  employeeId: 'employee-002',
+  name: 'Bruno Lima',
+  email: 'bruno.lima@example.com',
+  role: USER_ROLE.LEADER,
+  departmentIds: ['dept-fiscal'],
+  avatarUrl: '',
+}
+
+export const managerUserMock: AppUser = {
+  id: 'user-003',
+  employeeId: 'employee-003',
+  name: 'Carla Melo',
+  email: 'carla.melo@example.com',
+  role: USER_ROLE.MANAGER,
+  departmentIds: ['dept-fiscal'],
+  avatarUrl: '',
+}
+
+export const appUsersMock: AppUser[] = [
+  currentUserMock,
+  leaderUserMock,
+  managerUserMock,
+]

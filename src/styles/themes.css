@@ -64,6 +64,7 @@
   --color-table-sticky-bg: #ffffff;
   --color-table-row-hover-bg: #f8fafc;
   --color-table-cell-bg: rgb(248 250 252 / 0.45);
+  --color-table-not-applicable-bg: #eef1f5;
   --color-table-border: #cbd5e1;
   --color-table-heading-text: #475569;
   --color-table-client-code: #64748b;
@@ -196,6 +197,7 @@
   --color-table-sticky-bg: #1f2937;
   --color-table-row-hover-bg: #243143;
   --color-table-cell-bg: rgb(17 24 39 / 0.72);
+  --color-table-not-applicable-bg: #182231;
   --color-table-border: #334155;
   --color-table-heading-text: #bfdbfe;
   --color-table-client-code: #93c5fd;
@@ -324,6 +326,7 @@
   --color-table-sticky-bg: #ffffff;
   --color-table-row-hover-bg: #f7fcff;
   --color-table-cell-bg: rgb(234 247 255 / 0.38);
+  --color-table-not-applicable-bg: #eef1f5;
   --color-table-border: #8bd2f3;
   --color-table-heading-text: #2d277f;
   --color-table-client-code: #4d5593;

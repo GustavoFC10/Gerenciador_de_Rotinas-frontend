@@ -76,16 +76,16 @@ function renderHome({
 }
 
 describe('HomePage', () => {
-  it('prioritizes spreadsheets and personal operational work', () => {
+  it('prioritizes workspaces and personal operational work', () => {
     const markup = renderHome()
 
     expect(markup).toContain('>Início</h1>')
-    expect(markup).toContain('Planilhas')
+    expect(markup).toContain('Áreas de trabalho')
     expect(markup).toContain('href="/planilha?sheetId=fiscal"')
     expect(markup).toContain('Prioridades')
     expect(markup).toContain('Minha competência')
     expect(markup).toContain('Somente tarefas atribuídas a você.')
-    expect(markup.indexOf('Planilhas')).toBeLessThan(
+    expect(markup.indexOf('Áreas de trabalho')).toBeLessThan(
       markup.indexOf('Prioridades'),
     )
     expect(markup).not.toContain('Acompanhamento do departamento')

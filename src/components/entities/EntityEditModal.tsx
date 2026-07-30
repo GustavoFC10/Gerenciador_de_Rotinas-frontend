@@ -207,7 +207,7 @@ function ClientEditForm({
   return (
     <ModalForm
       title="Editar empresa"
-      description="Dados cadastrais usados nas planilhas e rotinas vinculadas."
+      description="Dados cadastrais usados nas áreas de trabalho e rotinas vinculadas."
       error={error}
       onClose={onClose}
       onSubmit={handleSubmit}
@@ -306,23 +306,39 @@ function RoutineEditForm({
   const [recurrence, setRecurrence] = useState<RoutineRecurrence>(
     entity.recurrence ?? 'monthly',
   )
-  const [defaultDueDay, setDefaultDueDay] = useState(
-    String(entity.defaultDueDay ?? 20),
+  const usesRelativeDueDate =
+    entity.isTemplate || entity.defaultDueDays !== undefined
+  const [defaultDueValue, setDefaultDueValue] = useState(
+    String(
+      usesRelativeDueDate
+        ? (entity.defaultDueDays ?? '')
+        : (entity.defaultDueDay ?? ''),
+    ),
   )
   const [active, setActive] = useState(entity.active !== false)
   const [error, setError] = useState('')
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const dueDay = Number(defaultDueDay)
+    const dueValue = Number(defaultDueValue)
 
     if (!name.trim() || !shortName.trim()) {
       setError('Informe o nome e o nome curto da rotina.')
       return
     }
 
-    if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
-      setError('O prazo padrão deve ser um dia entre 1 e 31.')
+    const maximumDueValue = usesRelativeDueDate ? 365 : 31
+    if (
+      defaultDueValue &&
+      (!Number.isInteger(dueValue) ||
+        dueValue < 1 ||
+        dueValue > maximumDueValue)
+    ) {
+      setError(
+        usesRelativeDueDate
+          ? 'O prazo padrão deve estar entre 1 e 365 dias.'
+          : 'O vencimento deve ser um dia entre 1 e 31.',
+      )
       return
     }
 
@@ -331,7 +347,10 @@ function RoutineEditForm({
       shortName: shortName.trim(),
       description: description.trim() || undefined,
       recurrence,
-      defaultDueDay: dueDay,
+      defaultDueDay:
+        !usesRelativeDueDate && defaultDueValue ? dueValue : undefined,
+      defaultDueDays:
+        usesRelativeDueDate && defaultDueValue ? dueValue : undefined,
       active,
     })
   }
@@ -377,12 +396,17 @@ function RoutineEditForm({
           ))}
         </Select>
         <TextField
-          label="Dia padrão de vencimento"
+          label={
+            usesRelativeDueDate
+              ? 'Prazo padrão em dias'
+              : 'Dia padrão de vencimento'
+          }
           type="number"
           min="1"
-          max="31"
-          value={defaultDueDay}
-          onChange={(event) => setDefaultDueDay(event.target.value)}
+          max={usesRelativeDueDate ? '365' : '31'}
+          value={defaultDueValue}
+          onChange={(event) => setDefaultDueValue(event.target.value)}
+          placeholder={usesRelativeDueDate ? 'Definido na tarefa' : undefined}
         />
         <EntityStatusField active={active} onChange={setActive} />
       </div>

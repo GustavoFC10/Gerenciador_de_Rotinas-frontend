@@ -224,17 +224,7 @@ function TaskContextMenu({
         style={{ left: rootPosition.x, top: rootPosition.y }}
         data-task-context-menu
       >
-        <div
-          className="border-b border-[var(--color-divider)] px-2.5 py-2"
-          role="presentation"
-        >
-          <p className="truncate text-xs font-extrabold text-[var(--color-text-strong)]">
-            {label}
-          </p>
-          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
-            Ações rápidas
-          </p>
-        </div>
+       
 
         <div className="pt-1" role="presentation">
           {onStatusChange && (

@@ -69,11 +69,11 @@ function LoginPage() {
             Trabalho operacional
           </p>
           <h1 className="mt-4 text-4xl font-black leading-tight tracking-tight xl:text-5xl">
-            Suas planilhas de rotina em um só lugar.
+            Suas áreas de trabalho em um só lugar.
           </h1>
           <p className="mt-5 max-w-md text-base font-medium leading-7 text-white/75">
             Entre para acompanhar a competência, abrir as rotinas da sua equipe
-            e resolver pendências sem sair do fluxo de planilha.
+            e resolver pendências sem sair do fluxo da área de trabalho.
           </p>
 
           <div className="mt-9 rounded-[var(--radius-panel)] border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur">
@@ -159,7 +159,9 @@ function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword((current) => !current)}
                     className="absolute inset-y-0 right-0 px-3 text-xs font-bold text-[var(--color-brand)] outline-none hover:text-[var(--color-brand-strong)] focus-visible:underline"
-                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    aria-label={
+                      showPassword ? 'Ocultar senha' : 'Mostrar senha'
+                    }
                   >
                     {showPassword ? 'Ocultar' : 'Mostrar'}
                   </button>
@@ -240,7 +242,7 @@ function BrandMark({ inverted = false }: { inverted?: boolean }) {
             inverted ? 'text-white/65' : 'text-[var(--color-text-muted)]'
           }`}
         >
-          Controle por planilhas
+          Controle por áreas de trabalho
         </p>
       </div>
     </div>

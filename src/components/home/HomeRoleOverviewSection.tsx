@@ -20,7 +20,7 @@ function HomeRoleOverviewSection({
 }) {
   const title = manager ? 'Visão da operação' : 'Acompanhamento do departamento'
   const description = manager
-    ? 'Exceções das planilhas que precisam de acompanhamento gerencial.'
+    ? 'Exceções das áreas de trabalho que precisam de acompanhamento gerencial.'
     : 'Exceções das rotinas sob responsabilidade da sua equipe.'
   const destination = manager
     ? ROUTES.MANAGER_DASHBOARD

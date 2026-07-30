@@ -315,7 +315,11 @@ function RoutineControlTable({
                         data-routine-applicability={
                           isApplicable ? 'applicable' : 'not-applicable'
                         }
-                        className={`h-12 border-b border-r border-[var(--color-table-border)] bg-[var(--color-table-cell-bg)] p-1.5 text-center last:border-r-0 ${
+                        className={`h-12 border-b border-r border-[var(--color-table-border)] p-1.5 text-center last:border-r-0 ${
+                          isApplicable
+                            ? 'bg-[var(--color-table-cell-bg)]'
+                            : 'bg-[var(--color-table-not-applicable-bg)]'
+                        } ${
                           isApplicable && task
                             ? 'group-hover:bg-[var(--color-table-row-hover-bg)]'
                             : ''

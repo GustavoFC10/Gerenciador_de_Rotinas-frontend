@@ -330,10 +330,41 @@ const divisionRoutineLinks: DivisionRoutineLink[] = fiscalDivisions.flatMap(
 )
 
 const employees: Employee[] = [
-  { id: 'employee-001', name: 'Ana Souza' },
-  { id: 'employee-002', name: 'Bruno Lima' },
-  { id: 'employee-003', name: 'Carla Melo' },
-  { id: 'employee-004', name: 'Diego Ramos' },
+  {
+    id: 'employee-001',
+    name: 'Ana Souza',
+    departmentIds: [fiscalDepartment.id],
+    login: 'ana.souza@example.com',
+    role: 'employee',
+    credentialConfigured: true,
+    active: true,
+  },
+  {
+    id: 'employee-002',
+    name: 'Bruno Lima',
+    departmentIds: [fiscalDepartment.id],
+    login: 'bruno.lima@example.com',
+    role: 'leader',
+    credentialConfigured: true,
+    active: true,
+  },
+  {
+    id: 'employee-003',
+    name: 'Carla Melo',
+    departmentIds: [fiscalDepartment.id],
+    login: 'carla.melo@example.com',
+    role: 'manager',
+    credentialConfigured: true,
+    active: true,
+  },
+  {
+    id: 'employee-004',
+    name: 'Diego Ramos',
+    departmentIds: [fiscalDepartment.id],
+    role: 'employee',
+    credentialConfigured: false,
+    active: true,
+  },
 ]
 
 const attachmentCatalog = [

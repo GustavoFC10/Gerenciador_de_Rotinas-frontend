@@ -121,7 +121,7 @@ function Sidebar({
               Rotinas
             </p>
             <p className="mt-0.5 truncate text-xs font-medium text-[var(--color-text-muted)]">
-              Controle por planilhas
+              Áreas de trabalho
             </p>
           </div>
         </Link>
@@ -175,7 +175,7 @@ function Sidebar({
         </ul>
 
         <NavigationSection
-          title="Planilhas"
+          title="Áreas de trabalho"
           isCollapsed={isCollapsed}
           className="mb-5"
         >
@@ -194,7 +194,7 @@ function Sidebar({
               <p
                 className={`px-2 py-3 text-sm text-[var(--color-text-muted)] ${collapsedLabelClass}`}
               >
-                Nenhuma planilha disponível
+                Nenhuma área de trabalho disponível
               </p>
             </li>
           )}
@@ -232,28 +232,31 @@ function Sidebar({
               className="mt-5"
             >
               <NavigationLink
-                to={ROUTES.ROUTINES}
-                label="Rotinas"
+                to={ROUTES.ROUTINE_CREATE}
+                label="Criar rotina"
                 icon="repeat"
                 end
                 isCollapsed={isCollapsed}
                 onNavigate={onMobileClose}
               />
               <NavigationLink
-                to={ROUTES.COMPANIES}
-                label="Empresas"
+                to={ROUTES.COMPANY_CREATE}
+                label="Adicionar empresa"
                 icon="building"
                 end
                 isCollapsed={isCollapsed}
                 onNavigate={onMobileClose}
               />
-              <NavigationLink
-                to={ROUTES.EMPLOYEES}
-                label="Equipe"
-                icon="people"
-                isCollapsed={isCollapsed}
-                onNavigate={onMobileClose}
-              />
+              {isManager(user) && (
+                <NavigationLink
+                  to={ROUTES.EMPLOYEE_CREATE}
+                  label="Adicionar funcionário"
+                  icon="people"
+                  end
+                  isCollapsed={isCollapsed}
+                  onNavigate={onMobileClose}
+                />
+              )}
             </NavigationSection>
           </>
         )}
@@ -291,6 +294,13 @@ function getSelectedSpreadsheetId(
   search: string,
   spreadsheets: SpreadsheetNavigationItem[],
 ): EntityId | null {
+  const isCreationRoute =
+    pathname === ROUTES.COMPANY_CREATE ||
+    pathname === ROUTES.ROUTINE_CREATE ||
+    pathname === ROUTES.EMPLOYEE_CREATE
+
+  if (isCreationRoute) return null
+
   const isSpreadsheetFlow =
     pathname === ROUTES.SPREADSHEET ||
     pathname === ROUTES.LIST ||

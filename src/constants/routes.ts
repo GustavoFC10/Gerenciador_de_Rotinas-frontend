@@ -8,10 +8,13 @@ export const ROUTES = {
   DEPARTMENT_DASHBOARD: '/dashboard-departamento',
   MANAGER_DASHBOARD: '/dashboard-geral',
   ROUTINES: '/rotinas',
+  ROUTINE_CREATE: '/rotinas/nova',
   ROUTINE_DETAILS: '/rotinas/:routineId',
   COMPANIES: '/empresas',
+  COMPANY_CREATE: '/empresas/nova',
   COMPANY_DETAILS: '/empresas/:clientId',
   EMPLOYEES: '/funcionarios',
+  EMPLOYEE_CREATE: '/funcionarios/novo',
   ROLES: '/cargos',
   PROFILE: '/perfil',
 } as const

@@ -15,6 +15,7 @@ export const routineRecurrenceOptions: Array<{
   value: RoutineRecurrence
   label: string
 }> = [
+  { value: 'on_demand', label: 'Sob demanda' },
   { value: 'monthly', label: 'Mensal' },
   { value: 'quarterly', label: 'Trimestral' },
   { value: 'semiannual', label: 'Semestral' },
@@ -32,6 +33,6 @@ export function getClientTaxRegimeLabel(value?: ClientTaxRegime): string {
 export function getRoutineRecurrenceLabel(value?: RoutineRecurrence): string {
   return (
     routineRecurrenceOptions.find((option) => option.value === value)?.label ??
-    'Mensal'
+    'Não definida'
   )
 }

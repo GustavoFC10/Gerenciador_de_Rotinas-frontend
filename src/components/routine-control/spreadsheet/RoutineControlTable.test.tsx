@@ -104,4 +104,15 @@ describe('RoutineControlTable presentations', () => {
       'Não se aplica: rotina não vinculada à empresa',
     )
   })
+
+  it('uses a slightly grayer background for non-applicable cells', () => {
+    const markup = renderTable()
+    const inactiveCell =
+      markup.match(
+        /<td[^>]*data-routine-applicability="not-applicable"[^>]*>/,
+      )?.[0] ?? ''
+
+    expect(inactiveCell).toContain('bg-[var(--color-table-not-applicable-bg)]')
+    expect(inactiveCell).not.toMatch(/group-hover:|hover:|focus-visible:/)
+  })
 })

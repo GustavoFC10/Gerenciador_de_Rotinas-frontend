@@ -379,7 +379,7 @@ function EntitySummary({
             />
             <SummaryField
               label="Prazo padrão"
-              value={`Dia ${routine.defaultDueDay ?? 20}`}
+              value={getRoutineDueLabel(routine)}
             />
             <SummaryField
               label="Empresas vinculadas"
@@ -405,6 +405,20 @@ function EntitySummary({
       )}
     </section>
   )
+}
+
+function getRoutineDueLabel(routine: Routine): string {
+  if (routine.defaultDueDays) {
+    return `${routine.defaultDueDays} ${
+      routine.defaultDueDays === 1 ? 'dia' : 'dias'
+    } após criar a tarefa`
+  }
+
+  if (routine.defaultDueDay) {
+    return `Dia ${routine.defaultDueDay} da competência`
+  }
+
+  return 'Definido na tarefa'
 }
 
 function SummaryField({ label, value }: { label: string; value: ReactNode }) {

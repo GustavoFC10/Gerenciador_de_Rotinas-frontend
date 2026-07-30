@@ -12,7 +12,7 @@ function HomeSpreadsheetSection({
   return (
     <section className="mb-5" aria-labelledby="home-spreadsheets-title">
       <HomeSectionHeading
-        title="Planilhas"
+        title="Áreas de trabalho"
         titleId="home-spreadsheets-title"
         description="Seu ponto de partida para acompanhar empresas e rotinas."
       />
@@ -26,10 +26,11 @@ function HomeSpreadsheetSection({
       ) : (
         <div className="rounded-[var(--radius-panel)] border border-dashed border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-5 py-8 text-center">
           <p className="text-sm font-bold text-[var(--color-text-strong)]">
-            Nenhuma planilha disponível
+            Nenhuma área de trabalho disponível
           </p>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            Quando uma planilha for liberada para você, ela aparecerá aqui.
+            Quando uma área de trabalho for liberada para você, ela aparecerá
+            aqui.
           </p>
         </div>
       )}
@@ -48,7 +49,7 @@ function SpreadsheetCard({ summary }: { summary: HomeSpreadsheetSummary }) {
     <Link
       to={summary.spreadsheet.to}
       className={`group flex min-h-48 flex-col rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-5 shadow-[var(--shadow-panel)] transition hover:border-[var(--color-sidebar-primary-active-border)] hover:bg-[var(--color-panel-soft-bg)] ${focusRing}`}
-      aria-label={`Abrir planilha ${summary.spreadsheet.name}`}
+      aria-label={`Abrir área de trabalho ${summary.spreadsheet.name}`}
     >
       <div className="flex items-start justify-between gap-4">
         <span className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
@@ -104,7 +105,7 @@ function SpreadsheetCard({ summary }: { summary: HomeSpreadsheetSummary }) {
             </div>
             <HomeProgressBar
               value={summary.personalCompletionPercentage}
-              label={`Andamento pessoal na planilha ${summary.spreadsheet.name}`}
+              label={`Andamento pessoal na área de trabalho ${summary.spreadsheet.name}`}
             />
           </div>
         )}

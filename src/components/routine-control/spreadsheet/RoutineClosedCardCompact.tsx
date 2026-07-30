@@ -109,28 +109,7 @@ function RoutineClosedCardCompact({
         <RoutineStatusIcon status={task.status} />
       </button>
 
-      {hasContextMenu && (
-        <button
-          type="button"
-          tabIndex={-1}
-          onClick={(event) => {
-            event.stopPropagation()
-            openMenuFromTrigger(event.currentTarget)
-          }}
-          aria-label={`Ações de ${label}`}
-          aria-haspopup="menu"
-          aria-expanded={isContextMenuOpen}
-          aria-controls={isContextMenuOpen ? 'task-context-menu' : undefined}
-          title="Ações da tarefa"
-          className={`absolute -right-3 -top-3 z-20 grid size-6 place-items-center rounded-full border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] text-[var(--color-text-muted)] shadow-[var(--shadow-panel)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--color-control-focus)] ${
-            isContextMenuOpen
-              ? 'opacity-100'
-              : 'opacity-0 group-hover/task-context:opacity-100 group-focus-within/task-context:opacity-100'
-          }`}
-        >
-          <MoreIcon />
-        </button>
-      )}
+      
     </div>
   )
 }
