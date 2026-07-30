@@ -8,7 +8,12 @@ const items = buildRoutineListSampleItems().slice(0, 5)
 
 function renderList() {
   return renderToStaticMarkup(
-    <RoutineListComparison items={items} showHeader={false} />,
+    <RoutineListComparison
+      items={items}
+      showHeader={false}
+      onItemQuickAction={() => undefined}
+      onItemStatusChange={() => undefined}
+    />,
   )
 }
 
@@ -21,6 +26,8 @@ describe('RoutineListComparison', () => {
     expect(markup).toContain('Responsável')
     expect(markup).toContain('Em andamento')
     expect(markup).toContain('Execução')
+    expect(markup).toContain('Ações de')
+    expect(markup).toContain('aria-keyshortcuts="Shift+F10"')
     expect(markup).not.toContain('Trocar visualização da lista')
   })
 })

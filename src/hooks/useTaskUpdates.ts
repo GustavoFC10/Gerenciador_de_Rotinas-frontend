@@ -1,6 +1,11 @@
 import { isTerminalRoutineStatus } from '../constants/routineStatus'
 import type { Dispatch, SetStateAction } from 'react'
-import type { EntityId, RoutineControlResponse, Task } from '../types/domain'
+import type {
+  CreateTaskLinkInput,
+  EntityId,
+  RoutineControlResponse,
+  Task,
+} from '../types/domain'
 import type { RoutineStatus } from '../types/domain'
 
 type AttachmentTaskShape = Pick<Task, 'attachments' | 'indicators'>
@@ -96,6 +101,22 @@ export function useTaskUpdates({
       updateTask(taskId, { dueDate }),
     updateNotes: (taskId: EntityId, notes: string) =>
       updateTask(taskId, { notes }),
+    addLink: (taskId: EntityId, link: CreateTaskLinkInput) =>
+      updateTask(taskId, (task) => ({
+        links: [
+          ...(task.links ?? []),
+          {
+            id: `${taskId}-link-${Date.now()}`,
+            label: link.label,
+            url: link.url,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      })),
+    removeLink: (taskId: EntityId, linkId: EntityId) =>
+      updateTask(taskId, (task) => ({
+        links: (task.links ?? []).filter((link) => link.id !== linkId),
+      })),
     incrementAttachments: (task: Task) =>
       updateTask(task.id, (currentTask) => {
         const attachments = Array.isArray(currentTask.attachments)

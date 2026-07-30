@@ -65,13 +65,21 @@ function Sidebar({
     location.search,
     spreadsheets,
   )
+  const contextualDivisionId = getAvailableDivisionId(
+    location.search,
+    contextualSpreadsheetId,
+    spreadsheets,
+  )
   const secondaryNavigationItems = secondaryNavigation.map((item) => ({
     ...item,
     to:
       item.to === ROUTES.TASKS && contextualSpreadsheetId
-        ? `${ROUTES.TASKS}?sheetId=${encodeURIComponent(
-            contextualSpreadsheetId,
-          )}`
+        ? `${ROUTES.TASKS}?${new URLSearchParams({
+            sheetId: contextualSpreadsheetId,
+            ...(contextualDivisionId
+              ? { divisionId: contextualDivisionId }
+              : {}),
+          }).toString()}`
         : item.to,
   }))
   const collapsedLabelClass = isCollapsed ? 'lg:sr-only' : ''
@@ -227,6 +235,7 @@ function Sidebar({
                 to={ROUTES.ROUTINES}
                 label="Rotinas"
                 icon="repeat"
+                end
                 isCollapsed={isCollapsed}
                 onNavigate={onMobileClose}
               />
@@ -234,6 +243,7 @@ function Sidebar({
                 to={ROUTES.COMPANIES}
                 label="Empresas"
                 icon="building"
+                end
                 isCollapsed={isCollapsed}
                 onNavigate={onMobileClose}
               />
@@ -282,7 +292,10 @@ function getSelectedSpreadsheetId(
   spreadsheets: SpreadsheetNavigationItem[],
 ): EntityId | null {
   const isSpreadsheetFlow =
-    pathname === ROUTES.SPREADSHEET || pathname === ROUTES.LIST
+    pathname === ROUTES.SPREADSHEET ||
+    pathname === ROUTES.LIST ||
+    pathname.startsWith(`${ROUTES.COMPANIES}/`) ||
+    pathname.startsWith(`${ROUTES.ROUTINES}/`)
 
   if (!isSpreadsheetFlow) return null
 
@@ -303,6 +316,24 @@ function getAvailableSpreadsheetId(
   }
 
   return spreadsheets[0]?.id ?? null
+}
+
+function getAvailableDivisionId(
+  search: string,
+  spreadsheetId: EntityId | null,
+  spreadsheets: SpreadsheetNavigationItem[],
+): EntityId | null {
+  const spreadsheet = spreadsheets.find((item) => item.id === spreadsheetId)
+  const requestedDivisionId = new URLSearchParams(search).get('divisionId')
+  const requestedDivisionExists = spreadsheet?.divisions?.some(
+    (division) => division.id === requestedDivisionId,
+  )
+
+  if (requestedDivisionId && requestedDivisionExists) {
+    return requestedDivisionId
+  }
+
+  return spreadsheet?.divisions?.[0]?.id ?? null
 }
 
 function NavigationSection({

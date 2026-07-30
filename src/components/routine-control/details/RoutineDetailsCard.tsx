@@ -5,6 +5,7 @@ import {
 } from '../../../constants/routineStatus'
 import type {
   Client,
+  CreateTaskLinkInput,
   Department,
   Employee,
   EntityId,
@@ -19,6 +20,7 @@ import {
   RoutineStatusControl,
 } from '../shared/RoutineCardActions'
 import RoutineEditableFields from '../shared/RoutineEditableFields'
+import TaskLinksPanel from './TaskLinksPanel'
 
 interface RoutineDetailsCardProps {
   task?: Task | null
@@ -32,6 +34,8 @@ interface RoutineDetailsCardProps {
   onAttachmentAdd?: (task: Task) => void
   onAttachmentRemove?: (taskId: EntityId, attachmentId: EntityId) => void
   onNotesChange?: (taskId: EntityId, notes: string) => void
+  onLinkAdd?: (taskId: EntityId, link: CreateTaskLinkInput) => void
+  onLinkRemove?: (taskId: EntityId, linkId: EntityId) => void
   onClose?: () => void
 }
 
@@ -59,6 +63,8 @@ function RoutineDetailsCard({
   onAttachmentAdd,
   onAttachmentRemove,
   onNotesChange,
+  onLinkAdd,
+  onLinkRemove,
   onClose,
 }: RoutineDetailsCardProps) {
   if (!task) return null
@@ -104,7 +110,7 @@ function RoutineDetailsCard({
           <section
             className="overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)]"
             data-execution-context="combined"
-            aria-label="Anexos e registro da execução"
+            aria-label="Execução da tarefa"
           >
             <div className="p-3">
               <RoutineAttachmentsPanel
@@ -134,6 +140,8 @@ function RoutineDetailsCard({
             onStatusChange={onStatusChange}
             onAssigneeChange={onAssigneeChange}
             onDueDateChange={onDueDateChange}
+            onLinkAdd={onLinkAdd}
+            onLinkRemove={onLinkRemove}
           />
         </aside>
       </div>
@@ -192,6 +200,8 @@ function DetailsSidebar({
   onStatusChange,
   onAssigneeChange,
   onDueDateChange,
+  onLinkAdd,
+  onLinkRemove,
 }: {
   task: Task
   employees: Employee[]
@@ -199,6 +209,8 @@ function DetailsSidebar({
   onStatusChange?: (taskId: EntityId, status: RoutineStatus) => void
   onAssigneeChange?: (taskId: EntityId, assigneeId: EntityId | null) => void
   onDueDateChange?: (taskId: EntityId, dueDate: string) => void
+  onLinkAdd?: (taskId: EntityId, link: CreateTaskLinkInput) => void
+  onLinkRemove?: (taskId: EntityId, linkId: EntityId) => void
 }) {
   return (
     <section aria-labelledby={`details-title-${task.id}`}>
@@ -224,6 +236,19 @@ function DetailsSidebar({
           onDueDateChange={onDueDateChange}
           appearance="row"
           layout="stacked"
+        />
+      </div>
+
+      <div
+        className="mt-4 border-t border-[var(--color-divider)] pt-4"
+        data-task-resources="links"
+      >
+        <TaskLinksPanel
+          task={task}
+          title="Links úteis"
+          compact
+          onLinkAdd={onLinkAdd}
+          onLinkRemove={onLinkRemove}
         />
       </div>
 

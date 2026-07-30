@@ -53,6 +53,8 @@ function renderTable(
       clientRoutineLinks={clientRoutineLinks}
       tasks={tasks}
       showHeader={false}
+      onTaskStatusChange={() => undefined}
+      onTaskAttachmentAdd={() => undefined}
     />,
   )
 }
@@ -62,9 +64,15 @@ describe('RoutineControlTable presentations', () => {
     const markup = renderTable()
 
     expect(markup).toContain('data-spreadsheet-variant="round"')
+    expect(markup).toContain('Abrir página da empresa Empresa Alpha')
+    expect(markup).toContain('Abrir página da rotina Apurar impostos')
+    expect(markup).toContain('aria-haspopup="menu"')
+    expect(markup).toContain('aria-keyshortcuts="Shift+F10"')
     expect(markup).toContain(
       'Abrir Apurar impostos de Empresa Alpha. Status: Em andamento',
     )
+    expect(markup).toContain('Ações de Apurar impostos de Empresa Alpha')
+    expect(markup).toContain('aria-keyshortcuts="Shift+F10"')
     expect(markup).toContain('Não se aplica: rotina não vinculada à empresa')
     expect(markup).not.toContain('Abrir Fechar balancete de Empresa Alpha')
     expect(markup).toContain('data-routine-applicability="not-applicable"')
@@ -74,6 +82,7 @@ describe('RoutineControlTable presentations', () => {
       )?.[0] ?? ''
 
     expect(inactiveCell).not.toMatch(/group-hover:|hover:|focus-visible:/)
+    expect(inactiveCell).not.toContain('task-context-trigger')
   })
 
   it('distinguishes a linked routine without an execution from non-applicability', () => {

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
+import TaskContextMenu from '../../context-menu/TaskContextMenu'
 import { ROUTINE_STATUS } from '../../../constants/routineStatus'
 import RoutineListCardOptionThree from './RoutineListCardOptionThree'
 import RoutineListSection from './RoutineListSection'
@@ -68,6 +69,12 @@ function RoutineListComparison({
     Record<string, PendingStatusChange | undefined>
   >({})
   const [searchTerm, setSearchTerm] = useState('')
+  const [contextMenu, setContextMenu] = useState<{
+    item: RoutineListItem
+    x: number
+    y: number
+    trigger: HTMLButtonElement
+  } | null>(null)
   const groupedItems = useMemo(() => {
     return items.map((item) => ({
       ...item,
@@ -82,6 +89,11 @@ function RoutineListComparison({
   const groups = useMemo(
     () => groupRoutineListItemsByStatus(visibleItems),
     [visibleItems],
+  )
+  const hasTaskContextMenu = Boolean(
+    onItemStatusChange ||
+    onItemQuickAction ||
+    items.some((item) => (item.task.links?.length ?? 0) > 0),
   )
 
   const contentClass = showHeader
@@ -128,69 +140,148 @@ function RoutineListComparison({
     handlePendingStatusCancel(item)
   }
 
+  useEffect(() => {
+    if (
+      contextMenu &&
+      !visibleItems.some((item) => item.id === contextMenu.item.id)
+    ) {
+      setContextMenu(null)
+    }
+  }, [contextMenu, visibleItems])
+
+  function openTaskContextMenu(
+    item: RoutineListItem,
+    x: number,
+    y: number,
+    trigger: HTMLButtonElement,
+  ) {
+    setContextMenu({ item, x, y, trigger })
+  }
+
+  function closeTaskContextMenu(restoreFocus: boolean) {
+    const trigger = contextMenu?.trigger
+    setContextMenu(null)
+
+    if (restoreFocus && trigger?.isConnected) {
+      window.requestAnimationFrame(() => trigger.focus())
+    }
+  }
+
+  function handleContextStatusChange(_taskId: string, status: RoutineStatus) {
+    const item = contextMenu?.item
+    if (!item) return
+
+    setPendingChangeById((current) => {
+      const next = { ...current }
+      delete next[item.id]
+      return next
+    })
+    onItemStatusChange?.(item, { status, statusDetail: null })
+  }
+
+  function handleContextAttachmentAdd() {
+    if (!contextMenu) return
+    onItemQuickAction?.(contextMenu.item, 'attach')
+  }
+
   return (
-    <section
-      className={`overflow-hidden ${showHeader ? 'rounded-2xl bg-[var(--color-list-panel-bg)]' : 'bg-transparent'}`}
-      data-list-view="ledger"
-    >
-      {showHeader && (
-        <header className="border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-4 sm:px-6">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-                {title}
-              </h2>
-              <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">
-                {description}
-              </p>
+    <>
+      <section
+        className={`overflow-hidden ${showHeader ? 'rounded-2xl bg-[var(--color-list-panel-bg)]' : 'bg-transparent'}`}
+        data-list-view="ledger"
+      >
+        {showHeader && (
+          <header className="border-b border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-5 py-4 sm:px-6">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+                  {title}
+                </h2>
+                <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">
+                  {description}
+                </p>
+              </div>
             </div>
-          </div>
-        </header>
-      )}
-
-      {!showHeader && (
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <ListSearchInput value={searchTerm} onChange={setSearchTerm} />
-        </div>
-      )}
-
-      {showHeader && (
-        <div className="border-x border-[var(--color-list-border)] bg-[var(--color-list-bg)] px-4 py-3 sm:px-5">
-          <ListSearchInput value={searchTerm} onChange={setSearchTerm} />
-        </div>
-      )}
-
-      <ListOverview items={visibleItems} />
-
-      <div className={contentClass}>
-        <LedgerColumnHeader />
-
-        {groups.length > 0 ? (
-          groups.map((group) => (
-            <RoutineListSection
-              key={group.key ?? group.status}
-              group={group}
-              variant="ledger"
-            >
-              {group.items.map((item) => (
-                <RoutineListCardOptionThree
-                  key={item.id}
-                  item={item}
-                  onOpen={onItemOpen}
-                  onQuickAction={onItemQuickAction}
-                  onNoteChange={onItemNoteChange}
-                  onStatusChange={handlePendingStatusChange}
-                  onStatusConfirm={handlePendingStatusConfirm}
-                />
-              ))}
-            </RoutineListSection>
-          ))
-        ) : (
-          <ListEmptyState searchTerm={searchTerm} />
+          </header>
         )}
-      </div>
-    </section>
+
+        {!showHeader && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <ListSearchInput value={searchTerm} onChange={setSearchTerm} />
+          </div>
+        )}
+
+        {showHeader && (
+          <div className="border-x border-[var(--color-list-border)] bg-[var(--color-list-bg)] px-4 py-3 sm:px-5">
+            <ListSearchInput value={searchTerm} onChange={setSearchTerm} />
+          </div>
+        )}
+
+        <ListOverview items={visibleItems} />
+
+        <div className={contentClass}>
+          <LedgerColumnHeader />
+
+          {groups.length > 0 ? (
+            groups.map((group) => (
+              <RoutineListSection
+                key={group.key ?? group.status}
+                group={group}
+                variant="ledger"
+              >
+                {group.items.map((item) => (
+                  <RoutineListCardOptionThree
+                    key={item.id}
+                    item={item}
+                    onOpen={onItemOpen}
+                    onQuickAction={onItemQuickAction}
+                    onNoteChange={onItemNoteChange}
+                    onStatusChange={handlePendingStatusChange}
+                    onStatusConfirm={handlePendingStatusConfirm}
+                    onContextMenuOpen={
+                      hasTaskContextMenu ? openTaskContextMenu : undefined
+                    }
+                    isContextMenuOpen={contextMenu?.item.id === item.id}
+                  />
+                ))}
+              </RoutineListSection>
+            ))
+          ) : (
+            <ListEmptyState searchTerm={searchTerm} />
+          )}
+        </div>
+      </section>
+
+      {contextMenu && (
+        <TaskContextMenu
+          key={`${contextMenu.item.id}:${contextMenu.x}:${contextMenu.y}`}
+          task={{
+            ...contextMenu.item.task,
+            status:
+              contextMenu.item.displayStatus ?? contextMenu.item.task.status,
+          }}
+          label={getContextMenuLabel(contextMenu.item)}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={closeTaskContextMenu}
+          onStatusChange={
+            onItemStatusChange ? handleContextStatusChange : undefined
+          }
+          onAttachmentAdd={
+            onItemQuickAction ? handleContextAttachmentAdd : undefined
+          }
+        />
+      )}
+    </>
   )
+}
+
+function getContextMenuLabel(item: RoutineListItem): string {
+  const routine = item.routineName?.trim()
+  const company = item.companyName?.trim()
+
+  if (routine && company) return `${routine} · ${company}`
+  return item.primaryLabel || item.title || 'Tarefa'
 }
 
 function ListOverview({ items }: { items: RoutineListItem[] }) {

@@ -161,11 +161,25 @@ function buildSpreadsheetSummaries({
         (routine) => routine.departmentId === spreadsheet.departmentId,
       )
       const routineIds = new Set(routines.map((routine) => routine.id))
-      const clientIds = new Set(
-        data.clientRoutineLinks
-          .filter((link) => routineIds.has(link.routineId))
-          .map((link) => link.clientId),
+      const departmentHasDivisions = (data.divisions ?? []).some(
+        (division) => division.departmentId === spreadsheet.departmentId,
       )
+      const clientIds = departmentHasDivisions
+        ? new Set(
+            data.clients
+              .filter((client) =>
+                client.divisionAssignments?.some(
+                  (assignment) =>
+                    assignment.departmentId === spreadsheet.departmentId,
+                ),
+              )
+              .map((client) => client.id),
+          )
+        : new Set(
+            data.clientRoutineLinks
+              .filter((link) => routineIds.has(link.routineId))
+              .map((link) => link.clientId),
+          )
       const personalTasks = personalItems.filter(
         (item) =>
           !item.task.isLoose &&

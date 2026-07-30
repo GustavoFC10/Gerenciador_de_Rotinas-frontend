@@ -13,6 +13,8 @@ function TasksPage({
   data,
   spreadsheetId = 'fiscal',
   spreadsheetName = 'Fiscal',
+  spreadsheetDivisionId,
+  spreadsheetDivisionName,
   onItemOpen,
   onItemQuickAction,
   onItemNoteChange,
@@ -20,6 +22,8 @@ function TasksPage({
 }: RoutineListInteractionProps & {
   spreadsheetId?: string
   spreadsheetName?: string
+  spreadsheetDivisionId?: string
+  spreadsheetDivisionName?: string
 }) {
   const listViewData = useMemo(
     () =>
@@ -34,10 +38,15 @@ function TasksPage({
     <div className="flex min-h-0 flex-1 flex-col">
       <WorkspaceBar
         context={{
-          label: `Planilha ${spreadsheetName}`,
-          to: `${ROUTES.SPREADSHEET}?sheetId=${encodeURIComponent(
-            spreadsheetId,
-          )}`,
+          label: `Planilha ${spreadsheetName}${
+            spreadsheetDivisionName ? ` · ${spreadsheetDivisionName}` : ''
+          }`,
+          to: `${ROUTES.SPREADSHEET}?${new URLSearchParams({
+            sheetId: spreadsheetId,
+            ...(spreadsheetDivisionId
+              ? { divisionId: spreadsheetDivisionId }
+              : {}),
+          }).toString()}`,
         }}
         title="Todas as tarefas"
       />

@@ -16,8 +16,28 @@ const spreadsheets: SpreadsheetNavigationItem[] = [
     id: 'fiscal',
     departmentId: 'dept-fiscal',
     name: 'Fiscal',
-    description: 'Clientes e rotinas',
-    to: '/planilha?sheetId=fiscal',
+    description: '3 planilhas',
+    to: '/planilha?sheetId=fiscal&divisionId=division-fiscal-mei',
+    divisions: [
+      {
+        id: 'division-fiscal-mei',
+        departmentId: 'dept-fiscal',
+        name: 'MEI',
+        to: '/planilha?sheetId=fiscal&divisionId=division-fiscal-mei',
+      },
+      {
+        id: 'division-fiscal-simples-nacional',
+        departmentId: 'dept-fiscal',
+        name: 'Simples Nacional',
+        to: '/planilha?sheetId=fiscal&divisionId=division-fiscal-simples-nacional',
+      },
+      {
+        id: 'division-fiscal-lucro-presumido',
+        departmentId: 'dept-fiscal',
+        name: 'Lucro Presumido',
+        to: '/planilha?sheetId=fiscal&divisionId=division-fiscal-lucro-presumido',
+      },
+    ],
   },
   {
     id: 'pessoal',
@@ -115,11 +135,24 @@ describe('Sidebar', () => {
     expect(markup.match(/aria-current="page"/g)).toHaveLength(1)
   })
 
+  it('keeps the originating spreadsheet active in entity pages', () => {
+    const markup = renderSidebar({
+      entry: '/empresas/client-1?sheetId=pessoal',
+      role: USER_ROLE.LEADER,
+    })
+    const currentLink = getCurrentLink(markup)
+
+    expect(currentLink).toContain('sheetId=pessoal')
+    expect(markup.match(/aria-current="page"/g)).toHaveLength(1)
+  })
+
   it('activates secondary routes without also activating a spreadsheet', () => {
     const markup = renderSidebar({ entry: '/tarefas-fiscal' })
     const currentLink = getCurrentLink(markup)
 
-    expect(currentLink).toContain('href="/tarefas-fiscal?sheetId=fiscal"')
+    expect(currentLink).toContain(
+      'href="/tarefas-fiscal?sheetId=fiscal&amp;divisionId=division-fiscal-mei"',
+    )
     expect(currentLink).not.toContain('data-navigation-priority')
     expect(markup.match(/aria-current="page"/g)).toHaveLength(1)
   })

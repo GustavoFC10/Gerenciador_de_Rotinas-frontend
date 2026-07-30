@@ -34,12 +34,19 @@ const task: Task = {
       previewTitle: 'Memória de cálculo',
     },
   ],
+  links: [
+    {
+      id: 'link-simples',
+      label: 'Portal do Simples',
+      url: 'https://portal.exemplo.com/simples',
+    },
+  ],
   indicators: { attachments: 2, comments: 1, alerts: 0 },
 }
 
 const sharedProps = {
   task,
-  client: { id: 'client-001', code: '001', name: 'Aurora Comércio' },
+  client: { id: 'client-001', code: '0001', name: 'Aurora Comércio' },
   routine: {
     id: 'routine-enviar-das',
     departmentId: 'dept-fiscal',
@@ -68,12 +75,22 @@ describe('RoutineDetailsCard', () => {
     expect(markup).not.toContain('Anexar arquivo')
     expect(markup).not.toContain('1 comentários')
     expect(markup).toContain('Registro da execução')
+    expect(markup).toContain('data-task-resources="links"')
+    expect(markup).toContain('Links úteis')
+    expect(markup).toContain('Portal do Simples')
+    expect(markup).toContain('portal.exemplo.com')
     expect(markup).toContain('Detalhes')
     expect(markup.indexOf('DAS_06-2026.pdf')).toBeLessThan(
       markup.indexOf('Registro da execução'),
     )
     expect(markup.indexOf('Detalhes')).toBeLessThan(
       markup.indexOf('Responsável'),
+    )
+    expect(markup.indexOf('Responsável')).toBeLessThan(
+      markup.indexOf('Portal do Simples'),
+    )
+    expect(markup.indexOf('Portal do Simples')).toBeLessThan(
+      markup.indexOf('Informações'),
     )
     expect(markup).not.toContain('Trocar visualização do card')
   })

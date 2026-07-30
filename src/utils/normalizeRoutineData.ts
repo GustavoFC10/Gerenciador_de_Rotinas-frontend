@@ -14,5 +14,8 @@ export function normalizeRoutineData(
     departmentsById: new Map(
       data.departments.map((department) => [department.id, department]),
     ),
+    divisionsById: new Map(
+      (data.divisions ?? []).map((division) => [division.id, division]),
+    ),
   }
 }

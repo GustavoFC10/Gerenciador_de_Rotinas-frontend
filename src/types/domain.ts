@@ -1,21 +1,55 @@
 export type EntityId = string
 
 export type RoutineStatus =
-  | 'pending'
-  | 'in_progress'
-  | 'error'
-  | 'completed'
-  | 'no_movement'
+  'pending' | 'in_progress' | 'error' | 'completed' | 'no_movement'
 
 export interface Department {
   id: EntityId
   name: string
 }
 
+export interface DepartmentDivision {
+  id: EntityId
+  departmentId: EntityId
+  name: string
+  slug: string
+  description?: string
+  position: number
+  active?: boolean
+}
+
+export interface ClientDivisionAssignment {
+  id: EntityId
+  departmentId: EntityId
+  divisionId: EntityId
+}
+
 export interface Client {
   id: EntityId
   code: string
   name: string
+  legalName?: string
+  document?: string
+  email?: string
+  phone?: string
+  taxRegime?: ClientTaxRegime
+  divisionAssignments?: ClientDivisionAssignment[]
+  active?: boolean
+}
+
+export type ClientTaxRegime =
+  'simples_nacional' | 'lucro_presumido' | 'lucro_real' | 'mei' | 'other'
+
+export interface UpdateClientInput {
+  name: string
+  code: string
+  legalName?: string
+  document?: string
+  email?: string
+  phone?: string
+  taxRegime?: ClientTaxRegime
+  divisionAssignments: ClientDivisionAssignment[]
+  active: boolean
 }
 
 export interface Routine {
@@ -24,12 +58,34 @@ export interface Routine {
   name: string
   shortName: string
   description?: string
+  recurrence?: RoutineRecurrence
+  defaultDueDay?: number
+  active?: boolean
+}
+
+export type RoutineRecurrence =
+  'monthly' | 'quarterly' | 'semiannual' | 'annual' | 'custom'
+
+export interface UpdateRoutineInput {
+  name: string
+  shortName: string
+  description?: string
+  recurrence: RoutineRecurrence
+  defaultDueDay: number
+  active: boolean
 }
 
 export interface ClientRoutineLink {
   id: EntityId
   clientId: EntityId
   routineId: EntityId
+}
+
+export interface DivisionRoutineLink {
+  id: EntityId
+  divisionId: EntityId
+  routineId: EntityId
+  position: number
 }
 
 export interface Employee {
@@ -49,6 +105,18 @@ export interface TaskAttachment {
   uploadedAt?: string
 }
 
+export interface TaskLink {
+  id: EntityId
+  label: string
+  url: string
+  createdAt?: string
+}
+
+export interface CreateTaskLinkInput {
+  label: string
+  url: string
+}
+
 export interface TaskIndicators {
   attachments: number
   comments?: number
@@ -63,6 +131,7 @@ export interface Task {
   clientId: EntityId | null
   routineId: EntityId | null
   departmentId: EntityId
+  divisionId?: EntityId | null
   assigneeId: EntityId | null
   status: RoutineStatus
   statusDetail?: string | null
@@ -71,13 +140,16 @@ export interface Task {
   completedAt: string | null
   notes?: string
   attachments?: TaskAttachment[]
+  links?: TaskLink[]
   indicators: TaskIndicators
 }
 
 export interface RoutineControlData {
   departments: Department[]
+  divisions?: DepartmentDivision[]
   clients: Client[]
   routines: Routine[]
+  divisionRoutineLinks?: DivisionRoutineLink[]
   clientRoutineLinks: ClientRoutineLink[]
   employees: Employee[]
   tasks: Task[]
@@ -106,6 +178,7 @@ export interface NormalizedRoutineData {
   routinesById: Map<EntityId, Routine>
   employeesById: Map<EntityId, Employee>
   departmentsById: Map<EntityId, Department>
+  divisionsById: Map<EntityId, DepartmentDivision>
 }
 
 export type UserRole = 'employee' | 'leader' | 'manager'

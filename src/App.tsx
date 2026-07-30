@@ -1,17 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-} from 'react-router'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 
 import ErrorState from './components/common/ErrorState'
 import LoadingState from './components/common/LoadingState'
 import RoutineDetailsCard from './components/routine-control/details/RoutineDetailsCard'
 import { ROUTES } from './constants/routes'
 import AppLayout from './layouts/AppLayout'
+import EntityDetailPage from './pages/EntityDetailPage'
 import HomePage from './pages/HomePage'
 import ListPage from './pages/ListPage'
 import LoginPage from './pages/LoginPage'
@@ -23,10 +18,15 @@ import TasksPage from './pages/TasksPage'
 import { useRoutineControl } from './hooks/useRoutineControl'
 import { useAuth } from './hooks/useAuth'
 import { useTaskUpdates } from './hooks/useTaskUpdates'
+import { scopeRoutineControlData } from './utils/routineControlScope'
 import { buildTaskRelations } from './utils/routineRelations'
+import {
+  buildSpreadsheetContextQuery,
+  buildSpreadsheetNavigationItems,
+  resolveSpreadsheetSelection,
+} from './utils/spreadsheetNavigation'
 import type {
   Client,
-  Department,
   PendingStatusChange,
   Routine,
   RoutineControlData,
@@ -34,25 +34,9 @@ import type {
   RoutineStatus,
   Task,
   TaskRelations,
+  UpdateClientInput,
+  UpdateRoutineInput,
 } from './types/domain'
-import type { SpreadsheetNavigationItem } from './types/navigation'
-
-const selectedSpreadsheetPresentation: Department = {
-  id: 'dept-fiscal',
-  name: 'Fiscal',
-}
-
-const selectedSpreadsheetId = 'fiscal'
-
-const spreadsheetNavigationItems: SpreadsheetNavigationItem[] = [
-  {
-    id: selectedSpreadsheetId,
-    departmentId: selectedSpreadsheetPresentation.id,
-    name: 'Fiscal',
-    description: 'Clientes e rotinas',
-    to: `${ROUTES.SPREADSHEET}?sheetId=${selectedSpreadsheetId}`,
-  },
-]
 
 function App() {
   const { isAuthenticated } = useAuth()
@@ -87,12 +71,31 @@ function App() {
 
 function AuthenticatedApp() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { response, setResponse, data, isLoading, error } = useRoutineControl()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const taskUpdates = useTaskUpdates({ setResponse, setSelectedTask })
   const selectedTaskId = selectedTask?.id
+  const spreadsheetNavigationItems = useMemo(
+    () => (data ? buildSpreadsheetNavigationItems(data) : []),
+    [data],
+  )
+  const spreadsheetSelection = useMemo(
+    () =>
+      resolveSpreadsheetSelection(spreadsheetNavigationItems, location.search),
+    [location.search, spreadsheetNavigationItems],
+  )
+  const selectedSpreadsheet = spreadsheetSelection.spreadsheet
+  const selectedDivision = spreadsheetSelection.division
+  const selectedDepartment = data?.departments.find(
+    (department) => department.id === spreadsheetSelection.departmentId,
+  )
+  const spreadsheetContextQuery = buildSpreadsheetContextQuery({
+    spreadsheetId: spreadsheetSelection.spreadsheetId,
+    divisionId: spreadsheetSelection.divisionId,
+  })
 
   useEffect(() => {
     if (!selectedTaskId || !dialogRef.current) return undefined
@@ -176,41 +179,56 @@ function AuthenticatedApp() {
   }, [selectedTaskId])
 
   const visibleData = useMemo<RoutineControlData | null>(() => {
-    if (!data) return null
-
-    const fiscalRoutines = data.routines.filter(
-      (routine) => routine.departmentId === 'dept-fiscal',
-    )
-    const fiscalRoutineIds = new Set(
-      fiscalRoutines.map((routine) => routine.id),
-    )
-    const fiscalClientRoutineLinks = data.clientRoutineLinks.filter((link) =>
-      fiscalRoutineIds.has(link.routineId),
-    )
-    const fiscalTasks = data.tasks.filter(
-      (task) => task.departmentId === 'dept-fiscal',
-    )
-    const visibleRoutines = fiscalRoutines.map((routine) => ({
-      ...routine,
-      departmentId: selectedSpreadsheetPresentation.id,
-    }))
-    const visibleTasks = fiscalTasks.map((task) => ({
-      ...task,
-      departmentId: selectedSpreadsheetPresentation.id,
-    }))
-    const visibleClientIds = new Set(
-      fiscalClientRoutineLinks.map((link) => link.clientId),
-    )
-
-    return {
-      departments: [selectedSpreadsheetPresentation],
-      employees: data.employees,
-      routines: visibleRoutines,
-      clientRoutineLinks: fiscalClientRoutineLinks,
-      tasks: visibleTasks,
-      clients: data.clients.filter((client) => visibleClientIds.has(client.id)),
+    if (
+      !data ||
+      !spreadsheetSelection.departmentId ||
+      !spreadsheetSelection.divisionId
+    ) {
+      return null
     }
-  }, [data])
+
+    return scopeRoutineControlData(data, {
+      departmentId: spreadsheetSelection.departmentId,
+      divisionId: spreadsheetSelection.divisionId,
+    })
+  }, [data, spreadsheetSelection.departmentId, spreadsheetSelection.divisionId])
+
+  useEffect(() => {
+    if (
+      !spreadsheetSelection.isFallback ||
+      !spreadsheetSelection.spreadsheetId ||
+      !spreadsheetSelection.divisionId ||
+      !isSpreadsheetContextRoute(location.pathname)
+    ) {
+      return
+    }
+
+    const nextSearch = buildSpreadsheetContextQuery(
+      {
+        spreadsheetId: spreadsheetSelection.spreadsheetId,
+        divisionId: spreadsheetSelection.divisionId,
+      },
+      location.search,
+    )
+
+    navigate(
+      {
+        pathname: location.pathname,
+        search: nextSearch,
+        hash: location.hash,
+      },
+      { replace: true, state: location.state },
+    )
+  }, [
+    location.hash,
+    location.pathname,
+    location.search,
+    location.state,
+    navigate,
+    spreadsheetSelection.divisionId,
+    spreadsheetSelection.isFallback,
+    spreadsheetSelection.spreadsheetId,
+  ])
 
   const selectedRelations = useMemo<TaskRelations>(() => {
     if (!selectedTask || !data) return {}
@@ -218,8 +236,8 @@ function AuthenticatedApp() {
     const relations = buildTaskRelations(
       selectedTask,
       data,
-      selectedTask.departmentId === selectedSpreadsheetPresentation.id
-        ? selectedSpreadsheetPresentation
+      selectedTask.departmentId === selectedDepartment?.id
+        ? selectedDepartment
         : null,
     )
 
@@ -242,30 +260,30 @@ function AuthenticatedApp() {
         description: selectedTask.description ?? selectedTask.notes,
       },
     }
-  }, [data, selectedTask])
+  }, [data, selectedDepartment, selectedTask])
 
   function handleRoutineListOpen(routine: Routine) {
     setSelectedTask(null)
-    const searchParams = new URLSearchParams({
-      sheetId: selectedSpreadsheetId,
-      type: 'routine',
-      id: routine.id,
-    })
-    navigate(`${ROUTES.LIST}?${searchParams.toString()}`, {
-      state: { fromSpreadsheet: true },
-    })
+    navigate(
+      `${ROUTES.ROUTINES}/${encodeURIComponent(
+        routine.id,
+      )}${spreadsheetContextQuery}`,
+      {
+        state: { fromSpreadsheet: true },
+      },
+    )
   }
 
   function handleClientListOpen(client: Client) {
     setSelectedTask(null)
-    const searchParams = new URLSearchParams({
-      sheetId: selectedSpreadsheetId,
-      type: 'client',
-      id: client.id,
-    })
-    navigate(`${ROUTES.LIST}?${searchParams.toString()}`, {
-      state: { fromSpreadsheet: true },
-    })
+    navigate(
+      `${ROUTES.COMPANIES}/${encodeURIComponent(
+        client.id,
+      )}${spreadsheetContextQuery}`,
+      {
+        state: { fromSpreadsheet: true },
+      },
+    )
   }
 
   function handleListItemOpen(item: RoutineListItem) {
@@ -306,11 +324,51 @@ function AuthenticatedApp() {
     taskUpdates.createLooseTask(task)
   }
 
+  function handleClientUpdate(clientId: string, changes: UpdateClientInput) {
+    setResponse((currentResponse) => {
+      if (!currentResponse) return currentResponse
+
+      return {
+        ...currentResponse,
+        data: {
+          ...currentResponse.data,
+          clients: currentResponse.data.clients.map((client) =>
+            client.id === clientId ? { ...client, ...changes } : client,
+          ),
+        },
+      }
+    })
+  }
+
+  function handleRoutineUpdate(routineId: string, changes: UpdateRoutineInput) {
+    setResponse((currentResponse) => {
+      if (!currentResponse) return currentResponse
+
+      return {
+        ...currentResponse,
+        data: {
+          ...currentResponse.data,
+          routines: currentResponse.data.routines.map((routine) =>
+            routine.id === routineId ? { ...routine, ...changes } : routine,
+          ),
+        },
+      }
+    })
+  }
+
   if (isLoading) {
     return <LoadingState message="Carregando rotinas..." />
   }
 
-  if (error || !response || !data || !visibleData) {
+  if (
+    error ||
+    !response ||
+    !data ||
+    !visibleData ||
+    !selectedSpreadsheet ||
+    !selectedDivision ||
+    !selectedDepartment
+  ) {
     return (
       <ErrorState
         title="Nao foi possivel carregar os dados"
@@ -340,20 +398,51 @@ function AuthenticatedApp() {
             path={ROUTES.SPREADSHEET}
             element={
               <SpreadsheetPage
-                spreadsheetName={selectedSpreadsheetPresentation.name}
+                spreadsheetName={selectedSpreadsheet.name}
+                divisionName={selectedDivision.name}
+                divisions={selectedSpreadsheet.divisions ?? []}
+                selectedDivisionId={selectedDivision.id}
                 visibleData={visibleData}
                 onClientOpen={handleClientListOpen}
                 onRoutineOpen={handleRoutineListOpen}
                 onTaskOpen={setSelectedTask}
+                onTaskStatusChange={taskUpdates.updateStatus}
+                onTaskAttachmentAdd={taskUpdates.incrementAttachments}
+              />
+            }
+          />
+          <Route path={ROUTES.LIST} element={<ListPage />} />
+          <Route
+            path={ROUTES.COMPANY_DETAILS}
+            element={
+              <EntityDetailPage
+                type="client"
+                data={visibleData}
+                spreadsheetId={selectedSpreadsheet.id}
+                spreadsheetName={selectedSpreadsheet.name}
+                spreadsheetDepartmentId={selectedDepartment.id}
+                spreadsheetDivisionId={selectedDivision.id}
+                spreadsheetDivisionName={selectedDivision.name}
+                onClientUpdate={handleClientUpdate}
+                onItemOpen={handleListItemOpen}
+                onItemQuickAction={handleListItemQuickAction}
+                onItemNoteChange={handleListItemNoteChange}
+                onItemStatusChange={handleListItemStatusChange}
               />
             }
           />
           <Route
-            path={ROUTES.LIST}
+            path={ROUTES.ROUTINE_DETAILS}
             element={
-              <ListPage
+              <EntityDetailPage
+                type="routine"
                 data={visibleData}
-                spreadsheetName={selectedSpreadsheetPresentation.name}
+                spreadsheetId={selectedSpreadsheet.id}
+                spreadsheetName={selectedSpreadsheet.name}
+                spreadsheetDepartmentId={selectedDepartment.id}
+                spreadsheetDivisionId={selectedDivision.id}
+                spreadsheetDivisionName={selectedDivision.name}
+                onRoutineUpdate={handleRoutineUpdate}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
@@ -366,8 +455,10 @@ function AuthenticatedApp() {
             element={
               <TasksPage
                 data={visibleData}
-                spreadsheetId={selectedSpreadsheetId}
-                spreadsheetName={selectedSpreadsheetPresentation.name}
+                spreadsheetId={selectedSpreadsheet.id}
+                spreadsheetName={selectedSpreadsheet.name}
+                spreadsheetDivisionId={selectedDivision.id}
+                spreadsheetDivisionName={selectedDivision.name}
                 onItemOpen={handleListItemOpen}
                 onItemQuickAction={handleListItemQuickAction}
                 onItemNoteChange={handleListItemNoteChange}
@@ -473,12 +564,24 @@ function AuthenticatedApp() {
               onAttachmentAdd={taskUpdates.incrementAttachments}
               onAttachmentRemove={taskUpdates.removeAttachment}
               onNotesChange={taskUpdates.updateNotes}
+              onLinkAdd={taskUpdates.addLink}
+              onLinkRemove={taskUpdates.removeLink}
               onClose={() => setSelectedTask(null)}
             />
           </div>
         </div>
       )}
     </>
+  )
+}
+
+function isSpreadsheetContextRoute(pathname: string): boolean {
+  return (
+    pathname === ROUTES.SPREADSHEET ||
+    pathname === ROUTES.LIST ||
+    pathname === ROUTES.TASKS ||
+    pathname.startsWith(`${ROUTES.COMPANIES}/`) ||
+    pathname.startsWith(`${ROUTES.ROUTINES}/`)
   )
 }
 
