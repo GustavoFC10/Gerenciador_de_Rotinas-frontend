@@ -25,6 +25,7 @@ import {
   ROUTINE_LIST_MODE,
   buildRoutineListViewData,
 } from '../utils/routineListItems'
+import { formatRoutineSchedule } from '../utils/routineSchedule'
 
 type EntityType = 'client' | 'routine'
 
@@ -77,6 +78,8 @@ function EntityDetailPage({
   const entity = client ?? routine
   const departmentId = routine?.departmentId ?? spreadsheetDepartmentId
   const canEdit = isLeader(user) && canAccessDepartment(user, departmentId)
+  const wasOpenedFromCatalog =
+    new URLSearchParams(location.search).get('source') === 'catalog'
   const wasOpenedFromSpreadsheet = Boolean(
     (location.state as { fromSpreadsheet?: boolean } | null)?.fromSpreadsheet,
   )
@@ -138,7 +141,11 @@ function EntityDetailPage({
       (assignment) => assignment.departmentId === spreadsheetDepartmentId,
     )?.divisionId
 
-    if (nextDivisionId && nextDivisionId !== spreadsheetDivisionId) {
+    if (
+      !wasOpenedFromCatalog &&
+      nextDivisionId &&
+      nextDivisionId !== spreadsheetDivisionId
+    ) {
       navigate(
         `${ROUTES.COMPANIES}/${encodeURIComponent(
           client.id,
@@ -164,9 +171,20 @@ function EntityDetailPage({
     <div className="flex min-h-0 flex-1 flex-col">
       <WorkspaceBar
         context={{
-          label: `Planilha ${spreadsheetName} · ${spreadsheetDivisionName}`,
-          to: spreadsheetPath,
-          onBack: wasOpenedFromSpreadsheet ? () => navigate(-1) : undefined,
+          label: wasOpenedFromCatalog
+            ? type === 'client'
+              ? 'Todas as empresas'
+              : 'Todas as rotinas'
+            : `Planilha ${spreadsheetName} · ${spreadsheetDivisionName}`,
+          to: wasOpenedFromCatalog
+            ? type === 'client'
+              ? ROUTES.COMPANIES
+              : ROUTES.ROUTINES
+            : spreadsheetPath,
+          onBack:
+            !wasOpenedFromCatalog && wasOpenedFromSpreadsheet
+              ? () => navigate(-1)
+              : undefined,
         }}
         label={type === 'client' ? 'Empresa' : 'Rotina'}
         title={entity.name}
@@ -239,8 +257,7 @@ function EntityDetailPage({
         <EntityEditModal
           type="client"
           entity={client}
-          departments={data.departments}
-          divisions={data.divisions ?? []}
+          data={data}
           onClose={() => setIsEditing(false)}
           onSave={handleClientSave}
         />
@@ -250,6 +267,7 @@ function EntityDetailPage({
         <EntityEditModal
           type="routine"
           entity={routine}
+          data={data}
           onClose={() => setIsEditing(false)}
           onSave={handleRoutineSave}
         />
@@ -408,17 +426,7 @@ function EntitySummary({
 }
 
 function getRoutineDueLabel(routine: Routine): string {
-  if (routine.defaultDueDays) {
-    return `${routine.defaultDueDays} ${
-      routine.defaultDueDays === 1 ? 'dia' : 'dias'
-    } após criar a tarefa`
-  }
-
-  if (routine.defaultDueDay) {
-    return `Dia ${routine.defaultDueDay} da competência`
-  }
-
-  return 'Definido na tarefa'
+  return formatRoutineSchedule(routine)
 }
 
 function SummaryField({ label, value }: { label: string; value: ReactNode }) {

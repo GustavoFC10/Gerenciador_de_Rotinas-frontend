@@ -39,7 +39,7 @@ interface RoutineFormValues {
   departmentId: string
   recurrence: RoutineRecurrence | ''
   defaultAssigneeId: string
-  defaultDueDate: string
+  defaultDueDays: string
   defaultDueDay: string
   recurrenceMonths: number[]
 }
@@ -54,7 +54,7 @@ const initialValues: RoutineFormValues = {
   departmentId: '',
   recurrence: '',
   defaultAssigneeId: '',
-  defaultDueDate: '',
+  defaultDueDays: '',
   defaultDueDay: '',
   recurrenceMonths: [],
 }
@@ -65,7 +65,6 @@ const recurrenceDescriptions: Record<RoutineRecurrence, string> = {
   quarterly: 'Repete a cada três meses.',
   semiannual: 'Repete a cada seis meses.',
   annual: 'Repete uma vez por ano.',
-  custom: 'A frequência detalhada será configurada ao usar o modelo.',
 }
 
 function CreateRoutinePage({
@@ -157,21 +156,23 @@ function CreateRoutinePage({
     setValues((current) => ({
       ...current,
       recurrence,
-      defaultDueDate: '',
+      defaultDueDays: '',
       defaultDueDay: '',
       recurrenceMonths: [],
     }))
   }
 
   function updateSchedule(schedule: {
-    defaultDueDate?: string
+    defaultDueDays?: number
     defaultDueDay?: number
     recurrenceMonths?: number[]
   }) {
     setErrors((current) => ({ ...current, schedule: undefined }))
     setValues((current) => ({
       ...current,
-      defaultDueDate: schedule.defaultDueDate ?? '',
+      defaultDueDays: schedule.defaultDueDays
+        ? String(schedule.defaultDueDays)
+        : '',
       defaultDueDay: schedule.defaultDueDay
         ? String(schedule.defaultDueDay)
         : '',
@@ -495,7 +496,9 @@ function CreateRoutinePage({
                     <RoutineScheduleFields
                       recurrence={values.recurrence}
                       value={{
-                        defaultDueDate: values.defaultDueDate || undefined,
+                        defaultDueDays: values.defaultDueDays
+                          ? Number(values.defaultDueDays)
+                          : undefined,
                         defaultDueDay: values.defaultDueDay
                           ? Number(values.defaultDueDay)
                           : undefined,
@@ -548,7 +551,7 @@ function CreateRoutinePage({
             recurrenceLabel={selectedRecurrence?.label}
             recurrence={values.recurrence}
             assigneeName={selectedEmployee?.name}
-            defaultDueDate={values.defaultDueDate}
+            defaultDueDays={values.defaultDueDays}
             defaultDueDay={values.defaultDueDay}
             recurrenceMonths={values.recurrenceMonths}
           />
@@ -645,7 +648,7 @@ function RoutinePreview({
   recurrenceLabel,
   recurrence,
   assigneeName,
-  defaultDueDate,
+  defaultDueDays,
   defaultDueDay,
   recurrenceMonths,
 }: {
@@ -656,14 +659,14 @@ function RoutinePreview({
   recurrenceLabel?: string
   recurrence: RoutineRecurrence | ''
   assigneeName?: string
-  defaultDueDate: string
+  defaultDueDays: string
   defaultDueDay: string
   recurrenceMonths: number[]
 }) {
   const dueLabel = recurrence
     ? formatRoutineSchedule({
         recurrence,
-        defaultDueDate: defaultDueDate || undefined,
+        defaultDueDays: defaultDueDays ? Number(defaultDueDays) : undefined,
         defaultDueDay: defaultDueDay ? Number(defaultDueDay) : undefined,
         recurrenceMonths,
       })
@@ -755,7 +758,6 @@ function PreviewItem({ label, value }: { label: string; value: string }) {
 
 function validateRoutine(values: RoutineFormValues): RoutineFormErrors {
   const errors: RoutineFormErrors = {}
-  const dueDays = Number(values.defaultDueDays)
 
   if (!values.name.trim()) {
     errors.name = 'Informe o título da rotina.'
@@ -771,13 +773,18 @@ function validateRoutine(values: RoutineFormValues): RoutineFormErrors {
 
   if (!values.recurrence) {
     errors.recurrence = 'Selecione a recorrência, inclusive sob demanda.'
-  }
+  } else {
+    const scheduleError = getRoutineScheduleError(values.recurrence, {
+      defaultDueDays: values.defaultDueDays
+        ? Number(values.defaultDueDays)
+        : undefined,
+      defaultDueDay: values.defaultDueDay
+        ? Number(values.defaultDueDay)
+        : undefined,
+      recurrenceMonths: values.recurrenceMonths,
+    })
 
-  if (
-    values.defaultDueDays &&
-    (!Number.isInteger(dueDays) || dueDays < 1 || dueDays > 365)
-  ) {
-    errors.defaultDueDays = 'Informe um prazo inteiro entre 1 e 365 dias.'
+    if (scheduleError) errors.schedule = scheduleError
   }
 
   return errors
@@ -795,9 +802,19 @@ function buildCreateInput(values: RoutineFormValues): CreateRoutineInput {
     input.defaultAssigneeId = values.defaultAssigneeId
   }
 
-  if (values.defaultDueDays) {
-    input.defaultDueDays = Number(values.defaultDueDays)
-  }
+  const schedule = normalizeRoutineSchedule(input.recurrence, {
+    defaultDueDays: values.defaultDueDays
+      ? Number(values.defaultDueDays)
+      : undefined,
+    defaultDueDay: values.defaultDueDay
+      ? Number(values.defaultDueDay)
+      : undefined,
+    recurrenceMonths: values.recurrenceMonths,
+  })
+
+  input.defaultDueDays = schedule.defaultDueDays
+  input.defaultDueDay = schedule.defaultDueDay
+  input.recurrenceMonths = schedule.recurrenceMonths
 
   return input
 }
@@ -809,13 +826,16 @@ function formatPeriod(period: string): string {
   return `${match[2]}/${match[1]}`
 }
 
-const fieldIds: Record<RoutineFormField, string> = {
+const fieldIds: Record<RoutineFormErrorField, string> = {
   name: 'routine-name',
   description: 'routine-description',
   departmentId: 'routine-department',
   recurrence: 'routine-recurrence',
   defaultAssigneeId: 'routine-assignee',
   defaultDueDays: 'routine-due-days',
+  defaultDueDay: 'routine-due-day',
+  recurrenceMonths: 'routine-cycle',
+  schedule: 'routine-schedule',
 }
 
 function TemplateIcon() {

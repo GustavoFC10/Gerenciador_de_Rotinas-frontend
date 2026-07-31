@@ -41,4 +41,16 @@ describe('creation permissions', () => {
       hasAppPermission(managerUserMock, APP_PERMISSION.CREATE_EMPLOYEE),
     ).toBe(true)
   })
+
+  it('restricts the employee directory to managers', () => {
+    expect(
+      hasAppPermission(currentUserMock, APP_PERMISSION.VIEW_EMPLOYEES),
+    ).toBe(false)
+    expect(
+      hasAppPermission(leaderUserMock, APP_PERMISSION.VIEW_EMPLOYEES),
+    ).toBe(false)
+    expect(
+      hasAppPermission(managerUserMock, APP_PERMISSION.VIEW_EMPLOYEES),
+    ).toBe(true)
+  })
 })

@@ -68,7 +68,7 @@ describe('CreateRoutinePage', () => {
     const recurrenceOptions = document.querySelectorAll<HTMLInputElement>(
       'input[name="recurrence"]',
     )
-    expect(recurrenceOptions).toHaveLength(6)
+    expect(recurrenceOptions).toHaveLength(5)
     expect(
       document.querySelector<HTMLInputElement>(
         'input[name="recurrence"][value="on_demand"]',
@@ -79,6 +79,26 @@ describe('CreateRoutinePage', () => {
     )
     expect(document.body.textContent).toContain('Competência atual')
     expect(document.body.textContent).toContain('07/2026')
+
+    await act(async () => {
+      getControl<HTMLInputElement>(
+        'input[name="recurrence"][value="on_demand"]',
+      ).click()
+    })
+    expect(
+      getControl<HTMLInputElement>('#routine-due-days').labels?.[0]
+        ?.textContent,
+    ).toContain('Prazo após a criação')
+
+    await act(async () => {
+      getControl<HTMLInputElement>(
+        'input[name="recurrence"][value="quarterly"]',
+      ).click()
+    })
+    expect(document.body.textContent).toContain(
+      'Janeiro / Abril / Julho / Outubro',
+    )
+    expect(document.body.textContent).not.toContain('Personalizada')
   })
 
   it('focuses an accessible error summary and identifies required fields', async () => {
@@ -117,7 +137,7 @@ describe('CreateRoutinePage', () => {
       description: 'Importar e conferir as notas recebidas.',
       recurrence: 'monthly',
       defaultAssigneeId: 'employee-fiscal',
-      defaultDueDays: 5,
+      defaultDueDay: 5,
       isTemplate: true,
       active: true,
     }
@@ -150,15 +170,12 @@ describe('CreateRoutinePage', () => {
       getControl<HTMLSelectElement>('#routine-assignee'),
       'employee-fiscal',
     )
-    await setControlValue(
-      getControl<HTMLInputElement>('#routine-due-days'),
-      '5',
-    )
+    await setControlValue(getControl<HTMLInputElement>('#routine-due-day'), '5')
 
     expect(document.body.textContent).toContain('Importar notas')
     expect(document.body.textContent).toContain('Mensal')
     expect(document.body.textContent).toContain('Ana Fiscal')
-    expect(document.body.textContent).toContain('5 dias após a criação')
+    expect(document.body.textContent).toContain('Todo mês, dia 5')
 
     await act(async () => {
       getSubmitButton().click()
@@ -171,7 +188,7 @@ describe('CreateRoutinePage', () => {
       description: 'Importar e conferir as notas recebidas.',
       recurrence: 'monthly',
       defaultAssigneeId: 'employee-fiscal',
-      defaultDueDays: 5,
+      defaultDueDay: 5,
     })
 
     const confirmation = document.querySelector<HTMLElement>('[role="status"]')

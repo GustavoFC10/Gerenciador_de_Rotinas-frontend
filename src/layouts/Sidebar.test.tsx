@@ -122,7 +122,7 @@ describe('Sidebar', () => {
       markup.indexOf('Fiscal'),
     )
     expect(markup.indexOf('Fiscal')).toBeLessThan(
-      markup.indexOf('Minhas tarefas'),
+      markup.indexOf('>Empresas</span>'),
     )
   })
 
@@ -165,34 +165,39 @@ describe('Sidebar', () => {
 
     expect(employeeMarkup).not.toContain('Visão do departamento')
     expect(employeeMarkup).not.toContain('Cargos e permissões')
+    expect(employeeMarkup).toContain('>Empresas</span>')
+    expect(employeeMarkup).toContain('>Rotinas</span>')
+    expect(employeeMarkup).toContain('>Tarefas</span>')
+    expect(employeeMarkup).not.toContain('>Funcionários</span>')
+    expect(employeeMarkup).not.toContain('Minhas tarefas')
     expect(employeeMarkup).not.toContain('Criar rotina')
     expect(employeeMarkup).not.toContain('Adicionar empresa')
     expect(employeeMarkup).not.toContain('Adicionar funcionário')
-    expect(leaderMarkup).toContain('Visão do departamento')
+    expect(leaderMarkup).toContain('Visão de Fiscal')
+    expect(leaderMarkup).not.toContain('>Funcionários</span>')
     expect(leaderMarkup).not.toContain('Cargos e permissões')
-    expect(leaderMarkup).toContain('href="/rotinas/nova"')
-    expect(leaderMarkup).toContain('Criar rotina')
-    expect(leaderMarkup).toContain('href="/empresas/nova"')
-    expect(leaderMarkup).toContain('Adicionar empresa')
+    expect(leaderMarkup).not.toContain('href="/rotinas/nova"')
+    expect(leaderMarkup).not.toContain('href="/empresas/nova"')
     expect(leaderMarkup).not.toContain('Adicionar funcionário')
-    expect(managerMarkup).toContain('Visão geral da empresa')
-    expect(managerMarkup).toContain('Cargos e permissões')
-    expect(managerMarkup).toContain('href="/funcionarios/novo"')
-    expect(managerMarkup).toContain('Adicionar funcionário')
+    expect(managerMarkup).toContain('Visão geral')
+    expect(managerMarkup).toContain('Visão de Fiscal')
+    expect(managerMarkup).toContain('Visão de Departamento pessoal')
+    expect(managerMarkup).toContain('>Funcionários</span>')
+    expect(managerMarkup).not.toContain('Cargos e permissões')
+    expect(managerMarkup).not.toContain('Administração')
+    expect(managerMarkup).not.toContain('href="/funcionarios/novo"')
   })
 
   it.each([
-    ['/rotinas/nova?sheetId=fiscal', '/rotinas/nova'],
-    ['/empresas/nova?sheetId=fiscal', '/empresas/nova'],
+    '/rotinas/nova?sheetId=fiscal',
+    '/empresas/nova?sheetId=fiscal',
   ])(
-    'keeps creation route %s out of the spreadsheet context',
-    (entry, expectedHref) => {
+    'keeps creation route %s out of the sidebar and spreadsheet context',
+    (entry) => {
       const markup = renderSidebar({ entry, role: USER_ROLE.LEADER })
-      const currentLink = getCurrentLink(markup)
 
-      expect(currentLink).toContain(`href="${expectedHref}"`)
-      expect(currentLink).not.toContain('data-navigation-priority')
-      expect(markup.match(/aria-current="page"/g)).toHaveLength(1)
+      expect(markup).not.toContain(`href="${entry.split('?')[0]}"`)
+      expect(markup).not.toContain('aria-current="page"')
     },
   )
 
@@ -220,11 +225,13 @@ describe('Sidebar', () => {
     expect(openMarkup).toContain('aria-modal="true"')
   })
 
-  it('keeps secondary navigation available when no spreadsheet is registered', () => {
+  it('keeps item listings available when no spreadsheet is registered', () => {
     const markup = renderSidebar({ items: [] })
 
     expect(markup).toContain('Nenhuma área de trabalho disponível')
     expect(markup).not.toContain('data-navigation-priority="spreadsheet"')
-    expect(markup).toContain('Minhas tarefas')
+    expect(markup).toContain('>Empresas</span>')
+    expect(markup).toContain('>Rotinas</span>')
+    expect(markup).toContain('>Tarefas</span>')
   })
 })

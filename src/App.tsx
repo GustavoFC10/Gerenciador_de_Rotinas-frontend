@@ -11,12 +11,15 @@ import EntityDetailPage from './pages/EntityDetailPage'
 import CreateCompanyPage from './pages/CreateCompanyPage'
 import CreateEmployeePage from './pages/CreateEmployeePage'
 import CreateRoutinePage from './pages/CreateRoutinePage'
+import CompaniesPage from './pages/CompaniesPage'
+import EmployeesPage from './pages/EmployeesPage'
 import HomePage from './pages/HomePage'
 import ListPage from './pages/ListPage'
 import LoginPage from './pages/LoginPage'
 import MyTasksPage from './pages/MyTasksPage'
 import PlaceholderPage from './pages/PlaceholderPage'
 import ProfilePage from './pages/ProfilePage'
+import RoutinesPage from './pages/RoutinesPage'
 import SpreadsheetPage from './pages/SpreadsheetPage'
 import TasksPage from './pages/TasksPage'
 import { useRoutineControl } from './hooks/useRoutineControl'
@@ -28,6 +31,7 @@ import {
   createClientFromPreset,
   createEmployeeProfile,
   createRoutineTemplate,
+  updateClientConfiguration,
 } from './utils/creationCommands'
 import {
   APP_PERMISSION,
@@ -220,7 +224,7 @@ function AuthenticatedApp() {
       !spreadsheetSelection.isFallback ||
       !spreadsheetSelection.spreadsheetId ||
       !spreadsheetSelection.divisionId ||
-      !isSpreadsheetContextRoute(location.pathname)
+      !isSpreadsheetContextRoute(location.pathname, location.search)
     ) {
       return
     }
@@ -347,19 +351,16 @@ function AuthenticatedApp() {
   }
 
   function handleClientUpdate(clientId: string, changes: UpdateClientInput) {
-    setResponse((currentResponse) => {
-      if (!currentResponse) return currentResponse
-
-      return {
-        ...currentResponse,
-        data: {
-          ...currentResponse.data,
-          clients: currentResponse.data.clients.map((client) =>
-            client.id === clientId ? { ...client, ...changes } : client,
-          ),
-        },
-      }
+    const result = updateClientConfiguration(data!, clientId, changes, {
+      period: competence,
+      generatedAt: new Date().toISOString(),
     })
+
+    setResponse((currentResponse) =>
+      currentResponse
+        ? { ...currentResponse, data: result.data }
+        : currentResponse,
+    )
   }
 
   function handleRoutineUpdate(routineId: string, changes: UpdateRoutineInput) {
@@ -628,29 +629,18 @@ function AuthenticatedApp() {
           />
           <Route
             path={ROUTES.ROUTINES}
-            element={
-              <PlaceholderPage
-                title="Rotinas"
-                description="Cadastro, visualizacao e manutencao das rotinas operacionais."
-              />
-            }
+            element={<RoutinesPage data={data} />}
           />
           <Route
             path={ROUTES.COMPANIES}
-            element={
-              <PlaceholderPage
-                title="Empresas"
-                description="Cadastro e consulta das empresas atendidas."
-              />
-            }
+            element={<CompaniesPage data={data} />}
           />
           <Route
             path={ROUTES.EMPLOYEES}
             element={
-              <PlaceholderPage
-                title="Funcionarios"
-                description="Listagem e manutencao dos usuarios operacionais."
-              />
+              <RequirePermission permission={APP_PERMISSION.VIEW_EMPLOYEES}>
+                <EmployeesPage data={data} />
+              </RequirePermission>
             }
           />
           <Route
@@ -703,7 +693,11 @@ function AuthenticatedApp() {
   )
 }
 
-function isSpreadsheetContextRoute(pathname: string): boolean {
+function isSpreadsheetContextRoute(pathname: string, search = ''): boolean {
+  if (new URLSearchParams(search).get('source') === 'catalog') {
+    return false
+  }
+
   if (
     pathname === ROUTES.COMPANY_CREATE ||
     pathname === ROUTES.ROUTINE_CREATE ||

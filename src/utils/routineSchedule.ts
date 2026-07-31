@@ -1,9 +1,15 @@
 import type { Routine, RoutineRecurrence } from '../types/domain'
 
 export interface RoutineScheduleValue {
-  defaultDueDate?: string
+  defaultDueDays?: number
   defaultDueDay?: number
   recurrenceMonths?: number[]
+}
+
+export interface RecurrenceCycleOption {
+  value: string
+  label: string
+  months: number[]
 }
 
 export const monthOptions = [
@@ -21,13 +27,15 @@ export const monthOptions = [
   { value: 12, label: 'Dezembro', shortLabel: 'Dez' },
 ] as const
 
-export function getExpectedMonthCount(
+export const quarterlyCycleOptions = buildCycleOptions(3)
+export const semiannualCycleOptions = buildCycleOptions(6)
+
+export function getCycleOptions(
   recurrence: RoutineRecurrence,
-): number | null {
-  if (recurrence === 'quarterly') return 4
-  if (recurrence === 'semiannual') return 2
-  if (recurrence === 'annual') return 1
-  return null
+): RecurrenceCycleOption[] {
+  if (recurrence === 'quarterly') return quarterlyCycleOptions
+  if (recurrence === 'semiannual') return semiannualCycleOptions
+  return []
 }
 
 export function getRoutineScheduleError(
@@ -35,36 +43,40 @@ export function getRoutineScheduleError(
   schedule: RoutineScheduleValue,
 ): string | null {
   if (recurrence === 'on_demand') {
-    if (!schedule.defaultDueDate || !isValidCalendarDate(schedule.defaultDueDate)) {
-      return 'Informe uma data específica válida.'
+    if (
+      !Number.isInteger(schedule.defaultDueDays) ||
+      (schedule.defaultDueDays ?? 0) < 1 ||
+      (schedule.defaultDueDays ?? 0) > 365
+    ) {
+      return 'Informe um prazo entre 1 e 365 dias após a criação.'
     }
     return null
   }
 
-  if (!Number.isInteger(schedule.defaultDueDay)) {
-    return 'Informe o dia de vencimento.'
-  }
-
   if (
+    !Number.isInteger(schedule.defaultDueDay) ||
     (schedule.defaultDueDay ?? 0) < 1 ||
     (schedule.defaultDueDay ?? 0) > 31
   ) {
-    return 'O dia de vencimento deve estar entre 1 e 31.'
+    return 'Informe um dia do mês entre 1 e 31.'
   }
 
   if (recurrence === 'monthly') return null
 
   const months = normalizeMonths(schedule.recurrenceMonths)
-  const expectedCount = getExpectedMonthCount(recurrence)
 
-  if (expectedCount !== null && months.length !== expectedCount) {
-    return `Selecione ${expectedCount} ${
-      expectedCount === 1 ? 'mês' : 'meses'
-    } para esta recorrência.`
+  if (recurrence === 'annual') {
+    return months.length === 1 ? null : 'Selecione o mês da rotina anual.'
   }
 
-  if (recurrence === 'custom' && months.length === 0) {
-    return 'Selecione pelo menos um mês.'
+  const isKnownCycle = getCycleOptions(recurrence).some((option) =>
+    haveSameMonths(option.months, months),
+  )
+
+  if (!isKnownCycle) {
+    return recurrence === 'quarterly'
+      ? 'Selecione um ciclo trimestral.'
+      : 'Selecione um ciclo semestral.'
   }
 
   return null
@@ -76,7 +88,7 @@ export function normalizeRoutineSchedule(
 ): RoutineScheduleValue {
   if (recurrence === 'on_demand') {
     return {
-      defaultDueDate: schedule.defaultDueDate,
+      defaultDueDays: schedule.defaultDueDays,
       defaultDueDay: undefined,
       recurrenceMonths: undefined,
     }
@@ -84,14 +96,14 @@ export function normalizeRoutineSchedule(
 
   if (recurrence === 'monthly') {
     return {
-      defaultDueDate: undefined,
+      defaultDueDays: undefined,
       defaultDueDay: schedule.defaultDueDay,
       recurrenceMonths: undefined,
     }
   }
 
   return {
-    defaultDueDate: undefined,
+    defaultDueDays: undefined,
     defaultDueDay: schedule.defaultDueDay,
     recurrenceMonths: normalizeMonths(schedule.recurrenceMonths),
   }
@@ -100,25 +112,17 @@ export function normalizeRoutineSchedule(
 export function formatRoutineSchedule(
   routine: Pick<
     Routine,
-    | 'recurrence'
-    | 'defaultDueDate'
-    | 'defaultDueDay'
-    | 'defaultDueDays'
-    | 'recurrenceMonths'
+    'recurrence' | 'defaultDueDay' | 'defaultDueDays' | 'recurrenceMonths'
   >,
 ): string {
   const recurrence = routine.recurrence
 
   if (recurrence === 'on_demand') {
-    return routine.defaultDueDate
-      ? `Data específica: ${formatDate(routine.defaultDueDate)}`
-      : 'Data definida ao criar a tarefa'
-  }
-
-  if (routine.defaultDueDays) {
-    return `${routine.defaultDueDays} ${
-      routine.defaultDueDays === 1 ? 'dia' : 'dias'
-    } após criar a tarefa`
+    return routine.defaultDueDays
+      ? `${routine.defaultDueDays} ${
+          routine.defaultDueDays === 1 ? 'dia' : 'dias'
+        } após criar a tarefa`
+      : 'Prazo definido ao criar a tarefa'
   }
 
   if (!routine.defaultDueDay) return 'Prazo definido na tarefa'
@@ -151,7 +155,6 @@ export function isRoutineScheduledForPeriod(
   const month = Number(period.slice(5, 7))
   const configuredMonths = normalizeMonths(routine.recurrenceMonths)
   if (configuredMonths.length > 0) return configuredMonths.includes(month)
-  if (recurrence === 'custom') return false
 
   const target = parsePeriod(period)
   const anchor = routine.recurrenceAnchorPeriod
@@ -172,9 +175,7 @@ export function buildRoutineDueDate(
   period: string,
   generatedAt: string,
 ): string {
-  if (routine.defaultDueDate) return routine.defaultDueDate
-
-  if (routine.defaultDueDays) {
+  if (routine.recurrence === 'on_demand' && routine.defaultDueDays) {
     return addCalendarDays(generatedAt, routine.defaultDueDays)
   }
 
@@ -191,19 +192,33 @@ export function normalizeMonths(months?: number[]): number[] {
     .sort((left, right) => left - right)
 }
 
-function isValidCalendarDate(value: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  if (!match) return false
+function buildCycleOptions(interval: 3 | 6): RecurrenceCycleOption[] {
+  return Array.from({ length: interval }, (_, index) => {
+    const months: number[] = []
 
-  const date = new Date(
-    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
-  )
-  return date.toISOString().slice(0, 10) === value
+    for (let month = index + 1; month <= 12; month += interval) {
+      months.push(month)
+    }
+
+    return {
+      value: months.join('-'),
+      label: months
+        .map(
+          (month) =>
+            monthOptions.find((option) => option.value === month)?.label ??
+            String(month),
+        )
+        .join(' / '),
+      months,
+    }
+  })
 }
 
-function formatDate(value: string): string {
-  const [year, month, day] = value.split('-')
-  return `${day}/${month}/${year}`
+function haveSameMonths(left: number[], right: number[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((month, index) => month === right[index])
+  )
 }
 
 function parsePeriod(period: string) {

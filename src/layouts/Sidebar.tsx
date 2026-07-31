@@ -28,22 +28,8 @@ type NavigationIconName =
   | 'list'
   | 'people'
   | 'repeat'
-  | 'shield'
   | 'spreadsheet'
   | 'tasks'
-
-const secondaryNavigation = [
-  {
-    to: ROUTES.MY_TASKS,
-    label: 'Minhas tarefas',
-    icon: 'tasks',
-  },
-  {
-    to: ROUTES.TASKS,
-    label: 'Todas as tarefas',
-    icon: 'list',
-  },
-] as const
 
 function Sidebar({
   spreadsheets,
@@ -70,18 +56,23 @@ function Sidebar({
     contextualSpreadsheetId,
     spreadsheets,
   )
-  const secondaryNavigationItems = secondaryNavigation.map((item) => ({
-    ...item,
-    to:
-      item.to === ROUTES.TASKS && contextualSpreadsheetId
-        ? `${ROUTES.TASKS}?${new URLSearchParams({
-            sheetId: contextualSpreadsheetId,
-            ...(contextualDivisionId
-              ? { divisionId: contextualDivisionId }
-              : {}),
-          }).toString()}`
-        : item.to,
-  }))
+  const tasksPath = contextualSpreadsheetId
+    ? `${ROUTES.TASKS}?${new URLSearchParams({
+        sheetId: contextualSpreadsheetId,
+        ...(contextualDivisionId ? { divisionId: contextualDivisionId } : {}),
+      }).toString()}`
+    : ROUTES.TASKS
+  const managementDepartments = [
+    ...new Map(
+      spreadsheets.map((spreadsheet) => [
+        spreadsheet.departmentId,
+        {
+          id: spreadsheet.departmentId,
+          name: spreadsheet.name,
+        },
+      ]),
+    ).values(),
+  ]
   const collapsedLabelClass = isCollapsed ? 'lg:sr-only' : ''
 
   return (
@@ -200,90 +191,76 @@ function Sidebar({
           )}
         </NavigationSection>
 
-        <NavigationSection title="Outros acessos" isCollapsed={isCollapsed}>
-          {secondaryNavigationItems.map((item) => (
+        <NavigationSection
+          title="Listagens"
+          isCollapsed={isCollapsed}
+          className="mb-5"
+        >
+          <NavigationLink
+            to={ROUTES.COMPANIES}
+            label="Empresas"
+            icon="building"
+            end
+            isCollapsed={isCollapsed}
+            onNavigate={onMobileClose}
+          />
+          <NavigationLink
+            to={ROUTES.ROUTINES}
+            label="Rotinas"
+            icon="repeat"
+            end
+            isCollapsed={isCollapsed}
+            onNavigate={onMobileClose}
+          />
+          <NavigationLink
+            to={tasksPath}
+            label="Tarefas"
+            icon="tasks"
+            end
+            isCollapsed={isCollapsed}
+            onNavigate={onMobileClose}
+          />
+          {canManageEmployees(user) && (
             <NavigationLink
-              key={item.to}
-              to={item.to}
-              label={item.label}
-              icon={item.icon}
+              to={ROUTES.EMPLOYEES}
+              label="Funcionários"
+              icon="people"
+              end
               isCollapsed={isCollapsed}
               onNavigate={onMobileClose}
             />
-          ))}
+          )}
         </NavigationSection>
 
         {isLeader(user) && (
           <>
             <NavigationDivider />
             <NavigationSection title="Gestão" isCollapsed={isCollapsed}>
-              <NavigationLink
-                to={ROUTES.DEPARTMENT_DASHBOARD}
-                label="Visão do departamento"
-                icon="chart"
-                isCollapsed={isCollapsed}
-                onNavigate={onMobileClose}
-              />
-            </NavigationSection>
-
-            <NavigationSection
-              title="Cadastros"
-              isCollapsed={isCollapsed}
-              className="mt-5"
-            >
-              <NavigationLink
-                to={ROUTES.ROUTINE_CREATE}
-                label="Criar rotina"
-                icon="repeat"
-                end
-                isCollapsed={isCollapsed}
-                onNavigate={onMobileClose}
-              />
-              <NavigationLink
-                to={ROUTES.COMPANY_CREATE}
-                label="Adicionar empresa"
-                icon="building"
-                end
-                isCollapsed={isCollapsed}
-                onNavigate={onMobileClose}
-              />
               {isManager(user) && (
                 <NavigationLink
-                  to={ROUTES.EMPLOYEE_CREATE}
-                  label="Adicionar funcionário"
-                  icon="people"
-                  end
+                  to={ROUTES.MANAGER_DASHBOARD}
+                  label="Visão geral"
+                  icon="chart"
                   isCollapsed={isCollapsed}
                   onNavigate={onMobileClose}
                 />
               )}
+              {managementDepartments.map((department) => (
+                <NavigationLink
+                  key={department.id}
+                  to={`${ROUTES.DEPARTMENT_DASHBOARD}?departmentId=${encodeURIComponent(
+                    department.id,
+                  )}`}
+                  label={`Visão de ${department.name}`}
+                  icon="chart"
+                  isCollapsed={isCollapsed}
+                  onNavigate={onMobileClose}
+                />
+              ))}
             </NavigationSection>
           </>
         )}
 
-        {isManager(user) && (
-          <>
-            <NavigationDivider />
-            <NavigationSection title="Administração" isCollapsed={isCollapsed}>
-              <NavigationLink
-                to={ROUTES.MANAGER_DASHBOARD}
-                label="Visão geral da empresa"
-                icon="chart"
-                isCollapsed={isCollapsed}
-                onNavigate={onMobileClose}
-              />
-              {canManageEmployees(user) && (
-                <NavigationLink
-                  to={ROUTES.ROLES}
-                  label="Cargos e permissões"
-                  icon="shield"
-                  isCollapsed={isCollapsed}
-                  onNavigate={onMobileClose}
-                />
-              )}
-            </NavigationSection>
-          </>
-        )}
       </nav>
     </aside>
   )
@@ -294,6 +271,8 @@ function getSelectedSpreadsheetId(
   search: string,
   spreadsheets: SpreadsheetNavigationItem[],
 ): EntityId | null {
+  if (new URLSearchParams(search).get('source') === 'catalog') return null
+
   const isCreationRoute =
     pathname === ROUTES.COMPANY_CREATE ||
     pathname === ROUTES.ROUTINE_CREATE ||
@@ -561,15 +540,6 @@ function NavigationIcon({
         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    )
-  }
-
-  if (name === 'shield') {
-    return (
-      <svg {...commonProps}>
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
-        <path d="m9 12 2 2 4-4" />
       </svg>
     )
   }

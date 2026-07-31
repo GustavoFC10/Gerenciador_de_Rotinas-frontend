@@ -20,7 +20,6 @@ export const routineRecurrenceOptions: Array<{
   { value: 'quarterly', label: 'Trimestral' },
   { value: 'semiannual', label: 'Semestral' },
   { value: 'annual', label: 'Anual' },
-  { value: 'custom', label: 'Personalizada' },
 ]
 
 export function getClientTaxRegimeLabel(value?: ClientTaxRegime): string {

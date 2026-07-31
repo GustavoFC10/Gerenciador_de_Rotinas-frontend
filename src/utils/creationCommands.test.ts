@@ -13,6 +13,7 @@ import {
   createEmployeeProfile,
   createRoutineTemplate,
 } from './creationCommands'
+import { buildRoutineDueDate } from './routineSchedule'
 
 const generatedAt = '2026-07-30T10:00:00-03:00'
 
@@ -27,7 +28,8 @@ describe('creation commands', () => {
         description: ' Conferência mensal do imposto. ',
         recurrence: 'quarterly',
         defaultAssigneeId: 'employee-001',
-        defaultDueDays: 31,
+        defaultDueDay: 31,
+        recurrenceMonths: [1, 4, 7, 10],
       }
 
       const result = createRoutineTemplate(data, input, {
@@ -44,13 +46,14 @@ describe('creation commands', () => {
         description: 'Conferência mensal do imposto.',
         recurrence: 'quarterly',
         recurrenceAnchorPeriod: '2026-07',
-        defaultDueDays: 31,
+        defaultDueDay: 31,
+        recurrenceMonths: [1, 4, 7, 10],
         defaultAssigneeId: 'employee-001',
         isTemplate: true,
         createdAt: generatedAt,
         active: true,
       })
-      expect(result.routine).not.toHaveProperty('defaultDueDay')
+      expect(result.routine.defaultDueDays).toBeUndefined()
       expect(result.data.routines).toHaveLength(data.routines.length + 1)
       expect(result.data.divisionRoutineLinks).toEqual(
         data.divisionRoutineLinks,
@@ -75,6 +78,7 @@ describe('creation commands', () => {
           name: 'Revisar ISS',
           description: 'Revisão da apuração.',
           recurrence: 'monthly',
+          defaultDueDay: 15,
         },
         { period: '2026-07' },
       )
@@ -92,18 +96,19 @@ describe('creation commands', () => {
           { period: '2026-07' },
         ),
       ).toThrow('Já existe uma rotina')
-      expect(
+      expect(() =>
         createRoutineTemplate(
           data,
           {
             departmentId: 'dept-fiscal',
-            name: 'Regra variável',
-            description: 'Sem agenda.',
-            recurrence: 'custom',
+            name: 'Rotina anual',
+            description: 'Sem mês definido.',
+            recurrence: 'annual',
+            defaultDueDay: 10,
           },
           { period: '2026-07' },
-        ).routine.recurrence,
-      ).toBe('custom')
+        ),
+      ).toThrow('Selecione o mês')
     })
   })
 
@@ -235,32 +240,19 @@ describe('creation commands', () => {
     })
 
     it('keeps relative deadlines distinct from a calendar day', () => {
-      const data = cloneData()
-      data.routines.push({
+      const routine: Routine = {
         id: 'routine-relative-deadline',
         departmentId: 'dept-fiscal',
         name: 'Prazo relativo',
         shortName: 'Prazo relativo',
-        recurrence: 'monthly',
-        recurrenceAnchorPeriod: '2026-07',
+        recurrence: 'on_demand',
         defaultDueDays: 5,
         active: true,
-      })
+      }
 
-      const result = createClientFromPreset(
-        data,
-        buildClientInput({
-          code: '0027',
-          document: '12.345.678/0002-70',
-          routineIds: ['routine-relative-deadline'],
-        }),
-        {
-          period: '2026-07',
-          generatedAt: '2026-07-30T10:00:00-03:00',
-        },
-      )
-
-      expect(result.tasks[0]?.dueDate).toBe('2026-08-04')
+      expect(
+        buildRoutineDueDate(routine, '2026-07', '2026-07-30T10:00:00-03:00'),
+      ).toBe('2026-08-04')
     })
 
     it('validates duplicate companies and invalid references before changing data', () => {

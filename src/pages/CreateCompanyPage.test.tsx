@@ -56,7 +56,7 @@ const data: RoutineControlData = {
       shortName: 'Importar',
       description: 'Importar documentos fiscais.',
       recurrence: 'monthly',
-      defaultDueDays: 5,
+      defaultDueDay: 5,
       active: true,
     },
     {
@@ -250,6 +250,16 @@ describe('CreateCompanyPage', () => {
         'input[name="company-routines"][value="routine-geral"]',
       ).click()
     })
+
+    const orderedRoutineInputs = [
+      ...document.querySelectorAll<HTMLInputElement>(
+        'input[name="company-routines"]',
+      ),
+    ]
+    expect(
+      orderedRoutineInputs.slice(0, 2).every((input) => input.checked),
+    ).toBe(true)
+
     await act(async () => {
       getButton('Continuar').click()
     })

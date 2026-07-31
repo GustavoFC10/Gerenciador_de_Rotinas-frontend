@@ -26,6 +26,7 @@ import type {
   Routine,
   RoutineControlData,
 } from '../types/domain'
+import { formatRoutineSchedule } from '../utils/routineSchedule'
 
 const steps = [
   {
@@ -35,8 +36,8 @@ const steps = [
   },
   {
     id: 'routines',
-    label: 'Fiscal e rotinas',
-    description: 'Predefinição e ajustes',
+    label: 'Fiscal',
+    description: 'Divisão e rotinas fiscais',
   },
   {
     id: 'review',
@@ -102,11 +103,6 @@ function CreateCompanyPage({ data, onCreate }: CreateCompanyPageProps) {
           data.divisions?.some(
             (division) => division.departmentId === department.id,
           ),
-      ) ??
-      data.departments.find((department) =>
-        data.divisions?.some(
-          (division) => division.departmentId === department.id,
-        ),
       ),
     [data.departments, data.divisions],
   )
@@ -150,14 +146,27 @@ function CreateCompanyPage({ data, onCreate }: CreateCompanyPageProps) {
   )
   const filteredRoutines = useMemo(() => {
     const query = routineSearch.trim().toLocaleLowerCase('pt-BR')
-    if (!query) return fiscalRoutines
-
-    return fiscalRoutines.filter((routine) =>
-      [routine.name, routine.description]
-        .filter(Boolean)
-        .some((value) => value?.toLocaleLowerCase('pt-BR').includes(query)),
+    const presetPosition = new Map(
+      presetRoutineIds.map((routineId, index) => [routineId, index]),
     )
-  }, [fiscalRoutines, routineSearch])
+
+    return fiscalRoutines
+      .filter(
+        (routine) =>
+          !query ||
+          [routine.name, routine.description]
+            .filter(Boolean)
+            .some((value) => value?.toLocaleLowerCase('pt-BR').includes(query)),
+      )
+      .sort(
+        (left, right) =>
+          Number(selectedRoutineIds.has(right.id)) -
+            Number(selectedRoutineIds.has(left.id)) ||
+          (presetPosition.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+            (presetPosition.get(right.id) ?? Number.MAX_SAFE_INTEGER) ||
+          left.name.localeCompare(right.name, 'pt-BR'),
+      )
+  }, [fiscalRoutines, presetRoutineIds, routineSearch, selectedRoutineIds])
   const selectedRoutines = fiscalRoutines.filter((routine) =>
     selectedRoutineIds.has(routine.id),
   )
@@ -809,12 +818,8 @@ function CompanyRoutinesStep({
                           </span>
                         </span>
                         <span className="mt-1 block text-xs leading-5 text-[var(--color-text-muted)]">
-                          {getRoutineRecurrenceLabel(routine.recurrence)}
-                          {routine.defaultDueDay
-                            ? ` · prazo padrão: dia ${routine.defaultDueDay}`
-                            : routine.defaultDueDays
-                              ? ` · prazo padrão: ${routine.defaultDueDays} dias`
-                              : ' · prazo definido na tarefa'}
+                          {getRoutineRecurrenceLabel(routine.recurrence)} ·{' '}
+                          {formatRoutineSchedule(routine)}
                         </span>
                       </span>
                     </label>

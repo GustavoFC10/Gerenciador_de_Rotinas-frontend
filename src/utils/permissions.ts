@@ -5,6 +5,7 @@ export const APP_PERMISSION = {
   CREATE_ROUTINE: 'create_routine',
   CREATE_COMPANY: 'create_company',
   CREATE_EMPLOYEE: 'create_employee',
+  VIEW_EMPLOYEES: 'view_employees',
 } as const
 
 export type AppPermission = (typeof APP_PERMISSION)[keyof typeof APP_PERMISSION]
@@ -86,5 +87,9 @@ export function hasAppPermission(
     return canCreateCompany(user, departmentIds)
   }
 
-  return canCreateEmployee(user)
+  if (permission === APP_PERMISSION.CREATE_EMPLOYEE) {
+    return canCreateEmployee(user)
+  }
+
+  return canManageEmployees(user)
 }

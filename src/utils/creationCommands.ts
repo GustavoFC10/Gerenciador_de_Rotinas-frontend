@@ -67,7 +67,7 @@ export function createRoutineTemplate(
   const description = requireText(input.description, 'Descrição')
   const recurrence = validateRecurrence(input.recurrence)
   const schedule = normalizeRoutineSchedule(recurrence, {
-    defaultDueDate: input.defaultDueDate,
+    defaultDueDays: input.defaultDueDays,
     defaultDueDay: input.defaultDueDay,
     recurrenceMonths: input.recurrenceMonths,
   })
@@ -321,7 +321,10 @@ export function updateClientConfiguration(
   context: ClientCreationCommandContext,
 ): ClientUpdateResult {
   const period = parsePeriod(context.period)
-  const generatedAt = validateTimestamp(context.generatedAt, 'Data de alteração')
+  const generatedAt = validateTimestamp(
+    context.generatedAt,
+    'Data de alteração',
+  )
   const currentClient = data.clients.find((client) => client.id === clientId)
 
   if (!currentClient) throw new Error('Empresa não encontrada.')
@@ -434,10 +437,10 @@ export function updateClientConfiguration(
     )?.divisionId
     const isPreset = Boolean(
       divisionId &&
-        (data.divisionRoutineLinks ?? []).some(
-          (link) =>
-            link.divisionId === divisionId && link.routineId === routine.id,
-        ),
+      (data.divisionRoutineLinks ?? []).some(
+        (link) =>
+          link.divisionId === divisionId && link.routineId === routine.id,
+      ),
     )
 
     return {
@@ -512,11 +515,7 @@ export function updateClientConfiguration(
       routineId: routine.id,
       departmentId: routine.departmentId,
       divisionId: link.divisionId ?? null,
-      assigneeId: resolveDefaultAssignee(
-        data,
-        routine,
-        routine.departmentId,
-      ),
+      assigneeId: resolveDefaultAssignee(data, routine, routine.departmentId),
       status: 'pending',
       period: period.value,
       dueDate: buildRoutineDueDate(routine, period.value, generatedAt),
@@ -542,7 +541,9 @@ export function updateClientConfiguration(
     tasks,
     data: {
       ...data,
-      clients: data.clients.map((item) => (item.id === clientId ? client : item)),
+      clients: data.clients.map((item) =>
+        item.id === clientId ? client : item,
+      ),
       clientRoutineLinks: [...otherClientLinks, ...nextLinks],
       clientRoutineExclusions: [...otherClientExclusions, ...exclusions],
       tasks: [...data.tasks, ...tasks],
@@ -615,14 +616,9 @@ export function createEmployeeProfile(
 
 function validateRecurrence(recurrence: RoutineRecurrence): RoutineRecurrence {
   if (
-    ![
-      'on_demand',
-      'monthly',
-      'quarterly',
-      'semiannual',
-      'annual',
-      'custom',
-    ].includes(recurrence)
+    !['on_demand', 'monthly', 'quarterly', 'semiannual', 'annual'].includes(
+      recurrence,
+    )
   ) {
     throw new Error('Recorrência inválida.')
   }

@@ -2,19 +2,27 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import {
   clientTaxRegimeOptions,
+  getRoutineRecurrenceLabel,
   routineRecurrenceOptions,
 } from '../../constants/entityOptions'
 import type {
   Client,
   ClientDivisionAssignment,
   ClientTaxRegime,
-  Department,
-  DepartmentDivision,
+  EntityId,
   Routine,
+  RoutineControlData,
   RoutineRecurrence,
   UpdateClientInput,
   UpdateRoutineInput,
 } from '../../types/domain'
+import {
+  formatRoutineSchedule,
+  getRoutineScheduleError,
+  normalizeRoutineSchedule,
+  type RoutineScheduleValue,
+} from '../../utils/routineSchedule'
+import RoutineScheduleFields from '../forms/RoutineScheduleFields'
 import Button from '../ui/Button'
 import Select from '../ui/Select'
 import Textarea from '../ui/Textarea'
@@ -24,14 +32,14 @@ type EntityEditModalProps =
   | {
       type: 'client'
       entity: Client
-      departments: Department[]
-      divisions: DepartmentDivision[]
+      data: RoutineControlData
       onClose: () => void
       onSave: (changes: UpdateClientInput) => void
     }
   | {
       type: 'routine'
       entity: Routine
+      data: RoutineControlData
       onClose: () => void
       onSave: (changes: UpdateRoutineInput) => void
     }
@@ -115,8 +123,7 @@ function EntityEditModal(props: EntityEditModalProps) {
 
 function ClientEditForm({
   entity,
-  departments,
-  divisions,
+  data,
   onClose,
   onSave,
 }: Extract<EntityEditModalProps, { type: 'client' }>) {
@@ -132,61 +139,111 @@ function ClientEditForm({
   const [divisionAssignments, setDivisionAssignments] = useState<
     ClientDivisionAssignment[]
   >(entity.divisionAssignments ?? [])
+  const initialRoutineIds = data.clientRoutineLinks
+    .filter((link) => link.clientId === entity.id)
+    .map((link) => link.routineId)
+  const [selectedRoutineIds, setSelectedRoutineIds] =
+    useState<EntityId[]>(initialRoutineIds)
+  const [routineSearch, setRoutineSearch] = useState('')
   const [active, setActive] = useState(entity.active !== false)
   const [error, setError] = useState('')
-  const departmentsWithDivisions = departments
-    .map((department) => ({
-      department,
-      divisions: divisions
-        .filter(
-          (division) =>
-            division.departmentId === department.id &&
-            division.active !== false,
-        )
-        .sort((left, right) => left.position - right.position),
-    }))
-    .filter((group) => group.divisions.length > 0)
+
+  const fiscalDepartment = data.departments.find((department) =>
+    department.name.toLocaleLowerCase('pt-BR').includes('fiscal'),
+  )
+  const fiscalDivisions = (data.divisions ?? [])
+    .filter(
+      (division) =>
+        division.departmentId === fiscalDepartment?.id &&
+        division.active !== false,
+    )
+    .sort((left, right) => left.position - right.position)
+  const fiscalDivisionId =
+    divisionAssignments.find(
+      (assignment) => assignment.departmentId === fiscalDepartment?.id,
+    )?.divisionId ?? ''
+  const presetRoutineIds = (data.divisionRoutineLinks ?? [])
+    .filter((link) => link.divisionId === fiscalDivisionId)
+    .sort((left, right) => left.position - right.position)
+    .map((link) => link.routineId)
+  const presetRoutineIdSet = new Set(presetRoutineIds)
+  const selectedRoutineIdSet = new Set(selectedRoutineIds)
+  const routineQuery = routineSearch.trim().toLocaleLowerCase('pt-BR')
+
+  const fiscalRoutines = data.routines
+    .filter(
+      (routine) =>
+        routine.departmentId === fiscalDepartment?.id &&
+        routine.active !== false &&
+        (!routineQuery ||
+          routine.name.toLocaleLowerCase('pt-BR').includes(routineQuery) ||
+          routine.description
+            ?.toLocaleLowerCase('pt-BR')
+            .includes(routineQuery)),
+    )
+    .sort(
+      (left, right) =>
+        Number(selectedRoutineIdSet.has(right.id)) -
+          Number(selectedRoutineIdSet.has(left.id)) ||
+        presetRoutineIds.indexOf(left.id) -
+          presetRoutineIds.indexOf(right.id) ||
+        left.name.localeCompare(right.name, 'pt-BR'),
+    )
+  const nonFiscalRoutineIds = initialRoutineIds.filter(
+    (routineId) =>
+      data.routines.find((routine) => routine.id === routineId)
+        ?.departmentId !== fiscalDepartment?.id,
+  )
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!name.trim() || !code.trim()) {
-      setError('Informe o nome e o código interno da empresa.')
+    if (!name.trim() || !/^\d{4}$/.test(code.trim())) {
+      setError('Informe o nome e um código interno com 4 dígitos.')
       return
     }
 
-    const hasMissingDivision = departmentsWithDivisions.some(
-      ({ department }) =>
-        !divisionAssignments.some(
-          (assignment) => assignment.departmentId === department.id,
-        ),
-    )
-
-    if (hasMissingDivision) {
-      setError('Selecione a divisão operacional de cada departamento.')
+    if (document.replace(/\D/g, '').length !== 14) {
+      setError('Informe um CNPJ com 14 dígitos.')
       return
     }
 
-    onSave({
-      name: name.trim(),
-      code: code.trim(),
-      legalName: legalName.trim() || undefined,
-      document: document.trim() || undefined,
-      email: email.trim() || undefined,
-      phone: phone.trim() || undefined,
-      taxRegime: taxRegime || undefined,
-      divisionAssignments,
-      active,
-    })
+    if (fiscalDepartment && !fiscalDivisionId) {
+      setError('Selecione a divisão fiscal da empresa.')
+      return
+    }
+
+    try {
+      onSave({
+        name: name.trim(),
+        code: code.trim(),
+        legalName: legalName.trim() || undefined,
+        document: document.trim() || undefined,
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+        taxRegime: taxRegime || undefined,
+        divisionAssignments,
+        routineIds: [...nonFiscalRoutineIds, ...selectedRoutineIds],
+        active,
+      })
+    } catch (currentError) {
+      setError(
+        currentError instanceof Error
+          ? currentError.message
+          : 'Não foi possível atualizar a empresa.',
+      )
+    }
   }
 
-  function handleDivisionChange(departmentId: string, divisionId: string) {
+  function handleFiscalDivisionChange(divisionId: string) {
+    if (!fiscalDepartment) return
+
     setDivisionAssignments((currentAssignments) => {
       const existingAssignment = currentAssignments.find(
-        (assignment) => assignment.departmentId === departmentId,
+        (assignment) => assignment.departmentId === fiscalDepartment.id,
       )
       const remainingAssignments = currentAssignments.filter(
-        (assignment) => assignment.departmentId !== departmentId,
+        (assignment) => assignment.departmentId !== fiscalDepartment.id,
       )
 
       if (!divisionId) return remainingAssignments
@@ -196,107 +253,188 @@ function ClientEditForm({
         {
           id:
             existingAssignment?.id ??
-            `client-division-${entity.id}-${departmentId}`,
-          departmentId,
+            `client-division-${entity.id}-${fiscalDepartment.id}`,
+          departmentId: fiscalDepartment.id,
           divisionId,
         },
       ]
     })
   }
 
+  function toggleRoutine(routineId: EntityId) {
+    setSelectedRoutineIds((current) =>
+      current.includes(routineId)
+        ? current.filter((id) => id !== routineId)
+        : [...current, routineId],
+    )
+  }
+
+  function applyFiscalPreset() {
+    const otherDepartmentRoutineIds = selectedRoutineIds.filter(
+      (routineId) =>
+        data.routines.find((routine) => routine.id === routineId)
+          ?.departmentId !== fiscalDepartment?.id,
+    )
+    setSelectedRoutineIds([...otherDepartmentRoutineIds, ...presetRoutineIds])
+  }
+
   return (
     <ModalForm
       title="Editar empresa"
-      description="Dados cadastrais usados nas áreas de trabalho e rotinas vinculadas."
+      description="Atualize os dados, a configuração Fiscal e as rotinas vinculadas."
       error={error}
       onClose={onClose}
       onSubmit={handleSubmit}
+      wide
     >
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]">
-        <TextField
-          label="Nome de exibição *"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          autoFocus
-        />
-        <TextField
-          label="Código interno *"
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-        />
-        <TextField
-          label="Razão social"
-          value={legalName}
-          onChange={(event) => setLegalName(event.target.value)}
-          className="sm:col-span-2"
-        />
-        <TextField
-          label="CNPJ"
-          value={document}
-          onChange={(event) => setDocument(event.target.value)}
-          inputMode="numeric"
-          placeholder="00.000.000/0000-00"
-        />
-        <TextField
-          label="E-mail"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="contato@empresa.com"
-        />
-        <TextField
-          label="Telefone"
-          type="tel"
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
-          placeholder="(00) 0000-0000"
-        />
-        <Select
-          label="Regime tributário"
-          value={taxRegime}
-          onChange={(event) =>
-            setTaxRegime(event.target.value as ClientTaxRegime | '')
-          }
-        >
-          <option value="">Não informado</option>
-          {clientTaxRegimeOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
-        {departmentsWithDivisions.map(({ department, divisions: options }) => {
-          const selectedDivisionId =
-            divisionAssignments.find(
-              (assignment) => assignment.departmentId === department.id,
-            )?.divisionId ?? ''
+      <EditSection
+        title="Dados da empresa"
+        description="Informações usadas para identificar e contatar a empresa."
+      >
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]">
+          <TextField
+            label="Nome de exibição *"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            autoFocus
+          />
+          <TextField
+            label="Código interno *"
+            value={code}
+            inputMode="numeric"
+            maxLength={4}
+            onChange={(event) =>
+              setCode(event.target.value.replace(/\D/g, '').slice(0, 4))
+            }
+          />
+          <TextField
+            label="Razão social"
+            value={legalName}
+            onChange={(event) => setLegalName(event.target.value)}
+            className="sm:col-span-2"
+          />
+          <TextField
+            label="CNPJ *"
+            value={document}
+            onChange={(event) => setDocument(event.target.value)}
+            inputMode="numeric"
+            placeholder="00.000.000/0000-00"
+          />
+          <TextField
+            label="E-mail"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="contato@empresa.com"
+          />
+          <TextField
+            label="Telefone"
+            type="tel"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            placeholder="(00) 0000-0000"
+          />
+          <Select
+            label="Regime tributário"
+            value={taxRegime}
+            onChange={(event) =>
+              setTaxRegime(event.target.value as ClientTaxRegime | '')
+            }
+          >
+            <option value="">Não informado</option>
+            {clientTaxRegimeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+          <EntityStatusField active={active} onChange={setActive} />
+        </div>
+      </EditSection>
 
-          return (
-            <Select
-              key={department.id}
-              label={`Divisão ${department.name.toLocaleLowerCase('pt-BR')} *`}
-              value={selectedDivisionId}
-              onChange={(event) =>
-                handleDivisionChange(department.id, event.target.value)
-              }
-            >
-              <option value="">Selecione uma divisão</option>
-              {options.map((division) => (
-                <option key={division.id} value={division.id}>
-                  {division.name}
-                </option>
-              ))}
-            </Select>
-          )
-        })}
-        <EntityStatusField active={active} onChange={setActive} />
-      </div>
+      <EditSection
+        title="Fiscal"
+        description="A divisão determina a planilha; as rotinas podem ser ajustadas individualmente."
+      >
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <Select
+            label="Divisão fiscal *"
+            value={fiscalDivisionId}
+            onChange={(event) => handleFiscalDivisionChange(event.target.value)}
+          >
+            <option value="">Selecione uma divisão</option>
+            {fiscalDivisions.map((division) => (
+              <option key={division.id} value={division.id}>
+                {division.name}
+              </option>
+            ))}
+          </Select>
+          <Button
+            tone="neutral"
+            onClick={applyFiscalPreset}
+            disabled={!fiscalDivisionId}
+          >
+            Aplicar predefinição
+          </Button>
+        </div>
+
+        <div className="mt-4">
+          <TextField
+            label="Buscar rotina fiscal"
+            type="search"
+            value={routineSearch}
+            onChange={(event) => setRoutineSearch(event.target.value)}
+            placeholder="Nome ou descrição"
+          />
+        </div>
+
+        <div className="mt-3 overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-divider)]">
+          <div className="flex items-center justify-between gap-3 bg-[var(--color-panel-soft-bg)] px-3 py-2 text-xs font-bold text-[var(--color-text-muted)]">
+            <span>{selectedRoutineIds.length} rotinas vinculadas</span>
+            <span>Selecionadas primeiro</span>
+          </div>
+          <ul className="max-h-72 divide-y divide-[var(--color-divider)] overflow-y-auto">
+            {fiscalRoutines.map((routine) => {
+              const checked = selectedRoutineIdSet.has(routine.id)
+              return (
+                <li key={routine.id}>
+                  <label className="flex cursor-pointer items-start gap-3 px-3 py-2.5 hover:bg-[var(--color-control-hover-bg)]">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleRoutine(routine.id)}
+                      className="mt-1 size-4 accent-[var(--color-brand)]"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-bold text-[var(--color-text-strong)]">
+                          {routine.name}
+                        </span>
+                        {presetRoutineIdSet.has(routine.id) && (
+                          <span className="rounded-full bg-[var(--color-brand-soft)] px-2 py-0.5 text-[10px] font-black text-[var(--color-brand)]">
+                            Predefinição
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
+                        {getRoutineRecurrenceLabel(routine.recurrence)} ·{' '}
+                        {formatRoutineSchedule(routine)}
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      </EditSection>
     </ModalForm>
   )
 }
 
 function RoutineEditForm({
   entity,
+  data,
   onClose,
   onSave,
 }: Extract<EntityEditModalProps, { type: 'routine' }>) {
@@ -306,53 +444,60 @@ function RoutineEditForm({
   const [recurrence, setRecurrence] = useState<RoutineRecurrence>(
     entity.recurrence ?? 'monthly',
   )
-  const usesRelativeDueDate =
-    entity.isTemplate || entity.defaultDueDays !== undefined
-  const [defaultDueValue, setDefaultDueValue] = useState(
-    String(
-      usesRelativeDueDate
-        ? (entity.defaultDueDays ?? '')
-        : (entity.defaultDueDay ?? ''),
-    ),
+  const [schedule, setSchedule] = useState<RoutineScheduleValue>({
+    defaultDueDays: entity.defaultDueDays,
+    defaultDueDay: entity.defaultDueDay,
+    recurrenceMonths: entity.recurrenceMonths,
+  })
+  const [defaultAssigneeId, setDefaultAssigneeId] = useState(
+    entity.defaultAssigneeId ?? '',
   )
   const [active, setActive] = useState(entity.active !== false)
   const [error, setError] = useState('')
+  const availableEmployees = data.employees
+    .filter(
+      (employee) =>
+        employee.active !== false &&
+        (!employee.departmentIds?.length ||
+          employee.departmentIds.includes(entity.departmentId)),
+    )
+    .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'))
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const dueValue = Number(defaultDueValue)
 
     if (!name.trim() || !shortName.trim()) {
       setError('Informe o nome e o nome curto da rotina.')
       return
     }
 
-    const maximumDueValue = usesRelativeDueDate ? 365 : 31
-    if (
-      defaultDueValue &&
-      (!Number.isInteger(dueValue) ||
-        dueValue < 1 ||
-        dueValue > maximumDueValue)
-    ) {
-      setError(
-        usesRelativeDueDate
-          ? 'O prazo padrão deve estar entre 1 e 365 dias.'
-          : 'O vencimento deve ser um dia entre 1 e 31.',
-      )
+    const scheduleError = getRoutineScheduleError(recurrence, schedule)
+    if (scheduleError) {
+      setError(scheduleError)
       return
     }
 
-    onSave({
-      name: name.trim(),
-      shortName: shortName.trim(),
-      description: description.trim() || undefined,
-      recurrence,
-      defaultDueDay:
-        !usesRelativeDueDate && defaultDueValue ? dueValue : undefined,
-      defaultDueDays:
-        usesRelativeDueDate && defaultDueValue ? dueValue : undefined,
-      active,
-    })
+    const normalizedSchedule = normalizeRoutineSchedule(recurrence, schedule)
+
+    try {
+      onSave({
+        name: name.trim(),
+        shortName: shortName.trim(),
+        description: description.trim() || undefined,
+        recurrence,
+        defaultDueDays: normalizedSchedule.defaultDueDays,
+        defaultDueDay: normalizedSchedule.defaultDueDay,
+        recurrenceMonths: normalizedSchedule.recurrenceMonths,
+        defaultAssigneeId: defaultAssigneeId || null,
+        active,
+      })
+    } catch (currentError) {
+      setError(
+        currentError instanceof Error
+          ? currentError.message
+          : 'Não foi possível atualizar a rotina.',
+      )
+    }
   }
 
   return (
@@ -362,55 +507,101 @@ function RoutineEditForm({
       error={error}
       onClose={onClose}
       onSubmit={handleSubmit}
+      wide
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          label="Nome *"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          autoFocus
-        />
-        <TextField
-          label="Nome curto *"
-          value={shortName}
-          onChange={(event) => setShortName(event.target.value)}
-        />
-        <Textarea
-          label="Descrição"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          rows={4}
-          className="sm:col-span-2"
-        />
-        <Select
-          label="Recorrência"
-          value={recurrence}
-          onChange={(event) =>
-            setRecurrence(event.target.value as RoutineRecurrence)
-          }
-        >
-          {routineRecurrenceOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
-        <TextField
-          label={
-            usesRelativeDueDate
-              ? 'Prazo padrão em dias'
-              : 'Dia padrão de vencimento'
-          }
-          type="number"
-          min="1"
-          max={usesRelativeDueDate ? '365' : '31'}
-          value={defaultDueValue}
-          onChange={(event) => setDefaultDueValue(event.target.value)}
-          placeholder={usesRelativeDueDate ? 'Definido na tarefa' : undefined}
-        />
-        <EntityStatusField active={active} onChange={setActive} />
-      </div>
+      <EditSection
+        title="Identificação"
+        description="Nome e instruções exibidos nas áreas de trabalho e listagens."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            label="Nome *"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            autoFocus
+          />
+          <TextField
+            label="Nome curto *"
+            value={shortName}
+            onChange={(event) => setShortName(event.target.value)}
+          />
+          <Textarea
+            label="Descrição"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            rows={4}
+            className="sm:col-span-2"
+          />
+        </div>
+      </EditSection>
+
+      <EditSection
+        title="Execução"
+        description="A frequência define quando tarefas recorrentes são geradas."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select
+            label="Recorrência *"
+            value={recurrence}
+            onChange={(event) => {
+              setRecurrence(event.target.value as RoutineRecurrence)
+              setSchedule({})
+              setError('')
+            }}
+          >
+            {routineRecurrenceOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Responsável padrão"
+            value={defaultAssigneeId}
+            onChange={(event) => setDefaultAssigneeId(event.target.value)}
+          >
+            <option value="">Sem responsável padrão</option>
+            {availableEmployees.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {employee.name}
+              </option>
+            ))}
+          </Select>
+          <RoutineScheduleFields
+            recurrence={recurrence}
+            value={schedule}
+            onChange={(value) => {
+              setSchedule(value)
+              setError('')
+            }}
+            idPrefix="routine-edit"
+          />
+          <EntityStatusField active={active} onChange={setActive} />
+        </div>
+      </EditSection>
     </ModalForm>
+  )
+}
+
+function EditSection({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description: string
+  children: ReactNode
+}) {
+  return (
+    <section className="border-b border-[var(--color-divider)] pb-5 last:border-b-0 last:pb-0 [&+section]:pt-5">
+      <h3 className="text-sm font-black text-[var(--color-text-strong)]">
+        {title}
+      </h3>
+      <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
+        {description}
+      </p>
+      <div className="mt-4">{children}</div>
+    </section>
   )
 }
 
@@ -421,6 +612,7 @@ function ModalForm({
   onClose,
   onSubmit,
   children,
+  wide = false,
 }: {
   title: string
   description: string
@@ -428,11 +620,14 @@ function ModalForm({
   onClose: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   children: ReactNode
+  wide?: boolean
 }) {
   return (
     <form
       onSubmit={onSubmit}
-      className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-floating)]"
+      className={`flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-floating)] ${
+        wide ? 'max-w-4xl' : 'max-w-2xl'
+      }`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="entity-edit-title"
@@ -447,7 +642,7 @@ function ModalForm({
           >
             {title}
           </h2>
-          <p className="mt-1 max-w-xl text-sm leading-5 text-[var(--color-text-muted)]">
+          <p className="mt-1 max-w-2xl text-sm leading-5 text-[var(--color-text-muted)]">
             {description}
           </p>
         </div>
@@ -472,8 +667,8 @@ function ModalForm({
         )}
         {children}
         <p className="mt-5 border-t border-[var(--color-divider)] pt-4 text-xs leading-5 text-[var(--color-text-muted)]">
-          Nesta etapa, as alterações permanecem somente na sessão atual. O
-          histórico e a persistência serão feitos pelo backend.
+          As alterações permanecem somente na sessão atual até a integração com
+          o backend.
         </p>
       </div>
 

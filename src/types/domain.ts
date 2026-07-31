@@ -76,7 +76,6 @@ export interface Routine {
   shortName: string
   description?: string
   recurrence?: RoutineRecurrence
-  defaultDueDate?: string
   defaultDueDay?: number
   recurrenceMonths?: number[]
   defaultDueDays?: number
@@ -88,7 +87,7 @@ export interface Routine {
 }
 
 export type RoutineRecurrence =
-  'on_demand' | 'monthly' | 'quarterly' | 'semiannual' | 'annual' | 'custom'
+  'on_demand' | 'monthly' | 'quarterly' | 'semiannual' | 'annual'
 
 export interface CreateRoutineInput {
   departmentId: EntityId
@@ -96,7 +95,7 @@ export interface CreateRoutineInput {
   description: string
   recurrence: RoutineRecurrence
   defaultAssigneeId?: EntityId | null
-  defaultDueDate?: string
+  defaultDueDays?: number
   defaultDueDay?: number
   recurrenceMonths?: number[]
 }
@@ -106,9 +105,10 @@ export interface UpdateRoutineInput {
   shortName: string
   description?: string
   recurrence: RoutineRecurrence
-  defaultDueDate?: string
+  defaultDueDays?: number
   defaultDueDay?: number
   recurrenceMonths?: number[]
+  defaultAssigneeId?: EntityId | null
   active: boolean
 }
 
