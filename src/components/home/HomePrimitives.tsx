@@ -59,27 +59,20 @@ export function HomeSummaryMetric({
 export function HomeSectionHeading({
   title,
   titleId,
-  description,
   meta,
 }: {
   title: string
   titleId: string
-  description: string
   meta?: ReactNode
 }) {
   return (
-    <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h2
-          id={titleId}
-          className="text-lg font-extrabold text-[var(--color-text-strong)]"
-        >
-          {title}
-        </h2>
-        <p className="mt-0.5 text-sm text-[var(--color-text-muted)]">
-          {description}
-        </p>
-      </div>
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <h2
+        id={titleId}
+        className="text-lg font-extrabold text-[var(--color-text-strong)]"
+      >
+        {title}
+      </h2>
       {meta}
     </div>
   )

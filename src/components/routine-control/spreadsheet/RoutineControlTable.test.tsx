@@ -71,8 +71,7 @@ describe('RoutineControlTable presentations', () => {
     expect(markup).toContain(
       'Abrir Apurar impostos de Empresa Alpha. Status: Em andamento',
     )
-    expect(markup).toContain('Ações de Apurar impostos de Empresa Alpha')
-    expect(markup).toContain('aria-keyshortcuts="Shift+F10"')
+    expect(markup).toContain('Botão direito ou Shift+F10 para ações')
     expect(markup).toContain('Não se aplica: rotina não vinculada à empresa')
     expect(markup).not.toContain('Abrir Fechar balancete de Empresa Alpha')
     expect(markup).toContain('data-routine-applicability="not-applicable"')

@@ -45,13 +45,6 @@ function RoutineClosedCardCompact({
   const colorClass = roundCellClass[task.status]
   const hasContextMenu = Boolean(onContextMenuOpen)
 
-  function openMenuFromTrigger(trigger: HTMLButtonElement) {
-    if (!onContextMenuOpen) return
-
-    const bounds = trigger.getBoundingClientRect()
-    onContextMenuOpen(task, label, bounds.right, bounds.bottom + 4, trigger)
-  }
-
   function handleKeyboardContextMenu(event: KeyboardEvent<HTMLButtonElement>) {
     if (
       !onContextMenuOpen ||
@@ -108,24 +101,7 @@ function RoutineClosedCardCompact({
       >
         <RoutineStatusIcon status={task.status} />
       </button>
-
-      
     </div>
-  )
-}
-
-function MoreIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-4"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <circle cx="5" cy="12" r="1.6" />
-      <circle cx="12" cy="12" r="1.6" />
-      <circle cx="19" cy="12" r="1.6" />
-    </svg>
   )
 }
 

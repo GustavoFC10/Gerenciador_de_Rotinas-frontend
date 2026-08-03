@@ -68,7 +68,6 @@ describe('client clipboard helpers', () => {
 
   it('offers only individual fields that contain a saved value', () => {
     expect(getClientCopyOptions(client).map((option) => option.id)).toEqual([
-      'all',
       'code',
       'document',
       'email',
@@ -81,6 +80,6 @@ describe('client clipboard helpers', () => {
         code: '0002',
         name: 'Empresa sem contato',
       }).map((option) => option.id),
-    ).toEqual(['all', 'code'])
+    ).toEqual(['code'])
   })
 })

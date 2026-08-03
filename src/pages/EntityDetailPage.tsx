@@ -15,10 +15,10 @@ import type {
   Client,
   EntityId,
   Routine,
+  RoutineConfigurationUpdateInput,
   RoutineControlData,
   RoutineListInteractionProps,
   UpdateClientInput,
-  UpdateRoutineInput,
 } from '../types/domain'
 import { canAccessDepartment, isLeader } from '../utils/permissions'
 import {
@@ -41,7 +41,10 @@ interface EntityDetailPageProps extends Omit<
   spreadsheetDivisionId: EntityId
   spreadsheetDivisionName: string
   onClientUpdate?: (clientId: EntityId, changes: UpdateClientInput) => void
-  onRoutineUpdate?: (routineId: EntityId, changes: UpdateRoutineInput) => void
+  onRoutineUpdate?: (
+    routineId: EntityId,
+    changes: RoutineConfigurationUpdateInput,
+  ) => void
 }
 
 function EntityDetailPage({
@@ -160,7 +163,7 @@ function EntityDetailPage({
     setSavedMessage('Dados da empresa atualizados nesta sessão.')
   }
 
-  function handleRoutineSave(changes: UpdateRoutineInput) {
+  function handleRoutineSave(changes: RoutineConfigurationUpdateInput) {
     if (!routine) return
     onRoutineUpdate?.(routine.id, changes)
     setIsEditing(false)
@@ -186,9 +189,17 @@ function EntityDetailPage({
               ? () => navigate(-1)
               : undefined,
         }}
-        label={type === 'client' ? 'Empresa' : 'Rotina'}
         title={entity.name}
-        meta={<EntityStatus active={entity.active !== false} />}
+        meta={
+          <div className="flex items-center gap-2">
+            <EntityStatus active={entity.active !== false} />
+            {!canEdit && (
+              <span className="rounded-full border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-muted)]">
+                Somente leitura
+              </span>
+            )}
+          </div>
+        }
         actions={
           canEdit ? (
             <Button tone="neutral" onClick={() => setIsEditing(true)}>
@@ -214,29 +225,25 @@ function EntityDetailPage({
         routine={routine}
         data={data}
         spreadsheetDepartmentId={spreadsheetDepartmentId}
-        canEdit={canEdit}
-        onEdit={() => setIsEditing(true)}
       />
 
       <section
         className="mt-5 min-h-0 flex-1"
         aria-labelledby="entity-task-list-title"
       >
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2
-              id="entity-task-list-title"
-              className="text-lg font-black tracking-tight text-[var(--color-text-strong)]"
-            >
-              {type === 'client'
-                ? 'Rotinas desta empresa'
-                : 'Empresas desta rotina'}
-            </h2>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-              Tarefas da competência {formattedCompetence}.
-            </p>
-          </div>
-          <span className="rounded-full border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-muted)]">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <h2
+            id="entity-task-list-title"
+            className="mr-auto text-base font-black tracking-tight text-[var(--color-text-strong)] sm:text-lg"
+          >
+            {type === 'client'
+              ? 'Rotinas desta empresa'
+              : 'Empresas desta rotina'}
+          </h2>
+          <span className="text-xs font-bold text-[var(--color-text-muted)]">
+            {formattedCompetence}
+          </span>
+          <span className="rounded-full border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-muted)]">
             {listViewData.items.length}{' '}
             {listViewData.items.length === 1 ? 'tarefa' : 'tarefas'}
           </span>
@@ -282,16 +289,12 @@ function EntitySummary({
   routine,
   data,
   spreadsheetDepartmentId,
-  canEdit,
-  onEdit,
 }: {
   type: EntityType
   client?: Client
   routine?: Routine
   data: RoutineControlData
   spreadsheetDepartmentId: EntityId
-  canEdit: boolean
-  onEdit: () => void
 }) {
   const applicableRoutineCount = client
     ? new Set(
@@ -325,42 +328,18 @@ function EntitySummary({
 
   return (
     <section className="rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-panel)]">
-      <div className="flex flex-wrap items-start justify-between gap-4 px-4 py-4 sm:px-5">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-            {type === 'client' ? <BuildingIcon /> : <RoutineIcon />}
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-black text-[var(--color-text-strong)]">
-              {type === 'client'
-                ? client?.legalName || client?.name
-                : routine?.shortName}
-            </p>
-            <p className="mt-1 max-w-3xl text-sm leading-5 text-[var(--color-text-muted)]">
-              {type === 'client'
-                ? 'Cadastro usado para identificar a empresa e organizar suas rotinas aplicáveis.'
-                : routine?.description ||
-                  'Rotina operacional vinculada às empresas desta planilha.'}
-            </p>
-          </div>
-        </div>
-
-        {!canEdit && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-panel-soft-bg)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-muted)] ring-1 ring-[var(--color-divider)]">
-            <LockIcon />
-            Somente leitura
-          </span>
-        )}
-      </div>
-
       <dl
-        className={`grid border-t border-[var(--color-divider)] sm:grid-cols-2 ${
-          client ? 'xl:grid-cols-6' : 'xl:grid-cols-4'
+        className={`grid sm:grid-cols-2 ${
+          client ? 'xl:grid-cols-4' : 'xl:grid-cols-4'
         }`}
       >
         {type === 'client' && client ? (
           <>
             <SummaryField label="Código interno" value={client.code} />
+            <SummaryField
+              label="Razão social"
+              value={client.legalName || client.name}
+            />
             <SummaryField
               label="Regime tributário"
               value={getClientTaxRegimeLabel(client.taxRegime)}
@@ -379,6 +358,10 @@ function EntitySummary({
             <SummaryField
               label="E-mail"
               value={client.email || 'Não informado'}
+            />
+            <SummaryField
+              label="Telefone"
+              value={client.phone || 'Não informado'}
             />
             <SummaryField
               label="Rotinas aplicáveis"
@@ -403,24 +386,14 @@ function EntitySummary({
               label="Empresas vinculadas"
               value={`${linkedClientCount} empresa${linkedClientCount === 1 ? '' : 's'}`}
             />
+            <SummaryField
+              label="Descrição"
+              value={routine.description || 'Sem descrição'}
+              className="sm:col-span-2 xl:col-span-4"
+            />
           </>
         ) : null}
       </dl>
-
-      {canEdit && (
-        <div className="flex items-center justify-between gap-3 border-t border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-4 py-2.5 sm:px-5">
-          <p className="text-xs leading-5 text-[var(--color-text-muted)]">
-            Dados, configuração e inativação ficam centralizados nesta página.
-          </p>
-          <button
-            type="button"
-            onClick={onEdit}
-            className="shrink-0 text-xs font-extrabold text-[var(--color-brand)] hover:text-[var(--color-brand-strong)] focus-visible:underline"
-          >
-            Abrir edição
-          </button>
-        </div>
-      )}
     </section>
   )
 }
@@ -429,9 +402,19 @@ function getRoutineDueLabel(routine: Routine): string {
   return formatRoutineSchedule(routine)
 }
 
-function SummaryField({ label, value }: { label: string; value: ReactNode }) {
+function SummaryField({
+  label,
+  value,
+  className = '',
+}: {
+  label: string
+  value: ReactNode
+  className?: string
+}) {
   return (
-    <div className="border-b border-[var(--color-divider)] px-4 py-3 last:border-b-0 sm:border-r sm:[&:nth-child(even)]:border-r-0 xl:border-b-0 xl:[&:nth-child(even)]:border-r xl:last:border-r-0">
+    <div
+      className={`border-b border-r border-[var(--color-divider)] px-4 py-3 sm:[&:nth-child(even)]:border-r-0 xl:[&:nth-child(even)]:border-r xl:[&:nth-child(4n)]:border-r-0 ${className}`}
+    >
       <dt className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
         {label}
       </dt>
@@ -477,61 +460,6 @@ function EditIcon() {
     >
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
-    </svg>
-  )
-}
-
-function BuildingIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M4 21V4h11v17M15 9h5v12M2 21h20" />
-      <path d="M8 8h3M8 12h3M8 16h3M18 13h.01M18 17h.01" />
-    </svg>
-  )
-}
-
-function RoutineIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m17 2 4 4-4 4" />
-      <path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4" />
-      <path d="M21 13v2a3 3 0 0 1-3 3H3" />
-    </svg>
-  )
-}
-
-function LockIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-3"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="5" y="10" width="14" height="10" rx="2" />
-      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
     </svg>
   )
 }

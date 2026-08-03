@@ -58,18 +58,13 @@ function HomePrioritySection({
       className="overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-panel)]"
       aria-labelledby="home-priorities-title"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-divider)] px-5 py-4">
-        <div>
-          <h2
-            id="home-priorities-title"
-            className="text-lg font-extrabold text-[var(--color-text-strong)]"
-          >
-            Prioridades
-          </h2>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            O que vem primeiro para você nesta competência.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-divider)] px-5 py-4">
+        <h2
+          id="home-priorities-title"
+          className="text-lg font-extrabold text-[var(--color-text-strong)]"
+        >
+          Prioridades
+        </h2>
         <span className="inline-flex min-h-7 items-center rounded-full bg-[var(--color-panel-soft-bg)] px-2.5 text-xs font-bold text-[var(--color-text-muted)] ring-1 ring-[var(--color-panel-border)]">
           {openCount} {openCount === 1 ? 'aberta' : 'abertas'}
         </span>

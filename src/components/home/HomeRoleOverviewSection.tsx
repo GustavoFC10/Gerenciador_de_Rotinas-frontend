@@ -19,9 +19,6 @@ function HomeRoleOverviewSection({
   onTaskOpen: (task: Task) => void
 }) {
   const title = manager ? 'Visão da operação' : 'Acompanhamento do departamento'
-  const description = manager
-    ? 'Exceções das áreas de trabalho que precisam de acompanhamento gerencial.'
-    : 'Exceções das rotinas sob responsabilidade da sua equipe.'
   const destination = manager
     ? ROUTES.MANAGER_DASHBOARD
     : ROUTES.DEPARTMENT_DASHBOARD
@@ -36,17 +33,12 @@ function HomeRoleOverviewSection({
           <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
             <HomeIcon name="people" className="size-5" />
           </span>
-          <div>
-            <h2
-              id="home-role-overview-title"
-              className="text-lg font-extrabold text-[var(--color-text-strong)]"
-            >
-              {title}
-            </h2>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-              {description}
-            </p>
-          </div>
+          <h2
+            id="home-role-overview-title"
+            className="self-center text-lg font-extrabold text-[var(--color-text-strong)]"
+          >
+            {title}
+          </h2>
         </div>
         <Link
           to={destination}

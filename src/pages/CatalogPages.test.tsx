@@ -40,8 +40,10 @@ describe('catalog pages', () => {
   it('lists every company independently from the selected spreadsheet', () => {
     const markup = renderPage(<CompaniesPage data={routineControlMock.data} />)
 
-    expect(markup).toContain('Todas as empresas')
+    expect(markup).toContain('>Empresas</h1>')
     expect(markup).toContain('Aurora Comércio Ltda.')
+    expect(markup).toContain('aria-label="Abrir empresa Aurora Comércio Ltda."')
+    expect(markup).toContain('Buscar por nome, código, CNPJ ou e-mail')
     expect(markup).toContain('source=catalog')
     expect(markup).toContain('Adicionar empresa')
   })
@@ -49,8 +51,9 @@ describe('catalog pages', () => {
   it('lists general routines with their complete schedule', () => {
     const markup = renderPage(<RoutinesPage data={routineControlMock.data} />)
 
-    expect(markup).toContain('Todas as rotinas')
+    expect(markup).toContain('>Rotinas</h1>')
     expect(markup).toContain('Transmitir DASN-SIMEI')
+    expect(markup).toContain('aria-label="Abrir rotina Transmitir DASN-SIMEI"')
     expect(markup).toContain('Mai · dia 31')
     expect(markup).toContain('Criar rotina')
   })
@@ -58,10 +61,12 @@ describe('catalog pages', () => {
   it('lists employees with role and department scope', () => {
     const markup = renderPage(<EmployeesPage data={routineControlMock.data} />)
 
-    expect(markup).toContain('Todos os funcionários')
+    expect(markup).toContain('>Funcionários</h1>')
     expect(markup).toContain('Carla Melo')
+    expect(markup).toContain('aria-label="Abrir perfil de Carla Melo"')
     expect(markup).toContain('Administrador')
     expect(markup).toContain('Fiscal')
     expect(markup).toContain('Adicionar funcionário')
+    expect(markup).toContain('Cargos e permissões')
   })
 })

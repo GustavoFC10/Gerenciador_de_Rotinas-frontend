@@ -12,6 +12,7 @@ import {
   createClientFromPreset,
   createEmployeeProfile,
   createRoutineTemplate,
+  updateRoutineConfiguration,
 } from './creationCommands'
 import { buildRoutineDueDate } from './routineSchedule'
 
@@ -273,6 +274,93 @@ describe('creation commands', () => {
         ),
       ).toThrow('Rotina inválida')
       expect(data).toEqual(before)
+    })
+  })
+
+  describe('updateRoutineConfiguration', () => {
+    it('unlinks a preset company while preserving its generated tasks', () => {
+      const data = cloneData()
+      const presetLink = data.clientRoutineLinks[0]!
+      const routine = data.routines.find(
+        (item) => item.id === presetLink.routineId,
+      )!
+      const divisionId = data.clients
+        .find((client) => client.id === presetLink.clientId)
+        ?.divisionAssignments?.find(
+          (assignment) => assignment.departmentId === routine.departmentId,
+        )?.divisionId
+      const before = structuredClone(data)
+
+      const result = updateRoutineConfiguration(
+        data,
+        routine.id,
+        {
+          routine: {
+            name: routine.name,
+            shortName: routine.shortName,
+            description: routine.description,
+            recurrence: routine.recurrence ?? 'monthly',
+            defaultDueDays: routine.defaultDueDays,
+            defaultDueDay: routine.defaultDueDay,
+            recurrenceMonths: routine.recurrenceMonths,
+            defaultAssigneeId: routine.defaultAssigneeId ?? null,
+            active: routine.active !== false,
+          },
+          unlinkClientIds: [presetLink.clientId],
+        },
+        { generatedAt },
+      )
+
+      expect(data).toEqual(before)
+      expect(result.removedLinks).toEqual([presetLink])
+      expect(result.data.clientRoutineLinks).not.toContainEqual(presetLink)
+      expect(result.data.tasks).toEqual(data.tasks)
+      expect(result.data.clientRoutineExclusions).toContainEqual(
+        expect.objectContaining({
+          clientId: presetLink.clientId,
+          routineId: routine.id,
+          divisionId,
+        }),
+      )
+    })
+
+    it('keeps links and exclusions from unrelated companies untouched', () => {
+      const data = cloneData()
+      const link = data.clientRoutineLinks[0]!
+      const unrelatedLinks = data.clientRoutineLinks.filter(
+        (item) => item.id !== link.id,
+      )
+      const unrelatedExclusions = structuredClone(
+        data.clientRoutineExclusions ?? [],
+      )
+      const routine = data.routines.find((item) => item.id === link.routineId)!
+
+      const result = updateRoutineConfiguration(
+        data,
+        routine.id,
+        {
+          routine: {
+            name: routine.name,
+            shortName: routine.shortName,
+            description: routine.description,
+            recurrence: routine.recurrence ?? 'monthly',
+            defaultDueDays: routine.defaultDueDays,
+            defaultDueDay: routine.defaultDueDay,
+            recurrenceMonths: routine.recurrenceMonths,
+            defaultAssigneeId: routine.defaultAssigneeId ?? null,
+            active: routine.active !== false,
+          },
+          unlinkClientIds: [link.clientId],
+        },
+        { generatedAt },
+      )
+
+      unrelatedLinks.forEach((item) =>
+        expect(result.data.clientRoutineLinks).toContainEqual(item),
+      )
+      unrelatedExclusions.forEach((item) =>
+        expect(result.data.clientRoutineExclusions).toContainEqual(item),
+      )
     })
   })
 

@@ -32,6 +32,7 @@ import {
   createEmployeeProfile,
   createRoutineTemplate,
   updateClientConfiguration,
+  updateRoutineConfiguration,
 } from './utils/creationCommands'
 import {
   APP_PERMISSION,
@@ -54,13 +55,13 @@ import type {
   Employee,
   PendingStatusChange,
   Routine,
+  RoutineConfigurationUpdateInput,
   RoutineControlData,
   RoutineListItem,
   RoutineStatus,
   Task,
   TaskRelations,
   UpdateClientInput,
-  UpdateRoutineInput,
 } from './types/domain'
 
 function App() {
@@ -363,20 +364,19 @@ function AuthenticatedApp() {
     )
   }
 
-  function handleRoutineUpdate(routineId: string, changes: UpdateRoutineInput) {
-    setResponse((currentResponse) => {
-      if (!currentResponse) return currentResponse
-
-      return {
-        ...currentResponse,
-        data: {
-          ...currentResponse.data,
-          routines: currentResponse.data.routines.map((routine) =>
-            routine.id === routineId ? { ...routine, ...changes } : routine,
-          ),
-        },
-      }
+  function handleRoutineUpdate(
+    routineId: string,
+    changes: RoutineConfigurationUpdateInput,
+  ) {
+    const result = updateRoutineConfiguration(data!, routineId, changes, {
+      generatedAt: new Date().toISOString(),
     })
+
+    setResponse((currentResponse) =>
+      currentResponse
+        ? { ...currentResponse, data: result.data }
+        : currentResponse,
+    )
   }
 
   function handleRoutineCreate(input: CreateRoutineInput): Routine {
@@ -646,10 +646,12 @@ function AuthenticatedApp() {
           <Route
             path={ROUTES.ROLES}
             element={
-              <PlaceholderPage
-                title="Cargos"
-                description="Gerenciamento de permissoes e responsabilidades."
-              />
+              <RequirePermission permission={APP_PERMISSION.VIEW_EMPLOYEES}>
+                <PlaceholderPage
+                  title="Cargos"
+                  description="Gerenciamento de permissoes e responsabilidades."
+                />
+              </RequirePermission>
             }
           />
         </Route>

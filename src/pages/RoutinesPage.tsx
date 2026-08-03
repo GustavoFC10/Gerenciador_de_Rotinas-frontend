@@ -1,22 +1,27 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router'
 
-import Card from '../components/ui/Card'
-import TextField from '../components/ui/TextField'
+import {
+  CatalogAction,
+  CatalogChevron,
+  CatalogDatum,
+  CatalogEmpty,
+  CatalogHeader,
+  CatalogList,
+  CatalogPrimary,
+  CatalogRow,
+  CatalogRows,
+  CatalogStatus,
+} from '../components/catalog/CatalogList'
 import { getRoutineRecurrenceLabel } from '../constants/entityOptions'
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
-import WorkspaceBar from '../layouts/WorkspaceBar'
 import type { RoutineControlData } from '../types/domain'
+import { normalizeSearch } from '../utils/normalizeSearch'
 import { isLeader } from '../utils/permissions'
 import { formatRoutineSchedule } from '../utils/routineSchedule'
-import {
-  CatalogAction,
-  CatalogCell,
-  CatalogEmpty,
-  CatalogHeading,
-  StatusBadge,
-} from './CompaniesPage'
+
+const routineGrid =
+  'lg:grid-cols-[minmax(15rem,1.5fr)_minmax(8rem,.75fr)_8rem_minmax(11rem,1fr)_5rem_6rem_1.25rem]'
 
 function RoutinesPage({ data }: { data: RoutineControlData }) {
   const { user } = useAppState()
@@ -34,120 +39,101 @@ function RoutinesPage({ data }: { data: RoutineControlData }) {
     const query = normalizeSearch(search)
 
     return [...data.routines]
-      .filter((routine) =>
-        normalizeSearch(
-          [routine.name, routine.shortName, routine.description]
+      .filter((routine) => {
+        const department = data.departments.find(
+          (item) => item.id === routine.departmentId,
+        )
+        return normalizeSearch(
+          [
+            routine.name,
+            routine.shortName,
+            routine.description,
+            department?.name,
+            getRoutineRecurrenceLabel(routine.recurrence),
+          ]
             .filter(Boolean)
             .join(' '),
-        ).includes(query),
-      )
+        ).includes(query)
+      })
       .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'))
-  }, [data.routines, search])
+  }, [data.departments, data.routines, search])
 
   return (
-    <div className="mx-auto w-full max-w-[90rem]">
-      <WorkspaceBar
-        label="Listagem"
-        title="Todas as rotinas"
-        meta={`${data.routines.length} cadastradas`}
-        actions={
-          isLeader(user) ? (
-            <CatalogAction to={ROUTES.ROUTINE_CREATE}>
-              Criar rotina
-            </CatalogAction>
-          ) : undefined
-        }
-      />
+    <CatalogList
+      title="Rotinas"
+      countLabel={`${data.routines.length} cadastradas`}
+      resultLabel={`${filteredRoutines.length} de ${data.routines.length}`}
+      searchLabel="Buscar rotinas"
+      searchPlaceholder="Buscar por nome, departamento ou recorrência"
+      searchValue={search}
+      onSearchChange={setSearch}
+      action={
+        isLeader(user) ? (
+          <CatalogAction to={ROUTES.ROUTINE_CREATE}>Criar rotina</CatalogAction>
+        ) : undefined
+      }
+    >
+      <CatalogHeader gridClass={routineGrid}>
+        <span>Rotina</span>
+        <span>Departamento</span>
+        <span>Recorrência</span>
+        <span>Agenda e prazo</span>
+        <span>Empresas</span>
+        <span>Situação</span>
+        <span />
+      </CatalogHeader>
 
-      <Card>
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--color-divider)] px-4 py-4 sm:px-5">
-          <div>
-            <h2 className="text-sm font-black text-[var(--color-text-strong)]">
-              Catálogo de modelos
-            </h2>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              Inclui rotinas que ainda não pertencem a nenhuma planilha.
-            </p>
-          </div>
-          <TextField
-            label="Buscar rotina"
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Nome ou descrição"
-            className="w-full sm:w-80"
-          />
-        </div>
+      {filteredRoutines.length > 0 ? (
+        <CatalogRows>
+          {filteredRoutines.map((routine) => {
+            const department = data.departments.find(
+              (item) => item.id === routine.departmentId,
+            )
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[56rem] border-collapse text-left">
-            <thead className="bg-[var(--color-table-header-bg)] text-xs uppercase tracking-wide text-[var(--color-table-heading-text)]">
-              <tr>
-                <CatalogHeading>Rotina</CatalogHeading>
-                <CatalogHeading>Departamento</CatalogHeading>
-                <CatalogHeading>Recorrência</CatalogHeading>
-                <CatalogHeading>Agenda e prazo</CatalogHeading>
-                <CatalogHeading>Empresas</CatalogHeading>
-                <CatalogHeading>Situação</CatalogHeading>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--color-divider)]">
-              {filteredRoutines.map((routine) => {
-                const department = data.departments.find(
-                  (item) => item.id === routine.departmentId,
-                )
-
-                return (
-                  <tr
-                    key={routine.id}
-                    className="hover:bg-[var(--color-table-row-hover-bg)]"
-                  >
-                    <CatalogCell>
-                      <Link
-                        to={`${ROUTES.ROUTINES}/${encodeURIComponent(routine.id)}?source=catalog`}
-                        className="font-black text-[var(--color-text-strong)] hover:text-[var(--color-brand)] focus-visible:underline"
-                      >
-                        {routine.name}
-                      </Link>
-                      {routine.description && (
-                        <span className="mt-0.5 line-clamp-1 block max-w-sm text-xs text-[var(--color-text-muted)]">
-                          {routine.description}
-                        </span>
-                      )}
-                    </CatalogCell>
-                    <CatalogCell>
-                      {department?.name ?? 'Não informado'}
-                    </CatalogCell>
-                    <CatalogCell>
-                      {getRoutineRecurrenceLabel(routine.recurrence)}
-                    </CatalogCell>
-                    <CatalogCell>{formatRoutineSchedule(routine)}</CatalogCell>
-                    <CatalogCell>
-                      {clientsByRoutine.get(routine.id)?.size ?? 0}
-                    </CatalogCell>
-                    <CatalogCell>
-                      <StatusBadge active={routine.active !== false} />
-                    </CatalogCell>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredRoutines.length === 0 && (
-          <CatalogEmpty>Nenhuma rotina encontrada.</CatalogEmpty>
-        )}
-      </Card>
-    </div>
+            return (
+              <CatalogRow
+                key={routine.id}
+                to={`${ROUTES.ROUTINES}/${encodeURIComponent(routine.id)}?source=catalog`}
+                ariaLabel={`Abrir rotina ${routine.name}`}
+                gridClass={routineGrid}
+              >
+                <CatalogPrimary
+                  title={routine.name}
+                  description={routine.description}
+                />
+                <CatalogDatum label="Departamento">
+                  {department?.name ?? 'Não informado'}
+                </CatalogDatum>
+                <CatalogDatum label="Recorrência">
+                  {getRoutineRecurrenceLabel(routine.recurrence)}
+                </CatalogDatum>
+                <CatalogDatum label="Agenda e prazo">
+                  {formatRoutineSchedule(routine)}
+                </CatalogDatum>
+                <CatalogDatum label="Empresas">
+                  {clientsByRoutine.get(routine.id)?.size ?? 0}
+                </CatalogDatum>
+                <CatalogDatum label="Situação">
+                  <CatalogStatus active={routine.active !== false} />
+                </CatalogDatum>
+                <CatalogChevron />
+              </CatalogRow>
+            )
+          })}
+        </CatalogRows>
+      ) : (
+        <CatalogEmpty
+          title={
+            search
+              ? `Nenhuma rotina encontrada para “${search}”.`
+              : 'Nenhuma rotina cadastrada.'
+          }
+          searchValue={search}
+          onClear={() => setSearch('')}
+        />
+      )}
+    </CatalogList>
   )
-}
-
-function normalizeSearch(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLocaleLowerCase('pt-BR')
 }
 
 export default RoutinesPage

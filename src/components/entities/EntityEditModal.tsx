@@ -11,11 +11,12 @@ import type {
   ClientTaxRegime,
   EntityId,
   Routine,
+  RoutineConfigurationUpdateInput,
   RoutineControlData,
   RoutineRecurrence,
   UpdateClientInput,
-  UpdateRoutineInput,
 } from '../../types/domain'
+import { normalizeSearch } from '../../utils/normalizeSearch'
 import {
   formatRoutineSchedule,
   getRoutineScheduleError,
@@ -23,6 +24,7 @@ import {
   type RoutineScheduleValue,
 } from '../../utils/routineSchedule'
 import RoutineScheduleFields from '../forms/RoutineScheduleFields'
+import { CatalogSearchField } from '../catalog/CatalogList'
 import Button from '../ui/Button'
 import Select from '../ui/Select'
 import Textarea from '../ui/Textarea'
@@ -41,7 +43,7 @@ type EntityEditModalProps =
       entity: Routine
       data: RoutineControlData
       onClose: () => void
-      onSave: (changes: UpdateRoutineInput) => void
+      onSave: (changes: RoutineConfigurationUpdateInput) => void
     }
 
 function EntityEditModal(props: EntityEditModalProps) {
@@ -106,11 +108,8 @@ function EntityEditModal(props: EntityEditModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-[var(--color-overlay-bg)] p-3 backdrop-blur-[2px] sm:p-4"
+      className="fixed inset-0 z-50 flex justify-end bg-[var(--color-overlay-bg)] backdrop-blur-[2px]"
       role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) props.onClose()
-      }}
     >
       {props.type === 'client' ? (
         <ClientEditForm {...props} />
@@ -168,7 +167,7 @@ function ClientEditForm({
     .map((link) => link.routineId)
   const presetRoutineIdSet = new Set(presetRoutineIds)
   const selectedRoutineIdSet = new Set(selectedRoutineIds)
-  const routineQuery = routineSearch.trim().toLocaleLowerCase('pt-BR')
+  const routineQuery = normalizeSearch(routineSearch).trim()
 
   const fiscalRoutines = data.routines
     .filter(
@@ -176,10 +175,9 @@ function ClientEditForm({
         routine.departmentId === fiscalDepartment?.id &&
         routine.active !== false &&
         (!routineQuery ||
-          routine.name.toLocaleLowerCase('pt-BR').includes(routineQuery) ||
-          routine.description
-            ?.toLocaleLowerCase('pt-BR')
-            .includes(routineQuery)),
+          normalizeSearch(
+            [routine.name, routine.description].filter(Boolean).join(' '),
+          ).includes(routineQuery)),
     )
     .sort(
       (left, right) =>
@@ -281,16 +279,13 @@ function ClientEditForm({
   return (
     <ModalForm
       title="Editar empresa"
-      description="Atualize os dados, a configuração Fiscal e as rotinas vinculadas."
+      context={`${entity.code} · ${entity.name}`}
       error={error}
       onClose={onClose}
       onSubmit={handleSubmit}
-      wide
+      pendingSummary={`${selectedRoutineIds.length} rotinas selecionadas`}
     >
-      <EditSection
-        title="Dados da empresa"
-        description="Informações usadas para identificar e contatar a empresa."
-      >
+      <EditSection title="Cadastro">
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]">
           <TextField
             label="Nome de exibição *"
@@ -352,10 +347,7 @@ function ClientEditForm({
         </div>
       </EditSection>
 
-      <EditSection
-        title="Fiscal"
-        description="A divisão determina a planilha; as rotinas podem ser ajustadas individualmente."
-      >
+      <EditSection title="Configuração fiscal">
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <Select
             label="Divisão fiscal *"
@@ -378,13 +370,17 @@ function ClientEditForm({
           </Button>
         </div>
 
-        <div className="mt-4">
-          <TextField
-            label="Buscar rotina fiscal"
-            type="search"
+        <p className="mt-4 text-xs leading-5 text-[var(--color-text-muted)]">
+          A divisão define a planilha. Rotinas podem ser incluídas ou removidas
+          individualmente antes de salvar.
+        </p>
+
+        <div className="mt-3">
+          <CatalogSearchField
+            label="Buscar rotinas fiscais"
             value={routineSearch}
-            onChange={(event) => setRoutineSearch(event.target.value)}
-            placeholder="Nome ou descrição"
+            onChange={setRoutineSearch}
+            placeholder="Buscar rotina fiscal"
           />
         </div>
 
@@ -393,7 +389,7 @@ function ClientEditForm({
             <span>{selectedRoutineIds.length} rotinas vinculadas</span>
             <span>Selecionadas primeiro</span>
           </div>
-          <ul className="max-h-72 divide-y divide-[var(--color-divider)] overflow-y-auto">
+          <ul className="divide-y divide-[var(--color-divider)]">
             {fiscalRoutines.map((routine) => {
               const checked = selectedRoutineIdSet.has(routine.id)
               return (
@@ -454,6 +450,8 @@ function RoutineEditForm({
   )
   const [active, setActive] = useState(entity.active !== false)
   const [error, setError] = useState('')
+  const [clientSearch, setClientSearch] = useState('')
+  const [unlinkClientIds, setUnlinkClientIds] = useState<EntityId[]>([])
   const availableEmployees = data.employees
     .filter(
       (employee) =>
@@ -462,6 +460,30 @@ function RoutineEditForm({
           employee.departmentIds.includes(entity.departmentId)),
     )
     .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'))
+  const linkedCompanies = data.clientRoutineLinks
+    .filter((link) => link.routineId === entity.id)
+    .map((link) => ({
+      link,
+      client: data.clients.find((client) => client.id === link.clientId),
+    }))
+    .filter((item): item is typeof item & { client: Client } =>
+      Boolean(item.client),
+    )
+    .filter(({ client }) =>
+      normalizeSearch(
+        [client.code, client.name, client.document, client.email]
+          .filter(Boolean)
+          .join(' '),
+      ).includes(normalizeSearch(clientSearch).trim()),
+    )
+    .sort(
+      (left, right) =>
+        Number(unlinkClientIds.includes(left.client.id)) -
+          Number(unlinkClientIds.includes(right.client.id)) ||
+        left.client.code.localeCompare(right.client.code, 'pt-BR', {
+          numeric: true,
+        }),
+    )
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -481,15 +503,18 @@ function RoutineEditForm({
 
     try {
       onSave({
-        name: name.trim(),
-        shortName: shortName.trim(),
-        description: description.trim() || undefined,
-        recurrence,
-        defaultDueDays: normalizedSchedule.defaultDueDays,
-        defaultDueDay: normalizedSchedule.defaultDueDay,
-        recurrenceMonths: normalizedSchedule.recurrenceMonths,
-        defaultAssigneeId: defaultAssigneeId || null,
-        active,
+        routine: {
+          name: name.trim(),
+          shortName: shortName.trim(),
+          description: description.trim() || undefined,
+          recurrence,
+          defaultDueDays: normalizedSchedule.defaultDueDays,
+          defaultDueDay: normalizedSchedule.defaultDueDay,
+          recurrenceMonths: normalizedSchedule.recurrenceMonths,
+          defaultAssigneeId: defaultAssigneeId || null,
+          active,
+        },
+        unlinkClientIds,
       })
     } catch (currentError) {
       setError(
@@ -503,16 +528,17 @@ function RoutineEditForm({
   return (
     <ModalForm
       title="Editar rotina"
-      description="A configuração atual orienta novas tarefas; tarefas já geradas preservam seus próprios prazos."
+      context={entity.name}
       error={error}
       onClose={onClose}
       onSubmit={handleSubmit}
-      wide
+      pendingSummary={
+        unlinkClientIds.length > 0
+          ? `${unlinkClientIds.length} desvínculo${unlinkClientIds.length === 1 ? '' : 's'} pendente${unlinkClientIds.length === 1 ? '' : 's'}`
+          : undefined
+      }
     >
-      <EditSection
-        title="Identificação"
-        description="Nome e instruções exibidos nas áreas de trabalho e listagens."
-      >
+      <EditSection title="Informações">
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
             label="Nome *"
@@ -535,10 +561,7 @@ function RoutineEditForm({
         </div>
       </EditSection>
 
-      <EditSection
-        title="Execução"
-        description="A frequência define quando tarefas recorrentes são geradas."
-      >
+      <EditSection title="Execução">
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
             label="Recorrência *"
@@ -579,55 +602,144 @@ function RoutineEditForm({
           <EntityStatusField active={active} onChange={setActive} />
         </div>
       </EditSection>
+
+      <EditSection title="Empresas vinculadas">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs leading-5 text-[var(--color-text-muted)]">
+            O desvínculo impede novas tarefas. As tarefas já criadas permanecem
+            no histórico.
+          </p>
+          <span className="rounded-full bg-[var(--color-panel-soft-bg)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-muted)] ring-1 ring-[var(--color-divider)]">
+            {
+              data.clientRoutineLinks.filter(
+                (link) => link.routineId === entity.id,
+              ).length
+            }{' '}
+            vinculadas
+          </span>
+        </div>
+
+        <div className="mt-3">
+          <CatalogSearchField
+            label="Buscar empresas vinculadas"
+            value={clientSearch}
+            onChange={setClientSearch}
+            placeholder="Buscar empresa vinculada"
+          />
+        </div>
+
+        <ul className="mt-3 divide-y divide-[var(--color-divider)] overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-divider)]">
+          {linkedCompanies.map(({ client, link }) => {
+            const willUnlink = unlinkClientIds.includes(client.id)
+            const division = data.divisions?.find(
+              (item) => item.id === link.divisionId,
+            )
+
+            return (
+              <li
+                key={client.id}
+                className={`flex flex-wrap items-center gap-3 px-3 py-3 ${
+                  willUnlink
+                    ? 'bg-[var(--status-error-bg)]'
+                    : 'bg-[var(--color-panel-bg)]'
+                }`}
+              >
+                <span className="w-12 shrink-0 text-xs font-black text-[var(--color-text-muted)]">
+                  {client.code}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={`block truncate text-sm font-extrabold ${
+                      willUnlink
+                        ? 'text-[var(--status-error-text)] line-through'
+                        : 'text-[var(--color-text-strong)]'
+                    }`}
+                  >
+                    {client.name}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
+                    {division?.name ?? 'Sem divisão'}
+                    {link.source === 'preset' ? ' · Predefinição' : ''}
+                  </span>
+                </span>
+                {willUnlink && (
+                  <span className="text-xs font-bold text-[var(--status-error-text)]">
+                    Será desvinculada
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setUnlinkClientIds((current) =>
+                      current.includes(client.id)
+                        ? current.filter((id) => id !== client.id)
+                        : [...current, client.id],
+                    )
+                  }
+                  className={`min-h-9 shrink-0 rounded-[var(--radius-control)] border px-3 text-xs font-extrabold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${
+                    willUnlink
+                      ? 'border-[var(--color-button-neutral-border)] bg-[var(--color-button-neutral-bg)] text-[var(--color-button-neutral-text)] hover:bg-[var(--color-button-neutral-hover-bg)]'
+                      : 'border-[var(--status-error-border)] text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)]'
+                  }`}
+                  aria-label={`${
+                    willUnlink ? 'Manter vínculo com' : 'Desvincular'
+                  } ${client.name}`}
+                >
+                  {willUnlink ? 'Manter vínculo' : 'Desvincular'}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+
+        {linkedCompanies.length === 0 && (
+          <p className="mt-3 rounded-[var(--radius-control)] border border-dashed border-[var(--color-divider)] px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
+            Nenhuma empresa vinculada encontrada.
+          </p>
+        )}
+      </EditSection>
     </ModalForm>
   )
 }
 
 function EditSection({
   title,
-  description,
   children,
 }: {
   title: string
-  description: string
   children: ReactNode
 }) {
   return (
-    <section className="border-b border-[var(--color-divider)] pb-5 last:border-b-0 last:pb-0 [&+section]:pt-5">
-      <h3 className="text-sm font-black text-[var(--color-text-strong)]">
+    <section className="grid gap-3 border-b border-[var(--color-divider)] pb-6 last:border-b-0 last:pb-0 [&+section]:pt-6 lg:grid-cols-[10rem_minmax(0,1fr)] lg:gap-6">
+      <h3 className="pt-0.5 text-xs font-extrabold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
         {title}
       </h3>
-      <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
-        {description}
-      </p>
-      <div className="mt-4">{children}</div>
+      <div className="min-w-0">{children}</div>
     </section>
   )
 }
 
 function ModalForm({
   title,
-  description,
+  context,
   error,
   onClose,
   onSubmit,
   children,
-  wide = false,
+  pendingSummary,
 }: {
   title: string
-  description: string
+  context: string
   error: string
   onClose: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   children: ReactNode
-  wide?: boolean
+  pendingSummary?: string
 }) {
   return (
     <form
       onSubmit={onSubmit}
-      className={`flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-floating)] ${
-        wide ? 'max-w-4xl' : 'max-w-2xl'
-      }`}
+      className="flex h-dvh w-full max-w-4xl flex-col overflow-hidden border-l border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-floating)]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="entity-edit-title"
@@ -635,16 +747,16 @@ function ModalForm({
       tabIndex={-1}
     >
       <header className="flex items-start justify-between gap-4 border-b border-[var(--color-divider)] px-4 py-4 sm:px-5">
-        <div>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-bold text-[var(--color-text-muted)]">
+            {context}
+          </p>
           <h2
             id="entity-edit-title"
-            className="text-xl font-black tracking-tight text-[var(--color-text-strong)]"
+            className="mt-0.5 text-xl font-black tracking-tight text-[var(--color-text-strong)]"
           >
             {title}
           </h2>
-          <p className="mt-1 max-w-2xl text-sm leading-5 text-[var(--color-text-muted)]">
-            {description}
-          </p>
         </div>
         <button
           type="button"
@@ -656,7 +768,7 @@ function ModalForm({
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
         {error && (
           <p
             className="mb-4 rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3 py-2 text-sm font-semibold text-[var(--status-error-text)]"
@@ -666,19 +778,20 @@ function ModalForm({
           </p>
         )}
         {children}
-        <p className="mt-5 border-t border-[var(--color-divider)] pt-4 text-xs leading-5 text-[var(--color-text-muted)]">
-          As alterações permanecem somente na sessão atual até a integração com
-          o backend.
-        </p>
       </div>
 
-      <footer className="flex justify-end gap-2 border-t border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-4 py-3 sm:px-5">
-        <Button type="button" tone="neutral" onClick={onClose}>
-          Cancelar
-        </Button>
-        <Button type="submit" tone="primary">
-          Salvar alterações
-        </Button>
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-4 py-3 sm:px-6">
+        <span className="text-xs font-semibold text-[var(--color-text-muted)]">
+          {pendingSummary ?? 'Revise os campos antes de salvar'}
+        </span>
+        <div className="flex justify-end gap-2">
+          <Button type="button" tone="neutral" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" tone="primary">
+            Salvar alterações
+          </Button>
+        </div>
       </footer>
     </form>
   )

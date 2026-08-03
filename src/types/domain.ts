@@ -112,6 +112,11 @@ export interface UpdateRoutineInput {
   active: boolean
 }
 
+export interface RoutineConfigurationUpdateInput {
+  routine: UpdateRoutineInput
+  unlinkClientIds: EntityId[]
+}
+
 export interface ClientRoutineLink {
   id: EntityId
   clientId: EntityId

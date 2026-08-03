@@ -14,7 +14,6 @@ function HomeSpreadsheetSection({
       <HomeSectionHeading
         title="Áreas de trabalho"
         titleId="home-spreadsheets-title"
-        description="Seu ponto de partida para acompanhar empresas e rotinas."
       />
 
       {summaries.length > 0 ? (

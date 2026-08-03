@@ -8,6 +8,7 @@ import type {
   Employee,
   EntityId,
   Routine,
+  RoutineConfigurationUpdateInput,
   RoutineControlData,
   RoutineRecurrence,
   Task,
@@ -54,6 +55,13 @@ export interface ClientUpdateResult {
   addedLinks: ClientRoutineLink[]
   removedRoutineIds: EntityId[]
   tasks: Task[]
+}
+
+export interface RoutineUpdateResult {
+  data: RoutineControlData
+  routine: Routine
+  removedLinks: ClientRoutineLink[]
+  preservedTaskCount: number
 }
 
 export function createRoutineTemplate(
@@ -547,6 +555,149 @@ export function updateClientConfiguration(
       clientRoutineLinks: [...otherClientLinks, ...nextLinks],
       clientRoutineExclusions: [...otherClientExclusions, ...exclusions],
       tasks: [...data.tasks, ...tasks],
+    },
+  }
+}
+
+export function updateRoutineConfiguration(
+  data: RoutineControlData,
+  routineId: EntityId,
+  input: RoutineConfigurationUpdateInput,
+  context: { generatedAt: string },
+): RoutineUpdateResult {
+  const currentRoutine = data.routines.find((item) => item.id === routineId)
+  if (!currentRoutine) throw new Error('Rotina não encontrada.')
+
+  const generatedAt = validateTimestamp(
+    context.generatedAt,
+    'Data de alteração',
+  )
+  const name = requireText(input.routine.name, 'Nome da rotina')
+  const shortName = requireText(input.routine.shortName, 'Nome curto')
+  const recurrence = validateRecurrence(input.routine.recurrence)
+  const schedule = normalizeRoutineSchedule(recurrence, {
+    defaultDueDays: input.routine.defaultDueDays,
+    defaultDueDay: input.routine.defaultDueDay,
+    recurrenceMonths: input.routine.recurrenceMonths,
+  })
+  const scheduleError = getRoutineScheduleError(recurrence, schedule)
+  if (scheduleError) throw new Error(scheduleError)
+
+  validateOptionalAssignee(
+    data,
+    input.routine.defaultAssigneeId ?? null,
+    currentRoutine.departmentId,
+  )
+
+  if (
+    data.routines.some(
+      (routine) =>
+        routine.id !== routineId &&
+        routine.departmentId === currentRoutine.departmentId &&
+        normalizeForComparison(routine.name) === normalizeForComparison(name),
+    )
+  ) {
+    throw new Error('Já existe uma rotina com esse nome no departamento.')
+  }
+
+  const unlinkClientIds = uniqueIds(input.unlinkClientIds)
+  unlinkClientIds.forEach((clientId) => {
+    if (!data.clients.some((client) => client.id === clientId)) {
+      throw new Error(`Empresa não encontrada: ${clientId}.`)
+    }
+    if (
+      !data.clientRoutineLinks.some(
+        (link) => link.clientId === clientId && link.routineId === routineId,
+      )
+    ) {
+      throw new Error('Um dos vínculos selecionados não está mais disponível.')
+    }
+  })
+
+  const unlinkClientIdSet = new Set(unlinkClientIds)
+  const removedLinks = data.clientRoutineLinks.filter(
+    (link) =>
+      link.routineId === routineId && unlinkClientIdSet.has(link.clientId),
+  )
+  const remainingLinks = data.clientRoutineLinks.filter(
+    (link) => !removedLinks.some((removed) => removed.id === link.id),
+  )
+  const nextExclusions = [...(data.clientRoutineExclusions ?? [])]
+  const occupiedExclusionIds = nextExclusions.map((item) => item.id)
+
+  removedLinks.forEach((link) => {
+    const client = data.clients.find((item) => item.id === link.clientId)!
+    const divisionId =
+      link.divisionId ??
+      client.divisionAssignments?.find(
+        (assignment) => assignment.departmentId === currentRoutine.departmentId,
+      )?.divisionId
+    const belongsToPreset = Boolean(
+      divisionId &&
+      (link.source === 'preset' ||
+        (data.divisionRoutineLinks ?? []).some(
+          (presetLink) =>
+            presetLink.divisionId === divisionId &&
+            presetLink.routineId === routineId,
+        )),
+    )
+
+    if (
+      !belongsToPreset ||
+      !divisionId ||
+      nextExclusions.some(
+        (exclusion) =>
+          exclusion.clientId === link.clientId &&
+          exclusion.routineId === routineId &&
+          exclusion.divisionId === divisionId,
+      )
+    ) {
+      return
+    }
+
+    const exclusion: ClientRoutineExclusion = {
+      id: createUniqueId(
+        `exclusion-${link.clientId}-${divisionId}-${routineId}`,
+        occupiedExclusionIds,
+      ),
+      clientId: link.clientId,
+      divisionId,
+      routineId,
+      createdAt: generatedAt,
+    }
+    occupiedExclusionIds.push(exclusion.id)
+    nextExclusions.push(exclusion)
+  })
+
+  const routine: Routine = {
+    ...currentRoutine,
+    name,
+    shortName,
+    description: normalizeOptionalText(input.routine.description),
+    recurrence,
+    ...schedule,
+    defaultAssigneeId: input.routine.defaultAssigneeId ?? null,
+    active: input.routine.active,
+  }
+  const preservedTaskCount = data.tasks.filter(
+    (task) =>
+      task.routineId === routineId &&
+      task.clientId !== null &&
+      unlinkClientIdSet.has(task.clientId),
+  ).length
+
+  return {
+    routine,
+    removedLinks,
+    preservedTaskCount,
+    data: {
+      ...data,
+      routines: data.routines.map((item) =>
+        item.id === routineId ? routine : item,
+      ),
+      clientRoutineLinks: remainingLinks,
+      clientRoutineExclusions: nextExclusions,
+      tasks: data.tasks,
     },
   }
 }

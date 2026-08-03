@@ -1,13 +1,25 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router'
 
-import Card from '../components/ui/Card'
-import TextField from '../components/ui/TextField'
+import {
+  CatalogAction,
+  CatalogChevron,
+  CatalogDatum,
+  CatalogEmpty,
+  CatalogHeader,
+  CatalogList,
+  CatalogPrimary,
+  CatalogRow,
+  CatalogRows,
+  CatalogStatus,
+} from '../components/catalog/CatalogList'
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
-import WorkspaceBar from '../layouts/WorkspaceBar'
 import type { RoutineControlData } from '../types/domain'
+import { normalizeSearch } from '../utils/normalizeSearch'
 import { isLeader } from '../utils/permissions'
+
+const companyGrid =
+  'lg:grid-cols-[5rem_minmax(14rem,1.5fr)_minmax(10rem,1fr)_minmax(9rem,.8fr)_5rem_6rem_1.25rem]'
 
 function CompaniesPage({ data }: { data: RoutineControlData }) {
   const { user } = useAppState()
@@ -25,7 +37,13 @@ function CompaniesPage({ data }: { data: RoutineControlData }) {
     return [...data.clients]
       .filter((client) =>
         normalizeSearch(
-          [client.code, client.name, client.legalName, client.document]
+          [
+            client.code,
+            client.name,
+            client.legalName,
+            client.document,
+            client.email,
+          ]
             .filter(Boolean)
             .join(' '),
         ).includes(query),
@@ -38,184 +56,99 @@ function CompaniesPage({ data }: { data: RoutineControlData }) {
   }, [data.clients, search])
 
   return (
-    <div className="mx-auto w-full max-w-[90rem]">
-      <WorkspaceBar
-        label="Listagem"
-        title="Todas as empresas"
-        meta={`${data.clients.length} cadastradas`}
-        actions={
-          isLeader(user) ? (
-            <CatalogAction to={ROUTES.COMPANY_CREATE}>
-              Adicionar empresa
-            </CatalogAction>
-          ) : undefined
-        }
-      />
-
-      <Card>
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--color-divider)] px-4 py-4 sm:px-5">
-          <div>
-            <h2 className="text-sm font-black text-[var(--color-text-strong)]">
-              Cadastro completo
-            </h2>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              Inclui empresas fora da planilha atualmente selecionada.
-            </p>
-          </div>
-          <TextField
-            label="Buscar empresa"
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Código, nome ou CNPJ"
-            className="w-full sm:w-80"
-          />
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[52rem] border-collapse text-left">
-            <thead className="bg-[var(--color-table-header-bg)] text-xs uppercase tracking-wide text-[var(--color-table-heading-text)]">
-              <tr>
-                <CatalogHeading>Código</CatalogHeading>
-                <CatalogHeading>Empresa</CatalogHeading>
-                <CatalogHeading>CNPJ</CatalogHeading>
-                <CatalogHeading>Divisão fiscal</CatalogHeading>
-                <CatalogHeading>Rotinas</CatalogHeading>
-                <CatalogHeading>Situação</CatalogHeading>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--color-divider)]">
-              {filteredClients.map((client) => {
-                const fiscalAssignment = client.divisionAssignments?.find(
-                  (assignment) =>
-                    data.departments
-                      .find(
-                        (department) =>
-                          department.id === assignment.departmentId,
-                      )
-                      ?.name.toLocaleLowerCase('pt-BR')
-                      .includes('fiscal'),
-                )
-                const division = data.divisions?.find(
-                  (item) => item.id === fiscalAssignment?.divisionId,
-                )
-
-                return (
-                  <tr
-                    key={client.id}
-                    className="hover:bg-[var(--color-table-row-hover-bg)]"
-                  >
-                    <CatalogCell className="font-bold text-[var(--color-text-muted)]">
-                      {client.code}
-                    </CatalogCell>
-                    <CatalogCell>
-                      <Link
-                        to={`${ROUTES.COMPANIES}/${encodeURIComponent(client.id)}?source=catalog`}
-                        className="font-black text-[var(--color-text-strong)] hover:text-[var(--color-brand)] focus-visible:underline"
-                      >
-                        {client.name}
-                      </Link>
-                      {client.legalName && client.legalName !== client.name && (
-                        <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
-                          {client.legalName}
-                        </span>
-                      )}
-                    </CatalogCell>
-                    <CatalogCell>
-                      {client.document ?? 'Não informado'}
-                    </CatalogCell>
-                    <CatalogCell>
-                      {division?.name ?? 'Não informada'}
-                    </CatalogCell>
-                    <CatalogCell>
-                      {routinesByClient.get(client.id) ?? 0}
-                    </CatalogCell>
-                    <CatalogCell>
-                      <StatusBadge active={client.active !== false} />
-                    </CatalogCell>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredClients.length === 0 && (
-          <CatalogEmpty>Nenhuma empresa encontrada.</CatalogEmpty>
-        )}
-      </Card>
-    </div>
-  )
-}
-
-export function CatalogAction({
-  to,
-  children,
-}: {
-  to: string
-  children: React.ReactNode
-}) {
-  return (
-    <Link
-      to={to}
-      className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-4 text-sm font-bold text-[var(--color-button-primary-text)] hover:bg-[var(--color-button-primary-hover-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
+    <CatalogList
+      title="Empresas"
+      countLabel={`${data.clients.length} cadastradas`}
+      resultLabel={`${filteredClients.length} de ${data.clients.length}`}
+      searchLabel="Buscar empresas"
+      searchPlaceholder="Buscar por nome, código, CNPJ ou e-mail"
+      searchValue={search}
+      onSearchChange={setSearch}
+      action={
+        isLeader(user) ? (
+          <CatalogAction to={ROUTES.COMPANY_CREATE}>
+            Adicionar empresa
+          </CatalogAction>
+        ) : undefined
+      }
     >
-      {children}
-    </Link>
-  )
-}
+      <CatalogHeader gridClass={companyGrid}>
+        <span>Código</span>
+        <span>Empresa</span>
+        <span>CNPJ</span>
+        <span>Divisão fiscal</span>
+        <span>Rotinas</span>
+        <span>Situação</span>
+        <span />
+      </CatalogHeader>
 
-export function CatalogHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <th className="border-b border-[var(--color-table-border)] px-4 py-3 font-bold">
-      {children}
-    </th>
-  )
-}
+      {filteredClients.length > 0 ? (
+        <CatalogRows>
+          {filteredClients.map((client) => {
+            const fiscalAssignment = client.divisionAssignments?.find(
+              (assignment) =>
+                data.departments
+                  .find(
+                    (department) => department.id === assignment.departmentId,
+                  )
+                  ?.name.toLocaleLowerCase('pt-BR')
+                  .includes('fiscal'),
+            )
+            const division = data.divisions?.find(
+              (item) => item.id === fiscalAssignment?.divisionId,
+            )
 
-export function CatalogCell({
-  children,
-  className = '',
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <td
-      className={`px-4 py-3 text-sm text-[var(--color-text-muted)] ${className}`}
-    >
-      {children}
-    </td>
+            return (
+              <CatalogRow
+                key={client.id}
+                to={`${ROUTES.COMPANIES}/${encodeURIComponent(client.id)}?source=catalog`}
+                ariaLabel={`Abrir empresa ${client.name}`}
+                gridClass={companyGrid}
+              >
+                <CatalogDatum
+                  label="Código"
+                  className="font-extrabold text-[var(--color-text-strong)]"
+                >
+                  {client.code}
+                </CatalogDatum>
+                <CatalogPrimary
+                  title={client.name}
+                  description={
+                    client.legalName && client.legalName !== client.name
+                      ? client.legalName
+                      : client.email
+                  }
+                />
+                <CatalogDatum label="CNPJ">
+                  {client.document ?? 'Não informado'}
+                </CatalogDatum>
+                <CatalogDatum label="Divisão fiscal">
+                  {division?.name ?? 'Não informada'}
+                </CatalogDatum>
+                <CatalogDatum label="Rotinas">
+                  {routinesByClient.get(client.id) ?? 0}
+                </CatalogDatum>
+                <CatalogDatum label="Situação">
+                  <CatalogStatus active={client.active !== false} />
+                </CatalogDatum>
+                <CatalogChevron />
+              </CatalogRow>
+            )
+          })}
+        </CatalogRows>
+      ) : (
+        <CatalogEmpty
+          title={
+            search
+              ? `Nenhuma empresa encontrada para “${search}”.`
+              : 'Nenhuma empresa cadastrada.'
+          }
+          searchValue={search}
+          onClear={() => setSearch('')}
+        />
+      )}
+    </CatalogList>
   )
-}
-
-export function StatusBadge({ active }: { active: boolean }) {
-  return (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
-        active
-          ? 'bg-[var(--status-completed-bg)] text-[var(--status-completed-text)] ring-1 ring-[var(--status-completed-border)]'
-          : 'bg-[var(--color-panel-soft-bg)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-divider)]'
-      }`}
-    >
-      {active ? 'Ativo' : 'Inativo'}
-    </span>
-  )
-}
-
-export function CatalogEmpty({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="border-t border-[var(--color-divider)] px-4 py-10 text-center text-sm text-[var(--color-text-muted)]">
-      {children}
-    </p>
-  )
-}
-
-function normalizeSearch(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLocaleLowerCase('pt-BR')
 }
 
 export default CompaniesPage
