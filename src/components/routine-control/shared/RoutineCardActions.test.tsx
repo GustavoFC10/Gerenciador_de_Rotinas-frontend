@@ -16,6 +16,7 @@ describe('RoutineAttachmentsPanel previews', () => {
   it('renders a representative preview for each saved file type', () => {
     const task: Task = {
       id: 'task-preview',
+      kind: 'scheduled',
       clientId: 'client-preview',
       routineId: 'routine-preview',
       departmentId: 'dept-fiscal',
@@ -61,6 +62,7 @@ describe('RoutineAttachmentsPanel previews', () => {
   it('uses stable row limits for the three card options', () => {
     const task: Task = {
       id: 'task-layout',
+      kind: 'scheduled',
       clientId: 'client-layout',
       routineId: 'routine-layout',
       departmentId: 'dept-fiscal',

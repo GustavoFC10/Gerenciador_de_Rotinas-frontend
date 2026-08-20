@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
-import EntityEditModal from '../components/entities/EntityEditModal'
+import EntityEditModal, {
+  type RoutineEditInput,
+} from '../components/entities/EntityEditModal'
+import ClientCoveragePanel from '../components/entities/ClientCoveragePanel'
 import RoutineListComparison from '../components/routine-control/list/RoutineListComparison'
 import Button from '../components/ui/Button'
 import {
@@ -11,16 +14,16 @@ import {
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
 import WorkspaceBar from '../layouts/WorkspaceBar'
+import type { ClientCompanyPatch } from '../services/companyService'
 import type {
   Client,
   EntityId,
   Routine,
-  RoutineConfigurationUpdateInput,
   RoutineControlData,
   RoutineListInteractionProps,
-  UpdateClientInput,
+  Screen,
 } from '../types/domain'
-import { canAccessDepartment, isLeader } from '../utils/permissions'
+import { isOrganizationAdmin } from '../utils/permissions'
 import {
   ROUTINE_LIST_MODE,
   buildRoutineListViewData,
@@ -35,32 +38,32 @@ interface EntityDetailPageProps extends Omit<
 > {
   type: EntityType
   data: RoutineControlData
-  spreadsheetId: EntityId
-  spreadsheetName: string
-  spreadsheetDepartmentId: EntityId
-  spreadsheetDivisionId: EntityId
-  spreadsheetDivisionName: string
-  onClientUpdate?: (clientId: EntityId, changes: UpdateClientInput) => void
+  screenId?: EntityId | null
+  screenName?: string | null
+  screenDepartmentId?: EntityId | null
+  onClientUpdate?: (
+    clientId: EntityId,
+    changes: ClientCompanyPatch,
+  ) => Promise<void>
   onRoutineUpdate?: (
     routineId: EntityId,
-    changes: RoutineConfigurationUpdateInput,
-  ) => void
+    changes: RoutineEditInput,
+  ) => Promise<void>
+  onClientCoverageChange?: () => Promise<void>
 }
 
 function EntityDetailPage({
   type,
   data,
-  spreadsheetId,
-  spreadsheetName,
-  spreadsheetDepartmentId,
-  spreadsheetDivisionId,
-  spreadsheetDivisionName,
+  screenId,
+  screenName,
+  screenDepartmentId,
   onClientUpdate,
   onRoutineUpdate,
+  onClientCoverageChange,
   onItemOpen,
-  onItemQuickAction,
-  onItemNoteChange,
   onItemStatusChange,
+  getAllowedStatusChanges,
 }: EntityDetailPageProps) {
   const params = useParams()
   const location = useLocation()
@@ -79,16 +82,24 @@ function EntityDetailPage({
       ? data.routines.find((item) => item.id === entityId)
       : undefined
   const entity = client ?? routine
-  const departmentId = routine?.departmentId ?? spreadsheetDepartmentId
-  const canEdit = isLeader(user) && canAccessDepartment(user, departmentId)
+  const catalogPath = type === 'client' ? ROUTES.COMPANIES : ROUTES.ROUTINES
   const wasOpenedFromCatalog =
     new URLSearchParams(location.search).get('source') === 'catalog'
   const wasOpenedFromSpreadsheet = Boolean(
     (location.state as { fromSpreadsheet?: boolean } | null)?.fromSpreadsheet,
   )
-  const spreadsheetPath = `${ROUTES.SPREADSHEET}?sheetId=${encodeURIComponent(
-    spreadsheetId,
-  )}&divisionId=${encodeURIComponent(spreadsheetDivisionId)}`
+  const screenPath = screenId
+    ? ROUTES.SPREADSHEET + '?screenId=' + encodeURIComponent(screenId)
+    : catalogPath
+  const contextLabel = wasOpenedFromCatalog
+    ? type === 'client'
+      ? 'Todas as empresas'
+      : 'Todas as rotinas'
+    : screenName
+      ? 'Tela ' + screenName
+      : type === 'client'
+        ? 'Empresas'
+        : 'Rotinas'
 
   const listViewData = useMemo(() => {
     const view = buildRoutineListViewData({
@@ -123,67 +134,42 @@ function EntityDetailPage({
               : 'Rotina não encontrada'}
           </h1>
           <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-            O cadastro pode ter sido removido ou não pertencer a esta planilha.
+            O cadastro pode ter sido arquivado, removido da tela atual ou não
+            estar disponível para seu acesso.
           </p>
           <Link
-            to={spreadsheetPath}
+            to={screenPath}
             className="mt-5 inline-flex min-h-9 items-center rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-3 text-sm font-bold text-[var(--color-button-primary-text)] hover:bg-[var(--color-button-primary-hover-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
           >
-            Voltar para a planilha
+            Voltar
           </Link>
         </div>
       </div>
     )
   }
 
-  function handleClientSave(changes: UpdateClientInput) {
-    if (!client) return
-    onClientUpdate?.(client.id, changes)
+  const canEdit =
+    isOrganizationAdmin(user) &&
+    (type === 'client' ? Boolean(onClientUpdate) : Boolean(onRoutineUpdate))
 
-    const nextDivisionId = changes.divisionAssignments.find(
-      (assignment) => assignment.departmentId === spreadsheetDepartmentId,
-    )?.divisionId
-
-    if (
-      !wasOpenedFromCatalog &&
-      nextDivisionId &&
-      nextDivisionId !== spreadsheetDivisionId
-    ) {
-      navigate(
-        `${ROUTES.COMPANIES}/${encodeURIComponent(
-          client.id,
-        )}?sheetId=${encodeURIComponent(
-          spreadsheetId,
-        )}&divisionId=${encodeURIComponent(nextDivisionId)}`,
-        { replace: true, state: { fromSpreadsheet: true } },
-      )
-    }
-
-    setIsEditing(false)
-    setSavedMessage('Dados da empresa atualizados nesta sessão.')
+  async function handleClientSave(changes: ClientCompanyPatch) {
+    if (!client || !onClientUpdate) return
+    await onClientUpdate(client.id, changes)
+    setSavedMessage('Dados da empresa atualizados.')
   }
 
-  function handleRoutineSave(changes: RoutineConfigurationUpdateInput) {
-    if (!routine) return
-    onRoutineUpdate?.(routine.id, changes)
-    setIsEditing(false)
-    setSavedMessage('Configuração da rotina atualizada nesta sessão.')
+  async function handleRoutineSave(changes: RoutineEditInput) {
+    if (!routine || !onRoutineUpdate) return
+    await onRoutineUpdate(routine.id, changes)
+    setSavedMessage('Identidade e nova versão da rotina foram publicadas.')
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <WorkspaceBar
         context={{
-          label: wasOpenedFromCatalog
-            ? type === 'client'
-              ? 'Todas as empresas'
-              : 'Todas as rotinas'
-            : `Planilha ${spreadsheetName} · ${spreadsheetDivisionName}`,
-          to: wasOpenedFromCatalog
-            ? type === 'client'
-              ? ROUTES.COMPANIES
-              : ROUTES.ROUTINES
-            : spreadsheetPath,
+          label: contextLabel,
+          to: wasOpenedFromCatalog ? catalogPath : screenPath,
           onBack:
             !wasOpenedFromCatalog && wasOpenedFromSpreadsheet
               ? () => navigate(-1)
@@ -224,8 +210,20 @@ function EntityDetailPage({
         client={client}
         routine={routine}
         data={data}
-        spreadsheetDepartmentId={spreadsheetDepartmentId}
+        itemCount={listViewData.items.length}
+        fallbackDepartmentId={screenDepartmentId}
       />
+
+      {client && onClientCoverageChange && (
+        <ClientCoveragePanel
+          client={client}
+          departments={data.departments}
+          routines={data.routines}
+          period={competence}
+          canManage={isOrganizationAdmin(user)}
+          onChanged={onClientCoverageChange}
+        />
+      )}
 
       <section
         className="mt-5 min-h-0 flex-1"
@@ -250,31 +248,28 @@ function EntityDetailPage({
         </div>
 
         <RoutineListComparison
-          key={`${type}:${entityId}`}
+          key={type + ':' + entityId}
           items={listViewData.items}
           onItemOpen={onItemOpen}
-          onItemQuickAction={onItemQuickAction}
-          onItemNoteChange={onItemNoteChange}
           onItemStatusChange={onItemStatusChange}
+          getAllowedStatusChanges={getAllowedStatusChanges}
           showHeader={false}
         />
       </section>
 
-      {isEditing && client && (
+      {isEditing && client && onClientUpdate && (
         <EntityEditModal
           type="client"
           entity={client}
-          data={data}
           onClose={() => setIsEditing(false)}
           onSave={handleClientSave}
         />
       )}
 
-      {isEditing && routine && (
+      {isEditing && routine && onRoutineUpdate && (
         <EntityEditModal
           type="routine"
           entity={routine}
-          data={data}
           onClose={() => setIsEditing(false)}
           onSave={handleRoutineSave}
         />
@@ -288,51 +283,32 @@ function EntitySummary({
   client,
   routine,
   data,
-  spreadsheetDepartmentId,
+  itemCount,
+  fallbackDepartmentId,
 }: {
   type: EntityType
   client?: Client
   routine?: Routine
   data: RoutineControlData
-  spreadsheetDepartmentId: EntityId
+  itemCount: number
+  fallbackDepartmentId?: EntityId | null
 }) {
-  const applicableRoutineCount = client
-    ? new Set(
-        data.clientRoutineLinks
-          .filter((link) => link.clientId === client.id)
-          .map((link) => link.routineId),
-      ).size
-    : 0
-  const linkedClientCount = routine
-    ? new Set(
-        data.clientRoutineLinks
-          .filter((link) => link.routineId === routine.id)
-          .map((link) => link.clientId),
-      ).size
-    : 0
-  const department = routine
-    ? data.departments.find((item) => item.id === routine.departmentId)
-    : undefined
-  const clientDivision = client
-    ? data.divisions?.find(
-        (division) =>
-          division.id ===
-          client.divisionAssignments?.find(
-            (assignment) => assignment.departmentId === spreadsheetDepartmentId,
-          )?.divisionId,
-      )
-    : undefined
-  const clientDepartment = client
-    ? data.departments.find((item) => item.id === spreadsheetDepartmentId)
-    : undefined
+  const department = data.departments.find(
+    (item) => item.id === (routine?.departmentId ?? fallbackDepartmentId),
+  )
+  const screens = getEntityScreens(data.screens, client, routine)
+  const screenLabel = screens.length
+    ? screens.map((screen) => screen.name).join(', ')
+    : 'Não exibida em nenhuma tela'
+  const assigneeName = routine?.defaultAssigneeMemberId
+    ? (data.employees.find(
+        (employee) => employee.id === routine.defaultAssigneeMemberId,
+      )?.name ?? 'Responsável configurado')
+    : 'Não definido'
 
   return (
     <section className="rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-panel)]">
-      <dl
-        className={`grid sm:grid-cols-2 ${
-          client ? 'xl:grid-cols-4' : 'xl:grid-cols-4'
-        }`}
-      >
+      <dl className="grid sm:grid-cols-2 xl:grid-cols-4">
         {type === 'client' && client ? (
           <>
             <SummaryField label="Código interno" value={client.code} />
@@ -345,27 +321,20 @@ function EntitySummary({
               value={getClientTaxRegimeLabel(client.taxRegime)}
             />
             <SummaryField
-              label={`Divisão ${
-                clientDepartment?.name.toLocaleLowerCase('pt-BR') ??
-                'operacional'
-              }`}
-              value={clientDivision?.name ?? 'Não informada'}
+              label="Telas"
+              value={String(screens.length) + ' configurada' + (screens.length === 1 ? '' : 's')}
+            />
+            <SummaryField label="CNPJ" value={client.document || 'Não informado'} />
+            <SummaryField label="E-mail" value={client.email || 'Não informado'} />
+            <SummaryField label="Celular" value={client.phone || 'Não informado'} />
+            <SummaryField
+              label="Tarefas na competência"
+              value={String(itemCount) + ' tarefa' + (itemCount === 1 ? '' : 's')}
             />
             <SummaryField
-              label="CNPJ"
-              value={client.document || 'Não informado'}
-            />
-            <SummaryField
-              label="E-mail"
-              value={client.email || 'Não informado'}
-            />
-            <SummaryField
-              label="Telefone"
-              value={client.phone || 'Não informado'}
-            />
-            <SummaryField
-              label="Rotinas aplicáveis"
-              value={`${applicableRoutineCount} vinculada${applicableRoutineCount === 1 ? '' : 's'}`}
+              label="Exibição nas telas"
+              value={screenLabel}
+              className="sm:col-span-2 xl:col-span-4"
             />
           </>
         ) : routine ? (
@@ -380,11 +349,21 @@ function EntitySummary({
             />
             <SummaryField
               label="Prazo padrão"
-              value={getRoutineDueLabel(routine)}
+              value={formatRoutineSchedule(routine)}
+            />
+            <SummaryField label="Responsável padrão" value={assigneeName} />
+            <SummaryField
+              label="Telas"
+              value={String(screens.length) + ' configurada' + (screens.length === 1 ? '' : 's')}
             />
             <SummaryField
-              label="Empresas vinculadas"
-              value={`${linkedClientCount} empresa${linkedClientCount === 1 ? '' : 's'}`}
+              label="Tarefas na competência"
+              value={String(itemCount) + ' tarefa' + (itemCount === 1 ? '' : 's')}
+            />
+            <SummaryField
+              label="Exibição nas telas"
+              value={screenLabel}
+              className="sm:col-span-2"
             />
             <SummaryField
               label="Descrição"
@@ -398,8 +377,24 @@ function EntitySummary({
   )
 }
 
-function getRoutineDueLabel(routine: Routine): string {
-  return formatRoutineSchedule(routine)
+function getEntityScreens(
+  screens: Screen[],
+  client?: Client,
+  routine?: Routine,
+): Screen[] {
+  if (client) {
+    return screens.filter((screen) =>
+      screen.companies.some((company) => company.id === client.id),
+    )
+  }
+
+  if (routine) {
+    return screens.filter((screen) =>
+      screen.routines.some((item) => item.id === routine.id),
+    )
+  }
+
+  return []
 }
 
 function SummaryField({
@@ -413,12 +408,15 @@ function SummaryField({
 }) {
   return (
     <div
-      className={`border-b border-r border-[var(--color-divider)] px-4 py-3 sm:[&:nth-child(even)]:border-r-0 xl:[&:nth-child(even)]:border-r xl:[&:nth-child(4n)]:border-r-0 ${className}`}
+      className={
+        'border-b border-r border-[var(--color-divider)] px-4 py-3 sm:[&:nth-child(even)]:border-r-0 xl:[&:nth-child(even)]:border-r xl:[&:nth-child(4n)]:border-r-0 ' +
+        className
+      }
     >
       <dt className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
         {label}
       </dt>
-      <dd className="mt-1 text-sm font-extrabold text-[var(--color-text-strong)]">
+      <dd className="mt-1 break-words text-sm font-extrabold text-[var(--color-text-strong)]">
         {value}
       </dd>
     </div>
@@ -428,18 +426,20 @@ function SummaryField({
 function EntityStatus({ active }: { active: boolean }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${
-        active
+      className={
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ' +
+        (active
           ? 'border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]'
-          : 'border-[var(--color-panel-border)] bg-[var(--color-panel-soft-bg)] text-[var(--color-text-muted)]'
-      }`}
+          : 'border-[var(--color-panel-border)] bg-[var(--color-panel-soft-bg)] text-[var(--color-text-muted)]')
+      }
     >
       <span
-        className={`size-1.5 rounded-full ${
-          active
+        className={
+          'size-1.5 rounded-full ' +
+          (active
             ? 'bg-[var(--status-completed-dot)]'
-            : 'bg-[var(--color-text-subtle)]'
-        }`}
+            : 'bg-[var(--color-text-subtle)]')
+        }
       />
       {active ? 'Ativa' : 'Inativa'}
     </span>
@@ -464,4 +464,5 @@ function EditIcon() {
   )
 }
 
+export type { RoutineEditInput }
 export default EntityDetailPage

@@ -2,7 +2,6 @@ import type { Routine, RoutineRecurrence } from '../types/domain'
 
 export interface RoutineScheduleValue {
   defaultDueDays?: number
-  defaultDueDay?: number
   recurrenceMonths?: number[]
 }
 
@@ -42,29 +41,17 @@ export function getRoutineScheduleError(
   recurrence: RoutineRecurrence,
   schedule: RoutineScheduleValue,
 ): string | null {
-  if (recurrence === 'on_demand') {
-    if (
-      !Number.isInteger(schedule.defaultDueDays) ||
-      (schedule.defaultDueDays ?? 0) < 1 ||
-      (schedule.defaultDueDays ?? 0) > 365
-    ) {
-      return 'Informe um prazo entre 1 e 365 dias após a criação.'
-    }
-    return null
-  }
-
   if (
-    !Number.isInteger(schedule.defaultDueDay) ||
-    (schedule.defaultDueDay ?? 0) < 1 ||
-    (schedule.defaultDueDay ?? 0) > 31
+    !Number.isInteger(schedule.defaultDueDays) ||
+    (schedule.defaultDueDays ?? -1) < 0 ||
+    (schedule.defaultDueDays ?? 0) > 3750
   ) {
-    return 'Informe um dia do mês entre 1 e 31.'
+    return 'Informe um prazo inteiro entre 0 e 3.750 dias.'
   }
 
-  if (recurrence === 'monthly') return null
+  if (recurrence === 'on_demand' || recurrence === 'monthly') return null
 
   const months = normalizeMonths(schedule.recurrenceMonths)
-
   if (recurrence === 'annual') {
     return months.length === 1 ? null : 'Selecione o mês da rotina anual.'
   }
@@ -86,62 +73,47 @@ export function normalizeRoutineSchedule(
   recurrence: RoutineRecurrence,
   schedule: RoutineScheduleValue,
 ): RoutineScheduleValue {
-  if (recurrence === 'on_demand') {
-    return {
-      defaultDueDays: schedule.defaultDueDays,
-      defaultDueDay: undefined,
-      recurrenceMonths: undefined,
-    }
-  }
-
-  if (recurrence === 'monthly') {
-    return {
-      defaultDueDays: undefined,
-      defaultDueDay: schedule.defaultDueDay,
-      recurrenceMonths: undefined,
-    }
-  }
-
   return {
-    defaultDueDays: undefined,
-    defaultDueDay: schedule.defaultDueDay,
-    recurrenceMonths: normalizeMonths(schedule.recurrenceMonths),
+    defaultDueDays: schedule.defaultDueDays,
+    recurrenceMonths:
+      recurrence === 'quarterly' ||
+      recurrence === 'semiannual' ||
+      recurrence === 'annual'
+        ? normalizeMonths(schedule.recurrenceMonths)
+        : [],
   }
 }
 
 export function formatRoutineSchedule(
-  routine: Pick<
-    Routine,
-    'recurrence' | 'defaultDueDay' | 'defaultDueDays' | 'recurrenceMonths'
-  >,
+  routine: Pick<Routine, 'recurrence' | 'defaultDueDays' | 'recurrenceMonths'>,
 ): string {
-  const recurrence = routine.recurrence
+  const recurrence = routine.recurrence ?? 'monthly'
+  const days = routine.defaultDueDays
+  const dueLabel =
+    typeof days === 'number'
+      ? days === 0
+        ? 'no início da competência'
+        : String(days) +
+          ' ' +
+          (days === 1 ? 'dia' : 'dias') +
+          ' após o início da competência'
+      : 'prazo não informado'
 
-  if (recurrence === 'on_demand') {
-    return routine.defaultDueDays
-      ? `${routine.defaultDueDays} ${
-          routine.defaultDueDays === 1 ? 'dia' : 'dias'
-        } após criar a tarefa`
-      : 'Prazo definido ao criar a tarefa'
-  }
-
-  if (!routine.defaultDueDay) return 'Prazo definido na tarefa'
-  if (!recurrence || recurrence === 'monthly') {
-    return `Todo mês, dia ${routine.defaultDueDay}`
-  }
+  if (recurrence === 'on_demand') return 'Sob demanda · ' + dueLabel
+  if (recurrence === 'monthly') return 'Mensal · ' + dueLabel
 
   const months = normalizeMonths(routine.recurrenceMonths)
-  if (months.length === 0) {
-    return `Dia ${routine.defaultDueDay}, conforme a recorrência`
-  }
-
   const monthLabels = months.map(
     (month) =>
       monthOptions.find((option) => option.value === month)?.shortLabel ??
       String(month),
   )
 
-  return `${monthLabels.join(', ')} · dia ${routine.defaultDueDay}`
+  return (
+    (monthLabels.length ? monthLabels.join(', ') : 'Conforme recorrência') +
+    ' · ' +
+    dueLabel
+  )
 }
 
 export function isRoutineScheduledForPeriod(
@@ -153,21 +125,7 @@ export function isRoutineScheduledForPeriod(
   if (recurrence === 'monthly') return true
 
   const month = Number(period.slice(5, 7))
-  const configuredMonths = normalizeMonths(routine.recurrenceMonths)
-  if (configuredMonths.length > 0) return configuredMonths.includes(month)
-
-  const target = parsePeriod(period)
-  const anchor = routine.recurrenceAnchorPeriod
-    ? parsePeriod(routine.recurrenceAnchorPeriod)
-    : getLegacyAnchor(target.year, recurrence)
-  const interval = {
-    quarterly: 3,
-    semiannual: 6,
-    annual: 12,
-  }[recurrence]
-  const difference = target.index - anchor.index
-
-  return difference >= 0 && difference % interval === 0
+  return normalizeMonths(routine.recurrenceMonths).includes(month)
 }
 
 export function buildRoutineDueDate(
@@ -175,15 +133,13 @@ export function buildRoutineDueDate(
   period: string,
   generatedAt: string,
 ): string {
-  if (routine.recurrence === 'on_demand' && routine.defaultDueDays) {
-    return addCalendarDays(generatedAt, routine.defaultDueDays)
+  void generatedAt
+
+  if (!/^(\d{4})-(\d{2})$/.test(period)) {
+    throw new Error('Competência inválida. Use o formato AAAA-MM.')
   }
 
-  const dueDay = routine.defaultDueDay ?? 20
-  const { year, month } = parsePeriod(period)
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
-
-  return `${period}-${String(Math.min(dueDay, lastDay)).padStart(2, '0')}`
+  return addCalendarDays(period + '-01', routine.defaultDueDays ?? 0)
 }
 
 export function normalizeMonths(months?: number[]): number[] {
@@ -221,43 +177,16 @@ function haveSameMonths(left: number[], right: number[]): boolean {
   )
 }
 
-function parsePeriod(period: string) {
-  const match = /^(\d{4})-(\d{2})$/.exec(period)
-  const year = Number(match?.[1])
-  const month = Number(match?.[2])
+function addCalendarDays(dateValue: string, dueDays: number): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue)
+  if (!match) throw new Error('Data base inválida para calcular o prazo.')
 
-  if (!match || !Number.isInteger(year) || month < 1 || month > 12) {
-    throw new Error('Competência inválida. Use o formato AAAA-MM.')
-  }
-
-  return {
-    year,
-    month,
-    index: year * 12 + month - 1,
-  }
-}
-
-function getLegacyAnchor(
-  year: number,
-  recurrence: 'quarterly' | 'semiannual' | 'annual',
-) {
-  const month =
-    recurrence === 'quarterly' ? 3 : recurrence === 'semiannual' ? 6 : 12
-  return parsePeriod(`${year}-${String(month).padStart(2, '0')}`)
-}
-
-function addCalendarDays(generatedAt: string, dueDays: number): string {
-  const calendarDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(generatedAt)
-  const baseDate = calendarDate
-    ? new Date(
-        Date.UTC(
-          Number(calendarDate[1]),
-          Number(calendarDate[2]) - 1,
-          Number(calendarDate[3]),
-        ),
-      )
-    : new Date(generatedAt)
-
-  baseDate.setUTCDate(baseDate.getUTCDate() + dueDays)
-  return baseDate.toISOString().slice(0, 10)
+  const date = new Date(
+    Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]) + dueDays,
+    ),
+  )
+  return date.toISOString().slice(0, 10)
 }

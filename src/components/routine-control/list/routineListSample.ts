@@ -174,6 +174,7 @@ export function buildRoutineListSampleItems(): RoutineListItem[] {
     department: routineListSampleDepartment,
     task: {
       id: item.id,
+      kind: 'scheduled',
       clientId: `sample-client-${item.companyCode}`,
       routineId: routineListSampleRoutine.id,
       departmentId: routineListSampleRoutine.departmentId,

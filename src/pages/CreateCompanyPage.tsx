@@ -1,5 +1,5 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Link } from 'react-router'
 
 import {
   CreationErrorSummary,
@@ -9,23 +9,16 @@ import {
 import CreationProgress from '../components/forms/CreationProgress'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
+import Select from '../components/ui/Select'
 import TextField from '../components/ui/TextField'
-import { focusRing } from '../constants/designTokens'
 import {
-  getClientTaxRegimeLabel,
+  clientTaxRegimeOptions,
   getRoutineRecurrenceLabel,
 } from '../constants/entityOptions'
 import { ROUTES } from '../constants/routes'
 import WorkspaceBar from '../layouts/WorkspaceBar'
-import type {
-  Client,
-  ClientTaxRegime,
-  CreateClientInput,
-  DepartmentDivision,
-  EntityId,
-  Routine,
-  RoutineControlData,
-} from '../types/domain'
+import type { Department, Routine, Screen } from '../types/domain'
+import type { ClientCompanyInput } from '../services/companyService'
 import { formatRoutineSchedule } from '../utils/routineSchedule'
 
 const steps = [
@@ -35,9 +28,9 @@ const steps = [
     description: 'Identificação e contato',
   },
   {
-    id: 'routines',
-    label: 'Fiscal',
-    description: 'Divisão e rotinas fiscais',
+    id: 'operations',
+    label: 'Operação',
+    description: 'Departamento, tela e rotinas',
   },
   {
     id: 'review',
@@ -50,132 +43,153 @@ interface CompanyDraft {
   name: string
   legalName: string
   code: string
-  document: string
+  cnpj: string
   email: string
-  phone: string
-  divisionId: EntityId
-  routineIds: EntityId[]
+  mobilePhone: string
+  taxRegime: string
+  departmentId: string
+  screenId: string
+  routineIds: string[]
+  startsOn: string
 }
 
 type CompanyField =
-  'name' | 'code' | 'document' | 'email' | 'divisionId' | 'submit'
+  | 'name'
+  | 'code'
+  | 'cnpj'
+  | 'email'
+  | 'departmentId'
+  | 'startsOn'
+  | 'submit'
 
 type CompanyErrors = Partial<Record<CompanyField, string>>
 
+export interface CompanySetupInput {
+  company: ClientCompanyInput
+  departmentId: string
+  screenId?: string
+  routineIds: string[]
+  startsOn: string
+}
+
 export interface CreateCompanyResult {
-  client: Client
-  createdTaskCount: number
-  linkedRoutineCount?: number
+  company: { id: string; name: string }
+  linkedRoutineCount: number
+  screenName?: string
+}
+
+export interface CompanySetupPartialResult {
+  company: { id: string; name: string }
+  departmentLinked: boolean
+  linkedRoutineCount: number
+  requestedRoutineCount: number
+  screenLinked: boolean
+  nextStep: string
+}
+
+export class CompanySetupError extends Error {
+  readonly partial: CompanySetupPartialResult
+
+  constructor(message: string, partial: CompanySetupPartialResult) {
+    super(message)
+    this.name = 'CompanySetupError'
+    this.partial = partial
+  }
 }
 
 interface CreateCompanyPageProps {
-  data: RoutineControlData
-  onCreate: (input: CreateClientInput) => CreateCompanyResult
+  departments: Department[]
+  screens: Screen[]
+  routines: Routine[]
+  period: string
+  onCreate: (input: CompanySetupInput) => Promise<CreateCompanyResult>
+  onCancel: () => void
 }
 
-const initialDraft: CompanyDraft = {
-  name: '',
-  legalName: '',
-  code: '',
-  document: '',
-  email: '',
-  phone: '',
-  divisionId: '',
-  routineIds: [],
+function getInitialDraft(period: string): CompanyDraft {
+  return {
+    name: '',
+    legalName: '',
+    code: '',
+    cnpj: '',
+    email: '',
+    mobilePhone: '',
+    taxRegime: '',
+    departmentId: '',
+    screenId: '',
+    routineIds: [],
+    startsOn: isPeriod(period) ? period + '-01' : '',
+  }
 }
 
-function CreateCompanyPage({ data, onCreate }: CreateCompanyPageProps) {
-  const navigate = useNavigate()
+function CreateCompanyPage({
+  departments,
+  screens,
+  routines,
+  period,
+  onCreate,
+  onCancel,
+}: CreateCompanyPageProps) {
   const [step, setStep] = useState(0)
-  const [draft, setDraft] = useState<CompanyDraft>(initialDraft)
+  const [draft, setDraft] = useState<CompanyDraft>(() =>
+    getInitialDraft(period),
+  )
   const [errors, setErrors] = useState<CompanyErrors>({})
   const [routineSearch, setRoutineSearch] = useState('')
-  const [pendingDivisionId, setPendingDivisionId] = useState<EntityId | null>(
-    null,
-  )
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [result, setResult] = useState<CreateCompanyResult | null>(null)
+  const [partialResult, setPartialResult] =
+    useState<CompanySetupPartialResult | null>(null)
+  const [pendingScreenId, setPendingScreenId] = useState<string | null>(null)
 
-  const fiscalDepartment = useMemo(
+  const availableScreens = useMemo(
     () =>
-      data.departments.find(
-        (department) =>
-          department.name.toLocaleLowerCase('pt-BR').includes('fiscal') &&
-          data.divisions?.some(
-            (division) => division.departmentId === department.id,
-          ),
-      ),
-    [data.departments, data.divisions],
-  )
-  const fiscalDivisions = useMemo(
-    () =>
-      (data.divisions ?? [])
+      screens
         .filter(
-          (division) =>
-            division.departmentId === fiscalDepartment?.id &&
-            division.active !== false,
+          (screen) =>
+            screen.type === 'spreadsheet' &&
+            !screen.archivedAt &&
+            screen.departmentId === draft.departmentId &&
+            screen.companies.length < 500,
         )
-        .sort((left, right) => left.position - right.position),
-    [data.divisions, fiscalDepartment?.id],
+        .sort(
+          (left, right) =>
+            left.position - right.position ||
+            left.name.localeCompare(right.name, 'pt-BR'),
+        ),
+    [draft.departmentId, screens],
   )
-  const fiscalRoutines = useMemo(
+  const selectedScreen = availableScreens.find(
+    (screen) => screen.id === draft.screenId,
+  )
+  const availableRoutines = useMemo(
     () =>
-      data.routines
+      routines
         .filter(
           (routine) =>
-            routine.departmentId === fiscalDepartment?.id &&
+            routine.departmentId === draft.departmentId &&
             routine.active !== false,
         )
-        .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR')),
-    [data.routines, fiscalDepartment?.id],
-  )
-  const selectedDivision = fiscalDivisions.find(
-    (division) => division.id === draft.divisionId,
-  )
-  const presetRoutineIds = useMemo(
-    () =>
-      getPresetRoutineIds(draft.divisionId, data.divisionRoutineLinks ?? []),
-    [data.divisionRoutineLinks, draft.divisionId],
-  )
-  const selectedRoutineIds = useMemo(
-    () => new Set(draft.routineIds),
-    [draft.routineIds],
-  )
-  const presetRoutineIdSet = useMemo(
-    () => new Set(presetRoutineIds),
-    [presetRoutineIds],
-  )
-  const filteredRoutines = useMemo(() => {
-    const query = routineSearch.trim().toLocaleLowerCase('pt-BR')
-    const presetPosition = new Map(
-      presetRoutineIds.map((routineId, index) => [routineId, index]),
-    )
+        .filter((routine) => {
+          const query = routineSearch.trim().toLocaleLowerCase('pt-BR')
+          if (!query) return true
 
-    return fiscalRoutines
-      .filter(
-        (routine) =>
-          !query ||
-          [routine.name, routine.description]
+          return [routine.name, routine.shortName, routine.description]
             .filter(Boolean)
-            .some((value) => value?.toLocaleLowerCase('pt-BR').includes(query)),
-      )
-      .sort(
-        (left, right) =>
-          Number(selectedRoutineIds.has(right.id)) -
-            Number(selectedRoutineIds.has(left.id)) ||
-          (presetPosition.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
-            (presetPosition.get(right.id) ?? Number.MAX_SAFE_INTEGER) ||
-          left.name.localeCompare(right.name, 'pt-BR'),
-      )
-  }, [fiscalRoutines, presetRoutineIds, routineSearch, selectedRoutineIds])
-  const selectedRoutines = fiscalRoutines.filter((routine) =>
+            .some((value) =>
+              value?.toLocaleLowerCase('pt-BR').includes(query),
+            )
+        })
+        .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR')),
+    [draft.departmentId, routineSearch, routines],
+  )
+  const selectedRoutineIds = new Set(draft.routineIds)
+  const selectedRoutines = routines.filter((routine) =>
     selectedRoutineIds.has(routine.id),
   )
-  const removedSuggestionCount = presetRoutineIds.filter(
-    (routineId) => !selectedRoutineIds.has(routineId),
-  ).length
-  const manuallyAddedCount = draft.routineIds.filter(
-    (routineId) => !presetRoutineIdSet.has(routineId),
-  ).length
+  const selectedDepartment = departments.find(
+    (department) => department.id === draft.departmentId,
+  )
 
   if (result) {
     return (
@@ -187,24 +201,56 @@ function CreateCompanyPage({ data, onCreate }: CreateCompanyPageProps) {
         />
         <CreationSuccess
           eyebrow="Empresa criada"
-          title={result.client.name}
-          description="O cadastro, a divisão fiscal e os vínculos escolhidos foram salvos nesta sessão. Rotinas da predefinição passam a compor a planilha; rotinas extras continuam disponíveis somente nas listagens."
-          detail={`${result.linkedRoutineCount ?? draft.routineIds.length} rotinas vinculadas · ${result.createdTaskCount} tarefas geradas para a competência atual`}
+          title={result.company.name}
+          description="O cadastro, o vínculo departamental e as rotinas escolhidas foram enviados para a API."
+          detail={
+            result.linkedRoutineCount +
+            (result.linkedRoutineCount === 1
+              ? ' rotina vinculada'
+              : ' rotinas vinculadas') +
+            (result.screenName ? ' · Tela ' + result.screenName : '')
+          }
           primaryAction={{
             label: 'Abrir empresa',
-            to: `${ROUTES.COMPANIES}/${encodeURIComponent(
-              result.client.id,
-            )}?divisionId=${encodeURIComponent(draft.divisionId)}`,
+            to:
+              ROUTES.COMPANIES +
+              '/' +
+              encodeURIComponent(result.company.id) +
+              '?source=catalog',
           }}
           secondaryAction={{
             label: 'Cadastrar outra',
             onClick: () => {
-              setDraft(initialDraft)
+              setDraft(getInitialDraft(period))
               setErrors({})
               setRoutineSearch('')
               setStep(0)
+              setPendingScreenId(null)
               setResult(null)
             },
+          }}
+        />
+      </div>
+    )
+  }
+
+  if (partialResult) {
+    return (
+      <div className="mx-auto w-full max-w-[90rem]">
+        <WorkspaceBar
+          context={{ label: 'Cadastros', to: ROUTES.HOME }}
+          label="Empresa"
+          title="Adicionar empresa"
+        />
+        <PartialSetupNotice
+          result={partialResult}
+          onCreateAnother={() => {
+            setDraft(getInitialDraft(period))
+            setErrors({})
+            setRoutineSearch('')
+            setStep(0)
+            setPendingScreenId(null)
+            setPartialResult(null)
           }}
         />
       </div>
@@ -221,69 +267,74 @@ function CreateCompanyPage({ data, onCreate }: CreateCompanyPageProps) {
     }
   }
 
-  function applyDivision(divisionId: EntityId) {
-    updateDraft('divisionId', divisionId)
-    updateDraft(
-      'routineIds',
-      getPresetRoutineIds(divisionId, data.divisionRoutineLinks ?? []),
-    )
-    setPendingDivisionId(null)
+  function updateDepartment(departmentId: string) {
+    setDraft((current) => ({
+      ...current,
+      departmentId,
+      screenId: '',
+      routineIds: [],
+    }))
+    setPendingScreenId(null)
+    setRoutineSearch('')
+    setErrors((current) => ({ ...current, departmentId: undefined }))
   }
 
-  function requestDivisionChange(divisionId: EntityId) {
-    if (divisionId === draft.divisionId) return
+  function updateScreen(screenId: string) {
+    const screen = availableScreens.find((item) => item.id === screenId)
 
-    const hasManualAdjustments =
-      draft.divisionId && !haveSameIds(draft.routineIds, presetRoutineIds)
+    setDraft((current) => ({
+      ...current,
+      screenId,
+      routineIds: screen?.routines.map((routine) => routine.id) ?? [],
+    }))
+    setPendingScreenId(null)
+  }
 
-    if (hasManualAdjustments) {
-      setPendingDivisionId(divisionId)
+  function requestScreenChange(screenId: string) {
+    if (screenId === draft.screenId) return
+
+    if (draft.routineIds.length > 0) {
+      setPendingScreenId(screenId)
       return
     }
 
-    applyDivision(divisionId)
+    updateScreen(screenId)
   }
 
-  function toggleRoutine(routineId: EntityId) {
-    updateDraft(
-      'routineIds',
-      selectedRoutineIds.has(routineId)
-        ? draft.routineIds.filter((id) => id !== routineId)
-        : [...draft.routineIds, routineId],
-    )
+  function restoreScreenSuggestions() {
+    if (!draft.screenId) return
+    updateScreen(draft.screenId)
+  }
+
+  function toggleRoutine(routineId: string) {
+    setDraft((current) => ({
+      ...current,
+      routineIds: current.routineIds.includes(routineId)
+        ? current.routineIds.filter((id) => id !== routineId)
+        : [...current.routineIds, routineId],
+    }))
   }
 
   function validateCompanyData(): CompanyErrors {
     const nextErrors: CompanyErrors = {}
-    const normalizedCode = draft.code.trim()
-    const normalizedDocument = normalizeDocument(draft.document)
+    const code = draft.code.trim()
+    const cnpj = normalizeDocument(draft.cnpj)
 
     if (!draft.name.trim()) {
       nextErrors.name = 'Informe o nome da empresa.'
     }
 
-    if (!/^\d{4}$/.test(normalizedCode)) {
-      nextErrors.code = 'O código deve ter exatamente 4 dígitos.'
-    } else if (
-      data.clients.some((client) => client.code.trim() === normalizedCode)
-    ) {
-      nextErrors.code = 'Este código já pertence a outra empresa.'
+    if (!/^[0-9]{1,32}$/.test(code)) {
+      nextErrors.code = 'Informe um código numérico com até 32 dígitos.'
     }
 
-    if (normalizedDocument.length !== 14) {
-      nextErrors.document = 'Informe um CNPJ com 14 dígitos.'
-    } else if (
-      data.clients.some(
-        (client) =>
-          normalizeDocument(client.document ?? '') === normalizedDocument,
-      )
-    ) {
-      nextErrors.document = 'Este CNPJ já está cadastrado.'
+    if (cnpj && cnpj.length !== 14) {
+      nextErrors.cnpj = 'Informe um CNPJ com 14 dígitos ou deixe o campo vazio.'
     }
 
     if (
       draft.email.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())
+      !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(draft.email.trim())
     ) {
       nextErrors.email = 'Informe um e-mail válido.'
     }
@@ -291,7 +342,26 @@ function CreateCompanyPage({ data, onCreate }: CreateCompanyPageProps) {
     return nextErrors
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function validateOperations(): CompanyErrors {
+    const nextErrors: CompanyErrors = {}
+
+    if (!draft.departmentId) {
+      nextErrors.departmentId = 'Escolha o departamento que atenderá a empresa.'
+    }
+
+    if (!isDate(draft.startsOn)) {
+      nextErrors.startsOn = 'Informe a data de início da vigência.'
+    }
+
+    if (pendingScreenId !== null) {
+      nextErrors.submit =
+        'Confirme ou cancele a troca de tela antes de continuar.'
+    }
+
+    return nextErrors
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (step === 0) {
@@ -305,58 +375,60 @@ function CreateCompanyPage({ data, onCreate }: CreateCompanyPageProps) {
     }
 
     if (step === 1) {
-      if (!draft.divisionId) {
-        setErrors({
-          divisionId: 'Escolha uma predefinição fiscal para continuar.',
-        })
-        return
+      const nextErrors = validateOperations()
+      setErrors(nextErrors)
+      if (Object.keys(nextErrors).length === 0) {
+        setStep(2)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       }
-
-      setErrors({})
-      setStep(2)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
 
-    const finalErrors = validateCompanyData()
-    if (!draft.divisionId) {
-      finalErrors.divisionId = 'Escolha uma predefinição fiscal.'
+    const finalErrors = {
+      ...validateCompanyData(),
+      ...validateOperations(),
     }
-    if (Object.keys(finalErrors).length > 0 || !fiscalDepartment) {
-      setErrors(
-        fiscalDepartment
-          ? finalErrors
-          : { submit: 'Nenhum departamento fiscal está configurado.' },
-      )
-      setStep(
-        Object.keys(finalErrors).some((key) => key !== 'divisionId') ? 0 : 1,
-      )
+    setErrors(finalErrors)
+    if (Object.keys(finalErrors).length > 0) {
+      setStep(finalErrors.departmentId || finalErrors.startsOn ? 1 : 0)
       return
     }
 
+    setIsSubmitting(true)
     try {
-      const created = onCreate({
-        name: draft.name.trim(),
-        legalName: draft.legalName.trim() || undefined,
-        code: draft.code.trim(),
-        document: formatCnpj(draft.document),
-        email: draft.email.trim() || undefined,
-        phone: draft.phone.trim() || undefined,
-        departmentId: fiscalDepartment.id,
-        divisionId: draft.divisionId,
-        taxRegime: getTaxRegime(selectedDivision),
+      const created = await onCreate({
+        company: removeEmptyFields({
+          code: draft.code.trim(),
+          name: draft.name.trim(),
+          legalName: draft.legalName.trim(),
+          cnpj: formatCnpj(draft.cnpj),
+          email: draft.email.trim(),
+          mobilePhone: draft.mobilePhone.trim(),
+          taxRegime: draft.taxRegime,
+        }),
+        departmentId: draft.departmentId,
+        ...(draft.screenId ? { screenId: draft.screenId } : {}),
         routineIds: draft.routineIds,
+        startsOn: draft.startsOn,
       })
       setErrors({})
+      setPartialResult(null)
       setResult(created)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
+      if (error instanceof CompanySetupError) {
+        setPartialResult(error.partial)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+        return
+      }
       setErrors({
         submit:
           error instanceof Error
             ? error.message
             : 'Não foi possível criar a empresa.',
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -377,10 +449,10 @@ function CreateCompanyPage({ data, onCreate }: CreateCompanyPageProps) {
         />
       </div>
 
-      <form onSubmit={handleSubmit} noValidate>
+      <form onSubmit={(event) => void handleSubmit(event)} noValidate>
         <CreationErrorSummary
-          messages={Object.values(errors).filter((message): message is string =>
-            Boolean(message),
+          messages={Object.values(errors).filter(
+            (message): message is string => Boolean(message),
           )}
         />
 
@@ -393,36 +465,37 @@ function CreateCompanyPage({ data, onCreate }: CreateCompanyPageProps) {
             />
           )}
           {step === 1 && (
-            <CompanyRoutinesStep
-              divisions={fiscalDivisions}
-              selectedDivisionId={draft.divisionId}
-              pendingDivisionId={pendingDivisionId}
-              routines={filteredRoutines}
+            <CompanyOperationsStep
+              departments={departments}
+              screens={availableScreens}
+              routines={availableRoutines}
+              draft={draft}
+              selectedScreen={selectedScreen}
               selectedRoutineIds={selectedRoutineIds}
-              presetRoutineIds={presetRoutineIdSet}
-              selectedCount={draft.routineIds.length}
-              totalCount={fiscalRoutines.length}
+              errors={errors}
               routineSearch={routineSearch}
-              divisionError={errors.divisionId}
-              onDivisionChange={requestDivisionChange}
-              onPendingDivisionConfirm={() => {
-                if (pendingDivisionId) applyDivision(pendingDivisionId)
+              onDepartmentChange={updateDepartment}
+              onScreenChange={requestScreenChange}
+              onRestoreSuggestions={restoreScreenSuggestions}
+              pendingScreenId={pendingScreenId}
+              pendingScreen={availableScreens.find(
+                (screen) => screen.id === pendingScreenId,
+              )}
+              onConfirmScreenChange={() => {
+                if (pendingScreenId !== null) updateScreen(pendingScreenId)
               }}
-              onPendingDivisionCancel={() => setPendingDivisionId(null)}
+              onCancelScreenChange={() => setPendingScreenId(null)}
+              onStartChange={(startsOn) => updateDraft('startsOn', startsOn)}
               onRoutineSearchChange={setRoutineSearch}
               onRoutineToggle={toggleRoutine}
-              onRestorePreset={() =>
-                updateDraft('routineIds', presetRoutineIds)
-              }
             />
           )}
           {step === 2 && (
             <CompanyReviewStep
               draft={draft}
-              division={selectedDivision}
+              department={selectedDepartment}
+              screen={selectedScreen}
               routines={selectedRoutines}
-              removedSuggestionCount={removedSuggestionCount}
-              manuallyAddedCount={manuallyAddedCount}
               onChangeStep={setStep}
             />
           )}
@@ -432,25 +505,28 @@ function CreateCompanyPage({ data, onCreate }: CreateCompanyPageProps) {
           <p className="text-sm text-[var(--color-text-muted)]">
             {step === 0 && 'Campos marcados com * são obrigatórios.'}
             {step === 1 &&
-              `${draft.routineIds.length} de ${fiscalRoutines.length} rotinas selecionadas.`}
-            {step === 2 && 'Nada será criado antes da confirmação.'}
+              draft.routineIds.length +
+                (draft.routineIds.length === 1
+                  ? ' rotina selecionada.'
+                  : ' rotinas selecionadas.')}
+            {step === 2 &&
+              'Nada será criado antes da confirmação. A API registrará os vínculos em sequência.'}
           </p>
           <div className="ml-auto flex gap-2">
             <Button
               type="button"
               tone="neutral"
-              onClick={() =>
-                step === 0 ? navigate(ROUTES.HOME) : setStep(step - 1)
-              }
+              disabled={isSubmitting}
+              onClick={() => (step === 0 ? onCancel() : setStep(step - 1))}
             >
               {step === 0 ? 'Cancelar' : 'Voltar'}
             </Button>
-            <Button type="submit" tone="primary">
-              {step === 2
-                ? `Criar empresa e vincular ${draft.routineIds.length} ${
-                    draft.routineIds.length === 1 ? 'rotina' : 'rotinas'
-                  }`
-                : 'Continuar'}
+            <Button type="submit" tone="primary" disabled={isSubmitting}>
+              {isSubmitting
+                ? 'Criando…'
+                : step === 2
+                  ? 'Criar empresa'
+                  : 'Continuar'}
             </Button>
           </div>
         </div>
@@ -473,36 +549,26 @@ function CompanyDataStep({
 }) {
   return (
     <Card>
-      <div className="border-b border-[var(--color-divider)] px-5 py-4 sm:px-6">
-        <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
-          Etapa 1 de 3
-        </p>
-        <h2 className="mt-1 text-lg font-black text-[var(--color-text-strong)]">
-          Identifique a empresa
-        </h2>
-        <p className="mt-1 max-w-3xl text-sm leading-5 text-[var(--color-text-muted)]">
-          Nome, código e CNPJ são a base do cadastro. Os dados de contato podem
-          ser completados agora ou editados depois.
-        </p>
-      </div>
-
+      <StepHeader
+        eyebrow="Etapa 1 de 3"
+        title="Identifique a empresa"
+        description="Nome, código e CNPJ organizam o cadastro. Os dados de contato podem ser completados agora ou editados depois."
+      />
       <div className="grid gap-6 px-5 py-5 sm:px-6 lg:grid-cols-2">
         <div className="space-y-4">
-          <div>
+          <FieldGroup error={errors.name} errorId="company-name-error">
             <TextField
               id="company-name"
               label="Nome da empresa *"
               value={draft.name}
               onChange={(event) => onUpdate('name', event.target.value)}
               autoComplete="organization"
-              aria-invalid={Boolean(errors.name)}
-              aria-describedby={errors.name ? 'company-name-error' : undefined}
               placeholder="Ex.: Aurora Comércio"
               required
+              aria-invalid={Boolean(errors.name)}
+              aria-describedby={errors.name ? 'company-name-error' : undefined}
             />
-            <FieldError id="company-name-error">{errors.name}</FieldError>
-          </div>
-
+          </FieldGroup>
           <TextField
             id="company-legal-name"
             label="Razão social (opcional)"
@@ -511,9 +577,8 @@ function CompanyDataStep({
             autoComplete="organization"
             placeholder="Nome empresarial registrado"
           />
-
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
+            <FieldGroup error={errors.code} errorId="company-code-error">
               <TextField
                 id="company-code"
                 label="Código *"
@@ -521,53 +586,47 @@ function CompanyDataStep({
                 onChange={(event) =>
                   onUpdate(
                     'code',
-                    event.target.value.replace(/\D/g, '').slice(0, 4),
+                    event.target.value.replace(/\\D/g, '').slice(0, 32),
                   )
                 }
                 inputMode="numeric"
-                maxLength={4}
+                maxLength={32}
+                placeholder="Ex.: 007"
+                required
                 aria-invalid={Boolean(errors.code)}
                 aria-describedby={
                   errors.code ? 'company-code-error' : 'company-code-hint'
                 }
-                placeholder="0001"
-                required
               />
-              <p
-                id="company-code-hint"
-                className="mt-1.5 text-xs text-[var(--color-text-muted)]"
-              >
-                Identificador interno com 4 dígitos.
-              </p>
-              <FieldError id="company-code-error">{errors.code}</FieldError>
-            </div>
-            <div>
+              {!errors.code && (
+                <p
+                  id="company-code-hint"
+                  className="mt-1.5 text-xs text-[var(--color-text-muted)]"
+                >
+                  Somente números, com até 32 dígitos.
+                </p>
+              )}
+            </FieldGroup>
+            <FieldGroup error={errors.cnpj} errorId="company-cnpj-error">
               <TextField
-                id="company-document"
-                label="CNPJ *"
-                value={draft.document}
+                id="company-cnpj"
+                label="CNPJ (opcional)"
+                value={draft.cnpj}
                 onChange={(event) =>
-                  onUpdate('document', formatCnpj(event.target.value))
+                  onUpdate('cnpj', formatCnpj(event.target.value))
                 }
                 inputMode="numeric"
                 maxLength={18}
-                autoComplete="off"
-                aria-invalid={Boolean(errors.document)}
-                aria-describedby={
-                  errors.document ? 'company-document-error' : undefined
-                }
                 placeholder="00.000.000/0000-00"
-                required
+                aria-invalid={Boolean(errors.cnpj)}
+                aria-describedby={errors.cnpj ? 'company-cnpj-error' : undefined}
               />
-              <FieldError id="company-document-error">
-                {errors.document}
-              </FieldError>
-            </div>
+            </FieldGroup>
           </div>
         </div>
 
         <div className="space-y-4">
-          <div>
+          <FieldGroup error={errors.email} errorId="company-email-error">
             <TextField
               id="company-email"
               label="E-mail (opcional)"
@@ -575,30 +634,43 @@ function CompanyDataStep({
               value={draft.email}
               onChange={(event) => onUpdate('email', event.target.value)}
               autoComplete="email"
-              aria-invalid={Boolean(errors.email)}
-              aria-describedby={
-                errors.email ? 'company-email-error' : undefined
-              }
               placeholder="contato@empresa.com.br"
+              aria-invalid={Boolean(errors.email)}
+              aria-describedby={errors.email ? 'company-email-error' : undefined}
             />
-            <FieldError id="company-email-error">{errors.email}</FieldError>
-          </div>
+          </FieldGroup>
           <TextField
             id="company-phone"
-            label="Telefone (opcional)"
+            label="Celular (opcional)"
             type="tel"
-            value={draft.phone}
-            onChange={(event) => onUpdate('phone', event.target.value)}
+            value={draft.mobilePhone}
+            onChange={(event) => onUpdate('mobilePhone', event.target.value)}
             autoComplete="tel"
             placeholder="(21) 99999-9999"
           />
+          <TextField
+            id="company-tax-regime"
+            label="Regime tributário (opcional)"
+            value={draft.taxRegime}
+            onChange={(event) => onUpdate('taxRegime', event.target.value)}
+            list="company-tax-regime-options"
+            maxLength={80}
+            placeholder="Ex.: Simples Nacional"
+          />
+          <datalist id="company-tax-regime-options">
+            {clientTaxRegimeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </datalist>
           <div className="rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-4">
             <p className="text-sm font-black text-[var(--color-text-strong)]">
               O que acontece depois?
             </p>
             <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-              Na próxima etapa você escolhe a divisão fiscal, revisa as rotinas
-              sugeridas e decide quais tarefas devem ser criadas.
+              Na próxima etapa você define o departamento, a tela de trabalho e as
+              rotinas que serão vinculadas à empresa.
             </p>
           </div>
         </div>
@@ -607,137 +679,198 @@ function CompanyDataStep({
   )
 }
 
-function CompanyRoutinesStep({
-  divisions,
-  selectedDivisionId,
-  pendingDivisionId,
+function CompanyOperationsStep({
+  departments,
+  screens,
   routines,
+  draft,
+  selectedScreen,
   selectedRoutineIds,
-  presetRoutineIds,
-  selectedCount,
-  totalCount,
+  errors,
   routineSearch,
-  divisionError,
-  onDivisionChange,
-  onPendingDivisionConfirm,
-  onPendingDivisionCancel,
+  onDepartmentChange,
+  onScreenChange,
+  onRestoreSuggestions,
+  pendingScreenId,
+  pendingScreen,
+  onConfirmScreenChange,
+  onCancelScreenChange,
+  onStartChange,
   onRoutineSearchChange,
   onRoutineToggle,
-  onRestorePreset,
 }: {
-  divisions: DepartmentDivision[]
-  selectedDivisionId: EntityId
-  pendingDivisionId: EntityId | null
+  departments: Department[]
+  screens: Screen[]
   routines: Routine[]
-  selectedRoutineIds: Set<EntityId>
-  presetRoutineIds: Set<EntityId>
-  selectedCount: number
-  totalCount: number
+  draft: CompanyDraft
+  selectedScreen?: Screen
+  selectedRoutineIds: Set<string>
+  errors: CompanyErrors
   routineSearch: string
-  divisionError?: string
-  onDivisionChange: (divisionId: EntityId) => void
-  onPendingDivisionConfirm: () => void
-  onPendingDivisionCancel: () => void
+  onDepartmentChange: (departmentId: string) => void
+  onScreenChange: (screenId: string) => void
+  onRestoreSuggestions: () => void
+  pendingScreenId: string | null
+  pendingScreen?: Screen
+  onConfirmScreenChange: () => void
+  onCancelScreenChange: () => void
+  onStartChange: (startsOn: string) => void
   onRoutineSearchChange: (value: string) => void
-  onRoutineToggle: (routineId: EntityId) => void
-  onRestorePreset: () => void
+  onRoutineToggle: (routineId: string) => void
 }) {
+  const visibleRoutines = [...routines].sort(
+    (left, right) =>
+      Number(selectedRoutineIds.has(right.id)) -
+        Number(selectedRoutineIds.has(left.id)) ||
+      Number(
+        Boolean(selectedScreen?.routines.some((item) => item.id === right.id)),
+      ) -
+        Number(
+          Boolean(selectedScreen?.routines.some((item) => item.id === left.id)),
+        ) ||
+      left.name.localeCompare(right.name, 'pt-BR'),
+  )
+
   return (
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,0.75fr)_minmax(30rem,1.25fr)]">
       <Card>
-        <div className="border-b border-[var(--color-divider)] px-5 py-4">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
-            Etapa 2 de 3
-          </p>
-          <h2 className="mt-1 text-lg font-black text-[var(--color-text-strong)]">
-            Escolha a predefinição fiscal
-          </h2>
-          <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
-            A divisão organiza a empresa na planilha e sugere um conjunto
-            inicial de rotinas. Ela não substitui o regime tributário.
-          </p>
-        </div>
-
-        <fieldset
-          id="company-division"
-          className="space-y-2 px-5 py-5"
-          aria-invalid={Boolean(divisionError)}
-          aria-required="true"
-          aria-describedby={
-            divisionError ? 'company-division-error' : undefined
-          }
-        >
-          <legend className="sr-only">Predefinição fiscal</legend>
-          {divisions.map((division) => {
-            const selected = selectedDivisionId === division.id
-
-            return (
-              <label
-                key={division.id}
-                className={`flex cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border p-3 transition ${
-                  selected
-                    ? 'border-[var(--color-control-focus)] bg-[var(--color-brand-soft)]'
-                    : 'border-[var(--color-divider)] bg-[var(--color-panel-bg)] hover:bg-[var(--color-control-hover-bg)]'
-                } ${focusRing}`}
-              >
-                <input
-                  type="radio"
-                  name="fiscal-division"
-                  value={division.id}
-                  checked={selected}
-                  onChange={() => onDivisionChange(division.id)}
-                  className="mt-0.5 size-4 accent-[var(--color-brand)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
-                  required
-                />
-                <span>
-                  <span className="block text-sm font-black text-[var(--color-text-strong)]">
-                    {division.name}
-                  </span>
-                  <span className="mt-0.5 block text-xs leading-5 text-[var(--color-text-muted)]">
-                    {division.description || 'Predefinição fiscal disponível'}
-                  </span>
-                </span>
-              </label>
-            )
-          })}
-          {divisions.length === 0 && (
-            <p className="rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] p-3 text-sm font-semibold text-[var(--status-error-text)]">
-              Nenhuma divisão fiscal está configurada.
-            </p>
-          )}
-          <FieldError id="company-division-error">{divisionError}</FieldError>
-        </fieldset>
-
-        {pendingDivisionId && (
-          <div
-            className="mx-5 mb-5 rounded-[var(--radius-control)] border border-[var(--status-progress-border)] bg-[var(--status-progress-bg)] p-3"
-            role="alert"
+        <StepHeader
+          eyebrow="Etapa 2 de 3"
+          title="Organize a operação"
+          description="O departamento determina a cobertura da empresa. A tela organiza sua visualização e sugere as rotinas iniciais."
+        />
+        <div className="space-y-4 px-5 py-5">
+          <FieldGroup
+            error={errors.departmentId}
+            errorId="company-department-error"
           >
-            <p className="text-sm font-black text-[var(--status-progress-text)]">
-              Trocar a predefinição?
-            </p>
-            <p className="mt-1 text-sm leading-5 text-[var(--status-progress-text)]">
-              As seleções manuais atuais serão substituídas pelas sugestões da
-              nova divisão.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                tone="primary"
-                onClick={onPendingDivisionConfirm}
+            <Select
+              id="company-department"
+              label="Departamento responsável *"
+              value={draft.departmentId}
+              onChange={(event) => onDepartmentChange(event.target.value)}
+              required
+              aria-invalid={Boolean(errors.departmentId)}
+              aria-describedby={
+                errors.departmentId ? 'company-department-error' : undefined
+              }
+            >
+              <option value="">Selecione o departamento</option>
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </Select>
+          </FieldGroup>
+          <FieldGroup error={errors.startsOn} errorId="company-starts-on-error">
+            <TextField
+              id="company-starts-on"
+              label="Início da vigência *"
+              type="date"
+              value={draft.startsOn}
+              onChange={(event) => onStartChange(event.target.value)}
+              required
+              aria-invalid={Boolean(errors.startsOn)}
+              aria-describedby={
+                errors.startsOn
+                  ? 'company-starts-on-error'
+                  : 'company-starts-on-hint'
+              }
+            />
+            {!errors.startsOn && (
+              <p
+                id="company-starts-on-hint"
+                className="mt-1.5 text-xs leading-5 text-[var(--color-text-muted)]"
               >
-                Trocar e aplicar sugestões
-              </Button>
-              <Button
-                size="sm"
-                tone="neutral"
-                onClick={onPendingDivisionCancel}
-              >
-                Manter seleção atual
-              </Button>
+                A API usa esta data para validar os vínculos de rotina.
+              </p>
+            )}
+          </FieldGroup>
+          <fieldset disabled={!draft.departmentId}>
+            <legend className="text-sm font-medium text-[var(--color-text-muted)]">
+              Tela operacional (opcional)
+            </legend>
+            <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
+              A tela organiza a matriz e pode sugerir as rotinas iniciais; ela
+              não é o vínculo de cobertura da empresa.
+            </p>
+            <div className="mt-3 grid gap-2">
+              <ScreenChoice
+                checked={!draft.screenId}
+                label="Sem tela inicial"
+                description="Crie a cobertura e as rotinas sem incluir a empresa em uma matriz agora."
+                onChange={() => onScreenChange('')}
+              />
+              {screens.map((screen) => (
+                <ScreenChoice
+                  key={screen.id}
+                  checked={draft.screenId === screen.id}
+                  label={screen.name}
+                  description={
+                    screen.companies.length +
+                    (screen.companies.length === 1
+                      ? ' empresa · '
+                      : ' empresas · ') +
+                    screen.routines.length +
+                    (screen.routines.length === 1
+                      ? ' rotina sugerida'
+                      : ' rotinas sugeridas')
+                  }
+                  onChange={() => onScreenChange(screen.id)}
+                />
+              ))}
+              {screens.length === 0 && (
+                <p className="rounded-[var(--radius-control)] border border-dashed border-[var(--color-divider)] px-3 py-3 text-xs leading-5 text-[var(--color-text-muted)]">
+                  Ainda não existe uma tela de planilha neste departamento.
+                </p>
+              )}
             </div>
+          </fieldset>
+
+          {pendingScreenId !== null && (
+            <div
+              className="rounded-[var(--radius-control)] border border-[var(--status-progress-border)] bg-[var(--status-progress-bg)] p-4"
+              role="alert"
+            >
+              <p className="text-sm font-black text-[var(--status-progress-text)]">
+                Trocar de tela substitui as rotinas selecionadas
+              </p>
+              <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
+                {pendingScreen
+                  ? `Usar “${pendingScreen.name}” aplicará as sugestões dessa tela.`
+                  : 'Remover a tela limpará as sugestões aplicadas.'}{' '}
+                Suas seleções manuais atuais serão removidas.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" onClick={onConfirmScreenChange}>
+                  Confirmar troca
+                </Button>
+                <Button size="sm" tone="neutral" onClick={onCancelScreenChange}>
+                  Manter seleção atual
+                </Button>
+              </div>
+            </div>
+          )}
+          <div className="rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-black text-[var(--color-text-strong)]">
+                {selectedScreen
+                  ? 'Sugestões da tela ' + selectedScreen.name
+                  : 'Escolha uma tela, se necessário'}
+              </p>
+              {selectedScreen && (
+                <Button size="sm" tone="neutral" onClick={onRestoreSuggestions}>
+                  Restaurar sugestões
+                </Button>
+              )}
+            </div>
+            <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
+              A tela não substitui a cobertura departamental. Quando selecionada,
+              ela sugere rotinas e recebe a empresa em sua matriz após a criação.
+            </p>
           </div>
-        )}
+        </div>
       </Card>
 
       <Card>
@@ -748,18 +881,12 @@ function CompanyRoutinesStep({
                 Revise as rotinas atribuídas
               </h2>
               <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
-                {selectedCount} de {totalCount} selecionadas. Você pode remover
-                sugestões ou adicionar rotinas gerais.
+                {selectedRoutineIds.size}
+                {selectedRoutineIds.size === 1
+                  ? ' rotina selecionada.'
+                  : ' rotinas selecionadas.'}
               </p>
             </div>
-            <Button
-              size="sm"
-              tone="neutral"
-              onClick={onRestorePreset}
-              disabled={!selectedDivisionId}
-            >
-              Restaurar sugestões
-            </Button>
           </div>
           <div className="mt-4">
             <TextField
@@ -768,79 +895,72 @@ function CompanyRoutinesStep({
               type="search"
               value={routineSearch}
               onChange={(event) => onRoutineSearchChange(event.target.value)}
-              placeholder="Busque por nome ou descrição"
-              disabled={!selectedDivisionId}
+              placeholder="Busque por nome, nome curto ou descrição"
+              disabled={!draft.departmentId}
             />
           </div>
         </div>
 
-        {!selectedDivisionId ? (
-          <div className="px-5 py-10 text-center">
-            <p className="text-sm font-bold text-[var(--color-text-strong)]">
-              Escolha uma predefinição para carregar as sugestões.
-            </p>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-              A lista continuará editável antes da confirmação.
-            </p>
-          </div>
+        {!draft.departmentId ? (
+          <EmptyPanel
+            title="Escolha um departamento para carregar as rotinas."
+            description="A lista continuará editável antes da confirmação."
+          />
+        ) : routines.length === 0 ? (
+          <EmptyPanel
+            title="Nenhuma rotina disponível neste departamento."
+            description="Crie ou vincule uma rotina antes de continuar."
+          />
         ) : (
           <fieldset>
             <legend className="sr-only">Rotinas atribuídas à empresa</legend>
             <ul className="max-h-[32rem] divide-y divide-[var(--color-divider)] overflow-y-auto">
-              {routines.map((routine) => {
+              {visibleRoutines.map((routine) => {
                 const checked = selectedRoutineIds.has(routine.id)
-                const suggested = presetRoutineIds.has(routine.id)
+                const suggested = selectedScreen?.routines.some(
+                  (item) => item.id === routine.id,
+                )
 
                 return (
                   <li key={routine.id}>
-                    <label className="flex cursor-pointer items-start gap-3 px-5 py-3 hover:bg-[var(--color-control-hover-bg)]">
+                    <label className="flex cursor-pointer items-start gap-3 px-5 py-3 transition hover:bg-[var(--color-control-hover-bg)]">
                       <input
                         type="checkbox"
-                        name="company-routines"
-                        value={routine.id}
                         checked={checked}
                         onChange={() => onRoutineToggle(routine.id)}
-                        className="mt-1 size-4 accent-[var(--color-brand)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
+                        className="mt-0.5 size-4 accent-[var(--color-brand)]"
                       />
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-black text-[var(--color-text-strong)]">
                             {routine.name}
                           </span>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                              suggested
-                                ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-strong)]'
-                                : 'bg-[var(--color-panel-soft-bg)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-divider)]'
-                            }`}
-                          >
-                            {suggested ? 'Sugerida' : 'Rotina geral'}
-                          </span>
+                          {suggested && (
+                            <span className="rounded-full bg-[var(--color-brand-soft)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[var(--color-brand)]">
+                              Sugerida pela tela
+                            </span>
+                          )}
                         </span>
                         <span className="mt-1 block text-xs leading-5 text-[var(--color-text-muted)]">
-                          {getRoutineRecurrenceLabel(routine.recurrence)} ·{' '}
+                          {routine.shortName}
+                          {' · '}
+                          {getRoutineRecurrenceLabel(routine.recurrence)}
+                          {' · '}
                           {formatRoutineSchedule(routine)}
                         </span>
+                        {routine.description && (
+                          <span className="mt-0.5 block text-xs leading-5 text-[var(--color-text-muted)]">
+                            {routine.description}
+                          </span>
+                        )}
                       </span>
                     </label>
                   </li>
                 )
               })}
-              {routines.length === 0 && (
-                <li className="px-5 py-8 text-center text-sm text-[var(--color-text-muted)]">
-                  Nenhuma rotina corresponde à busca.
-                </li>
-              )}
             </ul>
           </fieldset>
         )}
-
-        <div className="border-t border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-5 py-3">
-          <p className="text-xs leading-5 text-[var(--color-text-muted)]">
-            Rotinas gerais adicionadas fora da predefinição ficam acessíveis nas
-            listagens da empresa, mas não criam novas colunas nesta planilha.
-          </p>
-        </div>
       </Card>
     </div>
   )
@@ -848,114 +968,236 @@ function CompanyRoutinesStep({
 
 function CompanyReviewStep({
   draft,
-  division,
+  department,
+  screen,
   routines,
-  removedSuggestionCount,
-  manuallyAddedCount,
   onChangeStep,
 }: {
   draft: CompanyDraft
-  division?: DepartmentDivision
+  department?: Department
+  screen?: Screen
   routines: Routine[]
-  removedSuggestionCount: number
-  manuallyAddedCount: number
   onChangeStep: (step: number) => void
 }) {
   return (
     <Card>
-      <div className="border-b border-[var(--color-divider)] px-5 py-4 sm:px-6">
-        <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
-          Etapa 3 de 3
-        </p>
-        <h2 className="mt-1 text-lg font-black text-[var(--color-text-strong)]">
-          Confira antes de criar
-        </h2>
-        <p className="mt-1 max-w-3xl text-sm leading-5 text-[var(--color-text-muted)]">
-          Revise o cadastro e volte diretamente à seção que precisar de ajuste.
-        </p>
-      </div>
-
+      <StepHeader
+        eyebrow="Etapa 3 de 3"
+        title="Revise antes de criar"
+        description="Confira os dados e os vínculos que serão registrados na organização."
+      />
       <div className="divide-y divide-[var(--color-divider)] px-5 sm:px-6">
-        <ReviewSection
-          title="Empresa"
-          onChange={() => onChangeStep(0)}
-          rows={[
-            ['Nome', draft.name],
-            ['Razão social', draft.legalName || 'Não informada'],
-            ['Código', draft.code],
-            ['CNPJ', formatCnpj(draft.document)],
-            ['E-mail', draft.email || 'Não informado'],
-            ['Telefone', draft.phone || 'Não informado'],
-          ]}
-        />
-        <ReviewSection
-          title="Perfil fiscal"
-          onChange={() => onChangeStep(1)}
-          rows={[
-            ['Divisão fiscal', division?.name ?? 'Não selecionada'],
-            [
-              'Regime associado',
-              getClientTaxRegimeLabel(getTaxRegime(division)),
-            ],
-          ]}
-        >
-          <div className="mt-3 flex flex-wrap gap-2">
-            <ReviewBadge>
-              {routines.length} {routines.length === 1 ? 'rotina' : 'rotinas'}
-            </ReviewBadge>
-            {removedSuggestionCount > 0 && (
-              <ReviewBadge>
-                {removedSuggestionCount}{' '}
-                {removedSuggestionCount === 1
-                  ? 'sugestão removida'
-                  : 'sugestões removidas'}
-              </ReviewBadge>
-            )}
-            {manuallyAddedCount > 0 && (
-              <ReviewBadge>
-                {manuallyAddedCount}{' '}
-                {manuallyAddedCount === 1
-                  ? 'rotina geral adicionada'
-                  : 'rotinas gerais adicionadas'}
-              </ReviewBadge>
-            )}
-          </div>
-          <ul className="mt-4 grid gap-2 md:grid-cols-2">
-            {routines.map((routine) => (
-              <li
-                key={routine.id}
-                className="rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-3 py-2"
-              >
-                <p className="text-sm font-bold text-[var(--color-text-strong)]">
-                  {routine.name}
-                </p>
-                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                  {getRoutineRecurrenceLabel(routine.recurrence)}
-                </p>
-              </li>
-            ))}
-            {routines.length === 0 && (
-              <li className="text-sm text-[var(--color-text-muted)]">
-                Nenhuma rotina será vinculada agora.
-              </li>
-            )}
-          </ul>
+        <ReviewSection title="Dados da empresa" onChange={() => onChangeStep(0)}>
+          <ReviewGrid
+            entries={[
+              ['Nome', draft.name],
+              ['Código', draft.code],
+              ['Razão social', draft.legalName || 'Não informada'],
+              ['CNPJ', draft.cnpj || 'Não informado'],
+              ['E-mail', draft.email || 'Não informado'],
+              ['Celular', draft.mobilePhone || 'Não informado'],
+            ]}
+          />
+        </ReviewSection>
+        <ReviewSection title="Operação" onChange={() => onChangeStep(1)}>
+          <ReviewGrid
+            entries={[
+              ['Departamento', department?.name || 'Não informado'],
+              ['Início da vigência', formatDate(draft.startsOn)],
+              ['Tela operacional', screen?.name || 'Não selecionada'],
+              ['Rotinas', String(routines.length)],
+            ]}
+          />
+          {routines.length > 0 && (
+            <ul className="mt-4 grid gap-2 sm:grid-cols-2" aria-label="Rotinas selecionadas">
+              {routines.map((routine) => (
+                <li
+                  key={routine.id}
+                  className="rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-3 py-2"
+                >
+                  <span className="block text-sm font-black text-[var(--color-text-strong)]">
+                    {routine.name}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
+                    {routine.shortName} · {getRoutineRecurrenceLabel(routine.recurrence)}{' '}
+                    · {formatRoutineSchedule(routine)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </ReviewSection>
       </div>
     </Card>
   )
 }
 
+function ScreenChoice({
+  checked,
+  label,
+  description,
+  onChange,
+}: {
+  checked: boolean
+  label: string
+  description: string
+  onChange: () => void
+}) {
+  return (
+    <label
+      className={
+        'flex cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border p-3 transition ' +
+        (checked
+          ? 'border-[var(--color-control-focus)] bg-[var(--color-brand-soft)]'
+          : 'border-[var(--color-divider)] bg-[var(--color-panel-bg)] hover:bg-[var(--color-control-hover-bg)]')
+      }
+    >
+      <input
+        type="radio"
+        name="company-screen"
+        checked={checked}
+        onChange={onChange}
+        className="mt-0.5 size-4 shrink-0 accent-[var(--color-brand)]"
+      />
+      <span className="min-w-0">
+        <span className="block text-sm font-black text-[var(--color-text-strong)]">
+          {label}
+        </span>
+        <span className="mt-0.5 block text-xs leading-5 text-[var(--color-text-muted)]">
+          {description}
+        </span>
+      </span>
+    </label>
+  )
+}
+
+function PartialSetupNotice({
+  result,
+  onCreateAnother,
+}: {
+  result: CompanySetupPartialResult
+  onCreateAnother: () => void
+}) {
+  const completedSteps = [
+    result.departmentLinked ? 'vínculo departamental criado' : null,
+    result.linkedRoutineCount
+      ? String(result.linkedRoutineCount) +
+        (result.linkedRoutineCount === 1
+          ? ' rotina vinculada'
+          : ' rotinas vinculadas')
+      : null,
+    result.screenLinked ? 'tela atualizada' : null,
+  ].filter((step): step is string => Boolean(step))
+
+  return (
+    <Card className="mx-auto w-full max-w-3xl">
+      <div className="border-b border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-5 py-5 sm:px-7">
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--status-error-text)]">
+          Cadastro parcialmente concluído
+        </p>
+        <h2 className="mt-1 text-xl font-black text-[var(--color-text-strong)]">
+          {result.company.name} já foi criada
+        </h2>
+      </div>
+      <div className="px-5 py-5 sm:px-7">
+        <p className="text-sm leading-6 text-[var(--color-text-muted)]">
+          A API concluiu parte da sequência antes de interromper a operação. Não
+          envie novamente este formulário, pois o código da empresa já pode
+          estar reservado.
+        </p>
+        {completedSteps.length > 0 && (
+          <p className="mt-3 rounded-[var(--radius-control)] bg-[var(--color-panel-soft-bg)] px-3 py-2 text-sm font-semibold text-[var(--color-text-strong)]">
+            Concluído: {completedSteps.join(' · ')}
+          </p>
+        )}
+        <p className="mt-3 text-sm font-bold text-[var(--status-error-text)]">
+          Próxima ação: {result.nextStep}
+        </p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Link
+            to={
+              ROUTES.COMPANIES +
+              '/' +
+              encodeURIComponent(result.company.id) +
+              '?source=catalog'
+            }
+            className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-4 text-sm font-bold text-[var(--color-button-primary-text)] hover:bg-[var(--color-button-primary-hover-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
+          >
+            Abrir empresa
+          </Link>
+          <Button tone="neutral" onClick={onCreateAnother}>
+            Cadastrar outra empresa
+          </Button>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function StepHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string
+  title: string
+  description: string
+}) {
+  return (
+    <div className="border-b border-[var(--color-divider)] px-5 py-4 sm:px-6">
+      <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
+        {eyebrow}
+      </p>
+      <h2 className="mt-1 text-lg font-black text-[var(--color-text-strong)]">
+        {title}
+      </h2>
+      <p className="mt-1 max-w-3xl text-sm leading-5 text-[var(--color-text-muted)]">
+        {description}
+      </p>
+    </div>
+  )
+}
+
+function FieldGroup({
+  error,
+  errorId,
+  children,
+}: {
+  error?: string
+  errorId: string
+  children: ReactNode
+}) {
+  return (
+    <div>
+      {children}
+      <FieldError id={errorId}>{error}</FieldError>
+    </div>
+  )
+}
+
+function EmptyPanel({
+  title,
+  description,
+}: {
+  title: string
+  description: string
+}) {
+  return (
+    <div className="px-5 py-10 text-center">
+      <p className="text-sm font-bold text-[var(--color-text-strong)]">{title}</p>
+      <p className="mt-1 text-sm text-[var(--color-text-muted)]">{description}</p>
+    </div>
+  )
+}
+
 function ReviewSection({
   title,
-  rows,
   onChange,
   children,
 }: {
   title: string
-  rows: Array<[string, string]>
   onChange: () => void
-  children?: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <section className="py-5">
@@ -967,80 +1209,84 @@ function ReviewSection({
           Alterar
         </Button>
       </div>
-      <dl className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        {rows.map(([label, value]) => (
-          <div key={label}>
-            <dt className="text-xs font-bold text-[var(--color-text-muted)]">
-              {label}
-            </dt>
-            <dd className="mt-0.5 text-sm font-semibold text-[var(--color-text-strong)]">
-              {value}
-            </dd>
-          </div>
-        ))}
-      </dl>
       {children}
     </section>
   )
 }
 
-function ReviewBadge({ children }: { children: React.ReactNode }) {
+function ReviewGrid({ entries }: { entries: Array<[string, string]> }) {
   return (
-    <span className="rounded-full bg-[var(--color-brand-soft)] px-2.5 py-1 text-xs font-bold text-[var(--color-brand-strong)]">
-      {children}
-    </span>
+    <dl className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+      {entries.map(([label, value]) => (
+        <div key={label}>
+          <dt className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+            {label}
+          </dt>
+          <dd className="mt-1 text-sm font-bold text-[var(--color-text-strong)]">
+            {value}
+          </dd>
+        </div>
+      ))}
+    </dl>
   )
 }
 
-function getPresetRoutineIds(
-  divisionId: EntityId,
-  links: Array<{
-    divisionId: EntityId
-    routineId: EntityId
-    position: number
-  }>,
-): EntityId[] {
-  return links
-    .filter((link) => link.divisionId === divisionId)
-    .sort(
-      (left, right) =>
-        left.position - right.position ||
-        left.routineId.localeCompare(right.routineId),
-    )
-    .map((link) => link.routineId)
-    .filter((routineId, index, values) => values.indexOf(routineId) === index)
-}
-
-function haveSameIds(left: EntityId[], right: EntityId[]): boolean {
-  if (left.length !== right.length) return false
-  const rightIds = new Set(right)
-  return left.every((id) => rightIds.has(id))
+function removeEmptyFields(input: ClientCompanyInput): ClientCompanyInput {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== ''),
+  ) as ClientCompanyInput
 }
 
 function normalizeDocument(value: string): string {
-  return value.replace(/\D/g, '').slice(0, 14)
+  return value.replace(/\D/g, '')
 }
 
 function formatCnpj(value: string): string {
-  const digits = normalizeDocument(value)
+  const digits = normalizeDocument(value).slice(0, 14)
 
-  return digits
-    .replace(/^(\d{2})(\d)/, '$1.$2')
-    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1/$2')
-    .replace(/(\d{4})(\d)/, '$1-$2')
+  if (digits.length <= 2) return digits
+  if (digits.length <= 5) return digits.slice(0, 2) + '.' + digits.slice(2)
+  if (digits.length <= 8) {
+    return digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5)
+  }
+  if (digits.length <= 12) {
+    return (
+      digits.slice(0, 2) +
+      '.' +
+      digits.slice(2, 5) +
+      '.' +
+      digits.slice(5, 8) +
+      '/' +
+      digits.slice(8)
+    )
+  }
+
+  return (
+    digits.slice(0, 2) +
+    '.' +
+    digits.slice(2, 5) +
+    '.' +
+    digits.slice(5, 8) +
+    '/' +
+    digits.slice(8, 12) +
+    '-' +
+    digits.slice(12)
+  )
 }
 
-function getTaxRegime(
-  division?: DepartmentDivision,
-): ClientTaxRegime | undefined {
-  if (!division) return undefined
+function isDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
 
-  const slug = division.slug.toLocaleLowerCase('pt-BR')
-  if (slug.includes('simples')) return 'simples_nacional'
-  if (slug.includes('lucro-presumido')) return 'lucro_presumido'
-  if (slug === 'mei' || slug.endsWith('-mei')) return 'mei'
-  return undefined
+function isPeriod(value: string): boolean {
+  return /^\d{4}-\d{2}$/.test(value)
+}
+
+function formatDate(value: string): string {
+  if (!isDate(value)) return 'Não informada'
+
+  const [year, month, day] = value.split('-')
+  return day + '/' + month + '/' + year
 }
 
 export default CreateCompanyPage

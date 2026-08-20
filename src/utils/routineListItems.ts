@@ -28,17 +28,7 @@ export function buildRoutineListViewData({
   filter: RoutineListFilter
 }): RoutineListViewData {
   const relations = normalizeRoutineData(data)
-  const linkedCells = new Set(
-    data.clientRoutineLinks.map((link) => `${link.clientId}:${link.routineId}`),
-  )
-  const operationalTasks = data.tasks.filter(
-    (task) =>
-      task.isLoose ||
-      (task.clientId !== null &&
-        task.routineId !== null &&
-        linkedCells.has(`${task.clientId}:${task.routineId}`)),
-  )
-  const tasks = selectTasks(operationalTasks, filter)
+  const tasks = selectTasks(data.tasks, filter)
   const selectedClient = filter.id
     ? relations.clientsById.get(filter.id)
     : undefined
@@ -116,7 +106,7 @@ function buildRoutineListItem(
   const department = relations.departmentsById.get(task.departmentId)
   const isClientMode = filter.type === ROUTINE_LIST_MODE.CLIENT
   const isRoutineMode = filter.type === ROUTINE_LIST_MODE.ROUTINE
-  const isLooseTask = Boolean(task.isLoose)
+  const isAdHocTask = task.kind === 'ad_hoc'
   const looseTitle = task.title ?? 'Tarefa avulsa'
   const clientName = client?.name ?? 'Sem empresa'
   const routineName = routine?.name ?? 'Sem rotina'
@@ -126,7 +116,7 @@ function buildRoutineListItem(
     task.status,
     task.statusDetail,
   )
-  const primaryLabel = isLooseTask
+  const primaryLabel = isAdHocTask
     ? looseTitle
     : isClientMode
       ? routineName
@@ -143,9 +133,9 @@ function buildRoutineListItem(
     originType: filter.type,
     primaryLabel,
     title: primaryLabel,
-    companyCode: isLooseTask ? (client?.code ?? 'AV') : (client?.code ?? '--'),
+    companyCode: isAdHocTask ? (client?.code ?? 'AV') : (client?.code ?? '--'),
     companyName: primaryLabel,
-    routineName: isLooseTask ? looseContextLabel : routineName,
+    routineName: isAdHocTask ? looseContextLabel : routineName,
     departmentName: department?.name ?? 'Sem departamento',
     period: task.period,
     status: task.status,

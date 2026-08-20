@@ -6,9 +6,9 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
-  currentUserMock,
-  leaderUserMock,
-  managerUserMock,
+  adminUserMock,
+  leadUserMock,
+  memberUserMock,
 } from '../../constants/roles'
 import { AuthContext } from '../../contexts/authContextDefinition'
 import type { AuthContextValue } from '../../contexts/authContextDefinition'
@@ -35,16 +35,16 @@ afterEach(async () => {
 })
 
 describe('RequirePermission', () => {
-  it('renders protected content for an authorized manager', async () => {
-    await renderGuard(managerUserMock, APP_PERMISSION.CREATE_EMPLOYEE)
+  it('renders protected content for an authorized admin', async () => {
+    await renderGuard(adminUserMock, APP_PERMISSION.CREATE_EMPLOYEE)
 
     expect(host.querySelector('[data-protected]')?.textContent).toBe(
       'Conteúdo protegido',
     )
   })
 
-  it('redirects an authenticated employee without permission', async () => {
-    await renderGuard(currentUserMock, APP_PERMISSION.CREATE_COMPANY)
+  it('redirects an authenticated member without permission', async () => {
+    await renderGuard(memberUserMock, APP_PERMISSION.CREATE_COMPANY)
 
     expect(host.querySelector('[data-location]')?.textContent).toBe('/')
     expect(
@@ -52,8 +52,8 @@ describe('RequirePermission', () => {
     ).toContain('"accessDenied":true')
   })
 
-  it('applies department scope to a leader', async () => {
-    await renderGuard(leaderUserMock, APP_PERMISSION.CREATE_ROUTINE, [
+  it('does not treat a department lead as an organization admin', async () => {
+    await renderGuard(leadUserMock, APP_PERMISSION.CREATE_ROUTINE, [
       'dept-contabil',
     ])
 
@@ -77,10 +77,19 @@ async function renderGuard(
   departmentIds: string[] = [],
 ) {
   const authValue: AuthContextValue = {
+    session: null,
     user,
+    memberships: [],
+    activeMembership: null,
     isAuthenticated: Boolean(user),
-    login: async () => undefined,
-    logout: () => undefined,
+    isInitializing: false,
+    initializationError: null,
+    login: async () => {
+      throw new Error('Not implemented in this test.')
+    },
+    logout: async () => undefined,
+    selectActiveMembership: async () => undefined,
+    refreshSession: async () => undefined,
   }
 
   await act(async () => {

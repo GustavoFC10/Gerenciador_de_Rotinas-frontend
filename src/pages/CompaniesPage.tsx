@@ -16,24 +16,26 @@ import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
 import type { RoutineControlData } from '../types/domain'
 import { normalizeSearch } from '../utils/normalizeSearch'
-import { isLeader } from '../utils/permissions'
+import { isOrganizationAdmin } from '../utils/permissions'
 
 const companyGrid =
-  'lg:grid-cols-[5rem_minmax(14rem,1.5fr)_minmax(10rem,1fr)_minmax(9rem,.8fr)_5rem_6rem_1.25rem]'
+  'lg:grid-cols-[5rem_minmax(14rem,1.5fr)_minmax(10rem,1fr)_5rem_6rem_1.25rem]'
 
 function CompaniesPage({ data }: { data: RoutineControlData }) {
   const { user } = useAppState()
   const [search, setSearch] = useState('')
   const routinesByClient = useMemo(() => {
-    const counts = new Map<string, number>()
-    data.clientRoutineLinks.forEach((link) =>
-      counts.set(link.clientId, (counts.get(link.clientId) ?? 0) + 1),
-    )
-    return counts
-  }, [data.clientRoutineLinks])
-  const filteredClients = useMemo(() => {
+    const result = new Map<string, Set<string>>()
+    data.tasks.forEach((task) => {
+      if (!task.clientId || !task.routineId) return
+      const routineIds = result.get(task.clientId) ?? new Set<string>()
+      routineIds.add(task.routineId)
+      result.set(task.clientId, routineIds)
+    })
+    return result
+  }, [data.tasks])
+  const clients = useMemo(() => {
     const query = normalizeSearch(search)
-
     return [...data.clients]
       .filter((client) =>
         normalizeSearch(
@@ -59,16 +61,14 @@ function CompaniesPage({ data }: { data: RoutineControlData }) {
     <CatalogList
       title="Empresas"
       countLabel={`${data.clients.length} cadastradas`}
-      resultLabel={`${filteredClients.length} de ${data.clients.length}`}
+      resultLabel={`${clients.length} de ${data.clients.length}`}
       searchLabel="Buscar empresas"
       searchPlaceholder="Buscar por nome, código, CNPJ ou e-mail"
       searchValue={search}
       onSearchChange={setSearch}
       action={
-        isLeader(user) ? (
-          <CatalogAction to={ROUTES.COMPANY_CREATE}>
-            Adicionar empresa
-          </CatalogAction>
+        isOrganizationAdmin(user) ? (
+          <CatalogAction to={ROUTES.COMPANY_CREATE}>Nova empresa</CatalogAction>
         ) : undefined
       }
     >
@@ -76,65 +76,45 @@ function CompaniesPage({ data }: { data: RoutineControlData }) {
         <span>Código</span>
         <span>Empresa</span>
         <span>CNPJ</span>
-        <span>Divisão fiscal</span>
         <span>Rotinas</span>
         <span>Situação</span>
         <span />
       </CatalogHeader>
-
-      {filteredClients.length > 0 ? (
+      {clients.length ? (
         <CatalogRows>
-          {filteredClients.map((client) => {
-            const fiscalAssignment = client.divisionAssignments?.find(
-              (assignment) =>
-                data.departments
-                  .find(
-                    (department) => department.id === assignment.departmentId,
-                  )
-                  ?.name.toLocaleLowerCase('pt-BR')
-                  .includes('fiscal'),
-            )
-            const division = data.divisions?.find(
-              (item) => item.id === fiscalAssignment?.divisionId,
-            )
-
-            return (
-              <CatalogRow
-                key={client.id}
-                to={`${ROUTES.COMPANIES}/${encodeURIComponent(client.id)}?source=catalog`}
-                ariaLabel={`Abrir empresa ${client.name}`}
-                gridClass={companyGrid}
+          {clients.map((client) => (
+            <CatalogRow
+              key={client.id}
+              to={`${ROUTES.COMPANIES}/${encodeURIComponent(client.id)}?source=catalog`}
+              ariaLabel={`Abrir empresa ${client.name}`}
+              gridClass={companyGrid}
+            >
+              <CatalogDatum
+                label="Código"
+                className="font-extrabold text-[var(--color-text-strong)]"
               >
-                <CatalogDatum
-                  label="Código"
-                  className="font-extrabold text-[var(--color-text-strong)]"
-                >
-                  {client.code}
-                </CatalogDatum>
-                <CatalogPrimary
-                  title={client.name}
-                  description={
-                    client.legalName && client.legalName !== client.name
-                      ? client.legalName
-                      : client.email
-                  }
-                />
-                <CatalogDatum label="CNPJ">
-                  {client.document ?? 'Não informado'}
-                </CatalogDatum>
-                <CatalogDatum label="Divisão fiscal">
-                  {division?.name ?? 'Não informada'}
-                </CatalogDatum>
-                <CatalogDatum label="Rotinas">
-                  {routinesByClient.get(client.id) ?? 0}
-                </CatalogDatum>
-                <CatalogDatum label="Situação">
-                  <CatalogStatus active={client.active !== false} />
-                </CatalogDatum>
-                <CatalogChevron />
-              </CatalogRow>
-            )
-          })}
+                {client.code}
+              </CatalogDatum>
+              <CatalogPrimary
+                title={client.name}
+                description={
+                  client.legalName !== client.name
+                    ? client.legalName
+                    : client.email
+                }
+              />
+              <CatalogDatum label="CNPJ">
+                {client.document ?? 'Não informado'}
+              </CatalogDatum>
+              <CatalogDatum label="Rotinas">
+                {routinesByClient.get(client.id)?.size ?? 0}
+              </CatalogDatum>
+              <CatalogDatum label="Situação">
+                <CatalogStatus active={client.active !== false} />
+              </CatalogDatum>
+              <CatalogChevron />
+            </CatalogRow>
+          ))}
         </CatalogRows>
       ) : (
         <CatalogEmpty

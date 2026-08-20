@@ -4,14 +4,13 @@ import { Navigate, useLocation, useNavigate } from 'react-router'
 import Button from '../components/ui/Button'
 import { ROUTES } from '../constants/routes'
 import { useAuth } from '../hooks/useAuth'
-import { mockLoginCredentials } from '../services/authService'
 
 interface LoginLocationState {
   from?: string
 }
 
 function LoginPage() {
-  const { isAuthenticated, login } = useAuth()
+  const { initializationError, isAuthenticated, login } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -42,12 +41,6 @@ function LoginPage() {
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  function fillDemoCredentials() {
-    setEmail(mockLoginCredentials.email)
-    setPassword(mockLoginCredentials.password)
-    setError('')
   }
 
   return (
@@ -168,12 +161,12 @@ function LoginPage() {
                 </span>
               </label>
 
-              {error && (
+              {(error || initializationError) && (
                 <p
                   className="rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3 py-2.5 text-sm font-semibold text-[var(--status-error-text)]"
                   role="alert"
                 >
-                  {error}
+                  {error || initializationError?.message}
                 </p>
               )}
 
@@ -186,26 +179,6 @@ function LoginPage() {
                 {isSubmitting ? 'Entrando...' : 'Entrar'}
               </Button>
             </form>
-
-            <aside className="mt-6 rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--color-text-muted)]">
-                    Acesso de desenvolvimento
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
-                    Conta temporária enquanto o backend não está conectado.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={fillDemoCredentials}
-                  className="shrink-0 rounded-[var(--radius-control)] px-2 py-1 text-xs font-extrabold text-[var(--color-brand)] outline-none hover:bg-[var(--color-brand-soft)] focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
-                >
-                  Preencher
-                </button>
-              </div>
-            </aside>
           </div>
 
           <p className="mt-5 text-center text-xs leading-5 text-[var(--color-text-muted)]">

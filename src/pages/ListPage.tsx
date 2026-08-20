@@ -5,17 +5,12 @@ import { ROUTINE_LIST_MODE } from '../utils/routineListItems'
 
 function ListPage() {
   const [searchParams] = useSearchParams()
-  const spreadsheetId = searchParams.get('sheetId') ?? 'fiscal'
-  const divisionId = searchParams.get('divisionId')
+  const screenId = searchParams.get('screenId')
   const requestedType = searchParams.get('type')
   const id = searchParams.get('id')
-  const spreadsheetContext = new URLSearchParams({
-    sheetId: spreadsheetId,
-  })
-
-  if (divisionId) {
-    spreadsheetContext.set('divisionId', divisionId)
-  }
+  const spreadsheetContext = new URLSearchParams(
+    screenId ? { screenId } : undefined,
+  )
 
   if (id && requestedType === ROUTINE_LIST_MODE.CLIENT) {
     return (

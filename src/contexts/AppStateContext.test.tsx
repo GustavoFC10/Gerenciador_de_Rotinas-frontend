@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
-import { managerUserMock } from '../constants/roles'
+import { adminUserMock } from '../constants/roles'
 import { useAppState } from '../hooks/useAppState'
 import { AuthContext } from './authContextDefinition'
 import type { AuthContextValue } from './authContextDefinition'
@@ -10,7 +10,7 @@ import { AppStateProvider } from './AppStateContext'
 describe('AppStateProvider authenticated user', () => {
   it('exposes the exact user from AuthContext', () => {
     const markup = renderToStaticMarkup(
-      <AuthContext.Provider value={buildAuthValue(managerUserMock)}>
+      <AuthContext.Provider value={buildAuthValue(adminUserMock)}>
         <AppStateProvider>
           <UserProbe />
         </AppStateProvider>
@@ -18,7 +18,7 @@ describe('AppStateProvider authenticated user', () => {
     )
 
     expect(markup).toContain('Carla Melo')
-    expect(markup).toContain('manager')
+    expect(markup).toContain('admin')
   })
 
   it('does not invent an application user before authentication', () => {
@@ -42,9 +42,18 @@ function UserProbe() {
 
 function buildAuthValue(user: AuthContextValue['user']): AuthContextValue {
   return {
+    session: null,
     user,
+    memberships: [],
+    activeMembership: null,
     isAuthenticated: Boolean(user),
-    login: async () => undefined,
-    logout: () => undefined,
+    isInitializing: false,
+    initializationError: null,
+    login: async () => {
+      throw new Error('Not implemented in this test.')
+    },
+    logout: async () => undefined,
+    selectActiveMembership: async () => undefined,
+    refreshSession: async () => undefined,
   }
 }

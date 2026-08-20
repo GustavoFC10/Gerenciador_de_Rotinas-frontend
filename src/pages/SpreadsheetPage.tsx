@@ -1,84 +1,82 @@
 import RoutineControlTable from '../components/routine-control/spreadsheet/RoutineControlTable'
-import SpreadsheetDivisionNavigation from '../components/routine-control/spreadsheet/SpreadsheetDivisionNavigation'
+import SpreadsheetScreenNavigation from '../components/routine-control/spreadsheet/SpreadsheetScreenNavigation'
 import WorkspaceBar from '../layouts/WorkspaceBar'
 import type {
   Client,
-  ClientRoutineLink,
-  Department,
-  DepartmentDivision,
   EntityId,
   Routine,
   RoutineStatus,
+  Screen,
+  SpreadsheetProjection,
   Task,
 } from '../types/domain'
-import type { SpreadsheetDivisionNavigationItem } from '../types/navigation'
+import type { ScreenNavigationItem } from '../types/navigation'
 
 interface SpreadsheetPageProps {
-  spreadsheetName?: string
-  divisionName?: string
-  divisions?: SpreadsheetDivisionNavigationItem[]
-  selectedDivisionId?: EntityId | null
+  departmentName?: string
+  screens: ScreenNavigationItem[]
+  selectedScreenId: EntityId | null
+  screen: Screen
+  projection: SpreadsheetProjection
   visibleData: {
-    departments?: Department[]
-    divisions?: DepartmentDivision[]
     clients: Client[]
     routines: Routine[]
-    clientRoutineLinks: ClientRoutineLink[]
     tasks: Task[]
   }
   onClientOpen?: (client: Client) => void
   onRoutineOpen?: (routine: Routine) => void
   onTaskOpen?: (task: Task) => void
   onTaskStatusChange?: (taskId: EntityId, status: RoutineStatus) => void
+  getAllowedTaskStatusChanges?: (task: Task) => readonly RoutineStatus[]
   onTaskAttachmentAdd?: (task: Task) => void
 }
 
 function SpreadsheetPage({
-  spreadsheetName = 'Fiscal',
-  divisionName,
-  divisions = [],
-  selectedDivisionId = null,
+  departmentName,
+  screens,
+  selectedScreenId,
+  screen,
+  projection,
   visibleData,
   onClientOpen,
   onRoutineOpen,
   onTaskOpen,
   onTaskStatusChange,
+  getAllowedTaskStatusChanges,
   onTaskAttachmentAdd,
 }: SpreadsheetPageProps) {
+  const title = departmentName ?? screen.departmentName
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <WorkspaceBar
         label="Departamento"
-        title={spreadsheetName}
-        meta={`${divisionName ? `${divisionName} · ` : ''}${
-          visibleData.clients.length
-        } empresas · ${visibleData.routines.length} rotinas`}
+        title={title}
+        meta={screen.name + ' · ' + screen.companies.length + ' empresas · ' + screen.routines.length + ' rotinas'}
       />
 
-      <SpreadsheetDivisionNavigation
-        items={divisions}
-        activeDivisionId={selectedDivisionId}
-        selectLabel={`Divisão ${spreadsheetName.toLocaleLowerCase('pt-BR')}`}
-        ariaLabel={`Planilhas do departamento ${spreadsheetName}`}
+      <SpreadsheetScreenNavigation
+        items={screens}
+        activeScreenId={selectedScreenId}
+        selectLabel={'Tela de ' + title.toLocaleLowerCase('pt-BR')}
+        ariaLabel={'Telas do departamento ' + title}
         className="mb-3"
       />
 
       <div className="min-h-0 flex-1">
         <RoutineControlTable
-          accessibleName={`Planilha ${spreadsheetName}${
-            divisionName ? ` — ${divisionName}` : ''
-          }`}
+          accessibleName={'Planilha ' + title + ' — ' + screen.name}
           showHeader={false}
-          departments={visibleData.departments}
-          divisions={visibleData.divisions}
           clients={visibleData.clients}
           routines={visibleData.routines}
-          clientRoutineLinks={visibleData.clientRoutineLinks}
+          screen={screen}
+          projection={projection}
           tasks={visibleData.tasks}
           onClientOpen={onClientOpen}
           onRoutineOpen={onRoutineOpen}
           onTaskOpen={onTaskOpen}
           onTaskStatusChange={onTaskStatusChange}
+          getAllowedTaskStatusChanges={getAllowedTaskStatusChanges}
           onTaskAttachmentAdd={onTaskAttachmentAdd}
         />
       </div>

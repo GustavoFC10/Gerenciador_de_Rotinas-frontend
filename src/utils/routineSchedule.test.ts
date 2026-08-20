@@ -10,27 +10,25 @@ import {
 } from './routineSchedule'
 
 describe('routineSchedule', () => {
-  it('uses days after creation only for on-demand routines', () => {
+  it('uses backend due days from the start of the competence', () => {
     expect(
       getRoutineScheduleError('on_demand', { defaultDueDays: 5 }),
     ).toBeNull()
     expect(
       normalizeRoutineSchedule('on_demand', {
         defaultDueDays: 5,
-        defaultDueDay: 20,
         recurrenceMonths: [1],
       }),
     ).toEqual({
       defaultDueDays: 5,
-      defaultDueDay: undefined,
-      recurrenceMonths: undefined,
+      recurrenceMonths: [],
     })
     expect(
       formatRoutineSchedule({
         recurrence: 'on_demand',
         defaultDueDays: 5,
       }),
-    ).toBe('5 dias após criar a tarefa')
+    ).toBe('Sob demanda · 5 dias após o início da competência')
   })
 
   it('offers only evenly spaced quarterly and semiannual cycles', () => {
@@ -53,7 +51,7 @@ describe('routineSchedule', () => {
     ])
     expect(
       getRoutineScheduleError('quarterly', {
-        defaultDueDay: 10,
+        defaultDueDays: 10,
         recurrenceMonths: [1, 2, 3, 4],
       }),
     ).toBe('Selecione um ciclo trimestral.')
@@ -67,11 +65,13 @@ describe('routineSchedule', () => {
       shortName: 'Trimestral',
       recurrence: 'quarterly',
       recurrenceMonths: [1, 4, 7, 10],
-      defaultDueDay: 15,
+      defaultDueDays: 14,
     }
 
     expect(isRoutineScheduledForPeriod(routine, '2026-04')).toBe(true)
     expect(isRoutineScheduledForPeriod(routine, '2026-05')).toBe(false)
-    expect(formatRoutineSchedule(routine)).toBe('Jan, Abr, Jul, Out · dia 15')
+    expect(formatRoutineSchedule(routine)).toBe(
+      'Jan, Abr, Jul, Out · 14 dias após o início da competência',
+    )
   })
 })

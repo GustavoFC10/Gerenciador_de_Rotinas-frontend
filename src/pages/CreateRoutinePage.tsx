@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -6,69 +7,101 @@ import {
   type ReactNode,
 } from 'react'
 
+import {
+  CreationErrorSummary,
+  CreationSuccess,
+} from '../components/forms/CreationFeedback'
 import FormActions from '../components/forms/FormActions'
-import RoutineScheduleFields from '../components/forms/RoutineScheduleFields'
+import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Select from '../components/ui/Select'
 import Textarea from '../components/ui/Textarea'
 import TextField from '../components/ui/TextField'
 import { routineRecurrenceOptions } from '../constants/entityOptions'
 import WorkspaceBar from '../layouts/WorkspaceBar'
-import type {
-  CreateRoutineInput,
-  Routine,
-  RoutineControlData,
-  RoutineRecurrence,
-} from '../types/domain'
-import {
-  formatRoutineSchedule,
-  getRoutineScheduleError,
-  normalizeRoutineSchedule,
-} from '../utils/routineSchedule'
+import { departmentService, type TaskAssigneeResource } from '../services/departmentService'
+import type { RoutineInput, RoutineResource } from '../services/routineService'
+import type { Department, RoutineRecurrence } from '../types/domain'
 
 interface CreateRoutinePageProps {
-  data: RoutineControlData
+  departments: Department[]
   period: string
-  onCreate: (input: CreateRoutineInput) => Routine
-  onCancel?: () => void
+  onCreate: (input: RoutineInput) => Promise<RoutineResource>
+  onCancel: () => void
 }
 
 interface RoutineFormValues {
   name: string
+  shotname: string
   description: string
   departmentId: string
-  recurrence: RoutineRecurrence | ''
-  defaultAssigneeId: string
+  recurrence: RoutineRecurrence
   defaultDueDays: string
-  defaultDueDay: string
+  defaultAssigneeMemberId: string
   recurrenceMonths: number[]
 }
 
-type RoutineFormField = keyof RoutineFormValues
-type RoutineFormErrorField = RoutineFormField | 'schedule'
-type RoutineFormErrors = Partial<Record<RoutineFormErrorField, string>>
+type RoutineFormField =
+  | keyof RoutineFormValues
+  | 'schedule'
+  | 'submit'
+
+type RoutineFormErrors = Partial<Record<RoutineFormField, string>>
 
 const initialValues: RoutineFormValues = {
   name: '',
+  shotname: '',
   description: '',
   departmentId: '',
-  recurrence: '',
-  defaultAssigneeId: '',
-  defaultDueDays: '',
-  defaultDueDay: '',
+  recurrence: 'monthly',
+  defaultDueDays: '14',
+  defaultAssigneeMemberId: '',
   recurrenceMonths: [],
 }
 
 const recurrenceDescriptions: Record<RoutineRecurrence, string> = {
   on_demand: 'Criada somente quando alguém precisar executar este trabalho.',
   monthly: 'Repete a cada competência mensal.',
-  quarterly: 'Repete a cada três meses.',
-  semiannual: 'Repete a cada seis meses.',
-  annual: 'Repete uma vez por ano.',
+  quarterly: 'Repete em quatro meses definidos no ano.',
+  semiannual: 'Repete em dois meses definidos no ano.',
+  annual: 'Repete em um mês definido no ano.',
+}
+
+const recurrenceMonthOptions: Record<
+  Exclude<RoutineRecurrence, 'monthly' | 'on_demand'>,
+  Array<{ value: string; label: string; months: number[] }>
+> = {
+  quarterly: [
+    { value: '1-4-7-10', label: 'Janeiro, abril, julho e outubro', months: [1, 4, 7, 10] },
+    { value: '2-5-8-11', label: 'Fevereiro, maio, agosto e novembro', months: [2, 5, 8, 11] },
+    { value: '3-6-9-12', label: 'Março, junho, setembro e dezembro', months: [3, 6, 9, 12] },
+  ],
+  semiannual: [
+    { value: '1-7', label: 'Janeiro e julho', months: [1, 7] },
+    { value: '2-8', label: 'Fevereiro e agosto', months: [2, 8] },
+    { value: '3-9', label: 'Março e setembro', months: [3, 9] },
+    { value: '4-10', label: 'Abril e outubro', months: [4, 10] },
+    { value: '5-11', label: 'Maio e novembro', months: [5, 11] },
+    { value: '6-12', label: 'Junho e dezembro', months: [6, 12] },
+  ],
+  annual: [
+    { value: '1', label: 'Janeiro', months: [1] },
+    { value: '2', label: 'Fevereiro', months: [2] },
+    { value: '3', label: 'Março', months: [3] },
+    { value: '4', label: 'Abril', months: [4] },
+    { value: '5', label: 'Maio', months: [5] },
+    { value: '6', label: 'Junho', months: [6] },
+    { value: '7', label: 'Julho', months: [7] },
+    { value: '8', label: 'Agosto', months: [8] },
+    { value: '9', label: 'Setembro', months: [9] },
+    { value: '10', label: 'Outubro', months: [10] },
+    { value: '11', label: 'Novembro', months: [11] },
+    { value: '12', label: 'Dezembro', months: [12] },
+  ],
 }
 
 function CreateRoutinePage({
-  data,
+  departments,
   period,
   onCreate,
   onCancel,
@@ -76,73 +109,103 @@ function CreateRoutinePage({
   const [values, setValues] = useState<RoutineFormValues>(initialValues)
   const [errors, setErrors] = useState<RoutineFormErrors>({})
   const [submissionError, setSubmissionError] = useState('')
-  const [createdRoutine, setCreatedRoutine] = useState<Routine | null>(null)
+  const [createdRoutine, setCreatedRoutine] = useState<RoutineResource | null>(
+    null,
+  )
+  const [assignees, setAssignees] = useState<TaskAssigneeResource[]>([])
+  const [isLoadingAssignees, setIsLoadingAssignees] = useState(false)
+  const [assigneesError, setAssigneesError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const errorSummaryRef = useRef<HTMLDivElement>(null)
 
-  const availableDepartments = useMemo(
-    () =>
-      [...data.departments].sort((left, right) =>
-        left.name.localeCompare(right.name, 'pt-BR'),
-      ),
-    [data.departments],
-  )
-
-  const availableEmployees = useMemo(
-    () =>
-      data.employees
-        .filter(
-          (employee) =>
-            employee.active !== false &&
-            (!values.departmentId ||
-              !employee.departmentIds?.length ||
-              employee.departmentIds.includes(values.departmentId)),
-        )
-        .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR')),
-    [data.employees, values.departmentId],
-  )
-
-  const selectedDepartment = data.departments.find(
+  const selectedDepartment = departments.find(
     (department) => department.id === values.departmentId,
   )
-  const selectedEmployee = data.employees.find(
-    (employee) => employee.id === values.defaultAssigneeId,
+  const selectedAssignee = assignees.find(
+    (assignee) => assignee.id === values.defaultAssigneeMemberId,
   )
   const selectedRecurrence = routineRecurrenceOptions.find(
     (option) => option.value === values.recurrence,
   )
+  const monthOptions =
+    values.recurrence === 'quarterly' ||
+    values.recurrence === 'semiannual' ||
+    values.recurrence === 'annual'
+      ? recurrenceMonthOptions[values.recurrence]
+      : []
+  const selectedMonthsValue = values.recurrenceMonths.join('-')
 
-  function updateField<Field extends RoutineFormField>(
+  useEffect(() => {
+    let isCurrent = true
+
+    if (!values.departmentId) {
+      setAssignees([])
+      setAssigneesError('')
+      setIsLoadingAssignees(false)
+      return () => {
+        isCurrent = false
+      }
+    }
+
+    setIsLoadingAssignees(true)
+    setAssigneesError('')
+    setAssignees([])
+    setValues((current) => ({ ...current, defaultAssigneeMemberId: '' }))
+
+    void departmentService
+      .getTaskAssignees(values.departmentId)
+      .then((response) => {
+        if (isCurrent) setAssignees(response.data)
+      })
+      .catch((error: unknown) => {
+        if (isCurrent) {
+          setAssigneesError(
+            error instanceof Error
+              ? error.message
+              : 'Não foi possível carregar responsáveis elegíveis.',
+          )
+        }
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingAssignees(false)
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [values.departmentId])
+
+  if (createdRoutine) {
+    return (
+      <div className="mx-auto w-full max-w-[90rem]">
+        <WorkspaceBar label="Cadastros" title="Nova rotina" />
+        <CreationSuccess
+          eyebrow="Rotina criada"
+          title={createdRoutine.name}
+          description="O modelo e sua primeira versão foram enviados para a API. Nenhuma tarefa foi criada nesta etapa."
+          detail={
+            selectedDepartment?.name +
+            ' · ' +
+            (selectedRecurrence?.label || 'Recorrência')
+          }
+          primaryAction={{ label: 'Ver rotinas', to: '/rotinas' }}
+          secondaryAction={{
+            label: 'Criar outra rotina',
+            onClick: resetForm,
+          }}
+        />
+      </div>
+    )
+  }
+
+  function updateField<Field extends keyof RoutineFormValues>(
     field: Field,
     value: RoutineFormValues[Field],
   ) {
     setCreatedRoutine(null)
     setSubmissionError('')
-    setErrors((current) => {
-      if (!current[field]) return current
-
-      const nextErrors = { ...current }
-      delete nextErrors[field]
-      return nextErrors
-    })
-    setValues((current) => {
-      if (field !== 'departmentId') {
-        return { ...current, [field]: value }
-      }
-
-      const nextDepartmentId = String(value)
-      const assignedEmployee = data.employees.find(
-        (employee) => employee.id === current.defaultAssigneeId,
-      )
-      const canKeepAssignee =
-        !assignedEmployee?.departmentIds?.length ||
-        assignedEmployee.departmentIds.includes(nextDepartmentId)
-
-      return {
-        ...current,
-        departmentId: nextDepartmentId,
-        defaultAssigneeId: canKeepAssignee ? current.defaultAssigneeId : '',
-      }
-    })
+    setErrors((current) => ({ ...current, [field]: undefined }))
+    setValues((current) => ({ ...current, [field]: value }))
   }
 
   function updateRecurrence(recurrence: RoutineRecurrence) {
@@ -152,38 +215,71 @@ function CreateRoutinePage({
       ...current,
       recurrence: undefined,
       schedule: undefined,
+      defaultAssigneeMemberId: undefined,
     }))
     setValues((current) => ({
       ...current,
       recurrence,
-      defaultDueDays: '',
-      defaultDueDay: '',
       recurrenceMonths: [],
     }))
   }
 
-  function updateSchedule(schedule: {
-    defaultDueDays?: number
-    defaultDueDay?: number
-    recurrenceMonths?: number[]
-  }) {
-    setErrors((current) => ({ ...current, schedule: undefined }))
-    setValues((current) => ({
-      ...current,
-      defaultDueDays: schedule.defaultDueDays
-        ? String(schedule.defaultDueDays)
-        : '',
-      defaultDueDay: schedule.defaultDueDay
-        ? String(schedule.defaultDueDay)
-        : '',
-      recurrenceMonths: schedule.recurrenceMonths ?? [],
-    }))
+  function validate(): RoutineFormErrors {
+    const nextErrors: RoutineFormErrors = {}
+    const dueDays = Number(values.defaultDueDays)
+
+    if (!values.name.trim()) nextErrors.name = 'Informe o título da rotina.'
+    if (!values.shotname.trim()) {
+      nextErrors.shotname = 'Informe o nome curto mostrado na planilha.'
+    } else if (values.shotname.trim().length > 32) {
+      nextErrors.shotname = 'O nome curto pode ter até 32 caracteres.'
+    }
+    if (!values.description.trim()) {
+      nextErrors.description = 'Informe a descrição da rotina.'
+    }
+    if (!values.departmentId) {
+      nextErrors.departmentId = 'Selecione o departamento.'
+    }
+    if (
+      !Number.isInteger(dueDays) ||
+      dueDays < 0 ||
+      dueDays > 3750
+    ) {
+      nextErrors.schedule =
+        'Informe um prazo inteiro entre 0 e 3.750 dias.'
+    }
+    if (
+      values.recurrence !== 'on_demand' &&
+      !values.defaultAssigneeMemberId
+    ) {
+      nextErrors.defaultAssigneeMemberId =
+        'Selecione o responsável padrão da rotina recorrente.'
+    }
+    if (
+      values.recurrence === 'quarterly' &&
+      values.recurrenceMonths.length !== 4
+    ) {
+      nextErrors.schedule = 'Selecione um ciclo trimestral.'
+    }
+    if (
+      values.recurrence === 'semiannual' &&
+      values.recurrenceMonths.length !== 2
+    ) {
+      nextErrors.schedule = 'Selecione um ciclo semestral.'
+    }
+    if (
+      values.recurrence === 'annual' &&
+      values.recurrenceMonths.length !== 1
+    ) {
+      nextErrors.schedule = 'Selecione o mês da rotina anual.'
+    }
+
+    return nextErrors
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-
-    const nextErrors = validateRoutine(values)
+    const nextErrors = validate()
     setErrors(nextErrors)
     setSubmissionError('')
 
@@ -192,11 +288,24 @@ function CreateRoutinePage({
       return
     }
 
-    const input = buildCreateInput(values)
-
+    setIsSubmitting(true)
     try {
-      const routine = onCreate(input)
+      const routine = await onCreate({
+        departmentId: values.departmentId,
+        name: values.name.trim(),
+        shotname: values.shotname.trim(),
+        description: values.description.trim(),
+        recurrence: values.recurrence,
+        defaultDueDays: Number(values.defaultDueDays),
+        recurrenceMonths: values.recurrenceMonths,
+        ...(values.defaultAssigneeMemberId
+          ? {
+              defaultAssigneeMemberId: values.defaultAssigneeMemberId,
+            }
+          : {}),
+      })
       setCreatedRoutine(routine)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
       setSubmissionError(
         error instanceof Error
@@ -204,6 +313,8 @@ function CreateRoutinePage({
           : 'Não foi possível criar a rotina. Revise os dados e tente novamente.',
       )
       window.requestAnimationFrame(() => errorSummaryRef.current?.focus())
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -217,9 +328,12 @@ function CreateRoutinePage({
     )
   }
 
-  const errorEntries = Object.entries(errors) as Array<
-    [RoutineFormErrorField, string]
-  >
+  const errorEntries = [
+    ...Object.values(errors).filter((message): message is string =>
+      Boolean(message),
+    ),
+    ...(submissionError ? [submissionError] : []),
+  ]
 
   return (
     <div className="mx-auto w-full max-w-[90rem]">
@@ -235,71 +349,24 @@ function CreateRoutinePage({
       />
 
       <p className="-mt-1 mb-5 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
-        Defina o padrão que poderá ser associado às empresas. Este cadastro não
-        cria tarefas nem altera as planilhas atuais.
+        Defina o padrão que poderá ser associado às empresas. O cadastro publica
+        uma versão da regra, sem criar tarefas nem alterar as telas atuais.
       </p>
 
-      {createdRoutine && (
-        <section
-          className="mb-5 flex flex-wrap items-start justify-between gap-4 rounded-[var(--radius-panel)] border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-4 py-4 text-[var(--status-completed-text)] shadow-[var(--shadow-panel)] sm:px-5"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-[var(--status-completed-strong-bg)] text-[var(--status-completed-strong-text)]">
-              <CheckIcon />
-            </span>
-            <div>
-              <h2 className="font-black">Rotina criada</h2>
-              <p className="mt-1 text-sm leading-5">
-                <strong>{createdRoutine.name}</strong> foi salva como modelo.
-                Nenhuma tarefa ou planilha foi criada.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={resetForm}
-            className="rounded-[var(--radius-control)] px-2 py-1 text-sm font-extrabold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
-          >
-            Criar outra rotina
-          </button>
-        </section>
-      )}
-
-      <form onSubmit={handleSubmit} noValidate>
-        {(errorEntries.length > 0 || submissionError) && (
+      <form onSubmit={(event) => void handleSubmit(event)} noValidate>
+        {errorEntries.length > 0 && (
           <div
             ref={errorSummaryRef}
             className="mb-5 rounded-[var(--radius-panel)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-4 py-4 text-[var(--status-error-text)] shadow-[var(--shadow-panel)] sm:px-5"
             role="alert"
             tabIndex={-1}
-            aria-labelledby="routine-error-title"
           >
-            <h2 id="routine-error-title" className="text-sm font-black">
-              {submissionError
-                ? 'Não foi possível criar a rotina'
-                : `Revise ${errorEntries.length === 1 ? 'o campo indicado' : 'os campos indicados'}`}
-            </h2>
-            {submissionError ? (
-              <p className="mt-1 text-sm">{submissionError}</p>
-            ) : (
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                {errorEntries.map(([field, message]) => (
-                  <li key={field}>
-                    <button
-                      type="button"
-                      className="text-left font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
-                      onClick={() =>
-                        document.getElementById(fieldIds[field])?.focus()
-                      }
-                    >
-                      {message}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <p className="font-black">Revise os dados da rotina</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+              {[...new Set(errorEntries)].map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -310,22 +377,16 @@ function CreateRoutinePage({
                 <SectionHeading
                   number="1"
                   id="routine-identification-title"
-                  title="Identificação"
-                  description="Nomeie o modelo e explique qual trabalho ele representa."
+                  title="Identificação do modelo"
+                  description="Dê um nome claro ao trabalho e indique onde ele será executado."
                 />
-
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                  <FieldContainer
-                    error={errors.name}
-                    errorId="routine-name-error"
-                  >
+                  <FieldContainer error={errors.name} errorId="routine-name-error">
                     <TextField
                       id="routine-name"
-                      label="Título da rotina *"
+                      label="Nome da rotina *"
                       value={values.name}
-                      onChange={(event) =>
-                        updateField('name', event.target.value)
-                      }
+                      onChange={(event) => updateField('name', event.target.value)}
                       placeholder="Ex.: Importar notas de entrada"
                       autoComplete="off"
                       autoFocus
@@ -336,7 +397,26 @@ function CreateRoutinePage({
                       }
                     />
                   </FieldContainer>
-
+                  <FieldContainer
+                    error={errors.shotname}
+                    errorId="routine-shotname-error"
+                  >
+                    <TextField
+                      id="routine-shotname"
+                      label="Nome curto na planilha *"
+                      value={values.shotname}
+                      onChange={(event) =>
+                        updateField('shotname', event.target.value)
+                      }
+                      maxLength={32}
+                      placeholder="Ex.: NFs entrada"
+                      required
+                      aria-invalid={Boolean(errors.shotname)}
+                      aria-describedby={
+                        errors.shotname ? 'routine-shotname-error' : undefined
+                      }
+                    />
+                  </FieldContainer>
                   <FieldContainer
                     error={errors.departmentId}
                     errorId="routine-department-error"
@@ -357,7 +437,7 @@ function CreateRoutinePage({
                       }
                     >
                       <option value="">Selecione o departamento</option>
-                      {availableDepartments.map((department) => (
+                      {departments.map((department) => (
                         <option key={department.id} value={department.id}>
                           {department.name}
                         </option>
@@ -368,12 +448,10 @@ function CreateRoutinePage({
                         id="routine-department-help"
                         className="mt-1.5 text-xs leading-5 text-[var(--color-text-muted)]"
                       >
-                        A divisão e as empresas serão vinculadas em outro
-                        momento.
+                        As empresas e telas serão configuradas em outro momento.
                       </p>
                     )}
                   </FieldContainer>
-
                   <FieldContainer
                     error={errors.description}
                     errorId="routine-description-error"
@@ -401,8 +479,7 @@ function CreateRoutinePage({
                         id="routine-description-help"
                         className="mt-1.5 text-xs leading-5 text-[var(--color-text-muted)]"
                       >
-                        Esta orientação acompanha o modelo quando ele for
-                        utilizado.
+                        Esta orientação acompanhará a versão publicada do modelo.
                       </p>
                     )}
                   </FieldContainer>
@@ -416,29 +493,13 @@ function CreateRoutinePage({
                   number="2"
                   id="routine-execution-title"
                   title="Padrões de execução"
-                  description="Escolha a frequência e, se fizer sentido, deixe um responsável e um prazo sugeridos."
+                  description="Escolha frequência, prazo e o responsável que receberá as ocorrências recorrentes."
                 />
 
-                <fieldset
-                  className="mt-5"
-                  aria-describedby={[
-                    'routine-recurrence-help',
-                    errors.recurrence ? 'routine-recurrence-error' : undefined,
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                >
+                <fieldset className="mt-5">
                   <legend className="text-sm font-bold text-[var(--color-text-muted)]">
                     Recorrência *
                   </legend>
-                  <p
-                    id="routine-recurrence-help"
-                    className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]"
-                  >
-                    Selecione também “Sob demanda” quando não houver uma
-                    frequência fixa.
-                  </p>
-
                   <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {routineRecurrenceOptions.map((option) => {
                       const checked = values.recurrence === option.value
@@ -446,26 +507,21 @@ function CreateRoutinePage({
                       return (
                         <label
                           key={option.value}
-                          className={`flex cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border p-3 transition ${
-                            checked
+                          className={
+                            'flex cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border p-3 transition ' +
+                            (checked
                               ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
-                              : 'border-[var(--color-control-border)] bg-[var(--color-control-bg)] hover:bg-[var(--color-control-hover-bg)]'
-                          }`}
+                              : 'border-[var(--color-control-border)] bg-[var(--color-control-bg)] hover:bg-[var(--color-control-hover-bg)]')
+                          }
                         >
                           <input
-                            id={
-                              option.value === 'on_demand'
-                                ? 'routine-recurrence'
-                                : undefined
-                            }
                             type="radio"
                             name="recurrence"
                             value={option.value}
                             checked={checked}
                             onChange={() => updateRecurrence(option.value)}
                             required
-                            className="mt-0.5 size-4 shrink-0 accent-[var(--color-brand)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
-                            aria-invalid={Boolean(errors.recurrence)}
+                            className="mt-0.5 size-4 shrink-0 accent-[var(--color-brand)]"
                           />
                           <span>
                             <span className="block text-sm font-extrabold text-[var(--color-text-strong)]">
@@ -479,65 +535,122 @@ function CreateRoutinePage({
                       )
                     })}
                   </div>
-                  {errors.recurrence && (
-                    <FieldError
-                      id="routine-recurrence-error"
-                      message={errors.recurrence}
-                    />
-                  )}
                 </fieldset>
 
-                <div
-                  id="routine-schedule"
-                  className="mt-5 grid gap-4 border-t border-[var(--color-divider)] pt-5 sm:grid-cols-2"
-                  tabIndex={-1}
-                >
-                  {values.recurrence ? (
-                    <RoutineScheduleFields
-                      recurrence={values.recurrence}
-                      value={{
-                        defaultDueDays: values.defaultDueDays
-                          ? Number(values.defaultDueDays)
-                          : undefined,
-                        defaultDueDay: values.defaultDueDay
-                          ? Number(values.defaultDueDay)
-                          : undefined,
-                        recurrenceMonths: values.recurrenceMonths,
-                      }}
-                      onChange={updateSchedule}
-                      error={errors.schedule}
-                      idPrefix="routine"
+                <div className="mt-5 grid gap-4 border-t border-[var(--color-divider)] pt-5 sm:grid-cols-2">
+                  <FieldContainer
+                    error={errors.schedule}
+                    errorId="routine-schedule-error"
+                  >
+                    <TextField
+                      id="routine-due-days"
+                      label="Prazo padrão (dias) *"
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      max="3750"
+                      value={values.defaultDueDays}
+                      onChange={(event) =>
+                        updateField('defaultDueDays', event.target.value)
+                      }
+                      aria-invalid={Boolean(errors.schedule)}
+                      aria-describedby={
+                        errors.schedule
+                          ? 'routine-schedule-error'
+                          : 'routine-due-days-help'
+                      }
                     />
-                  ) : (
-                    <p className="sm:col-span-2 rounded-[var(--radius-control)] border border-dashed border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-4 py-3 text-sm text-[var(--color-text-muted)]">
-                      Selecione a recorrência para configurar o prazo.
-                    </p>
-                  )}
+                    {!errors.schedule && (
+                      <p
+                        id="routine-due-days-help"
+                        className="mt-1.5 text-xs leading-5 text-[var(--color-text-muted)]"
+                      >
+                        Contado a partir do primeiro dia da competência.
+                      </p>
+                    )}
+                  </FieldContainer>
 
-                  <div>
+                  <FieldContainer
+                    error={errors.defaultAssigneeMemberId || assigneesError}
+                    errorId="routine-assignee-error"
+                  >
                     <Select
                       id="routine-assignee"
-                      label="Responsável padrão (opcional)"
-                      value={values.defaultAssigneeId}
+                      label={
+                        values.recurrence === 'on_demand'
+                          ? 'Responsável padrão (opcional)'
+                          : 'Responsável padrão *'
+                      }
+                      value={values.defaultAssigneeMemberId}
                       onChange={(event) =>
-                        updateField('defaultAssigneeId', event.target.value)
+                        updateField(
+                          'defaultAssigneeMemberId',
+                          event.target.value,
+                        )
+                      }
+                      disabled={
+                        !values.departmentId ||
+                        isLoadingAssignees ||
+                        Boolean(assigneesError)
+                      }
+                      required={values.recurrence !== 'on_demand'}
+                      aria-invalid={
+                        Boolean(errors.defaultAssigneeMemberId || assigneesError)
                       }
                       aria-describedby="routine-assignee-help"
                     >
-                      <option value="">Sem responsável padrão</option>
-                      {availableEmployees.map((employee) => (
-                        <option key={employee.id} value={employee.id}>
-                          {employee.name}
+                      <option value="">
+                        {isLoadingAssignees
+                          ? 'Carregando responsáveis…'
+                          : 'Selecione o responsável'}
+                      </option>
+                      {assignees.map((assignee) => (
+                        <option key={assignee.id} value={assignee.id}>
+                          {assignee.displayName}
                         </option>
                       ))}
                     </Select>
-                    <p
-                      id="routine-assignee-help"
-                      className="mt-1.5 text-xs leading-5 text-[var(--color-text-muted)]"
-                    >
-                      Pode ser alterado quando a rotina for vinculada.
-                    </p>
-                  </div>
+                    {!errors.defaultAssigneeMemberId && !assigneesError && (
+                      <p
+                        id="routine-assignee-help"
+                        className="mt-1.5 text-xs leading-5 text-[var(--color-text-muted)]"
+                      >
+                        A lista vem dos membros elegíveis deste departamento.
+                      </p>
+                    )}
+                  </FieldContainer>
+
+                  {monthOptions.length > 0 && (
+                    <div className="sm:col-span-2">
+                      <Select
+                        id="routine-recurrence-months"
+                        label={
+                          values.recurrence === 'annual'
+                            ? 'Mês de execução *'
+                            : 'Ciclo de execução *'
+                        }
+                        value={selectedMonthsValue}
+                        onChange={(event) => {
+                          const option = monthOptions.find(
+                            (item) => item.value === event.target.value,
+                          )
+                          updateField(
+                            'recurrenceMonths',
+                            option?.months ?? [],
+                          )
+                        }}
+                        required
+                        aria-invalid={Boolean(errors.schedule)}
+                      >
+                        <option value="">Selecione</option>
+                        {monthOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </section>
             </Card>
@@ -546,13 +659,13 @@ function CreateRoutinePage({
           <RoutinePreview
             period={period}
             name={values.name}
+            shotname={values.shotname}
             description={values.description}
             departmentName={selectedDepartment?.name}
             recurrenceLabel={selectedRecurrence?.label}
             recurrence={values.recurrence}
-            assigneeName={selectedEmployee?.name}
+            assigneeName={selectedAssignee?.displayName}
             defaultDueDays={values.defaultDueDays}
-            defaultDueDay={values.defaultDueDay}
             recurrenceMonths={values.recurrenceMonths}
           />
         </div>
@@ -560,13 +673,13 @@ function CreateRoutinePage({
         <Card className="mt-5 p-4 sm:p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="max-w-2xl text-xs leading-5 text-[var(--color-text-muted)]">
-              Ao criar, somente as configurações do modelo serão salvas. A
-              associação a divisões, empresas e planilhas será feita
-              separadamente.
+              Ao criar, a API salva a identidade da rotina e publica sua primeira
+              versão. A associação a empresas e telas é feita separadamente.
             </p>
             <FormActions
               submitLabel="Criar rotina"
               cancelLabel="Cancelar"
+              isSubmitting={isSubmitting}
               onCancel={onCancel}
             />
           </div>
@@ -596,10 +709,7 @@ function SectionHeading({
         {number}
       </span>
       <div>
-        <h2
-          id={id}
-          className="text-base font-black text-[var(--color-text-strong)]"
-        >
+        <h2 id={id} className="text-base font-black text-[var(--color-text-strong)]">
           {title}
         </h2>
         <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
@@ -624,59 +734,43 @@ function FieldContainer({
   return (
     <div className={className}>
       {children}
-      {error && <FieldError id={errorId} message={error} />}
+      {error && (
+        <p
+          id={errorId}
+          className="mt-1.5 text-xs font-bold leading-5 text-[var(--status-error-text)]"
+        >
+          {error}
+        </p>
+      )}
     </div>
-  )
-}
-
-function FieldError({ id, message }: { id: string; message: string }) {
-  return (
-    <p
-      id={id}
-      className="mt-1.5 text-xs font-bold leading-5 text-[var(--status-error-text)]"
-    >
-      {message}
-    </p>
   )
 }
 
 function RoutinePreview({
   period,
   name,
+  shotname,
   description,
   departmentName,
   recurrenceLabel,
   recurrence,
   assigneeName,
   defaultDueDays,
-  defaultDueDay,
   recurrenceMonths,
 }: {
   period: string
   name: string
+  shotname: string
   description: string
   departmentName?: string
   recurrenceLabel?: string
-  recurrence: RoutineRecurrence | ''
+  recurrence: RoutineRecurrence
   assigneeName?: string
   defaultDueDays: string
-  defaultDueDay: string
   recurrenceMonths: number[]
 }) {
-  const dueLabel = recurrence
-    ? formatRoutineSchedule({
-        recurrence,
-        defaultDueDays: defaultDueDays ? Number(defaultDueDays) : undefined,
-        defaultDueDay: defaultDueDay ? Number(defaultDueDay) : undefined,
-        recurrenceMonths,
-      })
-    : 'Selecione a recorrência'
-
   return (
-    <aside
-      className="xl:sticky xl:top-4"
-      aria-labelledby="routine-preview-title"
-    >
+    <aside className="xl:sticky xl:top-4" aria-labelledby="routine-preview-title">
       <Card>
         <header className="border-b border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-4 py-4">
           <div className="flex items-center justify-between gap-3">
@@ -691,7 +785,7 @@ function RoutinePreview({
             </span>
           </div>
           <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
-            Confira como a configuração será registrada.
+            Confira como a configuração será publicada.
           </p>
         </header>
 
@@ -700,32 +794,42 @@ function RoutinePreview({
             <p className="break-words text-base font-black text-[var(--color-text-strong)]">
               {name.trim() || 'Título da rotina'}
             </p>
+            <p className="mt-1 text-xs font-bold text-[var(--color-brand)]">
+              {shotname.trim() || 'Nome curto na planilha'}
+            </p>
             <p className="mt-2 break-words text-sm leading-5 text-[var(--color-text-muted)]">
               {description.trim() || 'A descrição do trabalho aparecerá aqui.'}
             </p>
           </div>
 
-          <dl
-            className="mt-4 divide-y divide-[var(--color-divider)]"
-            aria-live="polite"
-          >
+          <dl className="mt-4 divide-y divide-[var(--color-divider)]" aria-live="polite">
             <PreviewItem
               label="Departamento"
-              value={departmentName ?? 'Selecione'}
+              value={departmentName || 'Selecione'}
             />
             <PreviewItem
               label="Recorrência"
-              value={recurrenceLabel ?? 'Selecione'}
+              value={recurrenceLabel || 'Selecione'}
             />
             <PreviewItem
               label="Responsável padrão"
-              value={assigneeName ?? 'Não definido'}
+              value={assigneeName || 'Não definido'}
             />
-            <PreviewItem label="Prazo padrão" value={dueLabel} />
             <PreviewItem
-              label="Competência atual"
-              value={formatPeriod(period)}
+              label="Prazo padrão"
+              value={
+                defaultDueDays
+                  ? defaultDueDays + ' dias após o início'
+                  : 'No início da competência'
+              }
             />
+            {recurrenceMonths.length > 0 && (
+              <PreviewItem
+                label="Meses"
+                value={recurrenceMonths.join(', ')}
+              />
+            )}
+            <PreviewItem label="Competência atual" value={formatPeriod(period)} />
           </dl>
 
           <div className="mt-4 flex items-start gap-2 rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-3">
@@ -733,8 +837,7 @@ function RoutinePreview({
             <p className="text-xs leading-5 text-[var(--color-text-muted)]">
               {recurrence === 'on_demand'
                 ? 'Sob demanda não gera tarefas automaticamente.'
-                : 'A recorrência orienta tarefas futuras, mas não gera nenhuma tarefa agora.'}{' '}
-              Este modelo também não cria uma nova planilha.
+                : 'A recorrência orienta ocorrências futuras, mas não gera nenhuma tarefa agora.'}
             </p>
           </div>
         </div>
@@ -756,86 +859,11 @@ function PreviewItem({ label, value }: { label: string; value: string }) {
   )
 }
 
-function validateRoutine(values: RoutineFormValues): RoutineFormErrors {
-  const errors: RoutineFormErrors = {}
-
-  if (!values.name.trim()) {
-    errors.name = 'Informe o título da rotina.'
-  }
-
-  if (!values.description.trim()) {
-    errors.description = 'Informe a descrição da rotina.'
-  }
-
-  if (!values.departmentId) {
-    errors.departmentId = 'Selecione o departamento.'
-  }
-
-  if (!values.recurrence) {
-    errors.recurrence = 'Selecione a recorrência, inclusive sob demanda.'
-  } else {
-    const scheduleError = getRoutineScheduleError(values.recurrence, {
-      defaultDueDays: values.defaultDueDays
-        ? Number(values.defaultDueDays)
-        : undefined,
-      defaultDueDay: values.defaultDueDay
-        ? Number(values.defaultDueDay)
-        : undefined,
-      recurrenceMonths: values.recurrenceMonths,
-    })
-
-    if (scheduleError) errors.schedule = scheduleError
-  }
-
-  return errors
-}
-
-function buildCreateInput(values: RoutineFormValues): CreateRoutineInput {
-  const input: CreateRoutineInput = {
-    departmentId: values.departmentId,
-    name: values.name.trim(),
-    description: values.description.trim(),
-    recurrence: values.recurrence as RoutineRecurrence,
-  }
-
-  if (values.defaultAssigneeId) {
-    input.defaultAssigneeId = values.defaultAssigneeId
-  }
-
-  const schedule = normalizeRoutineSchedule(input.recurrence, {
-    defaultDueDays: values.defaultDueDays
-      ? Number(values.defaultDueDays)
-      : undefined,
-    defaultDueDay: values.defaultDueDay
-      ? Number(values.defaultDueDay)
-      : undefined,
-    recurrenceMonths: values.recurrenceMonths,
-  })
-
-  input.defaultDueDays = schedule.defaultDueDays
-  input.defaultDueDay = schedule.defaultDueDay
-  input.recurrenceMonths = schedule.recurrenceMonths
-
-  return input
-}
-
 function formatPeriod(period: string): string {
   const match = /^(\d{4})-(\d{2})$/.exec(period)
   if (!match) return period || 'Não informada'
 
-  return `${match[2]}/${match[1]}`
-}
-
-const fieldIds: Record<RoutineFormErrorField, string> = {
-  name: 'routine-name',
-  description: 'routine-description',
-  departmentId: 'routine-department',
-  recurrence: 'routine-recurrence',
-  defaultAssigneeId: 'routine-assignee',
-  defaultDueDays: 'routine-due-days',
-  defaultDueDay: 'routine-due-day',
-  recurrenceMonths: 'routine-cycle',
-  schedule: 'routine-schedule',
+  return match[2] + '/' + match[1]
 }
 
 function TemplateIcon() {
@@ -852,23 +880,6 @@ function TemplateIcon() {
     >
       <rect x="4" y="3" width="16" height="18" rx="2" />
       <path d="M8 8h8M8 12h8M8 16h5" />
-    </svg>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m5 12 4 4L19 6" />
     </svg>
   )
 }

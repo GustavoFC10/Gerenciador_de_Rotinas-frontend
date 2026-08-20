@@ -17,10 +17,7 @@ import type {
   Task,
   TaskLink,
 } from '../../types/domain'
-import {
-  getTaskLinkHost,
-  normalizeTaskLinkUrl,
-} from '../../utils/taskLinks'
+import { getTaskLinkHost, normalizeTaskLinkUrl } from '../../utils/taskLinks'
 
 type TaskSubmenu = 'status' | 'links'
 
@@ -31,6 +28,7 @@ interface TaskContextMenuProps {
   y: number
   onClose: (restoreFocus: boolean) => void
   onStatusChange?: (taskId: EntityId, status: RoutineStatus) => void
+  allowedStatusChanges?: readonly RoutineStatus[]
   onAttachmentAdd?: (task: Task) => void
 }
 
@@ -49,6 +47,7 @@ function TaskContextMenu({
   y,
   onClose,
   onStatusChange,
+  allowedStatusChanges,
   onAttachmentAdd,
 }: TaskContextMenuProps) {
   const rootMenuRef = useRef<HTMLDivElement | null>(null)
@@ -63,6 +62,9 @@ function TaskContextMenu({
   const currentStatus =
     routineStatusConfig[task.status] ??
     routineStatusConfig[ROUTINE_STATUS.PENDING]
+  const availableStatusOrder = (allowedStatusChanges ?? statusOrder).filter(
+    (status) => status !== task.status,
+  )
 
   onCloseRef.current = onClose
 
@@ -224,10 +226,8 @@ function TaskContextMenu({
         style={{ left: rootPosition.x, top: rootPosition.y }}
         data-task-context-menu
       >
-       
-
         <div className="pt-1" role="presentation">
-          {onStatusChange && (
+          {onStatusChange && availableStatusOrder.length > 0 && (
             <button
               ref={statusTriggerRef}
               type="button"
@@ -321,7 +321,7 @@ function TaskContextMenu({
           >
             Selecionar estado
           </p>
-          {statusOrder.map((status) => {
+          {availableStatusOrder.map((status) => {
             const config = routineStatusConfig[status]
             const isCurrent = task.status === status
 

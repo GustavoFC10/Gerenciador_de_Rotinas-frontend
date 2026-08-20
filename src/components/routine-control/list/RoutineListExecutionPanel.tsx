@@ -20,20 +20,18 @@ const selectableStatusOrder: RoutineStatus[] = [
   ROUTINE_STATUS.COMPLETED,
 ]
 
-const selectableStatusEntries = selectableStatusOrder.map(
-  (status) => [status, routineStatusConfig[status]] as const,
-)
-
 function RoutineListExecutionPanel({
   item,
   onStatusChange,
   onStatusConfirm,
+  allowedStatusChanges,
   onQuickAction,
   className = '',
 }: {
   item: RoutineListItem
   onStatusChange?: (item: RoutineListItem, change: PendingStatusChange) => void
   onStatusConfirm?: (item: RoutineListItem) => void
+  allowedStatusChanges?: readonly RoutineStatus[]
   onQuickAction?: (item: RoutineListItem, action: 'attach') => void
   className?: string
 }) {
@@ -41,6 +39,10 @@ function RoutineListExecutionPanel({
   const selectedStatusConfig =
     routineStatusConfig[selectedStatus] ?? routineStatusConfig[item.status]
   const hasPendingChange = hasStatusChange(item)
+  const selectableStatuses = (allowedStatusChanges ?? selectableStatusOrder).filter(
+    (status) => status !== item.status,
+  )
+  const canChangeStatus = Boolean(onStatusChange && selectableStatuses.length)
 
   function selectStatus(status: RoutineStatus) {
     onStatusChange?.(item, {
@@ -55,13 +57,14 @@ function RoutineListExecutionPanel({
         <div className="min-w-0">
           <StatusSelector
             selectedStatus={selectedStatus}
-            onSelect={selectStatus}
+            statuses={selectableStatuses}
+            onSelect={canChangeStatus ? selectStatus : undefined}
           />
         </div>
 
         <PanelActions
           item={item}
-          hasPendingChange={hasPendingChange}
+          hasPendingChange={hasPendingChange && canChangeStatus}
           selectedStatusConfig={selectedStatusConfig}
           onStatusConfirm={onStatusConfirm}
           onQuickAction={onQuickAction}
@@ -131,25 +134,45 @@ function PanelActions({
 
 function StatusSelector({
   selectedStatus,
+  statuses,
   onSelect,
 }: {
   selectedStatus: RoutineStatus
-  onSelect: (status: RoutineStatus) => void
+  statuses: readonly RoutineStatus[]
+  onSelect?: (status: RoutineStatus) => void
 }) {
+  const selectedConfig = routineStatusConfig[selectedStatus]
+
+  if (!onSelect || statuses.length === 0) {
+    return (
+      <span
+        className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-2 text-xs font-bold text-[var(--color-text-muted)]"
+        aria-label={`Estado: ${selectedConfig.label}`}
+      >
+        <span className={`size-2.5 rounded-full ${selectedConfig.dotClass}`} />
+        {selectedConfig.label}
+      </span>
+    )
+  }
+
   return (
     <div
       className="inline-flex items-center gap-1 rounded-full border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-1 py-1"
       aria-label="Alterar estado"
     >
-      {selectableStatusEntries.map(([value, config]) => (
+      {statuses.map((value) => {
+        const config = routineStatusConfig[value]
+
+        return (
         <StatusDotButton
           key={value}
           value={value}
           config={config}
-          isSelected={selectedStatus === value}
+          isSelected={false}
           onSelect={onSelect}
         />
-      ))}
+        )
+      })}
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
-import { currentUserMock } from '../constants/roles'
+import { memberUserMock } from '../constants/roles'
 import {
   AppStateContext,
   type AppStateContextValue,
@@ -11,7 +11,7 @@ import {
 import Topbar from './Topbar'
 
 const appState = {
-  user: currentUserMock,
+  user: memberUserMock,
   competence: '2026-07',
   formattedCompetence: '07/2026',
   preferences: {

@@ -7,9 +7,9 @@ O foco atual do MVP e validar a experiencia operacional:
 - planilha de empresas x rotinas como tela central;
 - listas reutilizaveis para focar por rotina, empresa, tarefas fiscais ou responsavel;
 - tarefas avulsas no mesmo modelo visual das tarefas de rotina;
-- detalhe de tarefa com atualizacao de status, responsavel, prazo e observacao;
+- detalhe de tarefa em modo de leitura;
 - base de navegacao por perfil para funcionario, lider e manager;
-- estrutura preparada para troca dos mocks por API REST.
+- integração direta com a API REST, incluindo autenticação e projeções de telas.
 
 ## Stack
 
@@ -63,10 +63,10 @@ http://localhost:5173
 
 O frontend usa variaveis expostas pelo Vite.
 
-| Variavel        | Padrao                  | Uso                                                                     |
-| --------------- | ----------------------- | ----------------------------------------------------------------------- |
-| `VITE_API_URL`  | `http://localhost:3000` | URL base planejada para a futura API. Hoje os dados ainda sao mockados. |
-| `FRONTEND_PORT` | `8080`                  | Porta usada pelo Docker para publicar o frontend localmente.            |
+| Variavel        | Padrao | Uso                                                          |
+| --------------- | ------ | ------------------------------------------------------------ |
+| `VITE_API_URL`  | —      | URL base obrigatória da API do backend.                      |
+| `FRONTEND_PORT` | `8080` | Porta usada pelo Docker para publicar o frontend localmente. |
 
 Exemplo:
 
@@ -218,28 +218,29 @@ src/
 |   `-- ui/                  # Componentes primitivos de UI
 |-- constants/               # Rotas, papeis, status e tokens
 |-- contexts/                # Estado global da aplicacao
-|-- hooks/                   # Hooks de competencia, listas, form e updates
+|-- hooks/                   # Hooks de competencia, listas e integracao
 |-- layouts/                 # Sidebar, topbar, header e layout principal
-|-- mocks/                   # Dados ficticios no formato esperado pela UI
 |-- pages/                   # Telas roteadas
-|-- services/                # Camada de acesso a dados, hoje mockada
+|-- services/                # Cliente HTTP e integracoes com a API
 |-- styles/                  # CSS global e temas
 `-- utils/                   # Regras puras e utilitarios testaveis
 ```
 
 ## Dados e integracao
 
-A aplicacao deve consumir dados por uma camada `services/`. Na fase de MVP visual, essa camada pode apontar para mocks locais. Quando a API estiver pronta, a troca deve acontecer dentro da camada `services/`, preservando os contratos usados pela interface sempre que possivel.
+A aplicação consome os dados por `services/`, usando a URL configurada em
+`VITE_API_URL`. As telas operacionais são carregadas diretamente pelas rotas de
+`screens` e suas projeções mensais; não há dados locais de demonstração.
 
 Dados esperados:
 
 - departamentos;
 - empresas/clientes;
-- rotinas modelo;
-- funcionarios;
-- tasks de rotina;
-- tasks avulsas;
-- metadados de competencia.
+- rotinas;
+- funcionários visíveis no escopo retornado pela API;
+- telas operacionais e seus eixos;
+- projeções mensais de cada tela;
+- ocorrências recorrentes e metadados de competência.
 
 ## Testes
 
@@ -255,7 +256,7 @@ Cobertura recomendada para o MVP:
 - filtros de rotinas;
 - montagem de itens de lista;
 - permissoes por perfil;
-- atualizacoes de status, prazo e responsavel.
+- adaptação de telas e projeções mensais.
 
 ## Padroes de desenvolvimento
 
@@ -263,17 +264,12 @@ Cobertura recomendada para o MVP:
 - Manter regras puras em `utils/` quando puderem ser testadas sem React.
 - Manter acesso a dados em `services/`.
 - Reaproveitar o sistema de lista para tarefas fiscais, minhas tarefas e listas filtradas.
-- Evitar acoplar telas diretamente ao mock.
+- Modelar telas e projeções conforme o contrato OpenAPI.
 - Preservar a planilha como visualizacao macro e usar listas para execucao focada.
 
 ## Proximos passos tecnicos
 
-- Restaurar ou consolidar a base React/Vite no branch de trabalho.
-- Implementar backend e contrato REST.
-- Criar client HTTP centralizado com tratamento de erro e autenticacao.
-- Substituir mocks por chamadas reais.
-- Implementar login, sessao e RBAC.
-- Persistir updates de status, prazo, responsavel, comentarios e anexos.
+- Persistir atualizações de status, prazo, responsável, comentários e links com ETag.
 - Implementar dashboards simples e clicaveis para lider e manager.
 - Implementar cadastros de rotinas, empresas, funcionarios e cargos.
 - Adicionar lint, formatacao, CI e testes de componentes/fluxos.

@@ -5,68 +5,90 @@ import ErrorState from './components/common/ErrorState'
 import LoadingState from './components/common/LoadingState'
 import RequirePermission from './components/auth/RequirePermission'
 import RoutineDetailsCard from './components/routine-control/details/RoutineDetailsCard'
+import { routineStatusConfig } from './constants/routineStatus'
 import { ROUTES } from './constants/routes'
 import AppLayout from './layouts/AppLayout'
-import EntityDetailPage from './pages/EntityDetailPage'
-import CreateCompanyPage from './pages/CreateCompanyPage'
+import AgendaPage from './pages/AgendaPage'
+import EntityDetailPage, {
+  type RoutineEditInput,
+} from './pages/EntityDetailPage'
+import CompaniesPage from './pages/CompaniesPage'
+import CreateCompanyPage, {
+  CompanySetupError,
+  type CompanySetupInput,
+  type CreateCompanyResult,
+} from './pages/CreateCompanyPage'
 import CreateEmployeePage from './pages/CreateEmployeePage'
 import CreateRoutinePage from './pages/CreateRoutinePage'
-import CompaniesPage from './pages/CompaniesPage'
+import CreateScreenPage from './pages/CreateScreenPage'
 import EmployeesPage from './pages/EmployeesPage'
 import HomePage from './pages/HomePage'
 import ListPage from './pages/ListPage'
 import LoginPage from './pages/LoginPage'
+import MembershipSelectionPage from './pages/MembershipSelectionPage'
 import MyTasksPage from './pages/MyTasksPage'
 import PlaceholderPage from './pages/PlaceholderPage'
 import ProfilePage from './pages/ProfilePage'
 import RoutinesPage from './pages/RoutinesPage'
+import SettingsPage from './pages/SettingsPage'
+import ScreensPage from './pages/ScreensPage'
 import SpreadsheetPage from './pages/SpreadsheetPage'
 import TasksPage from './pages/TasksPage'
 import { useRoutineControl } from './hooks/useRoutineControl'
 import { useAuth } from './hooks/useAuth'
 import { useAppState } from './hooks/useAppState'
-import { useTaskUpdates } from './hooks/useTaskUpdates'
-import { registerMockAuthAccount } from './services/authService'
 import {
-  createClientFromPreset,
-  createEmployeeProfile,
-  createRoutineTemplate,
-  updateClientConfiguration,
-  updateRoutineConfiguration,
-} from './utils/creationCommands'
+  companyService,
+  type ClientCompanyPatch,
+} from './services/companyService'
+import { competenceService } from './services/competenceService'
+import { departmentService } from './services/departmentService'
+import { organizationMemberService } from './services/organizationMemberService'
+import { routineService } from './services/routineService'
+import { screenService } from './services/screenService'
+import {
+  taskService,
+  type TaskPatchInput,
+  type TaskResource,
+} from './services/taskService'
+import type { MembershipInvitationResource } from './services/organizationMemberService'
+import type { RoutineInput, RoutineResource } from './services/routineService'
+import { selectScreenData } from './utils/routineControlScope'
 import {
   APP_PERMISSION,
-  canCreateCompany,
-  canCreateEmployee,
-  canCreateRoutine,
+  canAssignTask,
+  canTransitionTask,
+  getAllowedTaskTransitionStatuses,
+  isOrganizationAdmin,
 } from './utils/permissions'
-import { scopeRoutineControlData } from './utils/routineControlScope'
 import { buildTaskRelations } from './utils/routineRelations'
 import {
   buildSpreadsheetContextQuery,
+  buildAgendaNavigationItems,
   buildSpreadsheetNavigationItems,
   resolveSpreadsheetSelection,
 } from './utils/spreadsheetNavigation'
 import type {
   Client,
-  CreateClientInput,
-  CreateEmployeeInput,
-  CreateRoutineInput,
+  CreateTaskLinkInput,
   Employee,
-  PendingStatusChange,
   Routine,
-  RoutineConfigurationUpdateInput,
   RoutineControlData,
   RoutineListItem,
   RoutineStatus,
+  Screen,
+  ScheduledOccurrence,
   Task,
   TaskRelations,
-  UpdateClientInput,
 } from './types/domain'
 
 function App() {
-  const { isAuthenticated } = useAuth()
+  const { activeMembership, isAuthenticated, isInitializing } = useAuth()
   const location = useLocation()
+
+  if (isInitializing) {
+    return <LoadingState message="Restaurando sessão..." />
+  }
 
   if (!isAuthenticated) {
     const requestedRoute = `${location.pathname}${location.search}${location.hash}`
@@ -88,6 +110,10 @@ function App() {
     )
   }
 
+  if (!activeMembership) {
+    return <MembershipSelectionPage />
+  }
+
   if (location.pathname === ROUTES.LOGIN) {
     return <LoginPage />
   }
@@ -98,15 +124,27 @@ function App() {
 function AuthenticatedApp() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, competence } = useAppState()
-  const { response, setResponse, data, isLoading, error } = useRoutineControl()
+  const { competence, user } = useAppState()
+  const { response, setResponse, data, isLoading, error, reload } =
+    useRoutineControl(competence)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [taskAssignees, setTaskAssignees] = useState<Employee[]>([])
+  const [pendingTaskTransition, setPendingTaskTransition] = useState<{
+    task: Task
+    status: RoutineStatus
+  } | null>(null)
+  const [transitionReason, setTransitionReason] = useState('')
+  const [transitionError, setTransitionError] = useState<string | null>(null)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
-  const taskUpdates = useTaskUpdates({ setResponse, setSelectedTask })
   const selectedTaskId = selectedTask?.id
   const spreadsheetNavigationItems = useMemo(
     () => (data ? buildSpreadsheetNavigationItems(data) : []),
+    [data],
+  )
+  const agendaNavigationItems = useMemo(
+    () => (data ? buildAgendaNavigationItems(data) : []),
     [data],
   )
   const spreadsheetSelection = useMemo(
@@ -114,14 +152,18 @@ function AuthenticatedApp() {
       resolveSpreadsheetSelection(spreadsheetNavigationItems, location.search),
     [location.search, spreadsheetNavigationItems],
   )
-  const selectedSpreadsheet = spreadsheetSelection.spreadsheet
-  const selectedDivision = spreadsheetSelection.division
+  const selectedDepartmentGroup = spreadsheetSelection.department
+  const selectedScreen = data?.screens.find(
+    (screen) => screen.id === spreadsheetSelection.screenId,
+  )
+  const selectedProjection = data?.spreadsheetProjections.find(
+    (projection) => projection.screen.id === spreadsheetSelection.screenId,
+  )
   const selectedDepartment = data?.departments.find(
     (department) => department.id === spreadsheetSelection.departmentId,
   )
   const spreadsheetContextQuery = buildSpreadsheetContextQuery({
-    spreadsheetId: spreadsheetSelection.spreadsheetId,
-    divisionId: spreadsheetSelection.divisionId,
+    screenId: spreadsheetSelection.screenId,
   })
 
   useEffect(() => {
@@ -206,25 +248,17 @@ function AuthenticatedApp() {
   }, [selectedTaskId])
 
   const visibleData = useMemo<RoutineControlData | null>(() => {
-    if (
-      !data ||
-      !spreadsheetSelection.departmentId ||
-      !spreadsheetSelection.divisionId
-    ) {
+    if (!data || !spreadsheetSelection.screenId) {
       return null
     }
 
-    return scopeRoutineControlData(data, {
-      departmentId: spreadsheetSelection.departmentId,
-      divisionId: spreadsheetSelection.divisionId,
-    })
-  }, [data, spreadsheetSelection.departmentId, spreadsheetSelection.divisionId])
+    return selectScreenData(data, spreadsheetSelection.screenId)
+  }, [data, spreadsheetSelection.screenId])
 
   useEffect(() => {
     if (
       !spreadsheetSelection.isFallback ||
-      !spreadsheetSelection.spreadsheetId ||
-      !spreadsheetSelection.divisionId ||
+      !spreadsheetSelection.screenId ||
       !isSpreadsheetContextRoute(location.pathname, location.search)
     ) {
       return
@@ -232,8 +266,7 @@ function AuthenticatedApp() {
 
     const nextSearch = buildSpreadsheetContextQuery(
       {
-        spreadsheetId: spreadsheetSelection.spreadsheetId,
-        divisionId: spreadsheetSelection.divisionId,
+        screenId: spreadsheetSelection.screenId,
       },
       location.search,
     )
@@ -252,9 +285,8 @@ function AuthenticatedApp() {
     location.search,
     location.state,
     navigate,
-    spreadsheetSelection.divisionId,
     spreadsheetSelection.isFallback,
-    spreadsheetSelection.spreadsheetId,
+    spreadsheetSelection.screenId,
   ])
 
   const selectedRelations = useMemo<TaskRelations>(() => {
@@ -268,7 +300,7 @@ function AuthenticatedApp() {
         : null,
     )
 
-    if (!selectedTask.isLoose) {
+    if (selectedTask.kind !== 'ad_hoc') {
       return relations
     }
 
@@ -288,6 +320,64 @@ function AuthenticatedApp() {
       },
     }
   }, [data, selectedDepartment, selectedTask])
+
+  const canEditSelectedTask = Boolean(
+    selectedTask && canAssignTask(user, selectedTask),
+  )
+  const selectedTaskStatusChanges = selectedTask
+    ? getAllowedTaskTransitionStatuses(user, selectedTask)
+    : []
+
+  useEffect(() => {
+    if (!selectedTask || !canAssignTask(user, selectedTask)) {
+      setTaskAssignees([])
+      return undefined
+    }
+
+    let isCurrent = true
+
+    void departmentService
+      .getTaskAssignees(selectedTask.departmentId)
+      .then(({ data: assignees }) => {
+        if (!isCurrent) return
+
+        setTaskAssignees(
+          assignees.map((assignee) => ({
+            id: assignee.id,
+            name: assignee.displayName,
+            role: assignee.organizationRole,
+            departmentAccesses: assignee.departmentRole
+              ? [
+                  {
+                    departmentId: selectedTask.departmentId,
+                    role: assignee.departmentRole,
+                  },
+                ]
+              : [],
+            active: true,
+          })),
+        )
+      })
+      .catch(() => {
+        if (isCurrent) setTaskAssignees([])
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [selectedTask?.departmentId, selectedTask?.id, user])
+
+  const selectedTaskEmployees = useMemo(() => {
+    const employees = new Map<string, Employee>()
+    const taskEmployees = [
+      ...(selectedRelations.employees ?? []),
+      ...taskAssignees,
+    ]
+
+    taskEmployees.forEach((employee) => employees.set(employee.id, employee))
+
+    return [...employees.values()]
+  }, [selectedRelations.employees, taskAssignees])
 
   function handleRoutineListOpen(routine: Routine) {
     setSelectedTask(null)
@@ -321,164 +411,553 @@ function AuthenticatedApp() {
     setSelectedTask(item.task)
   }
 
-  function handleListItemQuickAction(item: RoutineListItem, action: 'attach') {
-    if (action === 'attach') {
-      taskUpdates.incrementAttachments(item.task)
+  function requestTaskTransition(taskId: string, status: RoutineStatus) {
+    const task = data?.tasks.find((item) => item.id === taskId)
+
+    if (!task || !canTransitionTask(user, task, status)) return
+
+    setPendingTaskTransition({ task, status })
+    setTransitionReason('')
+    setTransitionError(null)
+  }
+
+  function getTaskForUpdate(taskId: string): Task {
+    const task =
+      selectedTask?.id === taskId
+        ? selectedTask
+        : data?.tasks.find((item) => item.id === taskId)
+
+    if (!task) {
+      throw new Error('Não foi possível localizar a tarefa para salvar a alteração.')
     }
+
+    return task
   }
 
-  function handleListItemNoteChange(item: RoutineListItem, notes: string) {
-    taskUpdates.updateNotes(item.task.id, notes)
+  function applyTaskUpdate(task: Task, assignee: Employee | null) {
+    setSelectedTask((current) => (current?.id === task.id ? task : current))
+    setResponse((current) => {
+      if (!current) return current
+
+      const employees = assignee
+        ? [
+            ...current.data.employees.filter(
+              (employee) => employee.id !== assignee.id,
+            ),
+            assignee,
+          ]
+        : current.data.employees
+
+      return {
+        ...current,
+        data: {
+          ...current.data,
+          employees,
+          tasks: current.data.tasks.map((item) =>
+            item.id === task.id ? task : item,
+          ),
+        },
+      }
+    })
   }
 
-  function handleListItemStatusChange(
-    item: RoutineListItem,
-    change: PendingStatusChange | RoutineStatus,
-  ) {
-    if (typeof change === 'string') {
-      taskUpdates.updateStatus(item.task.id, change)
+  async function updateTaskDetails(
+    taskId: string,
+    input: TaskPatchInput,
+  ): Promise<void> {
+    const task = getTaskForUpdate(taskId)
+
+    if (task.occurrenceKey) {
+      if (!task.etag) {
+        throw new Error('A tarefa não informou a versão necessária para salvar.')
+      }
+
+      const response = await taskService.updateOccurrence(
+        task.period,
+        task.occurrenceKey,
+        input,
+        task.etag,
+      )
+      const updatedTask = toTaskFromScheduledOccurrence(
+        response.data,
+        response.etag,
+      )
+
+      applyTaskUpdate(updatedTask, toTaskAssignee(response.data.assignee))
       return
     }
 
-    taskUpdates.updateStatus(
-      item.task.id,
-      change.status,
-      change.statusDetail ?? null,
+    if (!task.competenceId || !task.taskId) {
+      throw new Error(
+        'A tarefa não contém os identificadores exigidos pela API para salvar a alteração.',
+      )
+    }
+
+    const currentTask = await taskService.get(task.competenceId, task.taskId)
+
+    if (!currentTask.etag) {
+      throw new Error('A API não informou a versão atual da tarefa para salvar.')
+    }
+
+    const response = await taskService.update(
+      task.competenceId,
+      task.taskId,
+      input,
+      currentTask.etag,
     )
+    const updatedTask = toTaskFromResource(response.data, response.etag)
+
+    applyTaskUpdate(updatedTask, toTaskAssignee(response.data.assignee))
   }
 
-  function handleLooseTaskCreate(task: Task) {
-    taskUpdates.createLooseTask(task)
+  async function handleTaskAssigneeChange(
+    taskId: string,
+    assigneeId: string | null,
+  ): Promise<void> {
+    const task = getTaskForUpdate(taskId)
+
+    if (task.assigneeId === assigneeId) return
+
+    await updateTaskDetails(taskId, { assigneeMemberId: assigneeId })
   }
 
-  function handleClientUpdate(clientId: string, changes: UpdateClientInput) {
-    const result = updateClientConfiguration(data!, clientId, changes, {
-      period: competence,
-      generatedAt: new Date().toISOString(),
+  async function handleTaskDueDateChange(
+    taskId: string,
+    dueDate: string,
+  ): Promise<void> {
+    if (!dueDate) {
+      throw new Error('Informe uma data de prazo válida.')
+    }
+
+    const task = getTaskForUpdate(taskId)
+
+    if (task.dueDate === dueDate) return
+
+    await updateTaskDetails(taskId, { dueDate })
+  }
+
+  async function handleTaskContentChange(
+    taskId: string,
+    content: { title: string; description: string },
+  ): Promise<void> {
+    if (content.title.length > 200) {
+      throw new Error('O título pode ter no máximo 200 caracteres.')
+    }
+
+    if (content.description.length > 5000) {
+      throw new Error('A descrição pode ter no máximo 5.000 caracteres.')
+    }
+
+    const task = getTaskForUpdate(taskId)
+
+    if (
+      (task.title ?? '') === content.title &&
+      (task.description ?? '') === content.description
+    ) {
+      return
+    }
+
+    await updateTaskDetails(taskId, content)
+  }
+
+  async function handleTaskNotesChange(
+    taskId: string,
+    notes: string,
+  ): Promise<void> {
+    if (notes.length > 5000) {
+      throw new Error('A observação deve ter no máximo 5.000 caracteres.')
+    }
+
+    const task = getTaskForUpdate(taskId)
+
+    if ((task.notes ?? '') === notes) return
+
+    await updateTaskDetails(taskId, { observation: notes })
+  }
+
+  async function handleTaskLinkAdd(
+    taskId: string,
+    link: CreateTaskLinkInput,
+  ): Promise<void> {
+    const task = getTaskForUpdate(taskId)
+    const links = task.links ?? []
+
+    if (links.length >= 20) {
+      throw new Error('Esta tarefa já atingiu o limite de 20 links.')
+    }
+
+    await updateTaskDetails(taskId, {
+      links: [...links, link].map(({ label, url }) => ({ label, url })),
     })
-
-    setResponse((currentResponse) =>
-      currentResponse
-        ? { ...currentResponse, data: result.data }
-        : currentResponse,
-    )
   }
 
-  function handleRoutineUpdate(
+  async function handleTaskLinkRemove(
+    taskId: string,
+    linkId: string,
+  ): Promise<void> {
+    const task = getTaskForUpdate(taskId)
+    const links = task.links ?? []
+    const remainingLinks = links.filter((link) => link.id !== linkId)
+
+    if (remainingLinks.length === links.length) {
+      throw new Error('Não foi possível localizar o link para remover.')
+    }
+
+    await updateTaskDetails(taskId, {
+      links: remainingLinks.map(({ label, url }) => ({ label, url })),
+    })
+  }
+
+  async function confirmTaskTransition() {
+    if (!pendingTaskTransition) return
+
+    const { task, status } = pendingTaskTransition
+    const reason = transitionReason.trim()
+
+    if (transitionRequiresReason(task.status, status) && !reason) {
+      setTransitionError('Informe a justificativa exigida para esta transição.')
+      return
+    }
+
+    setIsTransitioning(true)
+    setTransitionError(null)
+
+    try {
+      if (task.occurrenceKey && task.etag) {
+        await taskService.transitionOccurrence(
+          task.period,
+          task.occurrenceKey,
+          { targetStatus: status, reason },
+          task.etag,
+        )
+      } else if (task.competenceId && task.taskId) {
+        const currentTask = await taskService.get(
+          task.competenceId,
+          task.taskId,
+        )
+
+        if (!currentTask.etag) {
+          throw new Error('Não foi possível obter a versão atual da tarefa.')
+        }
+
+        await taskService.transition(
+          task.competenceId,
+          task.taskId,
+          { targetStatus: status, reason },
+          currentTask.etag,
+        )
+      } else {
+        throw new Error(
+          'A tarefa não contém os identificadores exigidos pela API.',
+        )
+      }
+
+      setPendingTaskTransition(null)
+      setSelectedTask(null)
+      await reload()
+    } catch (caughtError) {
+      setTransitionError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Não foi possível alterar o estado da tarefa.',
+      )
+    } finally {
+      setIsTransitioning(false)
+    }
+  }
+
+  async function handleCompanyCreate(
+    input: CompanySetupInput,
+  ): Promise<CreateCompanyResult> {
+    let company: { id: string; name: string } | null = null
+    let departmentLinked = false
+    let linkedRoutineCount = 0
+    let screenLinked = false
+    let screenName: string | undefined
+
+    try {
+      const createdCompany = await companyService.create(input.company)
+      company = {
+        id: createdCompany.data.id,
+        name: createdCompany.data.name,
+      }
+      const companySnapshot = createdCompany.etag
+        ? createdCompany
+        : await companyService.get(company.id)
+
+      if (!companySnapshot.etag) {
+        throw new Error(
+          'A API não informou a versão necessária para criar o vínculo departamental.',
+        )
+      }
+
+      await companyService.createDepartmentAssignment(
+        company.id,
+        {
+          departmentId: input.departmentId,
+          startsOn: input.startsOn,
+          endsOn: null,
+        },
+        companySnapshot.etag,
+      )
+      departmentLinked = true
+
+      for (const routineId of input.routineIds) {
+        await companyService.createRoutineAssignment(company.id, {
+          routineId,
+          startsOn: input.startsOn,
+          endsOn: null,
+        })
+        linkedRoutineCount += 1
+      }
+
+      if (input.screenId) {
+        const screenSnapshot = await screenService.get(input.screenId)
+
+        if (!screenSnapshot.etag) {
+          throw new Error(
+            'A API não informou a versão da tela para atualizar sua visualização.',
+          )
+        }
+
+        screenName = screenSnapshot.data.name
+        const companyIds = screenSnapshot.data.companies.map((item) => item.id)
+
+        if (!companyIds.includes(company.id)) {
+          await screenService.update(
+            input.screenId,
+            { companyIds: [...companyIds, company.id] },
+            screenSnapshot.etag,
+          )
+        }
+        screenLinked = true
+      }
+
+      await reload()
+
+      return {
+        company,
+        linkedRoutineCount,
+        screenName,
+      }
+    } catch (caughtError) {
+      if (!company) throw caughtError
+
+      try {
+        await reload()
+      } catch {
+        // A falha principal continua sendo mais útil para orientar a recuperação.
+      }
+
+      const nextStep = !departmentLinked
+        ? 'Abra a empresa e crie o vínculo com o departamento.'
+        : linkedRoutineCount < input.routineIds.length
+          ? 'Abra a empresa e conclua os vínculos de rotina restantes.'
+          : input.screenId && !screenLinked
+            ? 'Abra a tela escolhida e inclua a empresa na composição visual.'
+            : 'Atualize a página para confirmar a operação concluída.'
+
+      throw new CompanySetupError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'A sequência de configuração da empresa foi interrompida.',
+        {
+          company,
+          departmentLinked,
+          linkedRoutineCount,
+          requestedRoutineCount: input.routineIds.length,
+          screenLinked,
+          nextStep,
+        },
+      )
+    }
+  }
+
+  async function handleRoutineCreate(
+    input: RoutineInput,
+  ): Promise<RoutineResource> {
+    const { data: routine } = await routineService.create(input)
+    await reload()
+    return routine
+  }
+
+  async function handleCompanyUpdate(
+    companyId: string,
+    changes: ClientCompanyPatch,
+  ): Promise<void> {
+    const currentCompany = await companyService.get(companyId)
+
+    if (!currentCompany.etag) {
+      throw new Error(
+        'Não foi possível obter a versão atual da empresa para salvar as alterações.',
+      )
+    }
+
+    await companyService.update(companyId, changes, currentCompany.etag)
+    await reload()
+  }
+
+  async function handleRoutineUpdate(
     routineId: string,
-    changes: RoutineConfigurationUpdateInput,
+    changes: RoutineEditInput,
+  ): Promise<void> {
+    let currentRoutine = await routineService.get(routineId)
+
+    if (!currentRoutine.etag) {
+      throw new Error(
+        'Não foi possível obter a versão atual da rotina para salvar as alterações.',
+      )
+    }
+
+    const identityChanged =
+      currentRoutine.data.name !== changes.name ||
+      currentRoutine.data.shotname !== changes.shotname
+
+    if (identityChanged) {
+      currentRoutine = await routineService.updateIdentity(
+        routineId,
+        { name: changes.name, shotname: changes.shotname },
+        currentRoutine.etag,
+      )
+    }
+
+    const currentVersion = currentRoutine.data.currentVersion
+    const versionChanged =
+      currentVersion.description !== changes.description ||
+      currentVersion.recurrence !== changes.recurrence ||
+      currentVersion.defaultDueDays !== changes.defaultDueDays ||
+      (currentVersion.defaultAssigneeMemberId ?? null) !==
+        (changes.defaultAssigneeMemberId ?? null) ||
+      currentVersion.recurrenceMonths.join(',') !==
+        changes.recurrenceMonths.join(',')
+
+    if (versionChanged) {
+      if (!currentRoutine.etag) {
+        throw new Error(
+          'A API não informou a versão necessária para publicar a nova regra da rotina.',
+        )
+      }
+
+      await routineService.publishVersion(
+        routineId,
+        {
+          description: changes.description,
+          recurrence: changes.recurrence,
+          defaultDueDays: changes.defaultDueDays,
+          recurrenceMonths: changes.recurrenceMonths,
+          defaultAssigneeMemberId:
+            changes.defaultAssigneeMemberId ?? null,
+        },
+        currentRoutine.etag,
+      )
+    }
+
+    await reload()
+  }
+
+  async function handleEmployeeInvite(
+    input: Parameters<typeof organizationMemberService.invite>[0],
+  ): Promise<MembershipInvitationResource> {
+    const { data: invitation } = await organizationMemberService.invite(input)
+    return invitation
+  }
+
+  async function handleDepartmentCreate(
+    input: Parameters<typeof departmentService.create>[0],
   ) {
-    const result = updateRoutineConfiguration(data!, routineId, changes, {
-      generatedAt: new Date().toISOString(),
-    })
-
-    setResponse((currentResponse) =>
-      currentResponse
-        ? { ...currentResponse, data: result.data }
-        : currentResponse,
-    )
+    await departmentService.create(input)
+    await reload()
   }
 
-  function handleRoutineCreate(input: CreateRoutineInput): Routine {
-    if (!canCreateRoutine(user, input.departmentId)) {
-      throw new Error(
-        'Você não tem permissão para criar rotinas neste departamento.',
+  async function handleScreenCreate(
+    input: Parameters<typeof screenService.create>[0],
+  ): Promise<Screen> {
+    const { data: screen } = await screenService.create(input)
+    await reload()
+    return screen
+  }
+
+  async function handleAdHocTaskCreate(
+    input: Parameters<typeof taskService.createAdHoc>[1],
+  ) {
+    const competenceResponse = await competenceService.getByPeriod(competence)
+    const projection = competenceResponse.data
+    let competenceId = projection.id
+
+    if (projection.status === 'projected' || projection.status === 'draft') {
+      if (!isOrganizationAdmin(user)) {
+        throw new Error(
+          'A competência precisa ser aberta por um owner ou admin antes de criar tarefas.',
+        )
+      }
+
+      if (projection.status === 'draft' && !competenceResponse.etag) {
+        throw new Error('Não foi possível obter a versão atual da competência.')
+      }
+
+      const opened = await competenceService.openByPeriod(
+        competence,
+        projection.status === 'draft'
+          ? (competenceResponse.etag ?? undefined)
+          : undefined,
       )
+      competenceId = opened.data.id
     }
 
-    const result = createRoutineTemplate(data!, input, {
-      period: competence,
-      generatedAt: new Date().toISOString(),
-    })
-
-    setResponse((currentResponse) =>
-      currentResponse
-        ? { ...currentResponse, data: result.data }
-        : currentResponse,
-    )
-    return result.routine
-  }
-
-  function handleCompanyCreate(input: CreateClientInput) {
-    if (!canCreateCompany(user, [input.departmentId])) {
-      throw new Error(
-        'Você não tem permissão para criar empresas neste departamento.',
-      )
+    if (!competenceId || !['open', 'finalized'].includes(projection.status)) {
+      if (
+        !competenceId ||
+        !['projected', 'draft'].includes(projection.status)
+      ) {
+        throw new Error('A competência atual não aceita novas tarefas.')
+      }
     }
 
-    const result = createClientFromPreset(data!, input, {
-      period: competence,
-      generatedAt: new Date().toISOString(),
-    })
-
-    setResponse((currentResponse) =>
-      currentResponse
-        ? { ...currentResponse, data: result.data }
-        : currentResponse,
+    await taskService.createAdHoc(
+      competenceId,
+      input,
+      `ad-hoc-${globalThis.crypto.randomUUID()}`,
     )
-
-    return {
-      client: result.client,
-      createdTaskCount: result.tasks.length,
-      linkedRoutineCount: result.links.length,
-    }
-  }
-
-  function handleEmployeeCreate(input: CreateEmployeeInput): Employee {
-    if (!canCreateEmployee(user)) {
-      throw new Error('Você não tem permissão para adicionar funcionários.')
-    }
-
-    const result = createEmployeeProfile(data!, input)
-    const employee = result.employee
-
-    registerMockAuthAccount(
-      {
-        id: `user-${employee.id}`,
-        employeeId: employee.id,
-        name: employee.name,
-        email: employee.login!,
-        role: employee.role!,
-        departmentIds: employee.departmentIds ?? [],
-        avatarUrl: '',
-      },
-      input.password,
-    )
-
-    setResponse((currentResponse) =>
-      currentResponse
-        ? { ...currentResponse, data: result.data }
-        : currentResponse,
-    )
-    return employee
+    await reload()
   }
 
   if (isLoading) {
     return <LoadingState message="Carregando rotinas..." />
   }
 
-  if (
-    error ||
-    !response ||
-    !data ||
-    !visibleData ||
-    !selectedSpreadsheet ||
-    !selectedDivision ||
-    !selectedDepartment
-  ) {
+  if (error || !response || !data) {
     return (
       <ErrorState
         title="Nao foi possivel carregar os dados"
-        description="Confira o mock ou a futura integracao de API."
+        description="Não foi possível carregar os dados da API."
       />
     )
   }
+
+  const hasSpreadsheetContext = Boolean(
+    selectedDepartmentGroup &&
+    selectedScreen &&
+    selectedProjection &&
+    selectedDepartment &&
+    visibleData,
+  )
+  const spreadsheetContextError = (
+    <ErrorState
+      title="Planilha não encontrada"
+      description="Não foi possível determinar a planilha e o departamento selecionados."
+    />
+  )
 
   return (
     <>
       <Routes>
         <Route
-          element={<AppLayout spreadsheets={spreadsheetNavigationItems} />}
+          element={
+            <AppLayout
+              spreadsheets={spreadsheetNavigationItems}
+              agendas={agendaNavigationItems}
+            />
+          }
         >
           <Route
             index
@@ -494,20 +973,28 @@ function AuthenticatedApp() {
           <Route
             path={ROUTES.SPREADSHEET}
             element={
-              <SpreadsheetPage
-                spreadsheetName={selectedSpreadsheet.name}
-                divisionName={selectedDivision.name}
-                divisions={selectedSpreadsheet.divisions ?? []}
-                selectedDivisionId={selectedDivision.id}
-                visibleData={visibleData}
-                onClientOpen={handleClientListOpen}
-                onRoutineOpen={handleRoutineListOpen}
-                onTaskOpen={setSelectedTask}
-                onTaskStatusChange={taskUpdates.updateStatus}
-                onTaskAttachmentAdd={taskUpdates.incrementAttachments}
-              />
+              hasSpreadsheetContext ? (
+                <SpreadsheetPage
+                  departmentName={selectedDepartmentGroup!.name}
+                  screens={selectedDepartmentGroup!.screens}
+                  selectedScreenId={spreadsheetSelection.screenId}
+                  screen={selectedScreen!}
+                  projection={selectedProjection!}
+                  visibleData={visibleData!}
+                  onClientOpen={handleClientListOpen}
+                  onRoutineOpen={handleRoutineListOpen}
+                  onTaskOpen={setSelectedTask}
+                  onTaskStatusChange={requestTaskTransition}
+                  getAllowedTaskStatusChanges={(task) =>
+                    getAllowedTaskTransitionStatuses(user, task)
+                  }
+                />
+              ) : (
+                spreadsheetContextError
+              )
             }
           />
+          <Route path={ROUTES.AGENDA} element={<AgendaPage />} />
           <Route path={ROUTES.LIST} element={<ListPage />} />
           <Route
             path={ROUTES.COMPANY_DETAILS}
@@ -515,16 +1002,18 @@ function AuthenticatedApp() {
               <EntityDetailPage
                 type="client"
                 data={data}
-                spreadsheetId={selectedSpreadsheet.id}
-                spreadsheetName={selectedSpreadsheet.name}
-                spreadsheetDepartmentId={selectedDepartment.id}
-                spreadsheetDivisionId={selectedDivision.id}
-                spreadsheetDivisionName={selectedDivision.name}
-                onClientUpdate={handleClientUpdate}
+                screenId={selectedScreen?.id}
+                screenName={selectedScreen?.name}
+                screenDepartmentId={selectedDepartment?.id}
+                onClientUpdate={handleCompanyUpdate}
+                onClientCoverageChange={reload}
                 onItemOpen={handleListItemOpen}
-                onItemQuickAction={handleListItemQuickAction}
-                onItemNoteChange={handleListItemNoteChange}
-                onItemStatusChange={handleListItemStatusChange}
+                onItemStatusChange={(item, change) =>
+                  requestTaskTransition(item.task.id, change.status)
+                }
+                getAllowedStatusChanges={(item) =>
+                  getAllowedTaskTransitionStatuses(user, item.task)
+                }
               />
             }
           />
@@ -534,33 +1023,39 @@ function AuthenticatedApp() {
               <EntityDetailPage
                 type="routine"
                 data={data}
-                spreadsheetId={selectedSpreadsheet.id}
-                spreadsheetName={selectedSpreadsheet.name}
-                spreadsheetDepartmentId={selectedDepartment.id}
-                spreadsheetDivisionId={selectedDivision.id}
-                spreadsheetDivisionName={selectedDivision.name}
+                screenId={selectedScreen?.id}
+                screenName={selectedScreen?.name}
+                screenDepartmentId={selectedDepartment?.id}
                 onRoutineUpdate={handleRoutineUpdate}
                 onItemOpen={handleListItemOpen}
-                onItemQuickAction={handleListItemQuickAction}
-                onItemNoteChange={handleListItemNoteChange}
-                onItemStatusChange={handleListItemStatusChange}
+                onItemStatusChange={(item, change) =>
+                  requestTaskTransition(item.task.id, change.status)
+                }
+                getAllowedStatusChanges={(item) =>
+                  getAllowedTaskTransitionStatuses(user, item.task)
+                }
               />
             }
           />
           <Route
             path={ROUTES.TASKS}
             element={
-              <TasksPage
-                data={visibleData}
-                spreadsheetId={selectedSpreadsheet.id}
-                spreadsheetName={selectedSpreadsheet.name}
-                spreadsheetDivisionId={selectedDivision.id}
-                spreadsheetDivisionName={selectedDivision.name}
-                onItemOpen={handleListItemOpen}
-                onItemQuickAction={handleListItemQuickAction}
-                onItemNoteChange={handleListItemNoteChange}
-                onItemStatusChange={handleListItemStatusChange}
-              />
+              hasSpreadsheetContext ? (
+                <TasksPage
+                  data={visibleData!}
+                  screenId={selectedScreen!.id}
+                  screenName={selectedScreen!.name}
+                  onItemOpen={handleListItemOpen}
+                  onItemStatusChange={(item, change) =>
+                    requestTaskTransition(item.task.id, change.status)
+                  }
+                  getAllowedStatusChanges={(item) =>
+                    getAllowedTaskTransitionStatuses(user, item.task)
+                  }
+                />
+              ) : (
+                spreadsheetContextError
+              )
             }
           />
           <Route
@@ -569,23 +1064,39 @@ function AuthenticatedApp() {
               <MyTasksPage
                 data={data}
                 onItemOpen={handleListItemOpen}
-                onItemQuickAction={handleListItemQuickAction}
-                onItemNoteChange={handleListItemNoteChange}
-                onItemStatusChange={handleListItemStatusChange}
-                onLooseTaskCreate={handleLooseTaskCreate}
+                onItemStatusChange={(item, change) =>
+                  requestTaskTransition(item.task.id, change.status)
+                }
+                getAllowedStatusChanges={(item) =>
+                  getAllowedTaskTransitionStatuses(user, item.task)
+                }
+                onLooseTaskCreate={handleAdHocTaskCreate}
               />
             }
           />
           <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
           <Route
+            path={ROUTES.SETTINGS}
+            element={
+              <RequirePermission
+                permission={APP_PERMISSION.MANAGE_ORGANIZATION}
+              >
+                <SettingsPage
+                  data={data}
+                  onDepartmentCreate={handleDepartmentCreate}
+                />
+              </RequirePermission>
+            }
+          />
+          <Route
             path={ROUTES.ROUTINE_CREATE}
             element={
               <RequirePermission permission={APP_PERMISSION.CREATE_ROUTINE}>
                 <CreateRoutinePage
-                  data={data}
+                  departments={data.departments}
                   period={competence}
                   onCreate={handleRoutineCreate}
-                  onCancel={() => navigate(ROUTES.HOME)}
+                  onCancel={() => navigate(ROUTES.ROUTINES)}
                 />
               </RequirePermission>
             }
@@ -594,7 +1105,14 @@ function AuthenticatedApp() {
             path={ROUTES.COMPANY_CREATE}
             element={
               <RequirePermission permission={APP_PERMISSION.CREATE_COMPANY}>
-                <CreateCompanyPage data={data} onCreate={handleCompanyCreate} />
+                <CreateCompanyPage
+                  departments={data.departments}
+                  screens={data.screens}
+                  routines={data.routines}
+                  period={competence}
+                  onCreate={handleCompanyCreate}
+                  onCancel={() => navigate(ROUTES.COMPANIES)}
+                />
               </RequirePermission>
             }
           />
@@ -603,8 +1121,36 @@ function AuthenticatedApp() {
             element={
               <RequirePermission permission={APP_PERMISSION.CREATE_EMPLOYEE}>
                 <CreateEmployeePage
-                  data={data}
-                  onCreate={handleEmployeeCreate}
+                  onInvite={handleEmployeeInvite}
+                  onCancel={() => navigate(ROUTES.EMPLOYEES)}
+                />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path={ROUTES.SCREEN_CREATE}
+            element={
+              <RequirePermission permission={APP_PERMISSION.MANAGE_SCREENS}>
+                <CreateScreenPage
+                  departments={data.departments}
+                  clients={data.clients}
+                  routines={data.routines}
+                  onCreate={handleScreenCreate}
+                  onCancel={() => navigate(ROUTES.SETTINGS)}
+                />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path={ROUTES.SCREENS}
+            element={
+              <RequirePermission permission={APP_PERMISSION.MANAGE_SCREENS}>
+                <ScreensPage
+                  screens={data.screens}
+                  departments={data.departments}
+                  clients={data.clients}
+                  routines={data.routines}
+                  onScreenUpdated={reload}
                 />
               </RequirePermission>
             }
@@ -619,7 +1165,7 @@ function AuthenticatedApp() {
             }
           />
           <Route
-            path={ROUTES.MANAGER_DASHBOARD}
+            path={ROUTES.ORGANIZATION_DASHBOARD}
             element={
               <PlaceholderPage
                 title="Dashboard geral"
@@ -639,7 +1185,7 @@ function AuthenticatedApp() {
             path={ROUTES.EMPLOYEES}
             element={
               <RequirePermission permission={APP_PERMISSION.VIEW_EMPLOYEES}>
-                <EmployeesPage data={data} />
+                <EmployeesPage departments={data.departments} />
               </RequirePermission>
             }
           />
@@ -678,20 +1224,146 @@ function AuthenticatedApp() {
             <RoutineDetailsCard
               task={selectedTask}
               {...selectedRelations}
-              onStatusChange={taskUpdates.updateStatus}
-              onAssigneeChange={taskUpdates.updateAssignee}
-              onDueDateChange={taskUpdates.updateDueDate}
-              onAttachmentAdd={taskUpdates.incrementAttachments}
-              onAttachmentRemove={taskUpdates.removeAttachment}
-              onNotesChange={taskUpdates.updateNotes}
-              onLinkAdd={taskUpdates.addLink}
-              onLinkRemove={taskUpdates.removeLink}
+              employees={selectedTaskEmployees}
+              onStatusChange={requestTaskTransition}
+              allowedStatusChanges={selectedTaskStatusChanges}
+              onAssigneeChange={
+                canEditSelectedTask ? handleTaskAssigneeChange : undefined
+              }
+              onDueDateChange={
+                canEditSelectedTask ? handleTaskDueDateChange : undefined
+              }
+              onContentChange={
+                canEditSelectedTask ? handleTaskContentChange : undefined
+              }
+              onNotesChange={
+                canEditSelectedTask ? handleTaskNotesChange : undefined
+              }
+              onLinkAdd={canEditSelectedTask ? handleTaskLinkAdd : undefined}
+              onLinkRemove={
+                canEditSelectedTask ? handleTaskLinkRemove : undefined
+              }
               onClose={() => setSelectedTask(null)}
             />
           </div>
         </div>
       )}
+
+      {pendingTaskTransition && (
+        <TaskTransitionDialog
+          task={pendingTaskTransition.task}
+          status={pendingTaskTransition.status}
+          reason={transitionReason}
+          error={transitionError}
+          isSubmitting={isTransitioning}
+          onReasonChange={setTransitionReason}
+          onCancel={() => {
+            if (!isTransitioning) setPendingTaskTransition(null)
+          }}
+          onConfirm={() => void confirmTaskTransition()}
+        />
+      )}
     </>
+  )
+}
+
+function TaskTransitionDialog({
+  task,
+  status,
+  reason,
+  error,
+  isSubmitting,
+  onReasonChange,
+  onCancel,
+  onConfirm,
+}: {
+  task: Task
+  status: RoutineStatus
+  reason: string
+  error: string | null
+  isSubmitting: boolean
+  onReasonChange: (value: string) => void
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const requiresReason = transitionRequiresReason(task.status, status)
+  const statusLabel = routineStatusConfig[status].label
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] grid place-items-center bg-[var(--color-overlay-bg)] p-4 backdrop-blur-[2px]"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isSubmitting) onCancel()
+      }}
+    >
+      <section
+        className="w-full max-w-lg rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-5 shadow-[var(--shadow-floating)]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-transition-title"
+      >
+        <h2
+          id="task-transition-title"
+          className="text-lg font-extrabold text-[var(--color-text-strong)]"
+        >
+          Alterar para {statusLabel}
+        </h2>
+        <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+          {task.title ?? 'Esta tarefa'} será atualizada diretamente na API.
+        </p>
+
+        <label className="mt-4 grid gap-1.5 text-sm font-bold text-[var(--color-text-main)]">
+          <span>Justificativa{requiresReason ? ' *' : ' (opcional)'}</span>
+          <textarea
+            value={reason}
+            onChange={(event) => onReasonChange(event.currentTarget.value)}
+            disabled={isSubmitting}
+            required={requiresReason}
+            maxLength={1000}
+            rows={4}
+            className="rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] p-3 text-[var(--color-control-text)]"
+          />
+        </label>
+        {error && (
+          <p
+            role="alert"
+            className="mt-3 text-sm font-semibold text-[var(--status-error-text)]"
+          >
+            {error}
+          </p>
+        )}
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className="min-h-10 rounded-[var(--radius-control)] border border-[var(--color-button-neutral-border)] px-4 text-sm font-bold disabled:opacity-60"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isSubmitting}
+            className="min-h-10 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-4 text-sm font-bold text-[var(--color-button-primary-text)] disabled:opacity-60"
+          >
+            {isSubmitting ? 'Salvando…' : 'Confirmar'}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function transitionRequiresReason(
+  currentStatus: RoutineStatus,
+  nextStatus: RoutineStatus,
+): boolean {
+  return (
+    nextStatus === 'error' ||
+    nextStatus === 'no_movement' ||
+    (nextStatus === 'pending' && currentStatus !== 'pending')
   )
 }
 
@@ -715,6 +1387,85 @@ function isSpreadsheetContextRoute(pathname: string, search = ''): boolean {
     pathname.startsWith(`${ROUTES.COMPANIES}/`) ||
     pathname.startsWith(`${ROUTES.ROUTINES}/`)
   )
+}
+
+function toTaskFromScheduledOccurrence(
+  occurrence: ScheduledOccurrence,
+  etag: string | null,
+): Task {
+  return {
+    id: occurrence.occurrenceKey,
+    occurrenceKey: occurrence.occurrenceKey,
+    taskId: occurrence.taskId,
+    competenceId: null,
+    etag: etag ?? occurrence.etag,
+    persistence: occurrence.persistence,
+    kind: occurrence.kind,
+    title: occurrence.title,
+    description: occurrence.description,
+    clientId: occurrence.clientCompanyId,
+    routineId: occurrence.routineId,
+    departmentId: occurrence.departmentId,
+    assigneeId: occurrence.assignee?.id ?? null,
+    status: occurrence.status,
+    period: occurrence.referenceMonth.slice(0, 7),
+    referenceMonth: occurrence.referenceMonth,
+    dueDate: occurrence.dueDate,
+    completedAt:
+      occurrence.status === 'completed'
+        ? (occurrence.updatedAt ?? occurrence.createdAt)
+        : null,
+    notes: occurrence.observation || undefined,
+    links: toTaskLinks(occurrence.occurrenceKey, occurrence.links),
+    createdAt: occurrence.createdAt ?? undefined,
+    updatedAt: occurrence.updatedAt,
+    indicators: { attachments: 0 },
+  }
+}
+
+function toTaskFromResource(resource: TaskResource, etag: string | null): Task {
+  return {
+    id: resource.id,
+    taskId: resource.id,
+    competenceId: resource.competenceId,
+    etag: etag ?? undefined,
+    kind: resource.kind,
+    title: resource.title,
+    description: resource.description,
+    clientId: resource.clientCompanyId,
+    routineId: resource.routineId,
+    departmentId: resource.departmentId,
+    assigneeId: resource.assignee?.id ?? null,
+    status: resource.status,
+    period: resource.competence.slice(0, 7),
+    referenceMonth: resource.competence,
+    dueDate: resource.dueDate,
+    completedAt: resource.status === 'completed' ? resource.updatedAt : null,
+    notes: resource.observation || undefined,
+    links: toTaskLinks(resource.id, resource.links),
+    createdAt: resource.createdAt,
+    updatedAt: resource.updatedAt,
+    indicators: { attachments: 0 },
+  }
+}
+
+function toTaskLinks(
+  taskId: string,
+  links: Array<{ label: string; url: string }>,
+) {
+  return links.map((link, index) => ({
+    id: `${taskId}:link:${index}`,
+    label: link.label,
+    url: link.url,
+  }))
+}
+
+function toTaskAssignee(
+  assignee: { id: string; displayName: string } | null,
+): Employee | null {
+  return assignee
+    ? { id: assignee.id, name: assignee.displayName, active: true }
+    : null
 }
 
 export default App

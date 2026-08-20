@@ -9,7 +9,7 @@ import WorkspaceBar from '../layouts/WorkspaceBar'
 import type { RoutineControlData, Task } from '../types/domain'
 import type { SpreadsheetNavigationItem } from '../types/navigation'
 import { buildHomeOverview } from '../utils/homeOverview'
-import { isManager } from '../utils/permissions'
+import { isOrganizationAdmin } from '../utils/permissions'
 
 interface HomePageProps {
   data: RoutineControlData
@@ -65,7 +65,7 @@ function HomePage({
       {overview.role && (
         <HomeRoleOverviewSection
           overview={overview.role}
-          manager={isManager(user)}
+          organizationAdmin={isOrganizationAdmin(user)}
           referenceDate={overview.referenceDate}
           onTaskOpen={onTaskOpen}
         />

@@ -4,12 +4,17 @@ import Button from '../../ui/Button'
 import type { CreateTaskLinkInput, EntityId, Task } from '../../../types/domain'
 import { getTaskLinkHost, normalizeTaskLinkUrl } from '../../../utils/taskLinks'
 
+type LinkChangeHandler<Value> = (
+  taskId: EntityId,
+  value: Value,
+) => void | Promise<void>
+
 interface TaskLinksPanelProps {
   task: Task
   title?: string
   compact?: boolean
-  onLinkAdd?: (taskId: EntityId, link: CreateTaskLinkInput) => void
-  onLinkRemove?: (taskId: EntityId, linkId: EntityId) => void
+  onLinkAdd?: LinkChangeHandler<CreateTaskLinkInput>
+  onLinkRemove?: LinkChangeHandler<EntityId>
 }
 
 function TaskLinksPanel({
@@ -20,28 +25,82 @@ function TaskLinksPanel({
   onLinkRemove,
 }: TaskLinksPanelProps) {
   const [isAdding, setIsAdding] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [removingLinkId, setRemovingLinkId] = useState<EntityId | null>(null)
   const [label, setLabel] = useState('')
   const [url, setUrl] = useState('')
   const [error, setError] = useState('')
   const links = task.links ?? []
+  const hasReachedLinkLimit = links.length >= 20
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const normalizedUrl = normalizeTaskLinkUrl(url)
+    const normalizedLabel = label.trim()
 
     if (!normalizedUrl) {
       setError('Informe um endereço completo iniciado por http:// ou https://.')
       return
     }
 
-    onLinkAdd?.(task.id, {
-      label: label.trim() || getDefaultLinkLabel(normalizedUrl),
-      url: normalizedUrl,
-    })
-    setLabel('')
-    setUrl('')
+    if (normalizedUrl.length > 2048) {
+      setError('O endereço do link deve ter no máximo 2.048 caracteres.')
+      return
+    }
+
+    const nextLabel = normalizedLabel || getDefaultLinkLabel(normalizedUrl)
+
+    if (nextLabel.length > 160) {
+      setError('O nome do link deve ter no máximo 160 caracteres.')
+      return
+    }
+
+    if (hasReachedLinkLimit) {
+      setError('Esta tarefa já atingiu o limite de 20 links.')
+      return
+    }
+
+    if (!onLinkAdd) return
+
+    setIsSaving(true)
     setError('')
-    setIsAdding(false)
+
+    try {
+      await onLinkAdd(task.id, {
+        label: nextLabel,
+        url: normalizedUrl,
+      })
+      setLabel('')
+      setUrl('')
+      setIsAdding(false)
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Não foi possível salvar o link.',
+      )
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function handleRemove(linkId: EntityId) {
+    if (!onLinkRemove || removingLinkId) return
+
+    setRemovingLinkId(linkId)
+    setError('')
+
+    try {
+      await onLinkRemove(task.id, linkId)
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Não foi possível remover o link.',
+      )
+    } finally {
+      setRemovingLinkId(null)
+    }
   }
 
   return (
@@ -64,10 +123,13 @@ function TaskLinksPanel({
           )}
         </div>
 
-        {onLinkAdd && !isAdding && (
+        {onLinkAdd && !isAdding && !hasReachedLinkLimit && (
           <button
             type="button"
-            onClick={() => setIsAdding(true)}
+            onClick={() => {
+              setError('')
+              setIsAdding(true)
+            }}
             className="text-xs font-extrabold text-[var(--color-brand)] hover:text-[var(--color-brand-strong)] focus-visible:underline"
           >
             Adicionar link
@@ -103,8 +165,9 @@ function TaskLinksPanel({
               {onLinkRemove && (
                 <button
                   type="button"
-                  onClick={() => onLinkRemove(task.id, link.id)}
-                  className="grid size-8 shrink-0 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
+                  onClick={() => void handleRemove(link.id)}
+                  disabled={Boolean(removingLinkId)}
+                  className="grid size-8 shrink-0 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error-text)] disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
                   aria-label={`Remover link ${link.label}`}
                   title="Remover link"
                 >
@@ -122,9 +185,25 @@ function TaskLinksPanel({
         )
       )}
 
+      {hasReachedLinkLimit && onLinkAdd && !isAdding && (
+        <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+          Limite de 20 links atingido.
+        </p>
+      )}
+
+      {error && !isAdding && (
+        <p
+          role="alert"
+          className="mt-2 text-xs font-semibold text-[var(--status-error-text)]"
+        >
+          {error}
+        </p>
+      )}
+
       {isAdding && (
         <form
-          onSubmit={handleSubmit}
+          onSubmit={(event) => void handleSubmit(event)}
+          aria-busy={isSaving || undefined}
           className="mt-3 rounded-[var(--radius-control)] border border-[var(--color-control-focus)] bg-[var(--color-panel-soft-bg)] p-3 ring-2 ring-[var(--color-focus-ring)]"
         >
           <div
@@ -138,6 +217,8 @@ function TaskLinksPanel({
               <span className="mb-1 block">Nome do link</span>
               <input
                 value={label}
+                maxLength={160}
+                disabled={isSaving}
                 onChange={(event) => setLabel(event.target.value)}
                 placeholder="Ex.: Portal de notas"
                 autoFocus
@@ -149,6 +230,8 @@ function TaskLinksPanel({
               <input
                 type="url"
                 value={url}
+                maxLength={2048}
+                disabled={isSaving}
                 onChange={(event) => {
                   setUrl(event.target.value)
                   setError('')
@@ -173,6 +256,7 @@ function TaskLinksPanel({
               type="button"
               tone="neutral"
               size="sm"
+              disabled={isSaving}
               onClick={() => {
                 setIsAdding(false)
                 setError('')
@@ -180,8 +264,8 @@ function TaskLinksPanel({
             >
               Cancelar
             </Button>
-            <Button type="submit" tone="primary" size="sm">
-              Salvar link
+            <Button type="submit" tone="primary" size="sm" disabled={isSaving}>
+              {isSaving ? 'Salvando…' : 'Salvar link'}
             </Button>
           </div>
         </form>

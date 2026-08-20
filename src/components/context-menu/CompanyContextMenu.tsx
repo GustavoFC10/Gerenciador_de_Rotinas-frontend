@@ -8,12 +8,10 @@ import {
 import { createPortal } from 'react-dom'
 
 import { getClientCopyOptions } from '../../utils/clientClipboard'
-import type { Client, Department, DepartmentDivision } from '../../types/domain'
+import type { Client } from '../../types/domain'
 
 interface CompanyContextMenuProps {
   client: Client
-  departments?: Department[]
-  divisions?: DepartmentDivision[]
   x: number
   y: number
   onClose: (restoreFocus: boolean) => void
@@ -22,8 +20,6 @@ interface CompanyContextMenuProps {
 
 function CompanyContextMenu({
   client,
-  departments = [],
-  divisions = [],
   x,
   y,
   onClose,
@@ -31,7 +27,7 @@ function CompanyContextMenu({
 }: CompanyContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null)
   const [position, setPosition] = useState({ x, y })
-  const options = getClientCopyOptions(client, { departments, divisions })
+  const options = getClientCopyOptions(client)
 
   useLayoutEffect(() => {
     const menu = menuRef.current
@@ -148,8 +144,6 @@ function CompanyContextMenu({
       className="fixed z-[100] w-64 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-1.5 text-[var(--color-text-main)] shadow-[var(--shadow-floating)]"
       style={{ left: position.x, top: position.y }}
     >
-      
-
       <div className="pt-1">
         {options.map((option, index) => (
           <button

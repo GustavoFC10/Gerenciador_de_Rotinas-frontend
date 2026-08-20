@@ -1,97 +1,118 @@
 import { ROUTES } from '../constants/routes'
+import type { EntityId, RoutineControlData } from '../types/domain'
 import type {
-  Department,
-  DepartmentDivision,
-  EntityId,
-  RoutineControlData,
-} from '../types/domain'
-import type {
-  SpreadsheetDivisionNavigationItem,
+  ScreenNavigationItem,
   SpreadsheetNavigationItem,
 } from '../types/navigation'
 
-const SPREADSHEET_ID_PARAM = 'sheetId'
-const DIVISION_ID_PARAM = 'divisionId'
-
-type SpreadsheetNavigationSource = Pick<
-  RoutineControlData,
-  'departments' | 'divisions'
->
+const SCREEN_ID_PARAM = 'screenId'
 
 export interface SpreadsheetNavigationSelection {
-  spreadsheet: SpreadsheetNavigationItem | null
-  division: SpreadsheetDivisionNavigationItem | null
-  spreadsheetId: EntityId | null
+  department: SpreadsheetNavigationItem | null
+  screen: ScreenNavigationItem | null
+  screenId: EntityId | null
   departmentId: EntityId | null
-  divisionId: EntityId | null
   isFallback: boolean
 }
 
 export interface SpreadsheetContext {
-  spreadsheetId: EntityId | null
-  divisionId?: EntityId | null
+  screenId: EntityId | null
 }
 
 export function buildSpreadsheetNavigationItems(
-  data: SpreadsheetNavigationSource,
+  data: Pick<RoutineControlData, 'screens'>,
   basePath = ROUTES.SPREADSHEET,
 ): SpreadsheetNavigationItem[] {
-  const activeDivisions = (data.divisions ?? [])
-    .filter((division) => division.active !== false)
-    .sort(compareDivisions)
+  const screens = data.screens
+    .filter((screen) => screen.type === 'spreadsheet' && !screen.archivedAt)
+    .sort(
+      (left, right) =>
+        left.position - right.position ||
+        left.name.localeCompare(right.name, 'pt-BR') ||
+        left.id.localeCompare(right.id),
+    )
+    .map((screen) => ({
+      id: screen.id,
+      departmentId: screen.departmentId,
+      name: screen.name,
+      to: buildSpreadsheetPath(basePath, { screenId: screen.id }),
+    })) satisfies ScreenNavigationItem[]
 
-  return data.departments.map((department) => {
-    const divisions = activeDivisions
-      .filter((division) => division.departmentId === department.id)
-      .map((division) =>
-        buildDivisionNavigationItem(department, division, basePath),
-      )
-    const spreadsheetId = getSpreadsheetId(department.id)
-    const defaultDivision = divisions[0] ?? null
+  const departments = new Map<EntityId, ScreenNavigationItem[]>()
+
+  screens.forEach((screen) => {
+    const current = departments.get(screen.departmentId) ?? []
+    current.push(screen)
+    departments.set(screen.departmentId, current)
+  })
+
+  return [...departments.entries()].map(([departmentId, departmentScreens]) => {
+    const firstScreen = departmentScreens[0]!
+    const departmentName = data.screens.find(
+      (screen) => screen.departmentId === departmentId,
+    )?.departmentName
 
     return {
-      id: spreadsheetId,
-      departmentId: department.id,
-      name: department.name,
-      description: getDivisionCountDescription(divisions.length),
-      to: buildSpreadsheetPath(basePath, {
-        spreadsheetId,
-        divisionId: defaultDivision?.id ?? null,
-      }),
-      divisions,
+      id: departmentId,
+      departmentId,
+      name: departmentName || 'Departamento',
+      description:
+        String(departmentScreens.length) +
+        (departmentScreens.length === 1 ? ' tela' : ' telas'),
+      to: firstScreen.to,
+      screens: departmentScreens,
     }
   })
+}
+
+/**
+ * Agendas não compartilham a projeção tabular das planilhas, mas continuam
+ * sendo telas do departamento. Mantemos uma lista própria para que membros
+ * possam descobri-las no menu sem inventar uma relação legada de "divisão".
+ */
+export function buildAgendaNavigationItems(
+  data: Pick<RoutineControlData, 'screens'>,
+): ScreenNavigationItem[] {
+  return data.screens
+    .filter((screen) => screen.type === 'agenda' && !screen.archivedAt)
+    .sort(
+      (left, right) =>
+        left.position - right.position ||
+        left.name.localeCompare(right.name, 'pt-BR') ||
+        left.id.localeCompare(right.id),
+    )
+    .map((screen) => ({
+      id: screen.id,
+      departmentId: screen.departmentId,
+      name: screen.name,
+      description: screen.departmentName,
+      to: `${ROUTES.AGENDA}?${new URLSearchParams({ screenId: screen.id }).toString()}`,
+    }))
 }
 
 export function resolveSpreadsheetSelection(
   spreadsheets: SpreadsheetNavigationItem[],
   search: string | URLSearchParams,
 ): SpreadsheetNavigationSelection {
-  const searchParams = toSearchParams(search)
-  const requestedSpreadsheetId = searchParams.get(SPREADSHEET_ID_PARAM)
-  const requestedDivisionId = searchParams.get(DIVISION_ID_PARAM)
-  const requestedSpreadsheet = requestedSpreadsheetId
-    ? spreadsheets.find((item) => item.id === requestedSpreadsheetId)
-    : undefined
-  const spreadsheet = requestedSpreadsheet ?? spreadsheets[0] ?? null
-  const divisions = spreadsheet?.divisions ?? []
-  const requestedDivision =
-    requestedDivisionId && requestedSpreadsheet
-      ? divisions.find((division) => division.id === requestedDivisionId)
-      : undefined
-  const division = requestedDivision ?? divisions[0] ?? null
-  const selectedSpreadsheetId = spreadsheet?.id ?? null
-  const selectedDivisionId = division?.id ?? null
+  const requestedScreenId = toSearchParams(search).get(SCREEN_ID_PARAM)
+  const availableScreens = spreadsheets.flatMap((item) => item.screens)
+  const screen = requestedScreenId
+    ? (availableScreens.find((item) => item.id === requestedScreenId) ??
+      availableScreens[0] ??
+      null)
+    : (availableScreens[0] ?? null)
+  const department = screen
+    ? (spreadsheets.find(
+        (item) => item.departmentId === screen.departmentId,
+      ) ?? null)
+    : null
 
   return {
-    spreadsheet,
-    division,
-    spreadsheetId: selectedSpreadsheetId,
-    departmentId: spreadsheet?.departmentId ?? null,
-    divisionId: selectedDivisionId,
-    isFallback:
-      requestedSpreadsheetId !== selectedSpreadsheetId ||
-      requestedDivisionId !== selectedDivisionId,
+    department,
+    screen,
+    screenId: screen?.id ?? null,
+    departmentId: screen?.departmentId ?? null,
+    isFallback: requestedScreenId !== (screen?.id ?? null),
   }
 }
 
@@ -101,39 +122,14 @@ export function buildSpreadsheetContextQuery(
 ): string {
   const searchParams = toSearchParams(currentSearch)
 
-  if (context.spreadsheetId) {
-    searchParams.set(SPREADSHEET_ID_PARAM, context.spreadsheetId)
+  if (context.screenId) {
+    searchParams.set(SCREEN_ID_PARAM, context.screenId)
   } else {
-    searchParams.delete(SPREADSHEET_ID_PARAM)
-  }
-
-  if (context.divisionId) {
-    searchParams.set(DIVISION_ID_PARAM, context.divisionId)
-  } else {
-    searchParams.delete(DIVISION_ID_PARAM)
+    searchParams.delete(SCREEN_ID_PARAM)
   }
 
   const query = searchParams.toString()
   return query ? `?${query}` : ''
-}
-
-function buildDivisionNavigationItem(
-  department: Department,
-  division: DepartmentDivision,
-  basePath: string,
-): SpreadsheetDivisionNavigationItem {
-  const spreadsheetId = getSpreadsheetId(department.id)
-
-  return {
-    id: division.id,
-    departmentId: department.id,
-    name: division.name,
-    description: division.description,
-    to: buildSpreadsheetPath(basePath, {
-      spreadsheetId,
-      divisionId: division.id,
-    }),
-  }
 }
 
 function buildSpreadsheetPath(
@@ -143,32 +139,8 @@ function buildSpreadsheetPath(
   return `${basePath}${buildSpreadsheetContextQuery(context)}`
 }
 
-function compareDivisions(
-  left: DepartmentDivision,
-  right: DepartmentDivision,
-): number {
-  return (
-    left.position - right.position ||
-    left.name.localeCompare(right.name, 'pt-BR') ||
-    left.id.localeCompare(right.id)
-  )
-}
-
-function getDivisionCountDescription(count: number): string | undefined {
-  if (count === 0) return undefined
-  return count === 1 ? '1 planilha' : `${count} planilhas`
-}
-
-export function getSpreadsheetId(departmentId: EntityId): EntityId {
-  return departmentId.startsWith('dept-')
-    ? departmentId.slice('dept-'.length)
-    : departmentId
-}
-
 function toSearchParams(search: string | URLSearchParams): URLSearchParams {
-  if (search instanceof URLSearchParams) {
-    return new URLSearchParams(search)
-  }
+  if (search instanceof URLSearchParams) return new URLSearchParams(search)
 
   return new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
 }

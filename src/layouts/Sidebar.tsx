@@ -5,11 +5,19 @@ import { appThemeClass, focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
 import type { EntityId } from '../types/domain'
-import type { SpreadsheetNavigationItem } from '../types/navigation'
-import { canManageEmployees, isLeader, isManager } from '../utils/permissions'
+import type {
+  ScreenNavigationItem,
+  SpreadsheetNavigationItem,
+} from '../types/navigation'
+import {
+  canViewEmployees,
+  isLead,
+  isOrganizationAdmin,
+} from '../utils/permissions'
 
 interface SidebarProps {
   spreadsheets: SpreadsheetNavigationItem[]
+  agendas: ScreenNavigationItem[]
   isCollapsed: boolean
   isMobileOpen: boolean
   onCollapseToggle: () => void
@@ -20,6 +28,7 @@ interface SidebarProps {
 
 type NavigationIconName =
   | 'building'
+  | 'calendar'
   | 'chart'
   | 'chevron-left'
   | 'chevron-right'
@@ -28,11 +37,13 @@ type NavigationIconName =
   | 'list'
   | 'people'
   | 'repeat'
+  | 'settings'
   | 'spreadsheet'
   | 'tasks'
 
 function Sidebar({
   spreadsheets,
+  agendas,
   isCollapsed,
   isMobileOpen,
   onCollapseToggle,
@@ -47,24 +58,23 @@ function Sidebar({
     location.search,
     spreadsheets,
   )
+  const selectedAgendaId = getSelectedAgendaId(
+    location.pathname,
+    location.search,
+    agendas,
+  )
   const contextualSpreadsheetId = getAvailableSpreadsheetId(
     location.search,
     spreadsheets,
   )
-  const contextualDivisionId = getAvailableDivisionId(
-    location.search,
-    contextualSpreadsheetId,
-    spreadsheets,
-  )
   const tasksPath = contextualSpreadsheetId
     ? `${ROUTES.TASKS}?${new URLSearchParams({
-        sheetId: contextualSpreadsheetId,
-        ...(contextualDivisionId ? { divisionId: contextualDivisionId } : {}),
+        screenId: contextualSpreadsheetId,
       }).toString()}`
     : ROUTES.TASKS
   const managementDepartments = [
     ...new Map(
-      spreadsheets.map((spreadsheet) => [
+      [...spreadsheets, ...agendas].map((spreadsheet) => [
         spreadsheet.departmentId,
         {
           id: spreadsheet.departmentId,
@@ -175,7 +185,9 @@ function Sidebar({
               <SpreadsheetLink
                 key={spreadsheet.id}
                 spreadsheet={spreadsheet}
-                isActive={spreadsheet.id === selectedSpreadsheetId}
+                isActive={spreadsheet.screens.some(
+                  (screen) => screen.id === selectedSpreadsheetId,
+                )}
                 isCollapsed={isCollapsed}
                 onNavigate={onMobileClose}
               />
@@ -190,6 +202,24 @@ function Sidebar({
             </li>
           )}
         </NavigationSection>
+
+        {agendas.length > 0 && (
+          <NavigationSection
+            title="Agendas"
+            isCollapsed={isCollapsed}
+            className="mb-5"
+          >
+            {agendas.map((agenda) => (
+              <AgendaLink
+                key={agenda.id}
+                agenda={agenda}
+                isActive={agenda.id === selectedAgendaId}
+                isCollapsed={isCollapsed}
+                onNavigate={onMobileClose}
+              />
+            ))}
+          </NavigationSection>
+        )}
 
         <NavigationSection
           title="Listagens"
@@ -220,7 +250,7 @@ function Sidebar({
             isCollapsed={isCollapsed}
             onNavigate={onMobileClose}
           />
-          {canManageEmployees(user) && (
+          {canViewEmployees(user) && (
             <NavigationLink
               to={ROUTES.EMPLOYEES}
               label="Funcionários"
@@ -232,15 +262,24 @@ function Sidebar({
           )}
         </NavigationSection>
 
-        {isLeader(user) && (
+        {(isOrganizationAdmin(user) || isLead(user)) && (
           <>
             <NavigationDivider />
             <NavigationSection title="Gestão" isCollapsed={isCollapsed}>
-              {isManager(user) && (
+              {isOrganizationAdmin(user) && (
                 <NavigationLink
-                  to={ROUTES.MANAGER_DASHBOARD}
+                  to={ROUTES.ORGANIZATION_DASHBOARD}
                   label="Visão geral"
                   icon="chart"
+                  isCollapsed={isCollapsed}
+                  onNavigate={onMobileClose}
+                />
+              )}
+              {isOrganizationAdmin(user) && (
+                <NavigationLink
+                  to={ROUTES.SETTINGS}
+                  label="Configurações"
+                  icon="settings"
                   isCollapsed={isCollapsed}
                   onNavigate={onMobileClose}
                 />
@@ -260,7 +299,6 @@ function Sidebar({
             </NavigationSection>
           </>
         )}
-
       </nav>
     </aside>
   )
@@ -295,34 +333,32 @@ function getAvailableSpreadsheetId(
   search: string,
   spreadsheets: SpreadsheetNavigationItem[],
 ): EntityId | null {
-  const requestedSpreadsheetId = new URLSearchParams(search).get('sheetId')
-  const requestedSpreadsheetExists = spreadsheets.some(
-    (spreadsheet) => spreadsheet.id === requestedSpreadsheetId,
+  const requestedSpreadsheetId = new URLSearchParams(search).get('screenId')
+  const availableScreens = spreadsheets.flatMap(
+    (spreadsheet) => spreadsheet.screens,
+  )
+  const requestedSpreadsheetExists = availableScreens.some(
+    (screen) => screen.id === requestedSpreadsheetId,
   )
 
   if (requestedSpreadsheetId && requestedSpreadsheetExists) {
     return requestedSpreadsheetId
   }
 
-  return spreadsheets[0]?.id ?? null
+  return availableScreens[0]?.id ?? null
 }
 
-function getAvailableDivisionId(
+function getSelectedAgendaId(
+  pathname: string,
   search: string,
-  spreadsheetId: EntityId | null,
-  spreadsheets: SpreadsheetNavigationItem[],
+  agendas: ScreenNavigationItem[],
 ): EntityId | null {
-  const spreadsheet = spreadsheets.find((item) => item.id === spreadsheetId)
-  const requestedDivisionId = new URLSearchParams(search).get('divisionId')
-  const requestedDivisionExists = spreadsheet?.divisions?.some(
-    (division) => division.id === requestedDivisionId,
-  )
+  if (pathname !== ROUTES.AGENDA) return null
 
-  if (requestedDivisionId && requestedDivisionExists) {
-    return requestedDivisionId
-  }
-
-  return spreadsheet?.divisions?.[0]?.id ?? null
+  const requestedAgendaId = new URLSearchParams(search).get('screenId')
+  return agendas.some((agenda) => agenda.id === requestedAgendaId)
+    ? requestedAgendaId
+    : null
 }
 
 function NavigationSection({
@@ -391,6 +427,61 @@ function SpreadsheetLink({
           {spreadsheet.description && (
             <span className="mt-1 block truncate text-xs font-medium text-[var(--color-sidebar-primary-muted-text)]">
               {spreadsheet.description}
+            </span>
+          )}
+        </span>
+        <NavigationIcon
+          name="chevron-right"
+          className={`size-4 shrink-0 opacity-60 ${
+            isCollapsed ? 'lg:hidden' : ''
+          }`}
+        />
+      </Link>
+    </li>
+  )
+}
+
+function AgendaLink({
+  agenda,
+  isActive,
+  isCollapsed,
+  onNavigate,
+}: {
+  agenda: ScreenNavigationItem
+  isActive: boolean
+  isCollapsed: boolean
+  onNavigate: () => void
+}) {
+  return (
+    <li>
+      <Link
+        to={agenda.to}
+        data-navigation-priority="agenda"
+        aria-current={isActive ? 'page' : undefined}
+        title={isCollapsed ? agenda.name : undefined}
+        onClick={onNavigate}
+        className={`group flex min-h-[var(--size-nav-primary)] items-center gap-3 rounded-[var(--radius-nav-item)] border px-3 py-2.5 font-semibold transition motion-reduce:transition-none ${
+          isCollapsed ? 'lg:justify-center lg:px-1' : ''
+        } ${
+          isActive
+            ? 'border-[var(--color-sidebar-primary-active-border)] bg-[var(--color-sidebar-primary-active-bg)] text-[var(--color-sidebar-primary-text)] shadow-[var(--shadow-panel)]'
+            : 'border-[var(--color-sidebar-primary-border)] bg-[var(--color-sidebar-primary-bg)] text-[var(--color-sidebar-primary-text)] hover:border-[var(--color-sidebar-primary-active-border)] hover:bg-[var(--color-sidebar-primary-hover-bg)]'
+        } ${focusRing}`}
+      >
+        <span
+          className={`grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-sidebar-icon-bg)] text-[var(--color-sidebar-icon-text)] ${
+            isCollapsed ? 'lg:size-8' : ''
+          }`}
+        >
+          <NavigationIcon name="calendar" className="size-[1.35rem]" />
+        </span>
+        <span className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}>
+          <span className="block truncate text-[1.05rem] font-extrabold leading-5">
+            {agenda.name}
+          </span>
+          {agenda.description && (
+            <span className="mt-1 block truncate text-xs font-medium text-[var(--color-sidebar-primary-muted-text)]">
+              {agenda.description}
             </span>
           )}
         </span>
@@ -480,6 +571,15 @@ function NavigationIcon({
     )
   }
 
+  if (name === 'calendar') {
+    return (
+      <svg {...commonProps}>
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M7 3v4M17 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
+      </svg>
+    )
+  }
+
   if (name === 'tasks') {
     return (
       <svg {...commonProps}>
@@ -540,6 +640,18 @@ function NavigationIcon({
         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    )
+  }
+
+  if (name === 'settings') {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
+        <path
+          d="m19.4 15 .1.1a2 2 0 1 1-2.8 2.8l-.1-.1a2 2 0 0 0-3.4 1.4v.2a2 2 0 1 1-4 0v-.2a2 2 0 0 0-3.4-1.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A2 2 0 0 0 1.6 12a2 2 0 0 1 0-4h.2a2 2 0 0 0 1.4-3.4l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A2 2 0 0 0 9.4.4h.2a2 2 0 1 1 4 0v.2A2 2 0 0 0 17 2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A2 2 0 0 0 21.2 8h.2a2 2 0 1 1 0 4h-.2a2 2 0 0 0-1.8 3Z"
+          transform="translate(0 3.6) scale(.75)"
+        />
       </svg>
     )
   }

@@ -9,18 +9,20 @@ import { HomeIcon, HomeProgressBar, HomeSummaryMetric } from './HomePrimitives'
 
 function HomeRoleOverviewSection({
   overview,
-  manager,
+  organizationAdmin,
   referenceDate,
   onTaskOpen,
 }: {
   overview: HomeRoleOverview
-  manager: boolean
+  organizationAdmin: boolean
   referenceDate: string
   onTaskOpen: (task: Task) => void
 }) {
-  const title = manager ? 'Visão da operação' : 'Acompanhamento do departamento'
-  const destination = manager
-    ? ROUTES.MANAGER_DASHBOARD
+  const title = organizationAdmin
+    ? 'Visão da operação'
+    : 'Acompanhamento do departamento'
+  const destination = organizationAdmin
+    ? ROUTES.ORGANIZATION_DASHBOARD
     : ROUTES.DEPARTMENT_DASHBOARD
 
   return (

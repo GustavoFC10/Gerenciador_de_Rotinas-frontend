@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 import {
   ROUTINE_STATUS,
   routineStatusConfig,
@@ -19,7 +21,7 @@ type StatusChangeHandler = (taskId: EntityId, status: RoutineStatus) => void
 interface RoutineCardActionsProps {
   task: Task
   onStatusChange?: StatusChangeHandler
-  onNotesChange?: (taskId: EntityId, notes: string) => void
+  onNotesChange?: (taskId: EntityId, notes: string) => void | Promise<void>
   className?: string
 }
 
@@ -42,7 +44,7 @@ interface RoutineAttachmentsPanelProps {
 
 interface RoutineNotesPanelProps {
   task: Task
-  onNotesChange?: (taskId: EntityId, notes: string) => void
+  onNotesChange?: (taskId: EntityId, notes: string) => void | Promise<void>
   variant?: NotesVariant
   title?: string
   description?: string
@@ -53,6 +55,7 @@ interface RoutineNotesPanelProps {
 interface RoutineStatusControlProps {
   task: Task
   onStatusChange?: StatusChangeHandler
+  allowedStatusChanges?: readonly RoutineStatus[]
   variant?: StatusControlVariant
   className?: string
 }
@@ -64,10 +67,6 @@ const selectableStatusOrder: RoutineStatus[] = [
   ROUTINE_STATUS.NO_MOVEMENT,
   ROUTINE_STATUS.COMPLETED,
 ]
-
-const selectableStatusEntries = selectableStatusOrder.map(
-  (status) => [status, routineStatusConfig[status]] as const,
-)
 
 function RoutineCardActions({
   task,
@@ -183,12 +182,14 @@ export function RoutineAttachmentsPanel({
           )}
         </div>
 
-        <RoutineAttachmentButton
-          task={task}
-          onAttachmentAdd={onAttachmentAdd}
-          label="Anexar"
-          compact
-        />
+        {onAttachmentAdd && (
+          <RoutineAttachmentButton
+            task={task}
+            onAttachmentAdd={onAttachmentAdd}
+            label="Anexar"
+            compact
+          />
+        )}
       </header>
 
       <div
@@ -213,7 +214,10 @@ export function RoutineAttachmentsPanel({
             ))}
           </div>
         ) : (
-          <AttachmentEmptyState variant={variant} />
+          <AttachmentEmptyState
+            variant={variant}
+            canAdd={Boolean(onAttachmentAdd)}
+          />
         )}
       </div>
     </section>
@@ -231,6 +235,40 @@ export function RoutineNotesPanel({
 }: RoutineNotesPanelProps) {
   const isEmbedded = variant === 'embedded'
   const isCallout = variant === 'callout'
+  const [draftNotes, setDraftNotes] = useState(task.notes ?? '')
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setDraftNotes(task.notes ?? '')
+    setIsSaving(false)
+    setError('')
+  }, [task.id, task.notes])
+
+  async function saveNotes() {
+    if (
+      !onNotesChange ||
+      isSaving ||
+      draftNotes === (task.notes ?? '')
+    ) {
+      return
+    }
+
+    setError('')
+    setIsSaving(true)
+
+    try {
+      await onNotesChange(task.id, draftNotes)
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Não foi possível salvar a observação.',
+      )
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   return (
     <section
@@ -262,13 +300,34 @@ export function RoutineNotesPanel({
         </div>
       </div>
       <textarea
-        value={task.notes ?? ''}
+        value={draftNotes}
         rows={rows}
-        onChange={(event) => onNotesChange?.(task.id, event.target.value)}
+        readOnly={!onNotesChange || isSaving}
+        disabled={isSaving}
+        maxLength={5000}
+        aria-readonly={!onNotesChange || undefined}
+        onChange={(event) => {
+          setDraftNotes(event.target.value)
+          setError('')
+        }}
+        onBlur={() => void saveNotes()}
         aria-label="Observações da rotina"
         placeholder="Adicione contexto apenas quando necessário..."
         className="w-full resize-none rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2 text-sm leading-5 text-[var(--color-control-text)] outline-none transition placeholder:text-[var(--color-control-placeholder)] focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)]"
       />
+      {error && (
+        <p
+          role="alert"
+          className="mt-1.5 text-xs font-semibold text-[var(--status-error-text)]"
+        >
+          {error}
+        </p>
+      )}
+      {!error && isSaving && (
+        <p className="mt-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+          Salvando…
+        </p>
+      )}
     </section>
   )
 }
@@ -276,12 +335,28 @@ export function RoutineNotesPanel({
 export function RoutineStatusControl({
   task,
   onStatusChange,
+  allowedStatusChanges,
   variant = 'menu',
   className = '',
 }: RoutineStatusControlProps) {
   const currentStatus =
     routineStatusConfig[task.status] ??
     routineStatusConfig[ROUTINE_STATUS.PENDING]
+  const statusEntries = (allowedStatusChanges ?? selectableStatusOrder)
+    .filter((status) => status !== task.status)
+    .map((status) => [status, routineStatusConfig[status]] as const)
+
+  if (!onStatusChange || statusEntries.length === 0) {
+    return (
+      <span
+        className={`inline-flex min-h-9 items-center gap-2 rounded-[var(--radius-control)] border px-3 text-sm font-bold ${currentStatus.surfaceClass} ${className}`}
+        aria-label={`Estado da execução: ${currentStatus.label}`}
+      >
+        <RoutineStatusIcon status={task.status} className="size-4" />
+        {currentStatus.label}
+      </span>
+    )
+  }
 
   if (variant === 'grouped') {
     const groups = [
@@ -295,10 +370,7 @@ export function RoutineStatusControl({
       },
       {
         label: 'Exceções',
-        statuses: [
-          ROUTINE_STATUS.ERROR,
-          ROUTINE_STATUS.NO_MOVEMENT,
-        ],
+        statuses: [ROUTINE_STATUS.ERROR, ROUTINE_STATUS.NO_MOVEMENT],
       },
     ]
 
@@ -316,44 +388,48 @@ export function RoutineStatusControl({
           </span>
         </div>
         <div className="mt-3 space-y-4">
-          {groups.map((group) => (
-            <div key={group.label}>
-              <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
-                {group.label}
-              </p>
-              <div className="space-y-1">
-                {group.statuses.map((value) => {
-                  const config = routineStatusConfig[value]
+          {groups.map((group) => {
+            const statuses = group.statuses.filter((status) =>
+              statusEntries.some(([value]) => value === status),
+            )
 
-                  return (
-                    <label
-                      key={value}
-                      className={`group flex min-h-9 cursor-pointer items-center gap-2 rounded-md border px-2 text-xs font-semibold transition hover:border-[var(--color-control-focus)] hover:bg-[var(--color-control-hover-bg)] ${
-                        task.status === value
-                          ? 'border-[var(--color-text-strong)] bg-[var(--color-panel-bg)] text-[var(--color-text-strong)] shadow-[var(--shadow-panel)]'
-                          : 'border-transparent text-[var(--color-text-muted)]'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={`routine-status-grouped-${task.id}`}
-                        value={value}
-                        checked={task.status === value}
-                        onChange={() => onStatusChange?.(task.id, value)}
-                        className="peer sr-only"
-                      />
-                      <span
-                        className={`size-3 shrink-0 rounded-full ${config.dotClass}`}
-                      />
-                      <span className="min-w-0 flex-1 truncate">
-                        {config.label}
-                      </span>
-                    </label>
-                  )
-                })}
+            if (statuses.length === 0) return null
+
+            return (
+              <div key={group.label}>
+                <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+                  {group.label}
+                </p>
+                <div className="space-y-1">
+                  {statuses.map((value) => {
+                    const config = routineStatusConfig[value]
+
+                    return (
+                      <label
+                        key={value}
+                        className="group flex min-h-9 cursor-pointer items-center gap-2 rounded-md border border-transparent px-2 text-xs font-semibold text-[var(--color-text-muted)] transition hover:border-[var(--color-control-focus)] hover:bg-[var(--color-control-hover-bg)]"
+                      >
+                        <input
+                          type="radio"
+                          name={`routine-status-grouped-${task.id}`}
+                          value={value}
+                          checked={false}
+                          onChange={() => onStatusChange?.(task.id, value)}
+                          className="peer sr-only"
+                        />
+                        <span
+                          className={`size-3 shrink-0 rounded-full ${config.dotClass}`}
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {config.label}
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </fieldset>
     )
@@ -368,7 +444,7 @@ export function RoutineStatusControl({
           Fluxo da execução
         </legend>
         <div className="mt-1 space-y-0.5">
-          {selectableStatusEntries.map(([value, config], index) => (
+          {statusEntries.map(([value, config], index) => (
             <label
               key={value}
               className={`group relative flex min-h-8 cursor-pointer items-center gap-2.5 rounded-md px-2 text-xs font-semibold transition hover:bg-[var(--color-control-hover-bg)] ${
@@ -377,28 +453,21 @@ export function RoutineStatusControl({
                   : 'text-[var(--color-text-muted)]'
               }`}
             >
-              {index < selectableStatusEntries.length - 1 && (
+              {index < statusEntries.length - 1 && (
                 <span className="absolute top-6 left-[0.93rem] h-3 w-px bg-[var(--color-divider)]" />
               )}
               <input
                 type="radio"
                 name={`routine-status-rail-${task.id}`}
                 value={value}
-                checked={task.status === value}
+                checked={false}
                 onChange={() => onStatusChange?.(task.id, value)}
                 className="peer sr-only"
               />
               <span
                 className={`relative z-10 grid size-4 shrink-0 place-items-center rounded-full ring-2 ring-[var(--color-panel-bg)] ${config.dotClass}`}
-              >
-                {task.status === value && (
-                  <span className="size-1.5 rounded-full bg-white" />
-                )}
-              </span>
+              />
               <span className="min-w-0 flex-1 truncate">{config.label}</span>
-              {task.status === value && (
-                <RoutineStatusIcon status={value} className="size-3.5" />
-              )}
             </label>
           ))}
         </div>
@@ -422,7 +491,7 @@ export function RoutineStatusControl({
           </span>
         </div>
         <div className="grid grid-cols-6 gap-1">
-          {selectableStatusEntries.map(([value, config]) => (
+          {statusEntries.map(([value, config]) => (
             <label
               key={value}
               className="group min-w-0 cursor-pointer"
@@ -432,7 +501,7 @@ export function RoutineStatusControl({
                 type="radio"
                 name={`routine-status-strip-${task.id}`}
                 value={value}
-                checked={task.status === value}
+                checked={false}
                 onChange={() => onStatusChange?.(task.id, value)}
                 className="peer sr-only"
               />
@@ -457,7 +526,7 @@ export function RoutineStatusControl({
         <ChevronDownIcon />
       </summary>
       <div className="absolute right-0 z-30 mt-1 w-48 rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-1 shadow-[var(--shadow-floating)]">
-        {selectableStatusEntries.map(([value, config]) => (
+        {statusEntries.map(([value, config]) => (
           <button
             key={value}
             type="button"
@@ -465,15 +534,10 @@ export function RoutineStatusControl({
               onStatusChange?.(task.id, value)
               event.currentTarget.closest('details')?.removeAttribute('open')
             }}
-            className={`flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-semibold transition hover:bg-[var(--color-control-hover-bg)] ${
-              task.status === value
-                ? 'bg-[var(--color-panel-soft-bg)] text-[var(--color-text-strong)]'
-                : 'text-[var(--color-text-muted)]'
-            }`}
+            className="flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)]"
           >
             <span className={`size-3 rounded-full ${config.dotClass}`} />
             <span className="flex-1">{config.label}</span>
-            {task.status === value && <CheckIcon />}
           </button>
         ))}
       </div>
@@ -818,7 +882,13 @@ function getAttachmentExtension(name: string): string {
   return extension?.slice(0, 5).toUpperCase() || 'ARQ'
 }
 
-function AttachmentEmptyState({ variant }: { variant: AttachmentVariant }) {
+function AttachmentEmptyState({
+  variant,
+  canAdd,
+}: {
+  variant: AttachmentVariant
+  canAdd: boolean
+}) {
   return (
     <div
       className={`flex items-center justify-center gap-3 rounded-[var(--radius-control)] border border-dashed border-[var(--color-control-border)] bg-[var(--color-panel-soft-bg)] px-3 text-left ${
@@ -835,7 +905,9 @@ function AttachmentEmptyState({ variant }: { variant: AttachmentVariant }) {
           Nenhum arquivo nesta execução
         </span>
         <span className="block text-[10px] text-[var(--color-text-muted)]">
-          Use “Anexar” para adicionar o primeiro documento.
+          {canAdd
+            ? 'Use “Anexar” para adicionar o primeiro documento.'
+            : 'O envio de anexos ainda não está disponível nesta versão.'}
         </span>
       </span>
     </div>
@@ -928,25 +1000,6 @@ function ChevronDownIcon() {
       <path
         d="m7 9.5 5 5 5-5"
         strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-3.5"
-      fill="none"
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        d="m6 12 4 4 8-9"
-        strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

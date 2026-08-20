@@ -11,6 +11,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const task: Task = {
   id: 'task-context-menu',
+  kind: 'scheduled',
   clientId: 'client-0001',
   routineId: 'routine-importar',
   departmentId: 'dept-fiscal',

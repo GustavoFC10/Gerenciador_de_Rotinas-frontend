@@ -1,43 +1,34 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { getRoutineControl } from '../services/routineControlService'
 import type { RoutineControlResponse } from '../types/domain'
 
-export function useRoutineControl() {
+export function useRoutineControl(period: string) {
   const [response, setResponse] = useState<RoutineControlResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  useEffect(() => {
-    let isMounted = true
-
+  const reload = useCallback(async () => {
     setIsLoading(true)
-    getRoutineControl()
-      .then((data) => {
-        if (isMounted) {
-          setResponse(data)
-          setError(null)
-        }
-      })
-      .catch((currentError: unknown) => {
-        if (isMounted) {
-          setError(
-            currentError instanceof Error
-              ? currentError
-              : new Error('Unknown routine-control error'),
-          )
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false)
-        }
-      })
 
-    return () => {
-      isMounted = false
+    try {
+      const nextResponse = await getRoutineControl({ period })
+      setResponse(nextResponse)
+      setError(null)
+    } catch (currentError) {
+      setError(
+        currentError instanceof Error
+          ? currentError
+          : new Error('Não foi possível carregar os dados.'),
+      )
+    } finally {
+      setIsLoading(false)
     }
-  }, [])
+  }, [period])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
 
   return {
     response,
@@ -45,5 +36,6 @@ export function useRoutineControl() {
     data: response?.data ?? null,
     isLoading,
     error,
+    reload,
   }
 }

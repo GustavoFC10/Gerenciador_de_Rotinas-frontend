@@ -6,7 +6,7 @@ import type {
   Task,
 } from '../types/domain'
 import type { SpreadsheetNavigationItem } from '../types/navigation'
-import { canAccessDepartment, isLeader } from './permissions'
+import { canAccessDepartment, isLead, isOrganizationAdmin } from './permissions'
 import { buildRoutineListViewData, ROUTINE_LIST_MODE } from './routineListItems'
 
 export type HomePriorityKind =
@@ -88,7 +88,7 @@ export function buildHomeOverview({
     canAccessDepartment(user, item.task.departmentId),
   )
   const personalItems = scopedItems.filter(
-    (item) => item.assigneeId === user.employeeId,
+    (item) => item.assigneeId === user.membershipId,
   )
 
   return {
@@ -105,7 +105,10 @@ export function buildHomeOverview({
       personalItems,
       referenceDate,
     }),
-    role: isLeader(user) ? buildRoleOverview(scopedItems, referenceDate) : null,
+    role:
+      isOrganizationAdmin(user) || isLead(user)
+        ? buildRoleOverview(scopedItems, referenceDate)
+        : null,
   }
 }
 
@@ -157,33 +160,25 @@ function buildSpreadsheetSummaries({
       canAccessDepartment(user, spreadsheet.departmentId),
     )
     .map((spreadsheet) => {
-      const routines = data.routines.filter(
-        (routine) => routine.departmentId === spreadsheet.departmentId,
+      const screenIds = new Set(spreadsheet.screens.map((screen) => screen.id))
+      const selectedScreens = data.screens.filter((screen) =>
+        screenIds.has(screen.id),
       )
-      const routineIds = new Set(routines.map((routine) => routine.id))
-      const departmentHasDivisions = (data.divisions ?? []).some(
-        (division) => division.departmentId === spreadsheet.departmentId,
+      const clientIds = new Set(
+        selectedScreens.flatMap((screen) =>
+          screen.companies.map((company) => company.id),
+        ),
       )
-      const clientIds = departmentHasDivisions
-        ? new Set(
-            data.clients
-              .filter((client) =>
-                client.divisionAssignments?.some(
-                  (assignment) =>
-                    assignment.departmentId === spreadsheet.departmentId,
-                ),
-              )
-              .map((client) => client.id),
-          )
-        : new Set(
-            data.clientRoutineLinks
-              .filter((link) => routineIds.has(link.routineId))
-              .map((link) => link.clientId),
-          )
+      const routineIds = new Set(
+        selectedScreens.flatMap((screen) =>
+          screen.routines.map((routine) => routine.id),
+        ),
+      )
       const personalTasks = personalItems.filter(
         (item) =>
-          !item.task.isLoose &&
-          item.task.departmentId === spreadsheet.departmentId,
+          item.task.departmentId === spreadsheet.departmentId &&
+          (clientIds.has(item.task.clientId ?? '') ||
+            routineIds.has(item.task.routineId ?? '')),
       )
       const personalFinalized = personalTasks.filter((item) =>
         isTerminalRoutineStatus(item.status),
@@ -201,7 +196,7 @@ function buildSpreadsheetSummaries({
       return {
         spreadsheet,
         clients: clientIds.size,
-        routines: routines.length,
+        routines: routineIds.size,
         personalTotal: personalTasks.length,
         personalOpen: personalTasks.length - personalFinalized,
         personalFinalized,
@@ -218,7 +213,9 @@ function buildRoleOverview(
   scopedItems: RoutineListItem[],
   referenceDate: string,
 ): HomeRoleOverview {
-  const operationalItems = scopedItems.filter((item) => !item.task.isLoose)
+  const operationalItems = scopedItems.filter(
+    (item) => item.task.kind !== 'ad_hoc',
+  )
   const finalized = operationalItems.filter((item) =>
     isTerminalRoutineStatus(item.status),
   )
@@ -264,12 +261,14 @@ function buildPriorities(
     .map((item) => ({
       item,
       task: item.task,
-      title: item.task.isLoose
-        ? (item.task.title ?? 'Tarefa avulsa')
-        : (item.client?.name ?? 'Empresa não identificada'),
-      context: item.task.isLoose
-        ? `Tarefa avulsa · ${item.departmentName}`
-        : `${item.routine?.name ?? item.routineName} · ${item.departmentName}`,
+      title:
+        item.task.kind === 'ad_hoc'
+          ? (item.task.title ?? 'Tarefa avulsa')
+          : (item.client?.name ?? 'Empresa não identificada'),
+      context:
+        item.task.kind === 'ad_hoc'
+          ? `Tarefa avulsa · ${item.departmentName}`
+          : `${item.routine?.name ?? item.routineName} · ${item.departmentName}`,
       kind: getPriorityKind(item, referenceDate),
       isOverdue: item.dueDate < referenceDate,
     }))

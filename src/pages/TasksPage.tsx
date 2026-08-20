@@ -11,19 +11,14 @@ import {
 
 function TasksPage({
   data,
-  spreadsheetId = 'fiscal',
-  spreadsheetName = 'Fiscal',
-  spreadsheetDivisionId,
-  spreadsheetDivisionName,
+  screenId,
+  screenName,
   onItemOpen,
-  onItemQuickAction,
-  onItemNoteChange,
   onItemStatusChange,
+  getAllowedStatusChanges,
 }: RoutineListInteractionProps & {
-  spreadsheetId?: string
-  spreadsheetName?: string
-  spreadsheetDivisionId?: string
-  spreadsheetDivisionName?: string
+  screenId?: string
+  screenName?: string
 }) {
   const listViewData = useMemo(
     () =>
@@ -37,27 +32,22 @@ function TasksPage({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <WorkspaceBar
-        context={{
-          label: `Planilha ${spreadsheetName}${
-            spreadsheetDivisionName ? ` · ${spreadsheetDivisionName}` : ''
-          }`,
-          to: `${ROUTES.SPREADSHEET}?${new URLSearchParams({
-            sheetId: spreadsheetId,
-            ...(spreadsheetDivisionId
-              ? { divisionId: spreadsheetDivisionId }
-              : {}),
-          }).toString()}`,
-        }}
+        context={
+          screenId
+            ? {
+                label: `Tela ${screenName ?? ''}`,
+                to: `${ROUTES.SPREADSHEET}?screenId=${encodeURIComponent(screenId)}`,
+              }
+            : undefined
+        }
         title="Todas as tarefas"
       />
-
       <div className="min-h-0 flex-1">
         <RoutineListComparison
           items={listViewData.items}
           onItemOpen={onItemOpen}
-          onItemQuickAction={onItemQuickAction}
-          onItemNoteChange={onItemNoteChange}
           onItemStatusChange={onItemStatusChange}
+          getAllowedStatusChanges={getAllowedStatusChanges}
           showHeader={false}
         />
       </div>

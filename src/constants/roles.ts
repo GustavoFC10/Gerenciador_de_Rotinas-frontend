@@ -1,43 +1,63 @@
-import type { AppUser, UserRole } from '../types/domain'
+import type {
+  AppUser,
+  DepartmentAccessRole,
+  OrganizationRole,
+} from '../types/domain'
 
-export const USER_ROLE = {
-  EMPLOYEE: 'employee',
-  LEADER: 'leader',
-  MANAGER: 'manager',
-} as const satisfies Record<string, UserRole>
+export const ORGANIZATION_ROLE = {
+  OWNER: 'owner',
+  ADMIN: 'admin',
+  MEMBER: 'member',
+} as const satisfies Record<string, OrganizationRole>
 
-export const currentUserMock: AppUser = {
+export const DEPARTMENT_ACCESS_ROLE = {
+  LEAD: 'lead',
+  CONTRIBUTOR: 'contributor',
+  VIEWER: 'viewer',
+} as const satisfies Record<string, DepartmentAccessRole>
+
+export const memberUserMock: AppUser = {
   id: 'user-001',
-  employeeId: 'employee-001',
+  membershipId: 'employee-001',
   name: 'Ana Souza',
   email: 'ana.souza@example.com',
-  role: USER_ROLE.EMPLOYEE,
-  departmentIds: ['dept-fiscal'],
+  role: ORGANIZATION_ROLE.MEMBER,
+  departmentAccesses: [
+    {
+      departmentId: 'dept-fiscal',
+      role: DEPARTMENT_ACCESS_ROLE.CONTRIBUTOR,
+    },
+  ],
   avatarUrl: '',
 }
 
-export const leaderUserMock: AppUser = {
+export const leadUserMock: AppUser = {
   id: 'user-002',
-  employeeId: 'employee-002',
+  membershipId: 'employee-002',
   name: 'Bruno Lima',
   email: 'bruno.lima@example.com',
-  role: USER_ROLE.LEADER,
-  departmentIds: ['dept-fiscal'],
+  role: ORGANIZATION_ROLE.MEMBER,
+  departmentAccesses: [
+    {
+      departmentId: 'dept-fiscal',
+      role: DEPARTMENT_ACCESS_ROLE.LEAD,
+    },
+  ],
   avatarUrl: '',
 }
 
-export const managerUserMock: AppUser = {
+export const adminUserMock: AppUser = {
   id: 'user-003',
-  employeeId: 'employee-003',
+  membershipId: 'employee-003',
   name: 'Carla Melo',
   email: 'carla.melo@example.com',
-  role: USER_ROLE.MANAGER,
-  departmentIds: ['dept-fiscal'],
+  role: ORGANIZATION_ROLE.ADMIN,
+  departmentAccesses: [],
   avatarUrl: '',
 }
 
 export const appUsersMock: AppUser[] = [
-  currentUserMock,
-  leaderUserMock,
-  managerUserMock,
+  memberUserMock,
+  leadUserMock,
+  adminUserMock,
 ]

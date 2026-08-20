@@ -7,6 +7,7 @@ import TaskLinksPanel from './TaskLinksPanel'
 
 const task: Task = {
   id: 'task-links',
+  kind: 'scheduled',
   clientId: 'client-0001',
   routineId: 'routine-importar',
   departmentId: 'dept-fiscal',

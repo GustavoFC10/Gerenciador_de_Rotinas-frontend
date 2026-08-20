@@ -1,138 +1,286 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import {
-  currentUserMock,
-  leaderUserMock,
-  managerUserMock,
-} from '../constants/roles'
-import {
-  clearMockSession,
-  loginWithMock,
-  mockLoginCredentials,
-  mockLoginCredentialsByRole,
-  persistMockSession,
-  readMockSession,
-  registerMockAuthAccount,
-  resetMockAuthAccounts,
-} from './authService'
+import { AuthService, createAppUser, type AuthSession } from './authService'
+import { ApiError, HttpClient } from './httpClient'
 
-afterEach(() => {
-  resetMockAuthAccounts()
-})
+const sessionFixture: AuthSession = {
+  user: {
+    id: '0f35fd79-d00f-43cf-a201-f4a1029b02da',
+    email: 'admin@example.com',
+  },
+  memberships: [
+    {
+      id: '0e265be7-60bb-44f4-a2eb-afc1a2a01d40',
+      displayName: 'Administrador',
+      role: 'admin',
+      status: 'active',
+      organization: {
+        id: 'fb330db7-bca4-4b1c-89f5-dc733cdbebaf',
+        name: 'Jaral Contabilidade',
+        slug: 'jaral-contabilidade',
+        timezone: 'America/Sao_Paulo',
+      },
+    },
+  ],
+  activeMembership: null,
+}
 
-describe('mock authentication service', () => {
-  it('authenticates the employee, leader and manager development accounts', async () => {
-    await expect(
-      Promise.all([
-        loginWithMock(mockLoginCredentialsByRole.employee),
-        loginWithMock(mockLoginCredentialsByRole.leader),
-        loginWithMock(mockLoginCredentialsByRole.manager),
-      ]),
-    ).resolves.toEqual([
-      { user: currentUserMock },
-      { user: leaderUserMock },
-      { user: managerUserMock },
-    ])
-    expect(mockLoginCredentials).toEqual(mockLoginCredentialsByRole.manager)
+describe('AuthService', () => {
+  it('emite o CSRF e restaura a sessão usando cookies', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ csrfToken: 'csrf-inicial' }))
+      .mockResolvedValueOnce(jsonResponse(sessionFixture))
+    const { client, service } = createService(fetchMock)
 
-    await expect(
-      loginWithMock({
-        email: mockLoginCredentialsByRole.employee.email,
-        password: 'senha-incorreta',
-      }),
-    ).rejects.toThrow('E-mail ou senha incorretos.')
-  })
-
-  it('persists only the selected user identifier and restores any seeded account', () => {
-    const storage = createStorage()
-    const session = { user: managerUserMock }
-
-    persistMockSession(storage, session)
-
-    expect(readMockSession(storage)).toEqual(session)
-    expect(storage.dump()).not.toContain(mockLoginCredentials.password)
-  })
-
-  it('supports a runtime account without storing its password in the session', async () => {
-    const storage = createStorage()
-    const runtimeUser = {
-      ...currentUserMock,
-      id: 'user-runtime',
-      employeeId: 'employee-runtime',
-      email: 'nova.pessoa@example.com',
-    }
-
-    registerMockAuthAccount(runtimeUser, 'senha-temporaria')
-    const session = await loginWithMock({
-      email: ' NOVA.PESSOA@example.com ',
-      password: 'senha-temporaria',
+    await expect(service.initialize()).resolves.toEqual({
+      session: sessionFixture,
+      departmentAccesses: [],
     })
-    persistMockSession(storage, session)
 
-    expect(session).toEqual({ user: runtimeUser })
-    expect(readMockSession(storage)).toEqual(session)
-    expect(storage.dump()).not.toContain('senha-temporaria')
-  })
-
-  it('clears an invalid or explicitly ended session', () => {
-    const storage = createStorage()
-
-    storage.setItem('rotinas.auth-session.v1', '{invalid-json')
-    expect(readMockSession(storage)).toBeNull()
-
-    storage.setItem(
-      'rotinas.auth-session.v1',
-      JSON.stringify({ userId: 'unknown-user' }),
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://api.example.com/api/v1/auth/csrf/',
     )
-    expect(readMockSession(storage)).toBeNull()
-    expect(storage.length).toBe(0)
-
-    persistMockSession(storage, { user: currentUserMock })
-    clearMockSession(storage)
-    expect(readMockSession(storage)).toBeNull()
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      'https://api.example.com/api/v1/auth/session/',
+    )
+    expect(fetchMock.mock.calls[0]?.[1]?.credentials).toBe('include')
+    expect(fetchMock.mock.calls[1]?.[1]?.credentials).toBe('include')
+    expect(client.getCsrfToken()).toBe('csrf-inicial')
   })
 
-  it('rejects duplicate e-mails and empty temporary passwords', () => {
-    expect(() =>
-      registerMockAuthAccount(
-        {
-          ...currentUserMock,
-          id: 'duplicate-email',
-          email: currentUserMock.email.toUpperCase(),
-        },
-        'senha',
-      ),
-    ).toThrow('Já existe uma conta com este e-mail.')
+  it('trata uma sessão ausente como visitante não autenticado', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ csrfToken: 'csrf-inicial' }))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            type: 'about:blank',
+            title: 'Não autenticado',
+            status: 403,
+          },
+          403,
+          'application/problem+json',
+        ),
+      )
+    const { service } = createService(fetchMock)
 
-    expect(() =>
-      registerMockAuthAccount(
-        {
-          ...currentUserMock,
-          id: 'empty-password',
-          email: 'sem.senha@example.com',
-        },
-        '',
-      ),
-    ).toThrow('Informe uma senha temporária.')
+    await expect(service.initialize()).resolves.toBeNull()
+  })
+
+  it('hidrata lead/contributor/viewer pelos departamentos visíveis do member', async () => {
+    const memberMembership = {
+      ...sessionFixture.memberships[0]!,
+      role: 'member' as const,
+    }
+    const memberSession = {
+      ...sessionFixture,
+      memberships: [memberMembership],
+      activeMembership: memberMembership,
+    }
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ csrfToken: 'csrf-inicial' }))
+      .mockResolvedValueOnce(jsonResponse(memberSession))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          next: 'https://api.example.com/api/v1/departments/?page=2',
+          results: [
+            { id: 'dept-fiscal', accessRole: 'lead' },
+            { id: 'dept-sem-acesso', accessRole: null },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          next: null,
+          results: [{ id: 'dept-pessoal', accessRole: 'viewer' }],
+        }),
+      )
+    const { service } = createService(fetchMock)
+
+    await expect(service.initialize()).resolves.toEqual({
+      session: memberSession,
+      departmentAccesses: [
+        { departmentId: 'dept-fiscal', role: 'lead' },
+        { departmentId: 'dept-pessoal', role: 'viewer' },
+      ],
+    })
+    expect(fetchMock.mock.calls[3]?.[0]).toBe(
+      'https://api.example.com/api/v1/departments/?page=2',
+    )
+  })
+
+  it('não expõe uma página HTML retornada por erro da API', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response('<!doctype html><h1>Bad Request</h1>', {
+        status: 400,
+        statusText: 'Bad Request',
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      }),
+    )
+    const { service } = createService(fetchMock)
+
+    const error = await service
+      .initialize()
+      .catch((currentError: unknown) => currentError)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ message: 'Bad Request', status: 400 })
+    expect((error as Error).message).not.toContain('<!doctype')
+  })
+
+  it('envia o CSRF no login e guarda o token rotacionado', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ csrfToken: 'csrf-inicial' }))
+      .mockResolvedValueOnce(
+        jsonResponse({ ...sessionFixture, csrfToken: 'csrf-rotacionado' }),
+      )
+    const { client, service } = createService(fetchMock)
+
+    await expect(
+      service.login({
+        email: '  admin@example.com  ',
+        password: 'Senha-segura-2026!',
+      }),
+    ).resolves.toEqual({
+      session: sessionFixture,
+      departmentAccesses: [],
+    })
+
+    const loginRequest = fetchMock.mock.calls[1]?.[1]
+    const headers = new Headers(loginRequest?.headers)
+    expect(headers.get('X-CSRFToken')).toBe('csrf-inicial')
+    expect(loginRequest?.credentials).toBe('include')
+    expect(loginRequest?.body).toBe(
+      JSON.stringify({
+        email: 'admin@example.com',
+        password: 'Senha-segura-2026!',
+      }),
+    )
+    expect(client.getCsrfToken()).toBe('csrf-rotacionado')
+  })
+
+  it('seleciona a associação ativa no escopo da sessão', async () => {
+    const selectedSession = {
+      ...sessionFixture,
+      activeMembership: sessionFixture.memberships[0]!,
+    }
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse(selectedSession))
+    const { client, service } = createService(fetchMock)
+    client.setCsrfToken('csrf-atual')
+
+    await expect(
+      service.selectActiveMembership(sessionFixture.memberships[0]!.id),
+    ).resolves.toEqual({
+      session: selectedSession,
+      departmentAccesses: [],
+    })
+
+    const request = fetchMock.mock.calls[0]?.[1]
+    expect(request?.method).toBe('PUT')
+    expect(new Headers(request?.headers).get('X-CSRFToken')).toBe('csrf-atual')
+    expect(request?.body).toBe(
+      JSON.stringify({ membershipId: sessionFixture.memberships[0]!.id }),
+    )
+  })
+
+  it('encerra a sessão e descarta o CSRF mantido em memória', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    const { client, service } = createService(fetchMock)
+    client.setCsrfToken('csrf-atual')
+
+    await expect(service.logout()).resolves.toBeUndefined()
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://api.example.com/api/v1/auth/logout/',
+    )
+    expect(
+      new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get('X-CSRFToken'),
+    ).toBe('csrf-atual')
+    expect(client.getCsrfToken()).toBeNull()
+  })
+
+  it('preserva o Problem Details devolvido em uma falha de login', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ csrfToken: 'csrf-inicial' }))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            type: 'https://example.com/problems/invalid-credentials',
+            title: 'Credenciais inválidas',
+            status: 401,
+            detail: 'E-mail ou senha incorretos.',
+          },
+          401,
+          'application/problem+json',
+        ),
+      )
+    const { service } = createService(fetchMock)
+
+    const error = await service
+      .login({ email: 'admin@example.com', password: 'incorreta' })
+      .catch((currentError: unknown) => currentError)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({
+      status: 401,
+      message: 'E-mail ou senha incorretos.',
+    })
   })
 })
 
-function createStorage(): Storage & { dump: () => string } {
-  const values = new Map<string, string>()
+describe('createAppUser', () => {
+  it('preserva o cargo organizacional retornado pelo backend', () => {
+    expect(
+      createAppUser({
+        session: {
+          ...sessionFixture,
+          activeMembership: sessionFixture.memberships[0]!,
+        },
+        departmentAccesses: [],
+      }),
+    ).toMatchObject({
+      id: sessionFixture.user.id,
+      membershipId: sessionFixture.memberships[0]!.id,
+      name: 'Administrador',
+      email: 'admin@example.com',
+      role: 'admin',
+    })
+  })
 
-  return {
-    get length() {
-      return values.size
-    },
-    clear: () => values.clear(),
-    getItem: (key) => values.get(key) ?? null,
-    key: (index) => [...values.keys()][index] ?? null,
-    removeItem: (key) => {
-      values.delete(key)
-    },
-    setItem: (key, value) => {
-      values.set(key, value)
-    },
-    dump: () => JSON.stringify([...values.entries()]),
-  }
+  it('não cria usuário operacional antes da seleção de associação', () => {
+    expect(
+      createAppUser({ session: sessionFixture, departmentAccesses: [] }),
+    ).toBeNull()
+  })
+})
+
+function createService(fetchImplementation: typeof fetch) {
+  const client = new HttpClient({
+    baseUrl: 'https://api.example.com',
+    fetchImplementation,
+    requestIdFactory: () => 'request-id',
+  })
+
+  return { client, service: new AuthService(client) }
+}
+
+function jsonResponse(
+  data: unknown,
+  status = 200,
+  contentType = 'application/json',
+): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': contentType },
+  })
 }

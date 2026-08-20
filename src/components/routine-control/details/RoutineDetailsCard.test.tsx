@@ -6,6 +6,7 @@ import type { Task } from '../../../types/domain'
 
 const task: Task = {
   id: 'task-001-enviar-das',
+  kind: 'scheduled',
   clientId: 'client-001',
   routineId: 'routine-enviar-das',
   departmentId: 'dept-fiscal',

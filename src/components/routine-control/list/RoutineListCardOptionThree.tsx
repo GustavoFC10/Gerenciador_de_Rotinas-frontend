@@ -6,6 +6,7 @@ import { formatShortDate, routineListStatusTone } from './routineListUtils'
 import type {
   PendingStatusChange,
   RoutineListItem,
+  RoutineStatus,
 } from '../../../types/domain'
 
 function RoutineListCardOptionThree({
@@ -14,6 +15,7 @@ function RoutineListCardOptionThree({
   onQuickAction,
   onStatusChange,
   onStatusConfirm,
+  allowedStatusChanges,
   onContextMenuOpen,
   isContextMenuOpen = false,
 }: {
@@ -23,6 +25,7 @@ function RoutineListCardOptionThree({
   onNoteChange?: (item: RoutineListItem, notes: string) => void
   onStatusChange?: (item: RoutineListItem, change: PendingStatusChange) => void
   onStatusConfirm?: (item: RoutineListItem) => void
+  allowedStatusChanges?: readonly RoutineStatus[]
   onContextMenuOpen?: (
     item: RoutineListItem,
     x: number,
@@ -171,6 +174,7 @@ function RoutineListCardOptionThree({
         onQuickAction={onQuickAction}
         onStatusChange={onStatusChange}
         onStatusConfirm={onStatusConfirm}
+        allowedStatusChanges={allowedStatusChanges}
         className="sm:col-span-3 xl:col-span-1"
       />
     </article>

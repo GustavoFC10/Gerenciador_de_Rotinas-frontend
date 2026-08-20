@@ -1,9 +1,9 @@
 import {
+  useEffect,
+  useRef,
   useState,
-  type Dispatch,
   type KeyboardEvent,
   type ReactNode,
-  type SetStateAction,
 } from 'react'
 
 import { formatDisplayDate } from '../details/routineDetailsUtils'
@@ -35,6 +35,10 @@ const fieldAppearance = {
 
 type FieldAppearance = keyof typeof fieldAppearance
 type FieldLayout = 'inline' | 'stacked'
+type FieldChangeHandler<Value> = (
+  taskId: EntityId,
+  value: Value,
+) => void | Promise<void>
 
 function RoutineEditableFields({
   task,
@@ -47,8 +51,8 @@ function RoutineEditableFields({
 }: {
   task: Task
   employees?: Employee[]
-  onAssigneeChange?: (taskId: EntityId, assigneeId: EntityId | null) => void
-  onDueDateChange?: (taskId: EntityId, dueDate: string) => void
+  onAssigneeChange?: FieldChangeHandler<EntityId | null>
+  onDueDateChange?: FieldChangeHandler<string>
   appearance?: FieldAppearance
   layout?: FieldLayout
   className?: string
@@ -80,24 +84,65 @@ export function RoutineAssigneeField({
 }: {
   task: Task
   employees?: Employee[]
-  onChange?: (taskId: EntityId, assigneeId: EntityId | null) => void
+  onChange?: FieldChangeHandler<EntityId | null>
   appearance?: FieldAppearance
 }) {
   const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [draftAssigneeId, setDraftAssigneeId] = useState(task.assigneeId ?? '')
+  const isSavingRef = useRef(false)
   const assignee = employees.find((employee) => employee.id === task.assigneeId)
   const assigneeName = assignee?.name ?? 'Não atribuído'
+
+  useEffect(() => {
+    setIsEditing(false)
+    setIsSaving(false)
+    setError('')
+    setDraftAssigneeId(task.assigneeId ?? '')
+    isSavingRef.current = false
+  }, [task.id])
+
+  async function handleChange(nextAssigneeId: EntityId | null) {
+    if (!onChange || nextAssigneeId === task.assigneeId) {
+      setIsEditing(false)
+      return
+    }
+
+    setError('')
+    setIsSaving(true)
+    isSavingRef.current = true
+
+    try {
+      await onChange(task.id, nextAssigneeId)
+      setIsEditing(false)
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Não foi possível atualizar o responsável.',
+      )
+    } finally {
+      setIsSaving(false)
+      isSavingRef.current = false
+    }
+  }
 
   if (isEditing) {
     return (
       <EditorShell label="Responsável" appearance={appearance}>
         <select
           autoFocus
-          value={task.assigneeId ?? ''}
-          onBlur={() => setIsEditing(false)}
-          onKeyDown={(event) => finishEditingOnEscape(event, setIsEditing)}
+          value={draftAssigneeId}
+          disabled={isSaving}
+          onBlur={() => closeEditorAfterBlur(isSavingRef, setIsEditing)}
+          onKeyDown={(event) =>
+            finishEditingOnEscape(event, () => setIsEditing(false))
+          }
           onChange={(event) => {
-            onChange?.(task.id, event.target.value || null)
-            setIsEditing(false)
+            const nextAssigneeId = event.target.value || null
+            setDraftAssigneeId(nextAssigneeId ?? '')
+            void handleChange(nextAssigneeId)
           }}
           className={editorControlClass}
           aria-label="Alterar responsável"
@@ -109,6 +154,7 @@ export function RoutineAssigneeField({
             </option>
           ))}
         </select>
+        <FieldSaveFeedback error={error} isSaving={isSaving} />
       </EditorShell>
     )
   }
@@ -118,7 +164,15 @@ export function RoutineAssigneeField({
       label="Responsável"
       value={assigneeName}
       icon={<AvatarInitials name={assignee?.name} />}
-      onEdit={() => setIsEditing(true)}
+      onEdit={
+        onChange
+          ? () => {
+              setDraftAssigneeId(task.assigneeId ?? '')
+              setError('')
+              setIsEditing(true)
+            }
+          : undefined
+      }
       appearance={appearance}
     />
   )
@@ -130,10 +184,57 @@ export function RoutineDueDateField({
   appearance = 'card',
 }: {
   task: Task
-  onChange?: (taskId: EntityId, dueDate: string) => void
+  onChange?: FieldChangeHandler<string>
   appearance?: FieldAppearance
 }) {
   const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [draftDueDate, setDraftDueDate] = useState(task.dueDate ?? '')
+  const isSavingRef = useRef(false)
+  const hasValidationErrorRef = useRef(false)
+
+  useEffect(() => {
+    setIsEditing(false)
+    setIsSaving(false)
+    setError('')
+    setDraftDueDate(task.dueDate ?? '')
+    isSavingRef.current = false
+    hasValidationErrorRef.current = false
+  }, [task.id])
+
+  async function handleChange(nextDueDate: string) {
+    if (!nextDueDate) {
+      hasValidationErrorRef.current = true
+      setError('Informe uma data de prazo válida.')
+      return
+    }
+
+    hasValidationErrorRef.current = false
+
+    if (!onChange || nextDueDate === task.dueDate) {
+      setIsEditing(false)
+      return
+    }
+
+    setError('')
+    setIsSaving(true)
+    isSavingRef.current = true
+
+    try {
+      await onChange(task.id, nextDueDate)
+      setIsEditing(false)
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Não foi possível atualizar o prazo.',
+      )
+    } finally {
+      setIsSaving(false)
+      isSavingRef.current = false
+    }
+  }
 
   if (isEditing) {
     return (
@@ -141,16 +242,27 @@ export function RoutineDueDateField({
         <input
           autoFocus
           type="date"
-          value={task.dueDate ?? ''}
-          onBlur={() => setIsEditing(false)}
-          onKeyDown={(event) => finishEditingOnEscape(event, setIsEditing)}
+          value={draftDueDate}
+          disabled={isSaving}
+          onBlur={() =>
+            closeEditorAfterBlur(
+              isSavingRef,
+              setIsEditing,
+              hasValidationErrorRef,
+            )
+          }
+          onKeyDown={(event) =>
+            finishEditingOnEscape(event, () => setIsEditing(false))
+          }
           onChange={(event) => {
-            onChange?.(task.id, event.target.value)
-            setIsEditing(false)
+            const nextDueDate = event.target.value
+            setDraftDueDate(nextDueDate)
+            void handleChange(nextDueDate)
           }}
           className={editorControlClass}
           aria-label="Alterar prazo"
         />
+        <FieldSaveFeedback error={error} isSaving={isSaving} />
       </EditorShell>
     )
   }
@@ -160,7 +272,15 @@ export function RoutineDueDateField({
       label="Prazo"
       value={formatDisplayDate(task.dueDate)}
       icon={<CalendarIcon />}
-      onEdit={() => setIsEditing(true)}
+      onEdit={
+        onChange
+          ? () => {
+              setDraftDueDate(task.dueDate ?? '')
+              setError('')
+              setIsEditing(true)
+            }
+          : undefined
+      }
       appearance={appearance}
     />
   )
@@ -200,18 +320,12 @@ function ReadOnlyField({
   label: string
   value: string
   icon: ReactNode
-  onEdit: () => void
+  onEdit?: () => void
   appearance: FieldAppearance
 }) {
   const styles = fieldAppearance[appearance]
-
-  return (
-    <button
-      type="button"
-      onClick={onEdit}
-      className={`group flex w-full items-center gap-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${styles.button}`}
-      aria-label={`Alterar ${label.toLowerCase()}: ${value}`}
-    >
+  const content = (
+    <>
       <span className={styles.icon}>{icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
@@ -221,10 +335,61 @@ function ReadOnlyField({
           {value}
         </span>
       </span>
-      <span className="grid size-6 shrink-0 place-items-center rounded-full text-[var(--color-text-subtle)] transition group-hover:bg-[var(--color-brand-soft)] group-hover:text-[var(--color-brand)]">
-        <PencilIcon />
-      </span>
+      {onEdit && (
+        <span className="grid size-6 shrink-0 place-items-center rounded-full text-[var(--color-text-subtle)] transition group-hover:bg-[var(--color-brand-soft)] group-hover:text-[var(--color-brand)]">
+          <PencilIcon />
+        </span>
+      )}
+    </>
+  )
+
+  if (!onEdit) {
+    return (
+      <div
+        className={`flex w-full items-center gap-2.5 text-left ${styles.button}`}
+        aria-label={`${label}: ${value}`}
+      >
+        {content}
+      </div>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onEdit}
+      className={`group flex w-full items-center gap-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${styles.button}`}
+      aria-label={`Alterar ${label.toLowerCase()}: ${value}`}
+    >
+      {content}
     </button>
+  )
+}
+
+function FieldSaveFeedback({
+  error,
+  isSaving,
+}: {
+  error: string
+  isSaving: boolean
+}) {
+  if (error) {
+    return (
+      <span
+        role="alert"
+        className="mt-1 block text-xs font-semibold text-[var(--status-error-text)]"
+      >
+        {error}
+      </span>
+    )
+  }
+
+  if (!isSaving) return null
+
+  return (
+    <span className="mt-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+      Salvando…
+    </span>
   )
 }
 
@@ -288,12 +453,24 @@ function PencilIcon() {
 
 function finishEditingOnEscape(
   event: KeyboardEvent,
-  setIsEditing: Dispatch<SetStateAction<boolean>>,
+  onCancel: () => void,
 ) {
   if (event.key === 'Escape') {
     event.stopPropagation()
-    setIsEditing(false)
+    onCancel()
   }
+}
+
+function closeEditorAfterBlur(
+  isSavingRef: { current: boolean },
+  setIsEditing: (value: boolean) => void,
+  hasValidationErrorRef?: { current: boolean },
+) {
+  window.setTimeout(() => {
+    if (!isSavingRef.current && !hasValidationErrorRef?.current) {
+      setIsEditing(false)
+    }
+  })
 }
 
 export default RoutineEditableFields

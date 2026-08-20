@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router'
 
 import { appThemeClass, focusRing } from '../constants/designTokens'
-import type { SpreadsheetNavigationItem } from '../types/navigation'
+import type {
+  ScreenNavigationItem,
+  SpreadsheetNavigationItem,
+} from '../types/navigation'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 
@@ -11,9 +14,10 @@ const desktopMediaQuery = '(min-width: 1024px)'
 
 interface AppLayoutProps {
   spreadsheets: SpreadsheetNavigationItem[]
+  agendas: ScreenNavigationItem[]
 }
 
-function AppLayout({ spreadsheets }: AppLayoutProps) {
+function AppLayout({ spreadsheets, agendas }: AppLayoutProps) {
   const location = useLocation()
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
     readStoredSidebarState,
@@ -132,6 +136,7 @@ function AppLayout({ spreadsheets }: AppLayoutProps) {
 
         <Sidebar
           spreadsheets={spreadsheets}
+          agendas={agendas}
           isCollapsed={isSidebarCollapsed}
           isMobileOpen={isMobileSidebarOpen}
           onCollapseToggle={() =>

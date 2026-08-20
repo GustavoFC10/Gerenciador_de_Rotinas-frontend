@@ -12,12 +12,11 @@ import RoutineClosedCardCompact from './RoutineClosedCardCompact'
 import RoutineNotApplicableCard from './RoutineNotApplicableCard'
 import type {
   Client,
-  ClientRoutineLink,
-  Department,
-  DepartmentDivision,
   EntityId,
   Routine,
   RoutineStatus,
+  Screen,
+  SpreadsheetProjection,
   Task,
 } from '../../../types/domain'
 
@@ -127,15 +126,15 @@ function RoutineControlTable({
   accessibleName,
   showHeader = false,
   clients,
-  departments = [],
-  divisions = [],
   routines,
-  clientRoutineLinks,
+  screen,
+  projection,
   tasks,
   onClientOpen,
   onRoutineOpen,
   onTaskOpen,
   onTaskStatusChange,
+  getAllowedTaskStatusChanges,
   onTaskAttachmentAdd,
 }: {
   title?: string
@@ -143,15 +142,15 @@ function RoutineControlTable({
   accessibleName?: string
   showHeader?: boolean
   clients: Client[]
-  departments?: Department[]
-  divisions?: DepartmentDivision[]
   routines: Routine[]
-  clientRoutineLinks: ClientRoutineLink[]
+  screen: Screen
+  projection: SpreadsheetProjection
   tasks: Task[]
   onClientOpen?: (client: Client) => void
   onRoutineOpen?: (routine: Routine) => void
   onTaskOpen?: (task: Task) => void
   onTaskStatusChange?: (taskId: EntityId, status: RoutineStatus) => void
+  getAllowedTaskStatusChanges?: (task: Task) => readonly RoutineStatus[]
   onTaskAttachmentAdd?: (task: Task) => void
 }) {
   const [contextMenu, setContextMenu] =
@@ -161,23 +160,33 @@ function RoutineControlTable({
     isError: boolean
   } | null>(null)
   const feedbackTimerRef = useRef<number | null>(null)
-  const clientIds = new Set(clients.map((client) => client.id))
-  const routineIds = new Set(routines.map((routine) => routine.id))
-  const linkedCells = new Set(
-    clientRoutineLinks.map((link) => `${link.clientId}:${link.routineId}`),
+  const clientsById = new Map(clients.map((client) => [client.id, client]))
+  const routinesById = new Map(routines.map((routine) => [routine.id, routine]))
+  const screenClients = screen.companies.flatMap((company) => {
+    const client = clientsById.get(company.id)
+    return client ? [client] : []
+  })
+  const screenRoutines = screen.routines.flatMap((screenRoutine) => {
+    const routine = routinesById.get(screenRoutine.id)
+    return routine ? [routine] : []
+  })
+  const applicableCells = new Set(
+    projection.cells.map((cell) => `${cell.companyId}:${cell.routineId}`),
   )
-  const tableTasks = tasks.filter(
-    (task) =>
-      task.clientId !== null &&
-      task.routineId !== null &&
-      clientIds.has(task.clientId) &&
-      routineIds.has(task.routineId),
+  const tableTasks = tasks.filter((task) =>
+    projection.cells.some((cell) =>
+      cell.tasks.some((item) => item.occurrenceKey === task.id),
+    ),
   )
   const taskByCell = new Map<string, Task>(
     tableTasks.map((task) => [`${task.clientId}:${task.routineId}`, task]),
   )
   const hasTaskContextMenu = Boolean(
-    onTaskStatusChange ||
+    (onTaskStatusChange &&
+      tableTasks.some((task) => {
+        const statuses = getAllowedTaskStatusChanges?.(task)
+        return statuses ? statuses.length > 0 : true
+      })) ||
     onTaskAttachmentAdd ||
     tableTasks.some((task) => (task.links?.length ?? 0) > 0),
   )
@@ -192,7 +201,7 @@ function RoutineControlTable({
 
   useEffect(() => {
     setContextMenu(null)
-  }, [clients])
+  }, [screen.id])
 
   function openClientContextMenu(
     client: Client,
@@ -259,7 +268,7 @@ function RoutineControlTable({
               )}
             </div>
             <p className="text-xs font-medium text-[var(--color-text-muted)]">
-              {clients.length} clientes - {routines.length} rotinas
+              {screenClients.length} clientes - {screenRoutines.length} rotinas
             </p>
           </header>
         )}
@@ -274,7 +283,7 @@ function RoutineControlTable({
                 <th className="sticky left-0 z-20 min-w-64 border-b border-r border-[var(--color-table-border)] bg-[var(--color-table-header-bg)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-table-heading-text)]">
                   Empresas
                 </th>
-                {routines.map((routine) => (
+                {screenRoutines.map((routine) => (
                   <th
                     key={routine.id}
                     className="w-20 min-w-20 max-w-20 border-b border-r border-[var(--color-table-border)] bg-[var(--color-table-header-bg)] p-0 text-center text-xs font-semibold text-[var(--color-table-heading-text)] last:border-r-0"
@@ -290,7 +299,7 @@ function RoutineControlTable({
             </thead>
 
             <tbody>
-              {clients.map((client) => (
+              {screenClients.map((client) => (
                 <tr key={client.id} className="group">
                   <th className="sticky left-0 z-10 border-b border-r border-[var(--color-table-border)] bg-[var(--color-table-sticky-bg)] p-0 group-hover:bg-[var(--color-table-row-hover-bg)]">
                     <ClientRowButton
@@ -304,9 +313,9 @@ function RoutineControlTable({
                     />
                   </th>
 
-                  {routines.map((routine) => {
+                  {screenRoutines.map((routine) => {
                     const cellKey = `${client.id}:${routine.id}`
-                    const isApplicable = linkedCells.has(cellKey)
+                    const isApplicable = applicableCells.has(cellKey)
                     const task = taskByCell.get(cellKey)
 
                     return (
@@ -358,8 +367,6 @@ function RoutineControlTable({
       {contextMenu?.kind === 'company' && (
         <CompanyContextMenu
           client={contextMenu.client}
-          departments={departments}
-          divisions={divisions}
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={closeContextMenu}
@@ -375,7 +382,17 @@ function RoutineControlTable({
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={closeContextMenu}
-          onStatusChange={onTaskStatusChange}
+          onStatusChange={
+            onTaskStatusChange &&
+            (getAllowedTaskStatusChanges
+              ? getAllowedTaskStatusChanges(contextMenu.task).length > 0
+              : true)
+              ? onTaskStatusChange
+              : undefined
+          }
+          allowedStatusChanges={getAllowedTaskStatusChanges?.(
+            contextMenu.task,
+          )}
           onAttachmentAdd={
             onTaskAttachmentAdd ? handleTaskAttachmentAdd : undefined
           }

@@ -1,58 +1,64 @@
 import { Link, useNavigate } from 'react-router'
 
 import type { EntityId } from '../../../types/domain'
-import type { SpreadsheetDivisionNavigationItem } from '../../../types/navigation'
+import type { ScreenNavigationItem } from '../../../types/navigation'
 
-interface SpreadsheetDivisionNavigationProps {
-  items: readonly SpreadsheetDivisionNavigationItem[]
-  activeDivisionId: EntityId | null
+interface SpreadsheetScreenNavigationProps {
+  items: readonly ScreenNavigationItem[]
+  activeScreenId: EntityId | null
   ariaLabel?: string
   selectLabel?: string
   className?: string
 }
 
-function SpreadsheetDivisionNavigation({
+/**
+ * Mantém a composição visual das antigas abas de subdivisão, agora ligada
+ * diretamente às telas do backend.
+ */
+function SpreadsheetScreenNavigation({
   items,
-  activeDivisionId,
-  ariaLabel = 'Divisões da planilha',
-  selectLabel = 'Divisão operacional',
+  activeScreenId,
+  ariaLabel = 'Telas da planilha',
+  selectLabel = 'Tela operacional',
   className = '',
-}: SpreadsheetDivisionNavigationProps) {
+}: SpreadsheetScreenNavigationProps) {
   const navigate = useNavigate()
-  const activeItem = items.find((item) => item.id === activeDivisionId)
+  const activeItem = items.find((item) => item.id === activeScreenId)
 
   if (items.length === 0) return null
 
   function handleMobileChange(value: EntityId) {
     const selectedItem = items.find((item) => item.id === value)
 
-    if (selectedItem && selectedItem.id !== activeDivisionId) {
+    if (selectedItem && selectedItem.id !== activeScreenId) {
       void navigate(selectedItem.to)
     }
   }
 
   return (
     <nav
-      className={`spreadsheet-division-navigation ${className}`.trim()}
+      className={['spreadsheet-screen-navigation', className]
+        .filter(Boolean)
+        .join(' ')}
       aria-label={ariaLabel}
-      data-spreadsheet-division-navigation
+      data-spreadsheet-screen-navigation
     >
-      <ul className="spreadsheet-division-navigation__desktop">
+      <ul className="spreadsheet-screen-navigation__desktop">
         {items.map((item) => {
-          const isActive = item.id === activeDivisionId
+          const isActive = item.id === activeScreenId
 
           return (
             <li key={item.id}>
               <Link
                 to={item.to}
-                className="spreadsheet-division-navigation__link"
+                className="spreadsheet-screen-navigation__link"
                 aria-current={isActive ? 'page' : undefined}
               >
-                <span className="spreadsheet-division-navigation__name">
+                <span className="spreadsheet-screen-navigation__name">
                   {item.name}
                 </span>
                 {item.description && (
-                  <span className="spreadsheet-division-navigation__description">
+                  <span className="spreadsheet-screen-navigation__description">
                     {item.description}
                   </span>
                 )}
@@ -62,18 +68,18 @@ function SpreadsheetDivisionNavigation({
         })}
       </ul>
 
-      <label className="spreadsheet-division-navigation__mobile">
-        <span className="spreadsheet-division-navigation__mobile-label">
+      <label className="spreadsheet-screen-navigation__mobile">
+        <span className="spreadsheet-screen-navigation__mobile-label">
           {selectLabel}
         </span>
-        <span className="spreadsheet-division-navigation__select-wrapper">
+        <span className="spreadsheet-screen-navigation__select-wrapper">
           <select
             value={activeItem?.id ?? ''}
             onChange={(event) => handleMobileChange(event.currentTarget.value)}
           >
             {!activeItem && (
               <option value="" disabled>
-                Selecione uma divisão
+                Selecione uma tela
               </option>
             )}
             {items.map((item) => (
@@ -91,5 +97,5 @@ function SpreadsheetDivisionNavigation({
   )
 }
 
-export type { SpreadsheetDivisionNavigationProps }
-export default SpreadsheetDivisionNavigation
+export type { SpreadsheetScreenNavigationProps }
+export default SpreadsheetScreenNavigation

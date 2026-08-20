@@ -1,29 +1,118 @@
 export type EntityId = string
 
-export type UserRole = 'employee' | 'leader' | 'manager'
+export type OrganizationRole = 'owner' | 'admin' | 'member'
+
+export type DepartmentAccessRole = 'lead' | 'contributor' | 'viewer'
+
+export interface DepartmentAccessAssignment {
+  departmentId: EntityId
+  role: DepartmentAccessRole
+}
 
 export type RoutineStatus =
   'pending' | 'in_progress' | 'error' | 'completed' | 'no_movement'
 
+export type CompetenceStatus =
+  | 'projected'
+  | 'draft'
+  | 'open'
+  | 'finalized'
+  | 'closed'
+  | 'locked'
+
 export interface Department {
   id: EntityId
   name: string
-}
-
-export interface DepartmentDivision {
-  id: EntityId
-  departmentId: EntityId
-  name: string
-  slug: string
   description?: string
-  position: number
-  active?: boolean
 }
 
-export interface ClientDivisionAssignment {
+export type ScreenType = 'spreadsheet' | 'agenda'
+
+export interface ScreenCompany {
   id: EntityId
+  code: string
+  name: string
+  legalName: string
+  position: number
+}
+
+export interface ScreenRoutine {
+  id: EntityId
+  shotname: string
+  name: string
   departmentId: EntityId
-  divisionId: EntityId
+  position: number
+}
+
+export interface ScreenSummary {
+  id: EntityId
+  name: string
+  type: ScreenType
+  departmentId: EntityId
+  departmentName: string
+  position: number
+  version: number
+  archivedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Screen extends ScreenSummary {
+  companies: ScreenCompany[]
+  routines: ScreenRoutine[]
+}
+
+export interface SpreadsheetProjectionCell {
+  companyId: EntityId
+  routineId: EntityId
+  tasks: ScheduledOccurrence[]
+}
+
+export interface ScheduledOccurrence {
+  occurrenceKey: EntityId
+  taskId: EntityId | null
+  etag: string
+  persistence: 'virtual' | 'materialized'
+  referenceMonth: string
+  kind: 'scheduled'
+  departmentId: EntityId
+  departmentName: string
+  clientCompanyId: EntityId
+  companyCode: string
+  companyName: string
+  companyLegalName: string
+  routineId: EntityId
+  routineVersionId: EntityId
+  sourceAssignmentId: EntityId
+  routineShotname: string
+  routineName: string
+  routineVersionNumber: number
+  routineDescription: string
+  title: string
+  description: string
+  observation: string
+  links: TaskLinkInput[]
+  dueDate: string
+  status: RoutineStatus
+  assignee: { id: EntityId; displayName: string } | null
+  sourceRevision: number
+  version: number | null
+  materializationReason: string | null
+  materializedAt: string | null
+  archivedAt: string | null
+  createdAt: string | null
+  updatedAt: string | null
+  isOverdue: boolean
+}
+
+export interface SpreadsheetProjection {
+  type: 'spreadsheet'
+  screen: ScreenSummary
+  competenceId: EntityId | null
+  period: string
+  rows: ScreenCompany[]
+  columns: ScreenRoutine[]
+  cells: SpreadsheetProjectionCell[]
 }
 
 export interface Client {
@@ -34,39 +123,9 @@ export interface Client {
   document?: string
   email?: string
   phone?: string
-  taxRegime?: ClientTaxRegime
-  divisionAssignments?: ClientDivisionAssignment[]
+  taxRegime?: string
   createdAt?: string
   active?: boolean
-}
-
-export type ClientTaxRegime =
-  'simples_nacional' | 'lucro_presumido' | 'lucro_real' | 'mei' | 'other'
-
-export interface UpdateClientInput {
-  name: string
-  code: string
-  legalName?: string
-  document?: string
-  email?: string
-  phone?: string
-  taxRegime?: ClientTaxRegime
-  divisionAssignments: ClientDivisionAssignment[]
-  routineIds?: EntityId[]
-  active: boolean
-}
-
-export interface CreateClientInput {
-  name: string
-  code: string
-  document: string
-  legalName?: string
-  email?: string
-  phone?: string
-  taxRegime?: ClientTaxRegime
-  departmentId: EntityId
-  divisionId: EntityId
-  routineIds: EntityId[]
 }
 
 export interface Routine {
@@ -76,10 +135,9 @@ export interface Routine {
   shortName: string
   description?: string
   recurrence?: RoutineRecurrence
-  defaultDueDay?: number
-  recurrenceMonths?: number[]
   defaultDueDays?: number
-  defaultAssigneeId?: EntityId | null
+  recurrenceMonths?: number[]
+  defaultAssigneeMemberId?: EntityId | null
   recurrenceAnchorPeriod?: string
   isTemplate?: boolean
   createdAt?: string
@@ -89,76 +147,14 @@ export interface Routine {
 export type RoutineRecurrence =
   'on_demand' | 'monthly' | 'quarterly' | 'semiannual' | 'annual'
 
-export interface CreateRoutineInput {
-  departmentId: EntityId
-  name: string
-  description: string
-  recurrence: RoutineRecurrence
-  defaultAssigneeId?: EntityId | null
-  defaultDueDays?: number
-  defaultDueDay?: number
-  recurrenceMonths?: number[]
-}
-
-export interface UpdateRoutineInput {
-  name: string
-  shortName: string
-  description?: string
-  recurrence: RoutineRecurrence
-  defaultDueDays?: number
-  defaultDueDay?: number
-  recurrenceMonths?: number[]
-  defaultAssigneeId?: EntityId | null
-  active: boolean
-}
-
-export interface RoutineConfigurationUpdateInput {
-  routine: UpdateRoutineInput
-  unlinkClientIds: EntityId[]
-}
-
-export interface ClientRoutineLink {
-  id: EntityId
-  clientId: EntityId
-  routineId: EntityId
-  divisionId?: EntityId
-  source?: ClientRoutineSource
-  createdAt?: string
-}
-
-export type ClientRoutineSource = 'preset' | 'manual'
-
-export interface ClientRoutineExclusion {
-  id: EntityId
-  clientId: EntityId
-  divisionId: EntityId
-  routineId: EntityId
-  createdAt: string
-}
-
-export interface DivisionRoutineLink {
-  id: EntityId
-  divisionId: EntityId
-  routineId: EntityId
-  position: number
-}
-
 export interface Employee {
   id: EntityId
   name: string
-  departmentIds?: EntityId[]
+  departmentAccesses?: DepartmentAccessAssignment[]
   login?: string
-  role?: UserRole
+  role?: OrganizationRole
   credentialConfigured?: boolean
   active?: boolean
-}
-
-export interface CreateEmployeeInput {
-  name: string
-  login: string
-  password: string
-  role: UserRole
-  departmentIds: EntityId[]
 }
 
 export interface TaskAttachment {
@@ -179,10 +175,12 @@ export interface TaskLink {
   createdAt?: string
 }
 
-export interface CreateTaskLinkInput {
+export interface TaskLinkInput {
   label: string
   url: string
 }
+
+export type CreateTaskLinkInput = TaskLinkInput
 
 export interface TaskIndicators {
   attachments: number
@@ -192,41 +190,47 @@ export interface TaskIndicators {
 
 export interface Task {
   id: EntityId
-  isLoose?: boolean
+  occurrenceKey?: EntityId
+  taskId?: EntityId | null
+  competenceId?: EntityId | null
+  etag?: string
+  persistence?: ScheduledOccurrence['persistence']
+  kind: ScheduledOccurrence['kind'] | 'ad_hoc'
   title?: string
   description?: string
   clientId: EntityId | null
   routineId: EntityId | null
   departmentId: EntityId
-  divisionId?: EntityId | null
   assigneeId: EntityId | null
   status: RoutineStatus
   statusDetail?: string | null
   period: string
+  referenceMonth?: string
   dueDate: string
   completedAt: string | null
   notes?: string
   attachments?: TaskAttachment[]
   links?: TaskLink[]
   createdAt?: string
+  updatedAt?: string | null
   indicators: TaskIndicators
 }
 
 export interface RoutineControlData {
   departments: Department[]
-  divisions?: DepartmentDivision[]
   clients: Client[]
   routines: Routine[]
-  divisionRoutineLinks?: DivisionRoutineLink[]
-  clientRoutineLinks: ClientRoutineLink[]
-  clientRoutineExclusions?: ClientRoutineExclusion[]
   employees: Employee[]
+  screens: Screen[]
+  spreadsheetProjections: SpreadsheetProjection[]
   tasks: Task[]
 }
 
 export interface RoutineControlMeta {
   period: string
   generatedAt: string
+  /** Estado do período carregado pela API; ausente apenas em fixtures legadas. */
+  competenceStatus?: CompetenceStatus
 }
 
 export interface RoutineControlResponse {
@@ -247,16 +251,15 @@ export interface NormalizedRoutineData {
   routinesById: Map<EntityId, Routine>
   employeesById: Map<EntityId, Employee>
   departmentsById: Map<EntityId, Department>
-  divisionsById: Map<EntityId, DepartmentDivision>
 }
 
 export interface AppUser {
   id: EntityId
-  employeeId: EntityId
+  membershipId: EntityId
   name: string
   email: string
-  role: UserRole
-  departmentIds: EntityId[]
+  role: OrganizationRole
+  departmentAccesses: DepartmentAccessAssignment[]
   avatarUrl: string
 }
 
@@ -347,4 +350,5 @@ export interface RoutineListInteractionProps {
     item: RoutineListItem,
     change: PendingStatusChange,
   ) => void
+  getAllowedStatusChanges?: (item: RoutineListItem) => readonly RoutineStatus[]
 }

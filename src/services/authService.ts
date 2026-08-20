@@ -1,129 +1,207 @@
-import {
-  appUsersMock,
-  currentUserMock,
-  leaderUserMock,
-  managerUserMock,
-} from '../constants/roles'
-import type { AppUser, UserRole } from '../types/domain'
+import { ApiError, HttpClient, httpClient } from './httpClient'
+import type {
+  AppUser,
+  DepartmentAccessAssignment,
+  DepartmentAccessRole,
+  OrganizationRole,
+} from '../types/domain'
+
+const AUTH_ENDPOINTS = {
+  csrf: '/api/v1/auth/csrf/',
+  login: '/api/v1/auth/login/',
+  logout: '/api/v1/auth/logout/',
+  session: '/api/v1/auth/session/',
+  activeMembership: '/api/v1/auth/active-membership/',
+  departments: '/api/v1/departments/',
+} as const
 
 export interface LoginCredentials {
   email: string
   password: string
 }
 
+export interface UserSummary {
+  id: string
+  email: string
+}
+
+export interface OrganizationSummary {
+  id: string
+  name: string
+  slug: string
+  timezone: string
+}
+
+export interface MembershipSummary {
+  id: string
+  displayName: string
+  role: OrganizationRole
+  status: string
+  organization: OrganizationSummary
+}
+
 export interface AuthSession {
-  user: AppUser
+  user: UserSummary
+  memberships: MembershipSummary[]
+  activeMembership: MembershipSummary | null
 }
 
-const MOCK_PASSWORD = 'rotinas123'
-const SESSION_STORAGE_KEY = 'rotinas.auth-session.v1'
-const seededAccounts = appUsersMock.map((user) => ({
-  user,
-  password: MOCK_PASSWORD,
-}))
-const accountsByUserId = new Map(
-  seededAccounts.map((account) => [account.user.id, account]),
-)
+export interface AuthState {
+  session: AuthSession
+  departmentAccesses: DepartmentAccessAssignment[]
+}
 
-const wait = (milliseconds: number) =>
-  new Promise<void>((resolve) => globalThis.setTimeout(resolve, milliseconds))
+interface CsrfTokenResponse {
+  csrfToken: string
+}
 
-export async function loginWithMock(
-  credentials: LoginCredentials,
-): Promise<AuthSession> {
-  await wait(400)
+interface LoginResponse extends AuthSession {
+  csrfToken: string
+}
 
-  const email = normalizeEmail(credentials.email)
-  const account = [...accountsByUserId.values()].find(
-    (item) => normalizeEmail(item.user.email) === email,
-  )
+interface DepartmentAccessItem {
+  id: string
+  accessRole: DepartmentAccessRole | null
+}
 
-  if (!account || credentials.password !== account.password) {
-    throw new Error('E-mail ou senha incorretos.')
+interface PaginatedDepartmentList {
+  next: string | null
+  results: DepartmentAccessItem[]
+}
+
+export class AuthService {
+  constructor(private readonly client: HttpClient) {}
+
+  async initialize(): Promise<AuthState | null> {
+    await this.refreshCsrfToken()
+
+    try {
+      const session = (
+        await this.client.get<AuthSession>(AUTH_ENDPOINTS.session)
+      ).data
+      return await this.hydrateAuthState(session)
+    } catch (error) {
+      if (isMissingSessionError(error)) return null
+      throw error
+    }
   }
 
-  return { user: account.user }
-}
+  async login(credentials: LoginCredentials): Promise<AuthState> {
+    await this.refreshCsrfToken()
 
-export function readMockSession(storage: Storage): AuthSession | null {
-  try {
-    const storedSession = JSON.parse(
-      storage.getItem(SESSION_STORAGE_KEY) ?? 'null',
-    ) as { userId?: unknown } | null
+    const { data } = await this.client.post<LoginResponse>(
+      AUTH_ENDPOINTS.login,
+      {
+        email: credentials.email.trim(),
+        password: credentials.password,
+      },
+    )
 
-    if (typeof storedSession?.userId !== 'string') {
-      storage.removeItem(SESSION_STORAGE_KEY)
-      return null
+    this.client.setCsrfToken(data.csrfToken)
+    return await this.hydrateAuthState(toAuthSession(data))
+  }
+
+  async logout(): Promise<void> {
+    await this.ensureCsrfToken()
+
+    try {
+      await this.client.post<void>(AUTH_ENDPOINTS.logout)
+    } finally {
+      this.client.clearCsrfToken()
+    }
+  }
+
+  async selectActiveMembership(membershipId: string): Promise<AuthState> {
+    await this.ensureCsrfToken()
+
+    const session = (
+      await this.client.put<AuthSession>(AUTH_ENDPOINTS.activeMembership, {
+        membershipId,
+      })
+    ).data
+
+    return await this.hydrateAuthState(session)
+  }
+
+  async refreshSession(): Promise<AuthState | null> {
+    try {
+      const session = (
+        await this.client.get<AuthSession>(AUTH_ENDPOINTS.session)
+      ).data
+      return await this.hydrateAuthState(session)
+    } catch (error) {
+      if (isMissingSessionError(error)) return null
+      throw error
+    }
+  }
+
+  private async ensureCsrfToken(): Promise<void> {
+    if (!this.client.getCsrfToken()) {
+      await this.refreshCsrfToken()
+    }
+  }
+
+  private async refreshCsrfToken(): Promise<void> {
+    const { data } = await this.client.get<CsrfTokenResponse>(
+      AUTH_ENDPOINTS.csrf,
+    )
+    this.client.setCsrfToken(data.csrfToken)
+  }
+
+  private async hydrateAuthState(session: AuthSession): Promise<AuthState> {
+    if (session.activeMembership?.role !== 'member') {
+      return { session, departmentAccesses: [] }
     }
 
-    const account = accountsByUserId.get(storedSession.userId)
+    const departmentAccesses: DepartmentAccessAssignment[] = []
+    let nextPage: string | null = AUTH_ENDPOINTS.departments
 
-    if (!account) {
-      storage.removeItem(SESSION_STORAGE_KEY)
-      return null
+    while (nextPage) {
+      const response = await this.client.get<PaginatedDepartmentList>(nextPage)
+      const page: PaginatedDepartmentList = response.data
+
+      page.results.forEach((department) => {
+        if (department.accessRole) {
+          departmentAccesses.push({
+            departmentId: department.id,
+            role: department.accessRole,
+          })
+        }
+      })
+      nextPage = page.next
     }
 
-    return { user: account.user }
-  } catch {
-    storage.removeItem(SESSION_STORAGE_KEY)
-    return null
+    return { session, departmentAccesses }
   }
 }
 
-export function persistMockSession(storage: Storage, session: AuthSession) {
-  storage.setItem(
-    SESSION_STORAGE_KEY,
-    JSON.stringify({ userId: session.user.id }),
-  )
-}
+export const authService = new AuthService(httpClient)
 
-export function clearMockSession(storage: Storage) {
-  storage.removeItem(SESSION_STORAGE_KEY)
-}
+export function createAppUser(authState: AuthState | null): AppUser | null {
+  const session = authState?.session
+  const membership = session?.activeMembership
 
-export function registerMockAuthAccount(user: AppUser, password: string): void {
-  const normalizedEmail = normalizeEmail(user.email)
-  const conflictingAccount = [...accountsByUserId.values()].find(
-    (account) =>
-      account.user.id !== user.id &&
-      normalizeEmail(account.user.email) === normalizedEmail,
-  )
+  if (!session || !membership) return null
 
-  if (conflictingAccount) {
-    throw new Error('Já existe uma conta com este e-mail.')
+  return {
+    id: session.user.id,
+    membershipId: membership.id,
+    name: membership.displayName,
+    email: session.user.email,
+    role: membership.role,
+    departmentAccesses: authState.departmentAccesses,
+    avatarUrl: '',
   }
+}
 
-  if (!password) {
-    throw new Error('Informe uma senha temporária.')
+function toAuthSession(response: LoginResponse): AuthSession {
+  return {
+    user: response.user,
+    memberships: response.memberships,
+    activeMembership: response.activeMembership,
   }
-
-  accountsByUserId.set(user.id, { user, password })
 }
 
-export function resetMockAuthAccounts(): void {
-  accountsByUserId.clear()
-  seededAccounts.forEach((account) => {
-    accountsByUserId.set(account.user.id, account)
-  })
-}
-
-export const mockLoginCredentialsByRole: Record<UserRole, LoginCredentials> = {
-  employee: {
-    email: currentUserMock.email,
-    password: MOCK_PASSWORD,
-  },
-  leader: {
-    email: leaderUserMock.email,
-    password: MOCK_PASSWORD,
-  },
-  manager: {
-    email: managerUserMock.email,
-    password: MOCK_PASSWORD,
-  },
-}
-
-export const mockLoginCredentials = mockLoginCredentialsByRole.manager
-
-function normalizeEmail(value: string): string {
-  return value.trim().toLocaleLowerCase('pt-BR')
+function isMissingSessionError(error: unknown): boolean {
+  return error instanceof ApiError && [401, 403].includes(error.status)
 }

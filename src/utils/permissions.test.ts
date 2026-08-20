@@ -1,56 +1,74 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  currentUserMock,
-  leaderUserMock,
-  managerUserMock,
-} from '../constants/roles'
+import { adminUserMock, leadUserMock, memberUserMock } from '../constants/roles'
 import {
   APP_PERMISSION,
+  canAccessDepartment,
+  canAssignTask,
   canCreateCompany,
   canCreateEmployee,
   canCreateRoutine,
+  getDepartmentAccessRole,
   hasAppPermission,
+  isLead,
+  isOrganizationAdmin,
 } from './permissions'
+import type { Task } from '../types/domain'
 
-describe('creation permissions', () => {
-  it('does not grant creation access to an operational employee', () => {
-    expect(canCreateRoutine(currentUserMock)).toBe(false)
-    expect(canCreateCompany(currentUserMock)).toBe(false)
-    expect(canCreateEmployee(currentUserMock)).toBe(false)
+describe('backend-aligned permissions', () => {
+  it('applies contributor access only to its configured department', () => {
+    expect(isOrganizationAdmin(memberUserMock)).toBe(false)
+    expect(isLead(memberUserMock)).toBe(false)
+    expect(canAccessDepartment(memberUserMock, 'dept-fiscal')).toBe(true)
+    expect(canAccessDepartment(memberUserMock, 'dept-contabil')).toBe(false)
+    expect(getDepartmentAccessRole(memberUserMock, 'dept-fiscal')).toBe(
+      'contributor',
+    )
+    expect(canCreateRoutine(memberUserMock)).toBe(false)
+    expect(canCreateCompany(memberUserMock)).toBe(false)
+    expect(canCreateEmployee(memberUserMock)).toBe(false)
   })
 
-  it('limits a leader to routine and company creation in accessible departments', () => {
-    expect(canCreateRoutine(leaderUserMock)).toBe(true)
-    expect(canCreateRoutine(leaderUserMock, 'dept-fiscal')).toBe(true)
-    expect(canCreateRoutine(leaderUserMock, 'dept-contabil')).toBe(false)
-    expect(canCreateCompany(leaderUserMock, ['dept-fiscal'])).toBe(true)
-    expect(
-      canCreateCompany(leaderUserMock, ['dept-fiscal', 'dept-contabil']),
-    ).toBe(false)
-    expect(canCreateEmployee(leaderUserMock)).toBe(false)
+  it('keeps lead as a departmental role of a member', () => {
+    expect(leadUserMock.role).toBe('member')
+    expect(isLead(leadUserMock, 'dept-fiscal')).toBe(true)
+    expect(isLead(leadUserMock, 'dept-contabil')).toBe(false)
+    expect(canCreateRoutine(leadUserMock, 'dept-fiscal')).toBe(false)
+    expect(canCreateCompany(leadUserMock, ['dept-fiscal'])).toBe(false)
+    expect(canCreateEmployee(leadUserMock)).toBe(false)
+    expect(hasAppPermission(leadUserMock, APP_PERMISSION.VIEW_EMPLOYEES)).toBe(
+      true,
+    )
+    expect(canAssignTask(leadUserMock, buildTask('dept-fiscal'))).toBe(true)
+    expect(canAssignTask(leadUserMock, buildTask('dept-contabil'))).toBe(false)
   })
 
-  it('grants all creation capabilities to a manager', () => {
-    expect(canCreateRoutine(managerUserMock, 'dept-contabil')).toBe(true)
+  it('grants organization-wide management to owner/admin', () => {
+    expect(isOrganizationAdmin(adminUserMock)).toBe(true)
+    expect(canAccessDepartment(adminUserMock, 'dept-contabil')).toBe(true)
+    expect(canCreateRoutine(adminUserMock, 'dept-contabil')).toBe(true)
     expect(
-      canCreateCompany(managerUserMock, ['dept-fiscal', 'dept-contabil']),
+      canCreateCompany(adminUserMock, ['dept-fiscal', 'dept-contabil']),
     ).toBe(true)
-    expect(canCreateEmployee(managerUserMock)).toBe(true)
+    expect(canCreateEmployee(adminUserMock)).toBe(true)
     expect(
-      hasAppPermission(managerUserMock, APP_PERMISSION.CREATE_EMPLOYEE),
-    ).toBe(true)
-  })
-
-  it('restricts the employee directory to managers', () => {
-    expect(
-      hasAppPermission(currentUserMock, APP_PERMISSION.VIEW_EMPLOYEES),
-    ).toBe(false)
-    expect(
-      hasAppPermission(leaderUserMock, APP_PERMISSION.VIEW_EMPLOYEES),
-    ).toBe(false)
-    expect(
-      hasAppPermission(managerUserMock, APP_PERMISSION.VIEW_EMPLOYEES),
+      hasAppPermission(adminUserMock, APP_PERMISSION.CREATE_EMPLOYEE),
     ).toBe(true)
   })
 })
+
+function buildTask(departmentId: string): Task {
+  return {
+    id: 'task-1',
+    kind: 'scheduled',
+    clientId: null,
+    routineId: null,
+    departmentId,
+    assigneeId: null,
+    status: 'pending',
+    period: '2026-06',
+    dueDate: '2026-06-30',
+    completedAt: null,
+    indicators: { attachments: 0 },
+  }
+}

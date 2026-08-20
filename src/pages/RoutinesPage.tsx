@@ -17,7 +17,7 @@ import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
 import type { RoutineControlData } from '../types/domain'
 import { normalizeSearch } from '../utils/normalizeSearch'
-import { isLeader } from '../utils/permissions'
+import { isOrganizationAdmin } from '../utils/permissions'
 import { formatRoutineSchedule } from '../utils/routineSchedule'
 
 const routineGrid =
@@ -27,34 +27,32 @@ function RoutinesPage({ data }: { data: RoutineControlData }) {
   const { user } = useAppState()
   const [search, setSearch] = useState('')
   const clientsByRoutine = useMemo(() => {
-    const clients = new Map<string, Set<string>>()
-    data.clientRoutineLinks.forEach((link) => {
-      const routineClients = clients.get(link.routineId) ?? new Set<string>()
-      routineClients.add(link.clientId)
-      clients.set(link.routineId, routineClients)
+    const result = new Map<string, Set<string>>()
+    data.tasks.forEach((task) => {
+      if (!task.clientId || !task.routineId) return
+      const clientIds = result.get(task.routineId) ?? new Set<string>()
+      clientIds.add(task.clientId)
+      result.set(task.routineId, clientIds)
     })
-    return clients
-  }, [data.clientRoutineLinks])
-  const filteredRoutines = useMemo(() => {
+    return result
+  }, [data.tasks])
+  const routines = useMemo(() => {
     const query = normalizeSearch(search)
-
     return [...data.routines]
-      .filter((routine) => {
-        const department = data.departments.find(
-          (item) => item.id === routine.departmentId,
-        )
-        return normalizeSearch(
+      .filter((routine) =>
+        normalizeSearch(
           [
             routine.name,
             routine.shortName,
             routine.description,
-            department?.name,
+            data.departments.find((item) => item.id === routine.departmentId)
+              ?.name,
             getRoutineRecurrenceLabel(routine.recurrence),
           ]
             .filter(Boolean)
             .join(' '),
-        ).includes(query)
-      })
+        ).includes(query),
+      )
       .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'))
   }, [data.departments, data.routines, search])
 
@@ -62,14 +60,14 @@ function RoutinesPage({ data }: { data: RoutineControlData }) {
     <CatalogList
       title="Rotinas"
       countLabel={`${data.routines.length} cadastradas`}
-      resultLabel={`${filteredRoutines.length} de ${data.routines.length}`}
+      resultLabel={`${routines.length} de ${data.routines.length}`}
       searchLabel="Buscar rotinas"
       searchPlaceholder="Buscar por nome, departamento ou recorrência"
       searchValue={search}
       onSearchChange={setSearch}
       action={
-        isLeader(user) ? (
-          <CatalogAction to={ROUTES.ROUTINE_CREATE}>Criar rotina</CatalogAction>
+        isOrganizationAdmin(user) ? (
+          <CatalogAction to={ROUTES.ROUTINE_CREATE}>Nova rotina</CatalogAction>
         ) : undefined
       }
     >
@@ -82,44 +80,39 @@ function RoutinesPage({ data }: { data: RoutineControlData }) {
         <span>Situação</span>
         <span />
       </CatalogHeader>
-
-      {filteredRoutines.length > 0 ? (
+      {routines.length ? (
         <CatalogRows>
-          {filteredRoutines.map((routine) => {
-            const department = data.departments.find(
-              (item) => item.id === routine.departmentId,
-            )
-
-            return (
-              <CatalogRow
-                key={routine.id}
-                to={`${ROUTES.ROUTINES}/${encodeURIComponent(routine.id)}?source=catalog`}
-                ariaLabel={`Abrir rotina ${routine.name}`}
-                gridClass={routineGrid}
-              >
-                <CatalogPrimary
-                  title={routine.name}
-                  description={routine.description}
-                />
-                <CatalogDatum label="Departamento">
-                  {department?.name ?? 'Não informado'}
-                </CatalogDatum>
-                <CatalogDatum label="Recorrência">
-                  {getRoutineRecurrenceLabel(routine.recurrence)}
-                </CatalogDatum>
-                <CatalogDatum label="Agenda e prazo">
-                  {formatRoutineSchedule(routine)}
-                </CatalogDatum>
-                <CatalogDatum label="Empresas">
-                  {clientsByRoutine.get(routine.id)?.size ?? 0}
-                </CatalogDatum>
-                <CatalogDatum label="Situação">
-                  <CatalogStatus active={routine.active !== false} />
-                </CatalogDatum>
-                <CatalogChevron />
-              </CatalogRow>
-            )
-          })}
+          {routines.map((routine) => (
+            <CatalogRow
+              key={routine.id}
+              to={`${ROUTES.ROUTINES}/${encodeURIComponent(routine.id)}?source=catalog`}
+              ariaLabel={`Abrir rotina ${routine.name}`}
+              gridClass={routineGrid}
+            >
+              <CatalogPrimary
+                title={routine.name}
+                description={routine.description}
+              />
+              <CatalogDatum label="Departamento">
+                {data.departments.find(
+                  (item) => item.id === routine.departmentId,
+                )?.name ?? 'Não informado'}
+              </CatalogDatum>
+              <CatalogDatum label="Recorrência">
+                {getRoutineRecurrenceLabel(routine.recurrence)}
+              </CatalogDatum>
+              <CatalogDatum label="Agenda e prazo">
+                {formatRoutineSchedule(routine)}
+              </CatalogDatum>
+              <CatalogDatum label="Empresas">
+                {clientsByRoutine.get(routine.id)?.size ?? 0}
+              </CatalogDatum>
+              <CatalogDatum label="Situação">
+                <CatalogStatus active={routine.active !== false} />
+              </CatalogDatum>
+              <CatalogChevron />
+            </CatalogRow>
+          ))}
         </CatalogRows>
       ) : (
         <CatalogEmpty

@@ -48,6 +48,7 @@ function RoutineListComparison({
   onItemQuickAction,
   onItemNoteChange,
   onItemStatusChange,
+  getAllowedStatusChanges,
   showHeader = false,
 }: {
   title?: string
@@ -63,6 +64,7 @@ function RoutineListComparison({
     item: RoutineListItem,
     change: PendingStatusChange,
   ) => void
+  getAllowedStatusChanges?: (item: RoutineListItem) => readonly RoutineStatus[]
   showHeader?: boolean
 }) {
   const [pendingChangeById, setPendingChangeById] = useState<
@@ -91,7 +93,11 @@ function RoutineListComparison({
     [visibleItems],
   )
   const hasTaskContextMenu = Boolean(
-    onItemStatusChange ||
+    (onItemStatusChange &&
+      items.some((item) => {
+        const statuses = getAllowedStatusChanges?.(item)
+        return statuses ? statuses.length > 0 : true
+      })) ||
     onItemQuickAction ||
     items.some((item) => (item.task.links?.length ?? 0) > 0),
   )
@@ -229,21 +235,34 @@ function RoutineListComparison({
                 group={group}
                 variant="ledger"
               >
-                {group.items.map((item) => (
-                  <RoutineListCardOptionThree
-                    key={item.id}
-                    item={item}
-                    onOpen={onItemOpen}
-                    onQuickAction={onItemQuickAction}
-                    onNoteChange={onItemNoteChange}
-                    onStatusChange={handlePendingStatusChange}
-                    onStatusConfirm={handlePendingStatusConfirm}
-                    onContextMenuOpen={
-                      hasTaskContextMenu ? openTaskContextMenu : undefined
-                    }
-                    isContextMenuOpen={contextMenu?.item.id === item.id}
-                  />
-                ))}
+                {group.items.map((item) => {
+                  const allowedStatuses = getAllowedStatusChanges?.(item)
+                  const canChangeStatus = Boolean(
+                    onItemStatusChange &&
+                      (allowedStatuses ? allowedStatuses.length : true),
+                  )
+
+                  return (
+                    <RoutineListCardOptionThree
+                      key={item.id}
+                      item={item}
+                      onOpen={onItemOpen}
+                      onQuickAction={onItemQuickAction}
+                      onNoteChange={onItemNoteChange}
+                      onStatusChange={
+                        canChangeStatus ? handlePendingStatusChange : undefined
+                      }
+                      onStatusConfirm={
+                        canChangeStatus ? handlePendingStatusConfirm : undefined
+                      }
+                      allowedStatusChanges={allowedStatuses}
+                      onContextMenuOpen={
+                        hasTaskContextMenu ? openTaskContextMenu : undefined
+                      }
+                      isContextMenuOpen={contextMenu?.item.id === item.id}
+                    />
+                  )
+                })}
               </RoutineListSection>
             ))
           ) : (
@@ -265,8 +284,14 @@ function RoutineListComparison({
           y={contextMenu.y}
           onClose={closeTaskContextMenu}
           onStatusChange={
-            onItemStatusChange ? handleContextStatusChange : undefined
+            onItemStatusChange &&
+            (getAllowedStatusChanges
+              ? getAllowedStatusChanges(contextMenu.item).length > 0
+              : true)
+              ? handleContextStatusChange
+              : undefined
           }
+          allowedStatusChanges={getAllowedStatusChanges?.(contextMenu.item)}
           onAttachmentAdd={
             onItemQuickAction ? handleContextAttachmentAdd : undefined
           }

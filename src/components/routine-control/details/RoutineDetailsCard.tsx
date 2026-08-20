@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import {
   ROUTINE_STATUS,
   routineStatusConfig,
@@ -22,6 +22,11 @@ import {
 import RoutineEditableFields from '../shared/RoutineEditableFields'
 import TaskLinksPanel from './TaskLinksPanel'
 
+type TaskChangeHandler<Value> = (
+  taskId: EntityId,
+  value: Value,
+) => void | Promise<void>
+
 interface RoutineDetailsCardProps {
   task?: Task | null
   client?: Client
@@ -29,13 +34,15 @@ interface RoutineDetailsCardProps {
   department?: Department
   employees?: Employee[]
   onStatusChange?: (taskId: EntityId, status: RoutineStatus) => void
-  onAssigneeChange?: (taskId: EntityId, assigneeId: EntityId | null) => void
-  onDueDateChange?: (taskId: EntityId, dueDate: string) => void
+  allowedStatusChanges?: readonly RoutineStatus[]
+  onAssigneeChange?: TaskChangeHandler<EntityId | null>
+  onDueDateChange?: TaskChangeHandler<string>
   onAttachmentAdd?: (task: Task) => void
   onAttachmentRemove?: (taskId: EntityId, attachmentId: EntityId) => void
-  onNotesChange?: (taskId: EntityId, notes: string) => void
-  onLinkAdd?: (taskId: EntityId, link: CreateTaskLinkInput) => void
-  onLinkRemove?: (taskId: EntityId, linkId: EntityId) => void
+  onContentChange?: TaskChangeHandler<{ title: string; description: string }>
+  onNotesChange?: TaskChangeHandler<string>
+  onLinkAdd?: TaskChangeHandler<CreateTaskLinkInput>
+  onLinkRemove?: TaskChangeHandler<EntityId>
   onClose?: () => void
 }
 
@@ -58,10 +65,12 @@ function RoutineDetailsCard({
   department,
   employees = [],
   onStatusChange,
+  allowedStatusChanges,
   onAssigneeChange,
   onDueDateChange,
   onAttachmentAdd,
   onAttachmentRemove,
+  onContentChange,
   onNotesChange,
   onLinkAdd,
   onLinkRemove,
@@ -95,17 +104,11 @@ function RoutineDetailsCard({
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <main className="min-w-0 space-y-4 overflow-y-auto p-4 sm:p-5">
-          <section aria-labelledby={`description-title-${task.id}`}>
-            <SectionHeading
-              id={`description-title-${task.id}`}
-              title="Descrição"
-              icon={<DescriptionIcon />}
-            />
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
-              {model.description ||
-                'Nenhuma descrição cadastrada para esta execução.'}
-            </p>
-          </section>
+          <TaskContentSection
+            task={task}
+            model={model}
+            onContentChange={onContentChange}
+          />
 
           <section
             className="overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)]"
@@ -138,6 +141,7 @@ function RoutineDetailsCard({
             employees={employees}
             model={model}
             onStatusChange={onStatusChange}
+            allowedStatusChanges={allowedStatusChanges}
             onAssigneeChange={onAssigneeChange}
             onDueDateChange={onDueDateChange}
             onLinkAdd={onLinkAdd}
@@ -193,11 +197,156 @@ function RoutineIdentityHeader({
   )
 }
 
+function TaskContentSection({
+  task,
+  model,
+  onContentChange,
+}: {
+  task: Task
+  model: DetailsModel
+  onContentChange?: TaskChangeHandler<{ title: string; description: string }>
+}) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [title, setTitle] = useState(model.title)
+  const [description, setDescription] = useState(model.description ?? '')
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setTitle(model.title)
+    setDescription(model.description ?? '')
+    setIsEditing(false)
+    setError('')
+  }, [model.description, model.title, task.id])
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!onContentChange) return
+
+    if (title.length > 200) {
+      setError('O título pode ter no máximo 200 caracteres.')
+      return
+    }
+
+    if (description.length > 5000) {
+      setError('A descrição pode ter no máximo 5.000 caracteres.')
+      return
+    }
+
+    if (title === model.title && description === (model.description ?? '')) {
+      setIsEditing(false)
+      return
+    }
+
+    setIsSaving(true)
+    setError('')
+
+    try {
+      await onContentChange(task.id, { title, description })
+      setIsEditing(false)
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Não foi possível salvar o conteúdo da execução.',
+      )
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function handleCancel() {
+    setTitle(model.title)
+    setDescription(model.description ?? '')
+    setError('')
+    setIsEditing(false)
+  }
+
+  return (
+    <section aria-labelledby={`description-title-${task.id}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SectionHeading
+          id={`description-title-${task.id}`}
+          title="Descrição"
+          icon={<DescriptionIcon />}
+        />
+        {onContentChange && !isEditing && (
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="min-h-8 rounded-[var(--radius-control)] border border-[var(--color-divider)] px-2.5 text-xs font-bold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)]"
+          >
+            Editar conteúdo
+          </button>
+        )}
+      </div>
+
+      {isEditing ? (
+        <form className="mt-3 space-y-3" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="grid gap-1.5">
+            <span className="text-xs font-bold text-[var(--color-text-muted)]">
+              Título da execução
+            </span>
+            <input
+              value={title}
+              maxLength={200}
+              onChange={(event) => setTitle(event.target.value)}
+              disabled={isSaving}
+              className="min-h-10 rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 text-sm text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-control-focus)]/20 disabled:opacity-60"
+            />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-xs font-bold text-[var(--color-text-muted)]">
+              Descrição da execução
+            </span>
+            <textarea
+              value={description}
+              maxLength={5000}
+              rows={4}
+              onChange={(event) => setDescription(event.target.value)}
+              disabled={isSaving}
+              className="resize-y rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2 text-sm leading-6 text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-control-focus)]/20 disabled:opacity-60"
+            />
+          </label>
+          {error && (
+            <p className="text-sm font-semibold text-[var(--status-error-text)]" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={isSaving}
+              className="min-h-9 rounded-[var(--radius-control)] border border-[var(--color-divider)] px-3 text-sm font-bold text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="min-h-9 rounded-[var(--radius-control)] bg-[var(--color-brand)] px-3 text-sm font-bold text-white hover:brightness-95 disabled:opacity-60"
+            >
+              {isSaving ? 'Salvando…' : 'Salvar conteúdo'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
+          {model.description || 'Nenhuma descrição cadastrada para esta execução.'}
+        </p>
+      )}
+    </section>
+  )
+}
+
 function DetailsSidebar({
   task,
   employees,
   model,
   onStatusChange,
+  allowedStatusChanges,
   onAssigneeChange,
   onDueDateChange,
   onLinkAdd,
@@ -207,10 +356,11 @@ function DetailsSidebar({
   employees: Employee[]
   model: DetailsModel
   onStatusChange?: (taskId: EntityId, status: RoutineStatus) => void
-  onAssigneeChange?: (taskId: EntityId, assigneeId: EntityId | null) => void
-  onDueDateChange?: (taskId: EntityId, dueDate: string) => void
-  onLinkAdd?: (taskId: EntityId, link: CreateTaskLinkInput) => void
-  onLinkRemove?: (taskId: EntityId, linkId: EntityId) => void
+  allowedStatusChanges?: readonly RoutineStatus[]
+  onAssigneeChange?: TaskChangeHandler<EntityId | null>
+  onDueDateChange?: TaskChangeHandler<string>
+  onLinkAdd?: TaskChangeHandler<CreateTaskLinkInput>
+  onLinkRemove?: TaskChangeHandler<EntityId>
 }) {
   return (
     <section aria-labelledby={`details-title-${task.id}`}>
@@ -224,6 +374,7 @@ function DetailsSidebar({
         <RoutineStatusControl
           task={task}
           onStatusChange={onStatusChange}
+          allowedStatusChanges={allowedStatusChanges}
           variant="menu"
         />
       </div>
@@ -323,11 +474,13 @@ function buildDetailsModel({
   routine?: Routine
   department?: Department
 }): DetailsModel {
-  const title = task.isLoose
-    ? (task.title ?? 'Tarefa avulsa')
-    : (routine?.name ?? task.title ?? 'Execução')
-  const description = task.isLoose ? task.description : routine?.description
-  const referencePrefix = task.isLoose ? 'Tarefa avulsa' : 'Execução de rotina'
+  const isAdHocTask = task.kind === 'ad_hoc'
+  const title =
+    task.title ??
+    (isAdHocTask ? 'Tarefa avulsa' : (routine?.name ?? 'Execução'))
+  const description =
+    task.description ?? (isAdHocTask ? undefined : routine?.description)
+  const referencePrefix = isAdHocTask ? 'Tarefa avulsa' : 'Execução de rotina'
 
   return {
     title,
@@ -337,7 +490,7 @@ function buildDetailsModel({
     clientLabel: client?.name ?? 'Tarefa avulsa',
     departmentLabel: department?.name ?? 'Sem departamento',
     periodLabel: formatPeriod(task.period),
-    typeLabel: task.isLoose ? 'Tarefa avulsa' : 'Rotina recorrente',
+    typeLabel: isAdHocTask ? 'Tarefa avulsa' : 'Rotina recorrente',
     completedLabel: formatDateTime(task.completedAt),
   }
 }
