@@ -14,11 +14,7 @@ export type RoutineStatus =
 
 export type CompetenceStatus =
   | 'projected'
-  | 'draft'
-  | 'open'
   | 'finalized'
-  | 'closed'
-  | 'locked'
 
 export interface Department {
   id: EntityId

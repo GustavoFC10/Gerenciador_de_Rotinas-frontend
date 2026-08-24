@@ -30,7 +30,7 @@ import MyTasksPage from './pages/MyTasksPage'
 import PlaceholderPage from './pages/PlaceholderPage'
 import ProfilePage from './pages/ProfilePage'
 import RoutinesPage from './pages/RoutinesPage'
-import SettingsPage from './pages/SettingsPage'
+import SettingsRoutes from './pages/settings/SettingsRoutes'
 import ScreensPage from './pages/ScreensPage'
 import SpreadsheetPage from './pages/SpreadsheetPage'
 import TasksPage from './pages/TasksPage'
@@ -139,6 +139,11 @@ function AuthenticatedApp() {
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const selectedTaskId = selectedTask?.id
+  const competenceStatus = response?.meta.competenceStatus
+  const isProjectedCompetence = competenceStatus === 'projected'
+  const canOperateTasks =
+    isProjectedCompetence || competenceStatus === 'finalized'
+  const canCreateAdHocTask = isProjectedCompetence
   const spreadsheetNavigationItems = useMemo(
     () => (data ? buildSpreadsheetNavigationItems(data) : []),
     [data],
@@ -321,10 +326,19 @@ function AuthenticatedApp() {
     }
   }, [data, selectedDepartment, selectedTask])
 
+  function canOperateTask(task: Task): boolean {
+    return (
+      canOperateTasks &&
+      (isProjectedCompetence || hasMaterializedTask(task))
+    )
+  }
+
   const canEditSelectedTask = Boolean(
-    selectedTask && canAssignTask(user, selectedTask),
+    selectedTask &&
+      canOperateTask(selectedTask) &&
+      canAssignTask(user, selectedTask),
   )
-  const selectedTaskStatusChanges = selectedTask
+  const selectedTaskStatusChanges = selectedTask && canOperateTask(selectedTask)
     ? getAllowedTaskTransitionStatuses(user, selectedTask)
     : []
 
@@ -414,7 +428,13 @@ function AuthenticatedApp() {
   function requestTaskTransition(taskId: string, status: RoutineStatus) {
     const task = data?.tasks.find((item) => item.id === taskId)
 
-    if (!task || !canTransitionTask(user, task, status)) return
+    if (
+      !task ||
+      !canOperateTask(task) ||
+      !canTransitionTask(user, task, status)
+    ) {
+      return
+    }
 
     setPendingTaskTransition({ task, status })
     setTransitionReason('')
@@ -432,6 +452,24 @@ function AuthenticatedApp() {
     }
 
     return task
+  }
+
+  async function getMaterializedTaskEtag(task: Task): Promise<string> {
+    if (!hasMaterializedTask(task)) {
+      throw new Error(
+        'A tarefa não contém os identificadores exigidos pela API para salvar a alteração.',
+      )
+    }
+
+    if (task.etag) return task.etag
+
+    const currentTask = await taskService.get(task.competenceId, task.taskId)
+
+    if (!currentTask.etag) {
+      throw new Error('A API não informou a versão atual da tarefa para salvar.')
+    }
+
+    return currentTask.etag
   }
 
   function applyTaskUpdate(task: Task, assignee: Employee | null) {
@@ -467,45 +505,54 @@ function AuthenticatedApp() {
   ): Promise<void> {
     const task = getTaskForUpdate(taskId)
 
-    if (task.occurrenceKey) {
-      if (!task.etag) {
-        throw new Error('A tarefa não informou a versão necessária para salvar.')
-      }
-
-      const response = await taskService.updateOccurrence(
-        task.period,
-        task.occurrenceKey,
-        input,
-        task.etag,
+    if (!canOperateTask(task)) {
+      throw new Error(
+        'A competência atual não permite alterar esta tarefa.',
       )
-      const updatedTask = toTaskFromScheduledOccurrence(
+    }
+
+    if (hasMaterializedTask(task)) {
+      const etag = await getMaterializedTaskEtag(task)
+      const response = await taskService.update(
+        task.competenceId,
+        task.taskId,
+        input,
+        etag,
+      )
+      const updatedTask = toTaskFromResource(
         response.data,
-        response.etag,
+        response.etag ?? etag,
       )
 
       applyTaskUpdate(updatedTask, toTaskAssignee(response.data.assignee))
       return
     }
 
-    if (!task.competenceId || !task.taskId) {
+    if (!isProjectedCompetence || !task.occurrenceKey) {
       throw new Error(
-        'A tarefa não contém os identificadores exigidos pela API para salvar a alteração.',
+        'Somente ocorrências recorrentes de uma competência projetada podem ser alteradas por este fluxo.',
       )
     }
 
-    const currentTask = await taskService.get(task.competenceId, task.taskId)
-
-    if (!currentTask.etag) {
-      throw new Error('A API não informou a versão atual da tarefa para salvar.')
+    if (!task.etag) {
+      throw new Error('A tarefa não informou a versão necessária para salvar.')
     }
 
-    const response = await taskService.update(
-      task.competenceId,
-      task.taskId,
+    const response = await taskService.updateOccurrence(
+      task.period,
+      task.occurrenceKey,
       input,
-      currentTask.etag,
+      task.etag,
     )
-    const updatedTask = toTaskFromResource(response.data, response.etag)
+    const materializedCompetence =
+      response.data.taskId && !task.competenceId
+        ? await competenceService.getByPeriod(task.period)
+        : null
+    const updatedTask = toTaskFromScheduledOccurrence(
+      response.data,
+      response.etag ?? response.data.etag,
+      task.competenceId ?? materializedCompetence?.data.id ?? null,
+    )
 
     applyTaskUpdate(updatedTask, toTaskAssignee(response.data.assignee))
   }
@@ -623,28 +670,20 @@ function AuthenticatedApp() {
     setTransitionError(null)
 
     try {
-      if (task.occurrenceKey && task.etag) {
+      if (hasMaterializedTask(task)) {
+        const etag = await getMaterializedTaskEtag(task)
+        await taskService.transition(
+          task.competenceId,
+          task.taskId,
+          { targetStatus: status, reason },
+          etag,
+        )
+      } else if (isProjectedCompetence && task.occurrenceKey && task.etag) {
         await taskService.transitionOccurrence(
           task.period,
           task.occurrenceKey,
           { targetStatus: status, reason },
           task.etag,
-        )
-      } else if (task.competenceId && task.taskId) {
-        const currentTask = await taskService.get(
-          task.competenceId,
-          task.taskId,
-        )
-
-        if (!currentTask.etag) {
-          throw new Error('Não foi possível obter a versão atual da tarefa.')
-        }
-
-        await taskService.transition(
-          task.competenceId,
-          task.taskId,
-          { targetStatus: status, reason },
-          currentTask.etag,
         )
       } else {
         throw new Error(
@@ -670,7 +709,6 @@ function AuthenticatedApp() {
     input: CompanySetupInput,
   ): Promise<CreateCompanyResult> {
     let company: { id: string; name: string } | null = null
-    let departmentLinked = false
     let linkedRoutineCount = 0
     let screenLinked = false
     let screenName: string | undefined
@@ -681,26 +719,6 @@ function AuthenticatedApp() {
         id: createdCompany.data.id,
         name: createdCompany.data.name,
       }
-      const companySnapshot = createdCompany.etag
-        ? createdCompany
-        : await companyService.get(company.id)
-
-      if (!companySnapshot.etag) {
-        throw new Error(
-          'A API não informou a versão necessária para criar o vínculo departamental.',
-        )
-      }
-
-      await companyService.createDepartmentAssignment(
-        company.id,
-        {
-          departmentId: input.departmentId,
-          startsOn: input.startsOn,
-          endsOn: null,
-        },
-        companySnapshot.etag,
-      )
-      departmentLinked = true
 
       for (const routineId of input.routineIds) {
         await companyService.createRoutineAssignment(company.id, {
@@ -749,9 +767,8 @@ function AuthenticatedApp() {
         // A falha principal continua sendo mais útil para orientar a recuperação.
       }
 
-      const nextStep = !departmentLinked
-        ? 'Abra a empresa e crie o vínculo com o departamento.'
-        : linkedRoutineCount < input.routineIds.length
+      const nextStep =
+        linkedRoutineCount < input.routineIds.length
           ? 'Abra a empresa e conclua os vínculos de rotina restantes.'
           : input.screenId && !screenLinked
             ? 'Abra a tela escolhida e inclua a empresa na composição visual.'
@@ -763,7 +780,6 @@ function AuthenticatedApp() {
           : 'A sequência de configuração da empresa foi interrompida.',
         {
           company,
-          departmentLinked,
           linkedRoutineCount,
           requestedRoutineCount: input.routineIds.length,
           screenLinked,
@@ -795,6 +811,20 @@ function AuthenticatedApp() {
 
     await companyService.update(companyId, changes, currentCompany.etag)
     await reload()
+  }
+
+  async function handleCompanyArchive(companyId: string): Promise<void> {
+    const currentCompany = await companyService.get(companyId)
+
+    if (!currentCompany.etag) {
+      throw new Error(
+        'Não foi possível obter a versão atual da empresa para arquivá-la.',
+      )
+    }
+
+    await companyService.archive(companyId, currentCompany.etag)
+    await reload()
+    navigate(ROUTES.COMPANIES, { replace: true })
   }
 
   async function handleRoutineUpdate(
@@ -862,13 +892,6 @@ function AuthenticatedApp() {
     return invitation
   }
 
-  async function handleDepartmentCreate(
-    input: Parameters<typeof departmentService.create>[0],
-  ) {
-    await departmentService.create(input)
-    await reload()
-  }
-
   async function handleScreenCreate(
     input: Parameters<typeof screenService.create>[0],
   ): Promise<Screen> {
@@ -882,41 +905,55 @@ function AuthenticatedApp() {
   ) {
     const competenceResponse = await competenceService.getByPeriod(competence)
     const projection = competenceResponse.data
-    let competenceId = projection.id
-
-    if (projection.status === 'projected' || projection.status === 'draft') {
-      if (!isOrganizationAdmin(user)) {
-        throw new Error(
-          'A competência precisa ser aberta por um owner ou admin antes de criar tarefas.',
-        )
-      }
-
-      if (projection.status === 'draft' && !competenceResponse.etag) {
-        throw new Error('Não foi possível obter a versão atual da competência.')
-      }
-
-      const opened = await competenceService.openByPeriod(
-        competence,
-        projection.status === 'draft'
-          ? (competenceResponse.etag ?? undefined)
-          : undefined,
-      )
-      competenceId = opened.data.id
+    if (projection.status !== 'projected') {
+      throw new Error('A competência atual não aceita novas tarefas.')
     }
 
-    if (!competenceId || !['open', 'finalized'].includes(projection.status)) {
-      if (
-        !competenceId ||
-        !['projected', 'draft'].includes(projection.status)
-      ) {
-        throw new Error('A competência atual não aceita novas tarefas.')
-      }
+    const createdCompetence = projection.id
+      ? null
+      : await competenceService.create(competence)
+    const competenceId = projection.id ?? createdCompetence?.data.id
+
+    if (
+      !competenceId ||
+      (createdCompetence && createdCompetence.data.status !== 'projected')
+    ) {
+      throw new Error('Não foi possível preparar a competência para a nova tarefa.')
     }
 
     await taskService.createAdHoc(
       competenceId,
       input,
       `ad-hoc-${globalThis.crypto.randomUUID()}`,
+    )
+    await reload()
+  }
+
+  async function handleCompetenceFinalize(): Promise<void> {
+    if (!isOrganizationAdmin(user)) {
+      throw new Error(
+        'Somente proprietário ou administrador pode finalizar a competência.',
+      )
+    }
+
+    const currentCompetence = await competenceService.getByPeriod(competence)
+
+    if (currentCompetence.data.status !== 'projected') {
+      await reload()
+      return
+    }
+
+    if (currentCompetence.data.id && !currentCompetence.etag) {
+      throw new Error(
+        'A API não informou a versão atual da competência para finalizar o período.',
+      )
+    }
+
+    await competenceService.finalizeByPeriod(
+      competence,
+      currentCompetence.data.id
+        ? currentCompetence.etag ?? undefined
+        : undefined,
     )
     await reload()
   }
@@ -967,6 +1004,8 @@ function AuthenticatedApp() {
                 spreadsheets={spreadsheetNavigationItems}
                 generatedAt={response.meta.generatedAt}
                 onTaskOpen={setSelectedTask}
+                competenceStatus={response.meta.competenceStatus}
+                onCompetenceFinalize={handleCompetenceFinalize}
               />
             }
           />
@@ -986,7 +1025,9 @@ function AuthenticatedApp() {
                   onTaskOpen={setSelectedTask}
                   onTaskStatusChange={requestTaskTransition}
                   getAllowedTaskStatusChanges={(task) =>
-                    getAllowedTaskTransitionStatuses(user, task)
+                    canOperateTask(task)
+                      ? getAllowedTaskTransitionStatuses(user, task)
+                      : []
                   }
                 />
               ) : (
@@ -1006,13 +1047,16 @@ function AuthenticatedApp() {
                 screenName={selectedScreen?.name}
                 screenDepartmentId={selectedDepartment?.id}
                 onClientUpdate={handleCompanyUpdate}
-                onClientCoverageChange={reload}
+                onClientArchive={handleCompanyArchive}
+                onClientRoutineAssignmentsChange={reload}
                 onItemOpen={handleListItemOpen}
                 onItemStatusChange={(item, change) =>
                   requestTaskTransition(item.task.id, change.status)
                 }
                 getAllowedStatusChanges={(item) =>
-                  getAllowedTaskTransitionStatuses(user, item.task)
+                  canOperateTask(item.task)
+                    ? getAllowedTaskTransitionStatuses(user, item.task)
+                    : []
                 }
               />
             }
@@ -1032,7 +1076,9 @@ function AuthenticatedApp() {
                   requestTaskTransition(item.task.id, change.status)
                 }
                 getAllowedStatusChanges={(item) =>
-                  getAllowedTaskTransitionStatuses(user, item.task)
+                  canOperateTask(item.task)
+                    ? getAllowedTaskTransitionStatuses(user, item.task)
+                    : []
                 }
               />
             }
@@ -1040,22 +1086,20 @@ function AuthenticatedApp() {
           <Route
             path={ROUTES.TASKS}
             element={
-              hasSpreadsheetContext ? (
-                <TasksPage
-                  data={visibleData!}
-                  screenId={selectedScreen!.id}
-                  screenName={selectedScreen!.name}
-                  onItemOpen={handleListItemOpen}
-                  onItemStatusChange={(item, change) =>
-                    requestTaskTransition(item.task.id, change.status)
-                  }
-                  getAllowedStatusChanges={(item) =>
-                    getAllowedTaskTransitionStatuses(user, item.task)
-                  }
-                />
-              ) : (
-                spreadsheetContextError
-              )
+              <TasksPage
+                data={data}
+                screenId={selectedScreen?.id}
+                screenName={selectedScreen?.name}
+                onItemOpen={handleListItemOpen}
+                onItemStatusChange={(item, change) =>
+                  requestTaskTransition(item.task.id, change.status)
+                }
+                getAllowedStatusChanges={(item) =>
+                  canOperateTask(item.task)
+                    ? getAllowedTaskTransitionStatuses(user, item.task)
+                    : []
+                }
+              />
             }
           />
           <Route
@@ -1068,23 +1112,24 @@ function AuthenticatedApp() {
                   requestTaskTransition(item.task.id, change.status)
                 }
                 getAllowedStatusChanges={(item) =>
-                  getAllowedTaskTransitionStatuses(user, item.task)
+                  canOperateTask(item.task)
+                    ? getAllowedTaskTransitionStatuses(user, item.task)
+                    : []
                 }
-                onLooseTaskCreate={handleAdHocTaskCreate}
+                onLooseTaskCreate={
+                  canCreateAdHocTask ? handleAdHocTaskCreate : undefined
+                }
               />
             }
           />
           <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
           <Route
-            path={ROUTES.SETTINGS}
+            path={`${ROUTES.SETTINGS}/*`}
             element={
               <RequirePermission
                 permission={APP_PERMISSION.MANAGE_ORGANIZATION}
               >
-                <SettingsPage
-                  data={data}
-                  onDepartmentCreate={handleDepartmentCreate}
-                />
+                <SettingsRoutes data={data} onReload={reload} />
               </RequirePermission>
             }
           />
@@ -1106,7 +1151,6 @@ function AuthenticatedApp() {
             element={
               <RequirePermission permission={APP_PERMISSION.CREATE_COMPANY}>
                 <CreateCompanyPage
-                  departments={data.departments}
                   screens={data.screens}
                   routines={data.routines}
                   period={competence}
@@ -1367,6 +1411,12 @@ function transitionRequiresReason(
   )
 }
 
+function hasMaterializedTask(
+  task: Task,
+): task is Task & { taskId: string; competenceId: string } {
+  return Boolean(task.taskId && task.competenceId)
+}
+
 function isSpreadsheetContextRoute(pathname: string, search = ''): boolean {
   if (new URLSearchParams(search).get('source') === 'catalog') {
     return false
@@ -1392,12 +1442,13 @@ function isSpreadsheetContextRoute(pathname: string, search = ''): boolean {
 function toTaskFromScheduledOccurrence(
   occurrence: ScheduledOccurrence,
   etag: string | null,
+  competenceId: string | null,
 ): Task {
   return {
     id: occurrence.occurrenceKey,
     occurrenceKey: occurrence.occurrenceKey,
     taskId: occurrence.taskId,
-    competenceId: null,
+    competenceId,
     etag: etag ?? occurrence.etag,
     persistence: occurrence.persistence,
     kind: occurrence.kind,
@@ -1424,11 +1475,15 @@ function toTaskFromScheduledOccurrence(
 }
 
 function toTaskFromResource(resource: TaskResource, etag: string | null): Task {
+  const stableId = resource.occurrenceKey ?? resource.id
+
   return {
-    id: resource.id,
+    id: stableId,
+    occurrenceKey: resource.occurrenceKey ?? undefined,
     taskId: resource.id,
     competenceId: resource.competenceId,
     etag: etag ?? undefined,
+    persistence: resource.occurrenceKey ? 'materialized' : undefined,
     kind: resource.kind,
     title: resource.title,
     description: resource.description,
@@ -1442,7 +1497,7 @@ function toTaskFromResource(resource: TaskResource, etag: string | null): Task {
     dueDate: resource.dueDate,
     completedAt: resource.status === 'completed' ? resource.updatedAt : null,
     notes: resource.observation || undefined,
-    links: toTaskLinks(resource.id, resource.links),
+    links: toTaskLinks(stableId, resource.links),
     createdAt: resource.createdAt,
     updatedAt: resource.updatedAt,
     indicators: { attachments: 0 },

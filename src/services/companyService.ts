@@ -15,28 +15,10 @@ export interface ClientCompanyInput {
 
 export type ClientCompanyPatch = Partial<ClientCompanyInput>
 
-export interface ClientDepartmentAssignmentInput {
-  departmentId: string
-  startsOn: string
-  endsOn?: string | null
-}
-
 export interface ClientRoutineAssignmentInput {
   routineId: string
   startsOn: string
   endsOn?: string | null
-}
-
-export interface ClientDepartmentAssignmentResource {
-  id: string
-  companyId: string
-  departmentId: string
-  departmentName: string
-  startsOn: string
-  endsOn: string | null
-  cancelledAt: string | null
-  createdAt: string
-  updatedAt: string
 }
 
 export interface ClientRoutineAssignmentResource {
@@ -118,59 +100,6 @@ export class CompanyService {
     )
   }
 
-  createDepartmentAssignment(
-    companyId: string,
-    input: ClientDepartmentAssignmentInput,
-    etag: string,
-  ): Promise<ApiResponse<ClientDepartmentAssignmentResource>> {
-    return this.client.post<ClientDepartmentAssignmentResource>(
-      `${companyPath(companyId)}department-assignments/`,
-      input,
-      { ifMatch: etag },
-    )
-  }
-
-  listDepartmentAssignments(
-    companyId: string,
-  ): Promise<ClientDepartmentAssignmentResource[]> {
-    return this.listAll<ClientDepartmentAssignmentResource>(
-      companyPath(companyId) + 'department-assignments/',
-    )
-  }
-
-  getDepartmentAssignment(
-    companyId: string,
-    assignmentId: string,
-  ): Promise<ApiResponse<ClientDepartmentAssignmentResource>> {
-    return this.client.get<ClientDepartmentAssignmentResource>(
-      departmentAssignmentPath(companyId, assignmentId),
-    )
-  }
-
-  endDepartmentAssignment(
-    companyId: string,
-    assignmentId: string,
-    endsOn: string,
-    etag: string,
-  ): Promise<ApiResponse<ClientDepartmentAssignmentResource>> {
-    return this.client.post<ClientDepartmentAssignmentResource>(
-      departmentAssignmentPath(companyId, assignmentId) + 'end/',
-      { endsOn },
-      { ifMatch: etag },
-    )
-  }
-
-  cancelDepartmentAssignment(
-    companyId: string,
-    assignmentId: string,
-    etag: string,
-  ): Promise<ApiResponse<void>> {
-    return this.client.delete<void>(
-      departmentAssignmentPath(companyId, assignmentId),
-      { ifMatch: etag },
-    )
-  }
-
   createRoutineAssignment(
     companyId: string,
     input: ClientRoutineAssignmentInput,
@@ -241,18 +170,6 @@ export const companyService = new CompanyService(httpClient)
 
 function companyPath(id: string): string {
   return `${CLIENT_COMPANIES_ENDPOINT}${encodeURIComponent(id)}/`
-}
-
-function departmentAssignmentPath(
-  companyId: string,
-  assignmentId: string,
-): string {
-  return (
-    companyPath(companyId) +
-    'department-assignments/' +
-    encodeURIComponent(assignmentId) +
-    '/'
-  )
 }
 
 function routineAssignmentPath(

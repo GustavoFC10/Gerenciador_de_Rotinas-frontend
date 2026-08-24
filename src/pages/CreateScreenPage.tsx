@@ -5,6 +5,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react'
+import { useSearchParams } from 'react-router'
 
 import {
   CreationErrorSummary,
@@ -17,7 +18,6 @@ import Select from '../components/ui/Select'
 import TextField from '../components/ui/TextField'
 import { ROUTES } from '../constants/routes'
 import WorkspaceBar from '../layouts/WorkspaceBar'
-import { companyService } from '../services/companyService'
 import type { ScreenInput } from '../services/screenService'
 import type { Client, Department, Routine, Screen, ScreenType } from '../types/domain'
 
@@ -27,6 +27,8 @@ interface CreateScreenPageProps {
   routines: Routine[]
   onCreate: (input: ScreenInput) => Promise<Screen>
   onCancel: () => void
+  header?: ReactNode
+  fixedDepartmentId?: string
 }
 
 type ScreenField = 'name' | 'departmentId' | 'submit'
@@ -38,10 +40,16 @@ function CreateScreenPage({
   routines,
   onCreate,
   onCancel,
+  header,
+  fixedDepartmentId,
 }: CreateScreenPageProps) {
+  const [searchParams] = useSearchParams()
+  const requestedDepartmentId = searchParams.get('departmentId')
   const [name, setName] = useState('')
   const [type, setType] = useState<ScreenType>('spreadsheet')
-  const [departmentId, setDepartmentId] = useState(departments[0]?.id ?? '')
+  const [departmentId, setDepartmentId] = useState(() =>
+    fixedDepartmentId ?? getInitialDepartmentId(departments, requestedDepartmentId),
+  )
   const [companyIds, setCompanyIds] = useState<string[]>([])
   const [routineIds, setRoutineIds] = useState<string[]>([])
   const [companySearch, setCompanySearch] = useState('')
@@ -49,86 +57,20 @@ function CreateScreenPage({
   const [errors, setErrors] = useState<ScreenErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdScreen, setCreatedScreen] = useState<Screen | null>(null)
-  const [eligibleCompanyIds, setEligibleCompanyIds] = useState<Set<string> | null>(
-    null,
-  )
-  const [isLoadingEligibleCompanies, setIsLoadingEligibleCompanies] =
-    useState(false)
-  const [eligibleCompaniesError, setEligibleCompaniesError] = useState('')
+
+  useEffect(() => {
+    if (!fixedDepartmentId) return
+    setDepartmentId(fixedDepartmentId)
+    setRoutineIds([])
+  }, [fixedDepartmentId])
 
   const selectedDepartment = departments.find(
     (department) => department.id === departmentId,
   )
-  useEffect(() => {
-    let isCurrent = true
-
-    if (type !== 'spreadsheet' || !departmentId) {
-      setEligibleCompanyIds(null)
-      setEligibleCompaniesError('')
-      setIsLoadingEligibleCompanies(false)
-      return () => {
-        isCurrent = false
-      }
-    }
-
-    setEligibleCompanyIds(null)
-    setEligibleCompaniesError('')
-    setIsLoadingEligibleCompanies(true)
-
-    void Promise.all(
-      clients.map(async (client) => ({
-          clientId: client.id,
-          assignments: await companyService.listDepartmentAssignments(client.id),
-        })),
-    )
-      .then((entries) => {
-        if (!isCurrent) return
-
-        const eligibleIds = new Set(
-          entries
-            .filter((entry) =>
-              entry.assignments.some(
-                (assignment) =>
-                  assignment.departmentId === departmentId &&
-                  !assignment.cancelledAt,
-              ),
-            )
-            .map((entry) => entry.clientId),
-        )
-        setEligibleCompanyIds(eligibleIds)
-        setCompanyIds((current) =>
-          current.filter((companyId) => eligibleIds.has(companyId)),
-        )
-      })
-      .catch((caughtError: unknown) => {
-        if (!isCurrent) return
-        setEligibleCompaniesError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : 'Não foi possível carregar as empresas elegíveis.',
-        )
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoadingEligibleCompanies(false)
-      })
-
-    return () => {
-      isCurrent = false
-    }
-  }, [clients, departmentId, type])
-
-  const eligibleClients = useMemo(
-    () =>
-      clients.filter(
-        (client) =>
-          client.active !== false &&
-          Boolean(eligibleCompanyIds?.has(client.id)),
-      ),
-    [clients, eligibleCompanyIds],
-  )
   const visibleCompanies = useMemo(
     () =>
-      eligibleClients
+      clients
+        .filter((client) => client.active !== false)
         .filter((client) =>
           normalizeForSearch(
             client.code + ' ' + client.name + ' ' + (client.legalName ?? ''),
@@ -137,7 +79,7 @@ function CreateScreenPage({
         .sort((left, right) =>
           left.name.localeCompare(right.name, 'pt-BR'),
         ),
-    [companySearch, eligibleClients],
+    [clients, companySearch],
   )
   const visibleRoutines = useMemo(
     () =>
@@ -161,15 +103,17 @@ function CreateScreenPage({
   if (createdScreen) {
     return (
       <div className="mx-auto w-full max-w-[90rem]">
-        <WorkspaceBar
-          context={{ label: 'Configurações', to: ROUTES.SETTINGS }}
-          label="Visualização"
-          title="Nova tela"
-        />
+        {header ?? (
+          <WorkspaceBar
+            context={{ label: 'Configurações', to: ROUTES.SETTINGS }}
+            label="Visualização"
+            title="Nova tela"
+          />
+        )}
         <CreationSuccess
           eyebrow="Tela criada"
           title={createdScreen.name}
-          description="A configuração visual foi enviada para a API. Vínculos operacionais de empresas e rotinas continuam sendo mantidos separadamente."
+          description="A configuração visual e a composição selecionada foram enviadas para a API."
           detail={
             (createdScreen.type === 'spreadsheet' ? 'Planilha' : 'Agenda') +
             ' · ' +
@@ -204,7 +148,9 @@ function CreateScreenPage({
   function resetForm() {
     setName('')
     setType('spreadsheet')
-    setDepartmentId(departments[0]?.id ?? '')
+    setDepartmentId(
+      fixedDepartmentId ?? getInitialDepartmentId(departments, requestedDepartmentId),
+    )
     setCompanyIds([])
     setRoutineIds([])
     setCompanySearch('')
@@ -213,11 +159,9 @@ function CreateScreenPage({
   }
 
   function updateDepartment(nextDepartmentId: string) {
+    if (fixedDepartmentId) return
     setDepartmentId(nextDepartmentId)
-    setCompanyIds([])
     setRoutineIds([])
-    setCompanySearch('')
-    setRoutineSearch('')
     setErrors((current) => ({ ...current, departmentId: undefined }))
   }
 
@@ -241,22 +185,6 @@ function CreateScreenPage({
     if (!departmentId) {
       nextErrors.departmentId = 'Selecione o departamento da tela.'
     }
-    if (type === 'spreadsheet' && isLoadingEligibleCompanies) {
-      nextErrors.submit = 'Aguarde o carregamento das empresas elegíveis.'
-    }
-    if (type === 'spreadsheet' && eligibleCompaniesError) {
-      nextErrors.submit =
-        'Não é possível criar a planilha sem validar as empresas elegíveis.'
-    }
-    if (
-      type === 'spreadsheet' &&
-      eligibleCompanyIds &&
-      companyIds.some((companyId) => !eligibleCompanyIds.has(companyId))
-    ) {
-      nextErrors.submit =
-        'Remova as empresas sem vínculo não cancelado com o departamento selecionado.'
-    }
-
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
@@ -284,17 +212,19 @@ function CreateScreenPage({
 
   return (
     <div className="mx-auto w-full max-w-[90rem]">
-      <WorkspaceBar
-        context={{ label: 'Configurações', to: ROUTES.SETTINGS }}
-        label="Visualização"
-        title="Nova tela"
-        meta="Estrutura de trabalho"
-      />
+      {header ?? (
+        <WorkspaceBar
+          context={{ label: 'Configurações', to: ROUTES.SETTINGS }}
+          label="Visualização"
+          title="Nova tela"
+          meta="Estrutura de trabalho"
+        />
+      )}
 
       <p className="-mt-1 mb-5 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
-        Telas organizam a visualização dentro de um departamento. Elas não
-        substituem os vínculos operacionais entre empresa, departamento e
-        rotina.
+        Telas organizam a visualização dentro de um departamento. Em uma
+        planilha, qualquer empresa ativa do tenant pode compor as linhas;
+        as rotinas precisam pertencer ao departamento escolhido.
       </p>
 
       <form onSubmit={(event) => void handleSubmit(event)} noValidate>
@@ -349,7 +279,7 @@ function CreateScreenPage({
                       updateDepartment(event.target.value)
                     }
                     required
-                    disabled={departments.length === 0}
+                    disabled={departments.length === 0 || Boolean(fixedDepartmentId)}
                     aria-invalid={Boolean(errors.departmentId)}
                   >
                     <option value="">Selecione</option>
@@ -388,17 +318,13 @@ function CreateScreenPage({
                 <SectionHeader
                   eyebrow="Composição inicial"
                   title="Monte a visualização"
-                  description="Estas escolhas definem as linhas e colunas exibidas. Empresas precisam ter vínculo não cancelado com o departamento."
+                  description="Estas escolhas definem as linhas e colunas exibidas. Empresas ativas do tenant podem compor a planilha; as rotinas são filtradas pelo departamento."
                 />
                 <div className="grid gap-5 px-5 py-5 lg:grid-cols-2 sm:px-6">
                   <SelectionPanel
                     id="screen-companies"
                     title="Empresas"
-                    description={
-                      isLoadingEligibleCompanies
-                        ? 'Verificando vínculo com o departamento…'
-                        : 'Linhas da planilha · máximo de 500'
-                    }
+                    description="Linhas da planilha · máximo de 500"
                     searchLabel="Buscar empresas"
                     searchValue={companySearch}
                     onSearchChange={setCompanySearch}
@@ -419,18 +345,7 @@ function CreateScreenPage({
                       }
                       setCompanyIds((current) => toggle(current, id, 500))
                     }}
-                    disabled={
-                      isLoadingEligibleCompanies ||
-                      Boolean(eligibleCompaniesError)
-                    }
-                    feedback={eligibleCompaniesError}
-                    emptyLabel={
-                      isLoadingEligibleCompanies
-                        ? 'Carregando empresas elegíveis…'
-                        : eligibleCompaniesError
-                          ? 'Não foi possível validar as empresas.'
-                          : 'Nenhuma empresa com vínculo não cancelado neste departamento.'
-                    }
+                    emptyLabel="Nenhuma empresa ativa encontrada."
                   />
                   <SelectionPanel
                     id="screen-routines"
@@ -493,10 +408,7 @@ function CreateScreenPage({
               type="submit"
               disabled={
                 isSubmitting ||
-                departments.length === 0 ||
-                (type === 'spreadsheet' &&
-                  (isLoadingEligibleCompanies ||
-                    Boolean(eligibleCompaniesError)))
+                departments.length === 0
               }
             >
               {isSubmitting ? 'Criando…' : 'Criar tela'}
@@ -596,7 +508,6 @@ function SelectionPanel({
   selectedIds,
   onToggle,
   disabled = false,
-  feedback,
   emptyLabel,
 }: {
   id: string
@@ -609,7 +520,6 @@ function SelectionPanel({
   selectedIds: string[]
   onToggle: (id: string) => void
   disabled?: boolean
-  feedback?: string
   emptyLabel: string
 }) {
   return (
@@ -678,14 +588,6 @@ function SelectionPanel({
           </li>
         )}
       </ul>
-      {feedback && (
-        <p
-          role="alert"
-          className="mt-2 text-xs font-bold text-[var(--status-error-text)]"
-        >
-          {feedback}
-        </p>
-      )}
     </section>
   )
 }
@@ -735,8 +637,9 @@ function ScreenPreview({
         </dl>
         <div className="border-t border-[var(--color-divider)] px-5 py-4">
           <p className="text-xs leading-5 text-[var(--color-text-muted)]">
-            Empresas e rotinas entram como composição visual. Seus vínculos
-            operacionais são validados separadamente pelo backend.
+            Empresas e rotinas entram como composição visual. As empresas
+            ativas do tenant podem ser usadas em qualquer departamento; as
+            rotinas acompanham o departamento da tela.
           </p>
         </div>
       </Card>
@@ -762,6 +665,17 @@ function normalizeForSearch(value: string): string {
     .toLocaleLowerCase('pt-BR')
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
+}
+
+function getInitialDepartmentId(
+  departments: Department[],
+  requestedDepartmentId: string | null,
+): string {
+  return departments.some(
+    (department) => department.id === requestedDepartmentId,
+  )
+    ? requestedDepartmentId!
+    : departments[0]?.id ?? ''
 }
 
 export default CreateScreenPage

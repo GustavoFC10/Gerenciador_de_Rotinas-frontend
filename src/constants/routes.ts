@@ -11,6 +11,7 @@ export const ROUTES = {
   ROUTINES: '/rotinas',
   ROUTINE_CREATE: '/rotinas/nova',
   ROUTINE_DETAILS: '/rotinas/:routineId',
+  ROUTINE_PRESETS: '/configuracoes/fluxos/predefinicoes',
   COMPANIES: '/empresas',
   COMPANY_CREATE: '/empresas/nova',
   COMPANY_DETAILS: '/empresas/:clientId',
@@ -20,5 +21,39 @@ export const ROUTES = {
   SCREEN_CREATE: '/telas/nova',
   ROLES: '/cargos',
   SETTINGS: '/configuracoes',
+  SETTINGS_ORGANIZATION: '/configuracoes/organizacao',
+  SETTINGS_DEPARTMENTS: '/configuracoes/departamentos',
+  SETTINGS_WORKFLOWS: '/configuracoes/fluxos',
+  SETTINGS_WORKFLOW_PRESETS: '/configuracoes/fluxos/predefinicoes',
+  SETTINGS_WORKFLOW_AUTOMATIONS: '/configuracoes/fluxos/automacoes',
+  SETTINGS_WORKFLOW_SHORTCUTS: '/configuracoes/fluxos/atalhos',
+  SETTINGS_INTEGRATIONS: '/configuracoes/integracoes',
   PROFILE: '/perfil',
 } as const
+
+export function getSettingsDepartmentPath(departmentId: string): string {
+  return `${ROUTES.SETTINGS_DEPARTMENTS}/${encodeURIComponent(departmentId)}`
+}
+
+export function getSettingsDepartmentScreensPath(departmentId: string): string {
+  return `${getSettingsDepartmentPath(departmentId)}/telas`
+}
+
+export function getSettingsDepartmentScreenCreatePath(
+  departmentId: string,
+): string {
+  return `${getSettingsDepartmentScreensPath(departmentId)}/nova`
+}
+
+export function getSettingsDepartmentScreenPath(
+  departmentId: string,
+  screenId: string,
+): string {
+  return `${getSettingsDepartmentScreensPath(departmentId)}/${encodeURIComponent(screenId)}`
+}
+
+export function getSettingsDepartmentPermissionsPath(
+  departmentId: string,
+): string {
+  return `${getSettingsDepartmentPath(departmentId)}/permissoes`
+}

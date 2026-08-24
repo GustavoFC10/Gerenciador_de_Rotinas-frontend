@@ -5,7 +5,7 @@ import {
   useState,
   type FormEvent,
 } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 
 import {
   CatalogAction,
@@ -24,10 +24,10 @@ import {
   FieldError,
 } from '../components/forms/CreationFeedback'
 import Button from '../components/ui/Button'
+import Select from '../components/ui/Select'
 import TextField from '../components/ui/TextField'
 import { focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
-import { companyService } from '../services/companyService'
 import { isApiError } from '../services/httpClient'
 import { screenService } from '../services/screenService'
 import type { Client, Department, Routine, Screen } from '../types/domain'
@@ -39,7 +39,7 @@ const screenGrid =
 const COMPANY_LIMIT = 500
 const ROUTINE_LIMIT = 200
 
-type ScreenEditField = 'name' | 'position'
+type ScreenEditField = 'name' | 'departmentId' | 'position'
 type ScreenEditErrors = Partial<Record<ScreenEditField, string>>
 
 interface SelectionItem {
@@ -65,8 +65,10 @@ function ScreensPage({
   routines,
   onScreenUpdated,
 }: ScreensPageProps) {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [selectedScreen, setSelectedScreen] = useState<Screen | null>(null)
+  const requestedScreenId = searchParams.get('screenId')
   const visibleScreens = useMemo(() => {
     const query = normalizeSearch(search)
     return [...screens]
@@ -96,6 +98,25 @@ function ScreensPage({
           left.name.localeCompare(right.name, 'pt-BR'),
       )
   }, [departments, screens, search])
+
+  useEffect(() => {
+    if (!requestedScreenId) return
+
+    const requestedScreen = screens.find(
+      (screen) => screen.id === requestedScreenId && !screen.archivedAt,
+    )
+    if (requestedScreen) setSelectedScreen(requestedScreen)
+  }, [requestedScreenId, screens])
+
+  function closeScreenEditor() {
+    setSelectedScreen(null)
+
+    if (!requestedScreenId) return
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString())
+    nextSearchParams.delete('screenId')
+    setSearchParams(nextSearchParams, { replace: true })
+  }
 
   return (
     <>
@@ -153,9 +174,10 @@ function ScreensPage({
         <ScreenEditDrawer
           key={selectedScreen.id}
           screen={selectedScreen}
+          departments={departments}
           clients={clients}
           routines={routines}
-          onClose={() => setSelectedScreen(null)}
+          onClose={closeScreenEditor}
           onSaved={onScreenUpdated}
         />
       )}
@@ -200,19 +222,26 @@ function ScreenRow({
   )
 }
 
-function ScreenEditDrawer({
+export function ScreenEditDrawer({
   screen,
+  departments,
   clients,
   routines,
   onClose,
   onSaved,
+  onSavedNavigate,
+  presentation = 'drawer',
 }: {
   screen: Screen
+  departments: Department[]
   clients: Client[]
   routines: Routine[]
   onClose: () => void
   onSaved: () => Promise<void>
+  onSavedNavigate?: (departmentId: string) => void
+  presentation?: 'drawer' | 'page'
 }) {
+  const isDrawer = presentation === 'drawer'
   const dialogRef = useRef<HTMLElement>(null)
   const closeRef = useRef(onClose)
   const savingRef = useRef(false)
@@ -222,17 +251,12 @@ function ScreenEditDrawer({
   const [isLoadingSnapshot, setIsLoadingSnapshot] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [name, setName] = useState('')
+  const [departmentId, setDepartmentId] = useState('')
   const [position, setPosition] = useState('')
   const [companyIds, setCompanyIds] = useState<string[]>([])
   const [routineIds, setRoutineIds] = useState<string[]>([])
   const [companySearch, setCompanySearch] = useState('')
   const [routineSearch, setRoutineSearch] = useState('')
-  const [eligibleCompanyIds, setEligibleCompanyIds] = useState<Set<string> | null>(
-    null,
-  )
-  const [isLoadingEligibleCompanies, setIsLoadingEligibleCompanies] =
-    useState(false)
-  const [eligibleCompaniesError, setEligibleCompaniesError] = useState('')
   const [errors, setErrors] = useState<ScreenEditErrors>({})
   const [submitError, setSubmitError] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
@@ -242,6 +266,8 @@ function ScreenEditDrawer({
   savingRef.current = isSaving
 
   useEffect(() => {
+    if (!isDrawer) return undefined
+
     const previousOverflow = document.body.style.overflow
     const returnFocusTarget =
       document.activeElement instanceof HTMLElement
@@ -251,6 +277,7 @@ function ScreenEditDrawer({
     const focusableSelector = [
       'button:not([disabled])',
       'input:not([disabled])',
+      'select:not([disabled])',
       '[href]',
       '[tabindex]:not([tabindex="-1"])',
     ].join(',')
@@ -305,7 +332,7 @@ function ScreenEditDrawer({
       document.removeEventListener('keydown', handleKeyDown)
       if (returnFocusTarget?.isConnected) returnFocusTarget.focus()
     }
-  }, [])
+  }, [isDrawer])
 
   useEffect(() => {
     if (isLoadingSnapshot || !snapshot) return
@@ -334,6 +361,7 @@ function ScreenEditDrawer({
 
         setSnapshot(response.data)
         setName(response.data.name)
+        setDepartmentId(response.data.departmentId)
         setPosition(String(response.data.position))
         setCompanyIds(getOrderedIds(response.data.companies))
         setRoutineIds(getOrderedIds(response.data.routines))
@@ -365,62 +393,6 @@ function ScreenEditDrawer({
     }
   }, [loadAttempt, screen.id])
 
-  useEffect(() => {
-    let isCurrent = true
-
-    if (!snapshot || snapshot.type !== 'spreadsheet') {
-      setEligibleCompanyIds(null)
-      setEligibleCompaniesError('')
-      setIsLoadingEligibleCompanies(false)
-      return () => {
-        isCurrent = false
-      }
-    }
-
-    setEligibleCompanyIds(null)
-    setEligibleCompaniesError('')
-    setIsLoadingEligibleCompanies(true)
-
-    void Promise.all(
-      clients.map(async (client) => ({
-          clientId: client.id,
-          assignments: await companyService.listDepartmentAssignments(client.id),
-        })),
-    )
-      .then((entries) => {
-        if (!isCurrent) return
-
-        const eligibleIds = new Set(
-          entries
-            .filter((entry) =>
-              entry.assignments.some(
-                (assignment) =>
-                  assignment.departmentId === snapshot.departmentId &&
-                  !assignment.cancelledAt,
-              ),
-            )
-            .map((entry) => entry.clientId),
-        )
-        setEligibleCompanyIds(eligibleIds)
-      })
-      .catch((caughtError: unknown) => {
-        if (!isCurrent) return
-        setEligibleCompaniesError(
-          getScreenErrorMessage(
-            caughtError,
-            'Não foi possível carregar as empresas vinculadas ao departamento.',
-          ),
-        )
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoadingEligibleCompanies(false)
-      })
-
-    return () => {
-      isCurrent = false
-    }
-  }, [clients, snapshot])
-
   const originalCompanyIds = useMemo(
     () => getOrderedIds(snapshot?.companies ?? []),
     [snapshot],
@@ -439,11 +411,21 @@ function ScreenEditDrawer({
           .filter(
             (routine) =>
               routine.active !== false &&
-              routine.departmentId === snapshot?.departmentId,
+              routine.departmentId === departmentId,
           )
           .map((routine) => routine.id),
       ),
-    [routines, snapshot?.departmentId],
+    [departmentId, routines],
+  )
+
+  const activeCompanyIds = useMemo(
+    () =>
+      new Set(
+        clients
+          .filter((client) => client.active !== false)
+          .map((client) => client.id),
+      ),
+    [clients],
   )
 
   const companyItems = useMemo<SelectionItem[]>(() => {
@@ -456,21 +438,13 @@ function ScreenEditDrawer({
         description:
           company.code + (company.legalName ? ' · ' + company.legalName : ''),
         selectable: false,
+        warning: 'Empresa arquivada ou indisponível.',
       })
     })
 
     clients.forEach((client) => {
       const selected = companyIds.includes(client.id)
-      const hasDepartmentLink = Boolean(eligibleCompanyIds?.has(client.id))
-      const selectable = client.active !== false && hasDepartmentLink
-      const warning = selected
-        ? getCompanyWarning({
-            clientActive: client.active !== false,
-            hasDepartmentLink,
-            isLoading: isLoadingEligibleCompanies,
-            hasError: Boolean(eligibleCompaniesError),
-          })
-        : undefined
+      const selectable = client.active !== false
 
       if (selectable || selected) {
         byId.set(client.id, {
@@ -479,36 +453,15 @@ function ScreenEditDrawer({
           description:
             client.code + (client.legalName ? ' · ' + client.legalName : ''),
           selectable,
-          warning,
+          warning: selectable ? undefined : 'Empresa arquivada ou indisponível.',
         })
       }
     })
 
     return [...byId.values()]
-      .map((item) => {
-        if (!companyIds.includes(item.id)) return item
-
-        if (item.warning) return item
-
-        return {
-          ...item,
-          warning: isLoadingEligibleCompanies
-            ? 'Verificando vínculo com o departamento…'
-            : eligibleCompaniesError
-              ? 'O vínculo não pôde ser validado agora.'
-              : 'Empresa sem vínculo não cancelado com o departamento.',
-        }
-      })
       .filter((item) => item.selectable || companyIds.includes(item.id))
       .sort((left, right) => left.label.localeCompare(right.label, 'pt-BR'))
-  }, [
-    clients,
-    companyIds,
-    eligibleCompaniesError,
-    eligibleCompanyIds,
-    isLoadingEligibleCompanies,
-    snapshot?.companies,
-  ])
+  }, [clients, companyIds, snapshot?.companies])
 
   const routineItems = useMemo<SelectionItem[]>(() => {
     const byId = new Map<string, SelectionItem>()
@@ -554,11 +507,8 @@ function ScreenEditDrawer({
   }, [eligibleRoutineIds, routineIds, routines, snapshot?.routines])
 
   const invalidCompanyIds = useMemo(
-    () =>
-      eligibleCompanyIds
-        ? companyIds.filter((companyId) => !eligibleCompanyIds.has(companyId))
-        : [],
-    [companyIds, eligibleCompanyIds],
+    () => companyIds.filter((companyId) => !activeCompanyIds.has(companyId)),
+    [activeCompanyIds, companyIds],
   )
   const invalidRoutineIds = useMemo(
     () =>
@@ -577,6 +527,22 @@ function ScreenEditDrawer({
     clearSubmitFeedback()
   }
 
+  function updateDepartment(nextDepartmentId: string) {
+    setDepartmentId(nextDepartmentId)
+    setRoutineIds((current) =>
+      current.filter((routineId) =>
+        routines.some(
+          (routine) =>
+            routine.id === routineId &&
+            routine.active !== false &&
+            routine.departmentId === nextDepartmentId,
+        ),
+      ),
+    )
+    setErrors((current) => ({ ...current, departmentId: undefined }))
+    clearSubmitFeedback()
+  }
+
   function updatePosition(nextPosition: string) {
     setPosition(nextPosition)
     setErrors((current) => ({ ...current, position: undefined }))
@@ -590,14 +556,9 @@ function ScreenEditDrawer({
       return
     }
 
-    if (isLoadingEligibleCompanies) {
-      setSubmitError('Aguarde a validação do vínculo das empresas.')
-      return
-    }
-
-    if (eligibleCompaniesError || !eligibleCompanyIds?.has(companyId)) {
+    if (!activeCompanyIds.has(companyId)) {
       setSubmitError(
-        'Selecione apenas empresas com vínculo não cancelado com o departamento da tela.',
+        'Selecione apenas empresas ativas do tenant.',
       )
       return
     }
@@ -659,6 +620,11 @@ function ScreenEditDrawer({
     const nextPosition = Number(position)
 
     if (!nextName) nextErrors.name = 'Informe o nome da tela.'
+    if (!departmentId) {
+      nextErrors.departmentId = 'Selecione o departamento da tela.'
+    } else if (!departments.some((department) => department.id === departmentId)) {
+      nextErrors.departmentId = 'Selecione um departamento disponível.'
+    }
     if (nextName.length > 160) {
       nextErrors.name = 'O nome da tela pode ter até 160 caracteres.'
     }
@@ -674,26 +640,17 @@ function ScreenEditDrawer({
     if (Object.keys(nextErrors).length > 0) return
 
     const nameChanged = nextName !== snapshot.name
+    const departmentChanged = departmentId !== snapshot.departmentId
     const positionChanged = nextPosition !== snapshot.position
 
     if (snapshot.type === 'spreadsheet' && isCompanyCompositionChanged) {
-      if (isLoadingEligibleCompanies) {
-        setSubmitError('Aguarde a validação do vínculo das empresas.')
-        return
-      }
-      if (eligibleCompaniesError) {
-        setSubmitError(
-          'Não é possível alterar as empresas sem validar o vínculo com o departamento.',
-        )
-        return
-      }
       if (companyIds.length > COMPANY_LIMIT) {
         setSubmitError('Uma tela aceita no máximo 500 empresas.')
         return
       }
       if (invalidCompanyIds.length > 0) {
         setSubmitError(
-          'Remova as empresas sem vínculo não cancelado com o departamento antes de salvar.',
+          'Remova as empresas arquivadas ou indisponíveis antes de salvar.',
         )
         return
       }
@@ -714,6 +671,7 @@ function ScreenEditDrawer({
 
     if (
       !nameChanged &&
+      !departmentChanged &&
       !positionChanged &&
       !isCompanyCompositionChanged &&
       !isRoutineCompositionChanged
@@ -728,10 +686,11 @@ function ScreenEditDrawer({
     setStatusMessage('')
 
     try {
-      await screenService.update(
+      const updatedScreen = await screenService.update(
         snapshot.id,
         {
           ...(nameChanged ? { name: nextName } : {}),
+          ...(departmentChanged ? { departmentId } : {}),
           ...(positionChanged ? { position: nextPosition } : {}),
           ...(snapshot.type === 'spreadsheet' && isCompanyCompositionChanged
             ? { companyIds }
@@ -743,7 +702,11 @@ function ScreenEditDrawer({
         etag,
       )
       await onSaved()
-      onClose()
+      if (onSavedNavigate) {
+        onSavedNavigate(updatedScreen.data.departmentId)
+      } else {
+        onClose()
+      }
     } catch (caughtError) {
       setSubmitError(
         getScreenErrorMessage(
@@ -762,19 +725,33 @@ function ScreenEditDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-[var(--color-overlay-bg)] backdrop-blur-[2px]"
-      role="presentation"
+      className={
+        isDrawer
+          ? 'fixed inset-0 z-50 flex justify-end bg-[var(--color-overlay-bg)] backdrop-blur-[2px]'
+          : 'w-full'
+      }
+      role={isDrawer ? 'presentation' : undefined}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !isSaving) onClose()
+        if (
+          isDrawer &&
+          event.target === event.currentTarget &&
+          !isSaving
+        ) {
+          onClose()
+        }
       }}
     >
       <aside
         ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
+        role={isDrawer ? 'dialog' : undefined}
+        aria-modal={isDrawer || undefined}
         aria-labelledby="screen-edit-title"
-        tabIndex={-1}
-        className="flex h-full w-full max-w-5xl flex-col overflow-hidden border-l border-[var(--color-panel-border)] bg-[var(--color-app-bg)] shadow-[-12px_0_36px_rgb(15_23_42_/_0.22)]"
+        tabIndex={isDrawer ? -1 : undefined}
+        className={
+          isDrawer
+            ? 'flex h-full w-full max-w-5xl flex-col overflow-hidden border-l border-[var(--color-panel-border)] bg-[var(--color-app-bg)] shadow-[-12px_0_36px_rgb(15_23_42_/_0.22)]'
+            : 'flex min-h-[34rem] w-full flex-col overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-app-bg)]'
+        }
       >
         <header className="flex flex-wrap items-start gap-4 border-b border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-5 py-5 sm:px-6">
           <div className="min-w-0 flex-1">
@@ -785,7 +762,7 @@ function ScreenEditDrawer({
               id="screen-edit-title"
               className="mt-1 text-xl font-black text-[var(--color-text-strong)]"
             >
-              Editar tela
+              {isDrawer ? 'Editar tela' : 'Configuração da tela'}
             </h2>
             <p className="mt-1 max-w-2xl text-sm leading-5 text-[var(--color-text-muted)]">
               Atualize a estrutura da visualização. A versão mais recente é
@@ -800,15 +777,21 @@ function ScreenEditDrawer({
             >
               {openingLabel}
             </Link>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSaving}
-              aria-label="Fechar edição"
-              className={`grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] disabled:opacity-60 ${focusRing}`}
-            >
-              <CloseIcon />
-            </button>
+            {isDrawer ? (
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSaving}
+                aria-label="Fechar edição"
+                className={`grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] disabled:opacity-60 ${focusRing}`}
+              >
+                <CloseIcon />
+              </button>
+            ) : (
+              <Button type="button" tone="neutral" disabled={isSaving} onClick={onClose}>
+                Voltar às telas
+              </Button>
+            )}
           </div>
         </header>
 
@@ -883,7 +866,7 @@ function ScreenEditDrawer({
                   id="screen-edit-structure-title"
                   eyebrow="Estrutura"
                   title="Identidade e ordem"
-                  description="O tipo e o departamento são definidos na criação. A posição organiza a ordem da tela dentro do departamento."
+                  description="O tipo é permanente. Ao trocar de departamento, as empresas selecionadas são preservadas e as rotinas incompatíveis são removidas."
                 />
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">
                   <div>
@@ -902,6 +885,32 @@ function ScreenEditDrawer({
                     />
                     <FieldError id="edit-screen-name-error">
                       {errors.name}
+                    </FieldError>
+                  </div>
+                  <div>
+                    <Select
+                      id="edit-screen-department"
+                      label="Departamento *"
+                      value={departmentId}
+                      onChange={(event) => updateDepartment(event.target.value)}
+                      required
+                      disabled={departments.length === 0 || isSaving}
+                      aria-invalid={Boolean(errors.departmentId)}
+                      aria-describedby={
+                        errors.departmentId
+                          ? 'edit-screen-department-error'
+                          : undefined
+                      }
+                    >
+                      <option value="">Selecione</option>
+                      {departments.map((department) => (
+                        <option key={department.id} value={department.id}>
+                          {department.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <FieldError id="edit-screen-department-error">
+                      {errors.departmentId}
                     </FieldError>
                   </div>
                   <div>
@@ -925,16 +934,12 @@ function ScreenEditDrawer({
                     </FieldError>
                   </div>
                 </div>
-                <dl className="mt-5 grid gap-3 rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-4 sm:grid-cols-2">
+                <dl className="mt-5 max-w-xs rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-4">
                   <MetadataItem
                     label="Tipo"
                     value={
                       snapshot.type === 'spreadsheet' ? 'Planilha' : 'Agenda'
                     }
-                  />
-                  <MetadataItem
-                    label="Departamento"
-                    value={snapshot.departmentName || 'Departamento atual'}
                   />
                 </dl>
               </section>
@@ -948,17 +953,13 @@ function ScreenEditDrawer({
                     id="screen-edit-composition-title"
                     eyebrow="Composição da planilha"
                     title="Linhas, colunas e sequência"
-                    description="A ordem abaixo é enviada à API como a ordem das linhas e colunas. Empresas precisam ter vínculo não cancelado com o departamento e rotinas precisam pertencer a ele."
+                    description="A ordem abaixo é enviada à API como a ordem das linhas e colunas. Empresas ativas do tenant podem compor a planilha; rotinas precisam pertencer ao departamento selecionado."
                   />
                   <div className="mt-5 grid gap-5 xl:grid-cols-2">
                     <OrderedSelection
                       id="edit-screen-companies"
                       title="Empresas"
-                      description={
-                        isLoadingEligibleCompanies
-                          ? 'Verificando vínculo com o departamento…'
-                          : 'Linhas da planilha · máximo de 500'
-                      }
+                      description="Linhas da planilha · máximo de 500"
                       searchLabel="Buscar empresas"
                       searchValue={companySearch}
                       onSearchChange={setCompanySearch}
@@ -968,20 +969,7 @@ function ScreenEditDrawer({
                       onToggle={toggleCompany}
                       onMove={moveCompany}
                       disabled={isSaving}
-                      feedback={
-                        isLoadingEligibleCompanies
-                          ? 'O vínculo empresa–departamento é verificado antes de permitir novas empresas.'
-                          : eligibleCompaniesError
-                            ? eligibleCompaniesError
-                            : undefined
-                      }
-                      emptyLabel={
-                        isLoadingEligibleCompanies
-                          ? 'Carregando empresas elegíveis…'
-                          : eligibleCompaniesError
-                            ? 'Não foi possível validar empresas agora.'
-                            : 'Nenhuma empresa com vínculo não cancelado neste departamento.'
-                      }
+                      emptyLabel="Nenhuma empresa ativa encontrada."
                     />
                     <OrderedSelection
                       id="edit-screen-routines"
@@ -1043,7 +1031,6 @@ function OrderedSelection({
   onToggle,
   onMove,
   disabled,
-  feedback,
   emptyLabel,
 }: {
   id: string
@@ -1058,7 +1045,6 @@ function OrderedSelection({
   onToggle: (id: string) => void
   onMove: (id: string, direction: 'up' | 'down') => void
   disabled: boolean
-  feedback?: string
   emptyLabel: string
 }) {
   const itemsById = useMemo(
@@ -1153,15 +1139,6 @@ function OrderedSelection({
           </li>
         )}
       </ul>
-
-      {feedback && (
-        <p
-          role="status"
-          className="mt-2 text-xs font-bold text-[var(--color-text-muted)]"
-        >
-          {feedback}
-        </p>
-      )}
 
       <div className="mt-4 border-t border-[var(--color-divider)] pt-4">
         <div className="flex items-center justify-between gap-3">
@@ -1319,26 +1296,6 @@ function moveInOrder(
   nextItems[currentIndex] = nextItems[nextIndex]!
   nextItems[nextIndex] = current
   return nextItems
-}
-
-function getCompanyWarning({
-  clientActive,
-  hasDepartmentLink,
-  isLoading,
-  hasError,
-}: {
-  clientActive: boolean
-  hasDepartmentLink: boolean
-  isLoading: boolean
-  hasError: boolean
-}): string | undefined {
-  if (isLoading) return 'Verificando vínculo com o departamento…'
-  if (hasError) return 'O vínculo não pôde ser validado agora.'
-  if (!clientActive) return 'Empresa arquivada ou indisponível.'
-  if (!hasDepartmentLink) {
-    return 'Empresa sem vínculo não cancelado com o departamento.'
-  }
-  return undefined
 }
 
 function getScreenErrorMessage(error: unknown, fallback: string): string {

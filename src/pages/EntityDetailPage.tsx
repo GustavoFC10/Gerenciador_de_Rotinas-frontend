@@ -4,7 +4,6 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import EntityEditModal, {
   type RoutineEditInput,
 } from '../components/entities/EntityEditModal'
-import ClientCoveragePanel from '../components/entities/ClientCoveragePanel'
 import RoutineListComparison from '../components/routine-control/list/RoutineListComparison'
 import Button from '../components/ui/Button'
 import {
@@ -49,7 +48,8 @@ interface EntityDetailPageProps extends Omit<
     routineId: EntityId,
     changes: RoutineEditInput,
   ) => Promise<void>
-  onClientCoverageChange?: () => Promise<void>
+  onClientArchive?: (clientId: EntityId) => Promise<void>
+  onClientRoutineAssignmentsChange?: () => Promise<void>
 }
 
 function EntityDetailPage({
@@ -60,7 +60,8 @@ function EntityDetailPage({
   screenDepartmentId,
   onClientUpdate,
   onRoutineUpdate,
-  onClientCoverageChange,
+  onClientArchive,
+  onClientRoutineAssignmentsChange,
   onItemOpen,
   onItemStatusChange,
   getAllowedStatusChanges,
@@ -189,8 +190,8 @@ function EntityDetailPage({
         actions={
           canEdit ? (
             <Button tone="neutral" onClick={() => setIsEditing(true)}>
-              <EditIcon />
-              Editar dados
+              <SettingsIcon />
+              Configurações
             </Button>
           ) : undefined
         }
@@ -214,17 +215,6 @@ function EntityDetailPage({
         fallbackDepartmentId={screenDepartmentId}
       />
 
-      {client && onClientCoverageChange && (
-        <ClientCoveragePanel
-          client={client}
-          departments={data.departments}
-          routines={data.routines}
-          period={competence}
-          canManage={isOrganizationAdmin(user)}
-          onChanged={onClientCoverageChange}
-        />
-      )}
-
       <section
         className="mt-5 min-h-0 flex-1"
         aria-labelledby="entity-task-list-title"
@@ -235,7 +225,7 @@ function EntityDetailPage({
             className="mr-auto text-base font-black tracking-tight text-[var(--color-text-strong)] sm:text-lg"
           >
             {type === 'client'
-              ? 'Rotinas desta empresa'
+              ? 'Tarefas desta empresa'
               : 'Empresas desta rotina'}
           </h2>
           <span className="text-xs font-bold text-[var(--color-text-muted)]">
@@ -263,6 +253,14 @@ function EntityDetailPage({
           entity={client}
           onClose={() => setIsEditing(false)}
           onSave={handleClientSave}
+          onArchive={
+            onClientArchive
+              ? () => onClientArchive(client.id)
+              : undefined
+          }
+          routines={data.routines}
+          period={competence}
+          onRoutineAssignmentsChanged={onClientRoutineAssignmentsChange}
         />
       )}
 
@@ -320,22 +318,7 @@ function EntitySummary({
               label="Regime tributário"
               value={getClientTaxRegimeLabel(client.taxRegime)}
             />
-            <SummaryField
-              label="Telas"
-              value={String(screens.length) + ' configurada' + (screens.length === 1 ? '' : 's')}
-            />
             <SummaryField label="CNPJ" value={client.document || 'Não informado'} />
-            <SummaryField label="E-mail" value={client.email || 'Não informado'} />
-            <SummaryField label="Celular" value={client.phone || 'Não informado'} />
-            <SummaryField
-              label="Tarefas na competência"
-              value={String(itemCount) + ' tarefa' + (itemCount === 1 ? '' : 's')}
-            />
-            <SummaryField
-              label="Exibição nas telas"
-              value={screenLabel}
-              className="sm:col-span-2 xl:col-span-4"
-            />
           </>
         ) : routine ? (
           <>
@@ -446,7 +429,7 @@ function EntityStatus({ active }: { active: boolean }) {
   )
 }
 
-function EditIcon() {
+function SettingsIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -458,8 +441,8 @@ function EditIcon() {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56v.08h-3v-.08A1.7 1.7 0 0 0 10.68 18.66a1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7.02 15a1.7 1.7 0 0 0-1.56-1.03h-.08v-3h.08A1.7 1.7 0 0 0 7.02 9.94a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.56v-.08h3v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 8l-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03h.08v3h-.08A1.7 1.7 0 0 0 19.4 15Z" />
     </svg>
   )
 }

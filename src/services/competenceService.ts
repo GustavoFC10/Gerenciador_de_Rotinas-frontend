@@ -2,12 +2,12 @@ import { HttpClient, httpClient } from './httpClient'
 import type { ApiResponse } from './httpClient'
 
 export type CompetenceStatus =
-  'draft' | 'open' | 'finalized' | 'closed' | 'locked'
+  'projected' | 'finalized'
 
 export interface CompetenceProjection {
   id: string | null
   period: string
-  status: CompetenceStatus | 'projected'
+  status: CompetenceStatus
   persistence: 'projected' | 'persisted'
   version: number | null
   taskOccurrenceCount: number | null
@@ -31,12 +31,19 @@ export class CompetenceService {
     return this.client.get<CompetenceProjection>(byPeriodPath(period))
   }
 
-  openByPeriod(
+  create(period: string): Promise<ApiResponse<CompetenceResource>> {
+    return this.client.post<CompetenceResource>(
+      '/api/v1/competences/',
+      { period },
+    )
+  }
+
+  finalizeByPeriod(
     period: string,
     etag?: string,
   ): Promise<ApiResponse<CompetenceResource>> {
     return this.client.post<CompetenceResource>(
-      `${byPeriodPath(period)}open/`,
+      `${byPeriodPath(period)}finalize/`,
       {},
       etag ? { ifMatch: etag } : {},
     )

@@ -20,6 +20,7 @@ import Button from '../ui/Button'
 import Select from '../ui/Select'
 import Textarea from '../ui/Textarea'
 import TextField from '../ui/TextField'
+import ClientRoutineAssignmentsPanel from './ClientRoutineAssignmentsPanel'
 
 export interface RoutineEditInput {
   name: string
@@ -37,6 +38,10 @@ type EntityEditModalProps =
       entity: Client
       onClose: () => void
       onSave: (changes: ClientCompanyPatch) => Promise<void>
+      onArchive?: () => Promise<void>
+      routines?: Routine[]
+      period?: string
+      onRoutineAssignmentsChanged?: () => Promise<void>
     }
   | {
       type: 'routine'
@@ -44,6 +49,8 @@ type EntityEditModalProps =
       onClose: () => void
       onSave: (changes: RoutineEditInput) => Promise<void>
     }
+
+type ClientSettingsSection = 'details' | 'routines' | 'danger'
 
 function EntityEditModal(props: EntityEditModalProps) {
   const dialogRef = useRef<HTMLElement>(null)
@@ -142,6 +149,10 @@ function ClientEditForm({
   entity,
   onClose,
   onSave,
+  onArchive,
+  routines,
+  period,
+  onRoutineAssignmentsChanged,
 }: Extract<EntityEditModalProps, { type: 'client' }>) {
   const [name, setName] = useState(entity.name)
   const [code, setCode] = useState(entity.code)
@@ -152,6 +163,43 @@ function ClientEditForm({
   const [taxRegime, setTaxRegime] = useState(entity.taxRegime ?? '')
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [archiveError, setArchiveError] = useState('')
+  const [isArchiving, setIsArchiving] = useState(false)
+  const [activeSection, setActiveSection] =
+    useState<ClientSettingsSection>('details')
+
+  const isRegistrationSection = activeSection === 'details'
+  const canManageRoutineAssignments = Boolean(
+    routines && period && onRoutineAssignmentsChanged,
+  )
+
+  async function handleArchive() {
+    if (!onArchive) return
+
+    if (
+      !window.confirm(
+        'Arquivar esta empresa? Ela deixará de aparecer nas operações ativas, mas o histórico será preservado.',
+      )
+    ) {
+      return
+    }
+
+    setIsArchiving(true)
+    setArchiveError('')
+
+    try {
+      await onArchive()
+      onClose()
+    } catch (caughtError) {
+      setArchiveError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Não foi possível arquivar a empresa.',
+      )
+    } finally {
+      setIsArchiving(false)
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -206,121 +254,280 @@ function ClientEditForm({
   }
 
   return (
-    <form
-      className="flex min-h-0 flex-1 flex-col"
-      onSubmit={(event) => void handleSubmit(event)}
-      noValidate
-    >
+    <div className="flex min-h-0 flex-1 flex-col">
       <DrawerHeader
-        title="Editar empresa"
-        description="Atualize os dados cadastrais sem alterar a cobertura por departamento, as rotinas ou as telas."
+        eyebrow="Empresa"
+        title="Configurações"
+        description={`${entity.name} · Código ${entity.code}`}
         onClose={onClose}
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-        <FormError error={error} />
+        <div className="mx-auto grid max-w-5xl gap-5 xl:grid-cols-[11rem_minmax(0,1fr)] xl:gap-7">
+          <nav
+            aria-label="Seções de configurações da empresa"
+            className="border-b border-[var(--color-divider)] pb-3 xl:border-b-0 xl:border-r xl:pb-0 xl:pr-4"
+          >
+            <p className="px-2 pb-2 text-[11px] font-black uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+              Empresa
+            </p>
+            <div className="grid grid-cols-2 gap-1 xl:block xl:space-y-1">
+              <ClientSettingsNavigationItem
+                active={activeSection === 'details'}
+                label="Dados da empresa"
+                onClick={() => setActiveSection('details')}
+              />
+              {canManageRoutineAssignments && (
+                <ClientSettingsNavigationItem
+                  active={activeSection === 'routines'}
+                  label="Rotinas"
+                  onClick={() => setActiveSection('routines')}
+                />
+              )}
+              {onArchive && (
+                <ClientSettingsNavigationItem
+                  active={activeSection === 'danger'}
+                  label="Zona de risco"
+                  danger
+                  onClick={() => setActiveSection('danger')}
+                />
+              )}
+            </div>
+          </nav>
 
-        <section aria-labelledby="company-identity-title">
-          <SectionHeader
-            id="company-identity-title"
-            eyebrow="Identificação"
-            title="Dados da empresa"
-            description="Código e nome permanecem visíveis nos catálogos e nas telas."
-          />
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <TextField
-                data-dialog-autofocus
-                id="edit-company-name"
-                label="Nome da empresa *"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                required
-              />
-            </div>
-            <TextField
-              id="edit-company-code"
-              label="Código *"
-              value={code}
-              onChange={(event) =>
-                setCode(event.target.value.replace(/\D/g, '').slice(0, 32))
-              }
-              inputMode="numeric"
-              maxLength={32}
-              required
-            />
-            <TextField
-              id="edit-company-cnpj"
-              label="CNPJ (opcional)"
-              value={cnpj}
-              onChange={(event) => setCnpj(formatCnpj(event.target.value))}
-              inputMode="numeric"
-              maxLength={18}
-              placeholder="00.000.000/0000-00"
-            />
-            <div className="sm:col-span-2">
-              <TextField
-                id="edit-company-legal-name"
-                label="Razão social (opcional)"
-                value={legalName}
-                onChange={(event) => setLegalName(event.target.value)}
-              />
-            </div>
-          </div>
-        </section>
+          <div className="min-w-0 max-w-2xl">
+            {isRegistrationSection && (
+              <form
+                id="client-settings-form"
+                onSubmit={(event) => void handleSubmit(event)}
+                noValidate
+              >
+                <FormError error={error} />
 
-        <section
-          className="mt-7 border-t border-[var(--color-divider)] pt-6"
-          aria-labelledby="company-contact-title"
-        >
-          <SectionHeader
-            id="company-contact-title"
-            eyebrow="Contato"
-            title="Dados complementares"
-            description="Esses campos são opcionais e podem ser completados depois."
-          />
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <TextField
-              id="edit-company-email"
-              label="E-mail"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-            <TextField
-              id="edit-company-mobile-phone"
-              label="Celular"
-              type="tel"
-              value={mobilePhone}
-              onChange={(event) => setMobilePhone(event.target.value)}
-            />
-            <div className="sm:col-span-2">
-              <TextField
-                id="edit-company-tax-regime"
-                label="Regime tributário"
-                value={taxRegime}
-                onChange={(event) => setTaxRegime(event.target.value)}
-                list="edit-company-tax-regime-options"
-                maxLength={80}
-              />
-              <datalist id="edit-company-tax-regime-options">
-                {clientTaxRegimeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </datalist>
-            </div>
+                {activeSection === 'details' && (
+                  <section aria-labelledby="company-general-title">
+                    <SectionHeader
+                      id="company-general-title"
+                      eyebrow="Cadastro"
+                      title="Dados da empresa"
+                      description="Mantenha as informações de identificação, fiscais e de contato em um único lugar."
+                    />
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <TextField
+                          data-dialog-autofocus
+                          id="edit-company-name"
+                          label="Nome da empresa *"
+                          value={name}
+                          onChange={(event) => setName(event.target.value)}
+                          required
+                        />
+                      </div>
+                      <TextField
+                        id="edit-company-code"
+                        label="Código *"
+                        value={code}
+                        onChange={(event) =>
+                          setCode(
+                            event.target.value
+                              .replace(/\D/g, '')
+                              .slice(0, 32),
+                          )
+                        }
+                        inputMode="numeric"
+                        maxLength={32}
+                        required
+                      />
+                    </div>
+                  </section>
+                )}
+
+                {activeSection === 'details' && (
+                  <section
+                    className="mt-8 border-t border-[var(--color-divider)] pt-7"
+                    aria-labelledby="company-fiscal-title"
+                  >
+                    <SectionHeader
+                      id="company-fiscal-title"
+                      eyebrow="Fiscal"
+                      title="Dados fiscais"
+                      description="Mantenha os dados usados para identificar a empresa em documentos e relatórios."
+                    />
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                      <TextField
+                        id="edit-company-cnpj"
+                        label="CNPJ (opcional)"
+                        value={cnpj}
+                        onChange={(event) =>
+                          setCnpj(formatCnpj(event.target.value))
+                        }
+                        inputMode="numeric"
+                        maxLength={18}
+                        placeholder="00.000.000/0000-00"
+                      />
+                      <TextField
+                        id="edit-company-legal-name"
+                        label="Razão social (opcional)"
+                        value={legalName}
+                        onChange={(event) => setLegalName(event.target.value)}
+                      />
+                      <div className="sm:col-span-2">
+                        <TextField
+                          id="edit-company-tax-regime"
+                          label="Regime tributário"
+                          value={taxRegime}
+                          onChange={(event) => setTaxRegime(event.target.value)}
+                          list="edit-company-tax-regime-options"
+                          maxLength={80}
+                        />
+                      </div>
+                    </div>
+                    <datalist id="edit-company-tax-regime-options">
+                      {clientTaxRegimeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </datalist>
+                  </section>
+                )}
+
+                {activeSection === 'details' && (
+                  <section
+                    className="mt-8 border-t border-[var(--color-divider)] pt-7"
+                    aria-labelledby="company-contact-title"
+                  >
+                    <SectionHeader
+                      id="company-contact-title"
+                      eyebrow="Contato"
+                      title="Canais de contato"
+                      description="Esses dados são opcionais e podem ser atualizados sempre que necessário."
+                    />
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                      <TextField
+                        id="edit-company-email"
+                        label="E-mail"
+                        type="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                      />
+                      <TextField
+                        id="edit-company-mobile-phone"
+                        label="Celular"
+                        type="tel"
+                        value={mobilePhone}
+                        onChange={(event) => setMobilePhone(event.target.value)}
+                      />
+                    </div>
+                  </section>
+                )}
+              </form>
+            )}
+
+            {activeSection === 'routines' &&
+              routines &&
+              period &&
+              onRoutineAssignmentsChanged && (
+                <ClientRoutineAssignmentsPanel
+                  client={entity}
+                  routines={routines}
+                  period={period}
+                  canManage
+                  onChanged={onRoutineAssignmentsChanged}
+                />
+              )}
+
+            {activeSection === 'danger' && onArchive && (
+              <section aria-labelledby="company-danger-title">
+                <SectionHeader
+                  id="company-danger-title"
+                  eyebrow="Zona de risco"
+                  title="Arquivar empresa"
+                  description="Retire a empresa das operações ativas sem apagar o histórico já registrado."
+                />
+                <div className="mt-5 rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] p-4">
+                  <p className="text-sm leading-6 text-[var(--status-error-text)]">
+                    Depois do arquivamento, a empresa deixa de aparecer em
+                    novas operações. Essa ação preserva os registros
+                    anteriores e pode ser recuperada pela administração quando
+                    o ciclo de restauração estiver disponível.
+                  </p>
+                  <Button
+                    type="button"
+                    tone="neutral"
+                    className="mt-4 border-[var(--status-error-border)] text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)]"
+                    onClick={() => void handleArchive()}
+                    disabled={isSaving || isArchiving}
+                  >
+                    {isArchiving ? 'Arquivando…' : 'Arquivar empresa'}
+                  </Button>
+                  {archiveError && (
+                    <p
+                      role="alert"
+                      className="mt-4 rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--color-panel-bg)] px-3 py-2 text-sm font-semibold text-[var(--status-error-text)]"
+                    >
+                      {archiveError}
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
           </div>
-        </section>
+        </div>
       </div>
 
-      <DrawerActions
-        isSaving={isSaving}
-        submitLabel="Salvar empresa"
-        onClose={onClose}
-      />
-    </form>
+      <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-5 py-4 sm:px-6">
+        <Button
+          type="button"
+          tone="neutral"
+          onClick={onClose}
+          disabled={isSaving || isArchiving}
+        >
+          {isRegistrationSection ? 'Cancelar' : 'Fechar'}
+        </Button>
+        {isRegistrationSection && (
+          <Button
+            type="submit"
+            form="client-settings-form"
+            disabled={isSaving || isArchiving}
+          >
+            {isSaving ? 'Salvando…' : 'Salvar alterações'}
+          </Button>
+        )}
+      </footer>
+    </div>
+  )
+}
+
+function ClientSettingsNavigationItem({
+  active,
+  label,
+  danger = false,
+  onClick,
+}: {
+  active: boolean
+  label: string
+  danger?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className={
+        'flex min-h-10 w-full min-w-0 items-center border-l-2 px-3 text-left text-sm font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ' +
+        (active
+          ? danger
+            ? 'border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error-text)]'
+            : 'border-[var(--color-brand)] bg-[var(--color-panel-soft-bg)] text-[var(--color-text-strong)]'
+          : danger
+            ? 'border-transparent text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)]'
+            : 'border-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-panel-soft-bg)] hover:text-[var(--color-text-strong)]')
+      }
+    >
+      <span className="truncate">{label}</span>
+    </button>
   )
 }
 
@@ -637,10 +844,12 @@ function RoutineEditForm({
 }
 
 function DrawerHeader({
+  eyebrow = 'Edição',
   title,
   description,
   onClose,
 }: {
+  eyebrow?: string
   title: string
   description: string
   onClose: () => void
@@ -649,7 +858,7 @@ function DrawerHeader({
     <header className="flex items-start gap-4 border-b border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-5 py-5 sm:px-6">
       <div className="min-w-0 flex-1">
         <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
-          Edição
+          {eyebrow}
         </p>
         <h2
           id="entity-edit-title"

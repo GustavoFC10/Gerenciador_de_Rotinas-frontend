@@ -9,7 +9,6 @@ import {
 import CreationProgress from '../components/forms/CreationProgress'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
-import Select from '../components/ui/Select'
 import TextField from '../components/ui/TextField'
 import {
   clientTaxRegimeOptions,
@@ -17,7 +16,7 @@ import {
 } from '../constants/entityOptions'
 import { ROUTES } from '../constants/routes'
 import WorkspaceBar from '../layouts/WorkspaceBar'
-import type { Department, Routine, Screen } from '../types/domain'
+import type { Routine, Screen } from '../types/domain'
 import type { ClientCompanyInput } from '../services/companyService'
 import { formatRoutineSchedule } from '../utils/routineSchedule'
 
@@ -30,7 +29,7 @@ const steps = [
   {
     id: 'operations',
     label: 'Operação',
-    description: 'Departamento, tela e rotinas',
+    description: 'Tela e rotinas',
   },
   {
     id: 'review',
@@ -47,7 +46,6 @@ interface CompanyDraft {
   email: string
   mobilePhone: string
   taxRegime: string
-  departmentId: string
   screenId: string
   routineIds: string[]
   startsOn: string
@@ -58,7 +56,6 @@ type CompanyField =
   | 'code'
   | 'cnpj'
   | 'email'
-  | 'departmentId'
   | 'startsOn'
   | 'submit'
 
@@ -66,7 +63,6 @@ type CompanyErrors = Partial<Record<CompanyField, string>>
 
 export interface CompanySetupInput {
   company: ClientCompanyInput
-  departmentId: string
   screenId?: string
   routineIds: string[]
   startsOn: string
@@ -80,7 +76,6 @@ export interface CreateCompanyResult {
 
 export interface CompanySetupPartialResult {
   company: { id: string; name: string }
-  departmentLinked: boolean
   linkedRoutineCount: number
   requestedRoutineCount: number
   screenLinked: boolean
@@ -98,7 +93,6 @@ export class CompanySetupError extends Error {
 }
 
 interface CreateCompanyPageProps {
-  departments: Department[]
   screens: Screen[]
   routines: Routine[]
   period: string
@@ -115,7 +109,6 @@ function getInitialDraft(period: string): CompanyDraft {
     email: '',
     mobilePhone: '',
     taxRegime: '',
-    departmentId: '',
     screenId: '',
     routineIds: [],
     startsOn: isPeriod(period) ? period + '-01' : '',
@@ -123,7 +116,6 @@ function getInitialDraft(period: string): CompanyDraft {
 }
 
 function CreateCompanyPage({
-  departments,
   screens,
   routines,
   period,
@@ -149,7 +141,6 @@ function CreateCompanyPage({
           (screen) =>
             screen.type === 'spreadsheet' &&
             !screen.archivedAt &&
-            screen.departmentId === draft.departmentId &&
             screen.companies.length < 500,
         )
         .sort(
@@ -157,7 +148,7 @@ function CreateCompanyPage({
             left.position - right.position ||
             left.name.localeCompare(right.name, 'pt-BR'),
         ),
-    [draft.departmentId, screens],
+    [screens],
   )
   const selectedScreen = availableScreens.find(
     (screen) => screen.id === draft.screenId,
@@ -166,9 +157,7 @@ function CreateCompanyPage({
     () =>
       routines
         .filter(
-          (routine) =>
-            routine.departmentId === draft.departmentId &&
-            routine.active !== false,
+          (routine) => routine.active !== false,
         )
         .filter((routine) => {
           const query = routineSearch.trim().toLocaleLowerCase('pt-BR')
@@ -181,16 +170,12 @@ function CreateCompanyPage({
             )
         })
         .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR')),
-    [draft.departmentId, routineSearch, routines],
+    [routineSearch, routines],
   )
   const selectedRoutineIds = new Set(draft.routineIds)
   const selectedRoutines = routines.filter((routine) =>
     selectedRoutineIds.has(routine.id),
   )
-  const selectedDepartment = departments.find(
-    (department) => department.id === draft.departmentId,
-  )
-
   if (result) {
     return (
       <div className="mx-auto w-full max-w-[90rem]">
@@ -202,7 +187,7 @@ function CreateCompanyPage({
         <CreationSuccess
           eyebrow="Empresa criada"
           title={result.company.name}
-          description="O cadastro, o vínculo departamental e as rotinas escolhidas foram enviados para a API."
+          description="O cadastro, as rotinas escolhidas e a inclusão opcional em uma tela foram enviados para a API."
           detail={
             result.linkedRoutineCount +
             (result.linkedRoutineCount === 1
@@ -265,18 +250,6 @@ function CreateCompanyPage({
     if (field in errors) {
       setErrors((current) => ({ ...current, [field]: undefined }))
     }
-  }
-
-  function updateDepartment(departmentId: string) {
-    setDraft((current) => ({
-      ...current,
-      departmentId,
-      screenId: '',
-      routineIds: [],
-    }))
-    setPendingScreenId(null)
-    setRoutineSearch('')
-    setErrors((current) => ({ ...current, departmentId: undefined }))
   }
 
   function updateScreen(screenId: string) {
@@ -345,12 +318,9 @@ function CreateCompanyPage({
   function validateOperations(): CompanyErrors {
     const nextErrors: CompanyErrors = {}
 
-    if (!draft.departmentId) {
-      nextErrors.departmentId = 'Escolha o departamento que atenderá a empresa.'
-    }
-
-    if (!isDate(draft.startsOn)) {
-      nextErrors.startsOn = 'Informe a data de início da vigência.'
+    if (draft.routineIds.length > 0 && !isDate(draft.startsOn)) {
+      nextErrors.startsOn =
+        'Informe a data de início para os vínculos de rotina.'
     }
 
     if (pendingScreenId !== null) {
@@ -390,7 +360,7 @@ function CreateCompanyPage({
     }
     setErrors(finalErrors)
     if (Object.keys(finalErrors).length > 0) {
-      setStep(finalErrors.departmentId || finalErrors.startsOn ? 1 : 0)
+      setStep(finalErrors.startsOn ? 1 : 0)
       return
     }
 
@@ -406,7 +376,6 @@ function CreateCompanyPage({
           mobilePhone: draft.mobilePhone.trim(),
           taxRegime: draft.taxRegime,
         }),
-        departmentId: draft.departmentId,
         ...(draft.screenId ? { screenId: draft.screenId } : {}),
         routineIds: draft.routineIds,
         startsOn: draft.startsOn,
@@ -466,7 +435,6 @@ function CreateCompanyPage({
           )}
           {step === 1 && (
             <CompanyOperationsStep
-              departments={departments}
               screens={availableScreens}
               routines={availableRoutines}
               draft={draft}
@@ -474,7 +442,6 @@ function CreateCompanyPage({
               selectedRoutineIds={selectedRoutineIds}
               errors={errors}
               routineSearch={routineSearch}
-              onDepartmentChange={updateDepartment}
               onScreenChange={requestScreenChange}
               onRestoreSuggestions={restoreScreenSuggestions}
               pendingScreenId={pendingScreenId}
@@ -493,7 +460,6 @@ function CreateCompanyPage({
           {step === 2 && (
             <CompanyReviewStep
               draft={draft}
-              department={selectedDepartment}
               screen={selectedScreen}
               routines={selectedRoutines}
               onChangeStep={setStep}
@@ -669,7 +635,7 @@ function CompanyDataStep({
               O que acontece depois?
             </p>
             <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-              Na próxima etapa você define o departamento, a tela de trabalho e as
+              Na próxima etapa você pode escolher uma tela de trabalho e as
               rotinas que serão vinculadas à empresa.
             </p>
           </div>
@@ -680,7 +646,6 @@ function CompanyDataStep({
 }
 
 function CompanyOperationsStep({
-  departments,
   screens,
   routines,
   draft,
@@ -688,7 +653,6 @@ function CompanyOperationsStep({
   selectedRoutineIds,
   errors,
   routineSearch,
-  onDepartmentChange,
   onScreenChange,
   onRestoreSuggestions,
   pendingScreenId,
@@ -699,7 +663,6 @@ function CompanyOperationsStep({
   onRoutineSearchChange,
   onRoutineToggle,
 }: {
-  departments: Department[]
   screens: Screen[]
   routines: Routine[]
   draft: CompanyDraft
@@ -707,7 +670,6 @@ function CompanyOperationsStep({
   selectedRoutineIds: Set<string>
   errors: CompanyErrors
   routineSearch: string
-  onDepartmentChange: (departmentId: string) => void
   onScreenChange: (screenId: string) => void
   onRestoreSuggestions: () => void
   pendingScreenId: string | null
@@ -737,40 +699,17 @@ function CompanyOperationsStep({
         <StepHeader
           eyebrow="Etapa 2 de 3"
           title="Organize a operação"
-          description="O departamento determina a cobertura da empresa. A tela organiza sua visualização e sugere as rotinas iniciais."
+          description="A empresa já pertence ao tenant inteiro. Escolha, se necessário, uma tela inicial e as rotinas que serão vinculadas."
         />
         <div className="space-y-4 px-5 py-5">
-          <FieldGroup
-            error={errors.departmentId}
-            errorId="company-department-error"
-          >
-            <Select
-              id="company-department"
-              label="Departamento responsável *"
-              value={draft.departmentId}
-              onChange={(event) => onDepartmentChange(event.target.value)}
-              required
-              aria-invalid={Boolean(errors.departmentId)}
-              aria-describedby={
-                errors.departmentId ? 'company-department-error' : undefined
-              }
-            >
-              <option value="">Selecione o departamento</option>
-              {departments.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                </option>
-              ))}
-            </Select>
-          </FieldGroup>
           <FieldGroup error={errors.startsOn} errorId="company-starts-on-error">
             <TextField
               id="company-starts-on"
-              label="Início da vigência *"
+              label="Início da vigência das rotinas"
               type="date"
               value={draft.startsOn}
               onChange={(event) => onStartChange(event.target.value)}
-              required
+              required={selectedRoutineIds.size > 0}
               aria-invalid={Boolean(errors.startsOn)}
               aria-describedby={
                 errors.startsOn
@@ -783,23 +722,23 @@ function CompanyOperationsStep({
                 id="company-starts-on-hint"
                 className="mt-1.5 text-xs leading-5 text-[var(--color-text-muted)]"
               >
-                A API usa esta data para validar os vínculos de rotina.
+                Informe esta data somente quando houver rotinas selecionadas.
               </p>
             )}
           </FieldGroup>
-          <fieldset disabled={!draft.departmentId}>
+          <fieldset>
             <legend className="text-sm font-medium text-[var(--color-text-muted)]">
               Tela operacional (opcional)
             </legend>
             <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
               A tela organiza a matriz e pode sugerir as rotinas iniciais; ela
-              não é o vínculo de cobertura da empresa.
+              não altera o vínculo das rotinas com a empresa.
             </p>
             <div className="mt-3 grid gap-2">
               <ScreenChoice
                 checked={!draft.screenId}
                 label="Sem tela inicial"
-                description="Crie a cobertura e as rotinas sem incluir a empresa em uma matriz agora."
+                description="Crie a empresa e as rotinas sem incluí-la em uma matriz agora."
                 onChange={() => onScreenChange('')}
               />
               {screens.map((screen) => (
@@ -822,7 +761,7 @@ function CompanyOperationsStep({
               ))}
               {screens.length === 0 && (
                 <p className="rounded-[var(--radius-control)] border border-dashed border-[var(--color-divider)] px-3 py-3 text-xs leading-5 text-[var(--color-text-muted)]">
-                  Ainda não existe uma tela de planilha neste departamento.
+                  Ainda não existe uma tela de planilha disponível.
                 </p>
               )}
             </div>
@@ -866,8 +805,8 @@ function CompanyOperationsStep({
               )}
             </div>
             <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
-              A tela não substitui a cobertura departamental. Quando selecionada,
-              ela sugere rotinas e recebe a empresa em sua matriz após a criação.
+              Quando selecionada, a tela sugere rotinas e recebe a empresa em
+              sua matriz após a criação.
             </p>
           </div>
         </div>
@@ -896,19 +835,13 @@ function CompanyOperationsStep({
               value={routineSearch}
               onChange={(event) => onRoutineSearchChange(event.target.value)}
               placeholder="Busque por nome, nome curto ou descrição"
-              disabled={!draft.departmentId}
             />
           </div>
         </div>
 
-        {!draft.departmentId ? (
+        {routines.length === 0 ? (
           <EmptyPanel
-            title="Escolha um departamento para carregar as rotinas."
-            description="A lista continuará editável antes da confirmação."
-          />
-        ) : routines.length === 0 ? (
-          <EmptyPanel
-            title="Nenhuma rotina disponível neste departamento."
+            title="Nenhuma rotina ativa disponível."
             description="Crie ou vincule uma rotina antes de continuar."
           />
         ) : (
@@ -968,13 +901,11 @@ function CompanyOperationsStep({
 
 function CompanyReviewStep({
   draft,
-  department,
   screen,
   routines,
   onChangeStep,
 }: {
   draft: CompanyDraft
-  department?: Department
   screen?: Screen
   routines: Routine[]
   onChangeStep: (step: number) => void
@@ -1002,8 +933,10 @@ function CompanyReviewStep({
         <ReviewSection title="Operação" onChange={() => onChangeStep(1)}>
           <ReviewGrid
             entries={[
-              ['Departamento', department?.name || 'Não informado'],
-              ['Início da vigência', formatDate(draft.startsOn)],
+              [
+                'Início das rotinas',
+                routines.length > 0 ? formatDate(draft.startsOn) : 'Não se aplica',
+              ],
               ['Tela operacional', screen?.name || 'Não selecionada'],
               ['Rotinas', String(routines.length)],
             ]}
@@ -1079,7 +1012,6 @@ function PartialSetupNotice({
   onCreateAnother: () => void
 }) {
   const completedSteps = [
-    result.departmentLinked ? 'vínculo departamental criado' : null,
     result.linkedRoutineCount
       ? String(result.linkedRoutineCount) +
         (result.linkedRoutineCount === 1

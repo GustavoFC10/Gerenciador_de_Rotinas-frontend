@@ -367,10 +367,11 @@ curl.exe "$BASE_URL/api/v1/departments/<UUID_DO_DEPARTAMENTO>/task-assignees/" `
   -b cookies.txt
 ```
 
-## 5. Empresas atendidas
+## 5. Empresas
 
-Escritas neste módulo são exclusivas de `owner/admin`. Members podem ler apenas
-empresas vinculadas atualmente a departamentos aos quais têm acesso.
+Escritas neste módulo são exclusivas de `owner/admin`. Empresas pertencem somente ao
+tenant; não existe vínculo obrigatório empresa–departamento. O acesso operacional do
+membro continua sendo controlado por seus acessos aos departamentos.
 
 ### `GET /api/v1/client-companies/`
 
@@ -378,7 +379,6 @@ Lista empresas visíveis. Aceita:
 
 - `search`: código, nome de exibição ou razão social (`legalName`);
 - `ordering=code|name|legal_name` com prefixo `-` para ordem decrescente;
-- `departmentId`: atribuição vigente ao departamento;
 - `includeArchived=true`: apenas owner/admin;
 - `page`: página da listagem.
 
@@ -501,61 +501,7 @@ curl.exe -X POST "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/contacts/<
   -b cookies.txt -H "X-CSRFToken: $CSRF" -H 'If-Match: "4"'
 ```
 
-## 7. Vínculos empresa–departamento
-
-Os períodos são inclusivos. `DELETE` cancela; a ação `/end/` encerra um período que
-existiu. O ETag usado nas escritas é o da empresa.
-
-### `GET /api/v1/client-companies/{companyId}/department-assignments/`
-
-Lista o histórico de vínculos departamentais da empresa.
-
-```powershell
-curl.exe -i "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/department-assignments/?page=1" `
-  -b cookies.txt
-```
-
-### `POST /api/v1/client-companies/{companyId}/department-assignments/`
-
-Cria um vínculo, impedindo sobreposição não cancelada para o mesmo par.
-
-```powershell
-curl.exe -X POST "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/department-assignments/" `
-  -b cookies.txt -H "X-CSRFToken: $CSRF" -H 'If-Match: "1"' `
-  -H "Content-Type: application/json" `
-  -d '{"departmentId":"<UUID_DO_DEPARTAMENTO>","startsOn":"2026-08-01","endsOn":null}'
-```
-
-### `GET /api/v1/client-companies/{companyId}/department-assignments/{id}/`
-
-Obtém um vínculo departamental específico.
-
-```powershell
-curl.exe -i "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/department-assignments/<UUID_DO_VINCULO>/" `
-  -b cookies.txt
-```
-
-### `POST /api/v1/client-companies/{companyId}/department-assignments/{id}/end/`
-
-Define o último dia efetivo do vínculo. Vínculos de rotina que perderem cobertura são
-reconciliados na mesma transação.
-
-```powershell
-curl.exe -X POST "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/department-assignments/<UUID_DO_VINCULO>/end/" `
-  -b cookies.txt -H "X-CSRFToken: $CSRF" -H 'If-Match: "2"' `
-  -H "Content-Type: application/json" -d '{"endsOn":"2026-12-31"}'
-```
-
-### `DELETE /api/v1/client-companies/{companyId}/department-assignments/{id}/`
-
-Cancela o vínculo sem apagar seu histórico e reconcilia vínculos de rotina dependentes.
-
-```powershell
-curl.exe -X DELETE "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/department-assignments/<UUID_DO_VINCULO>/" `
-  -b cookies.txt -H "X-CSRFToken: $CSRF" -H 'If-Match: "2"'
-```
-
-## 8. Rotinas e versões
+## 7. Rotinas e versões
 
 As escritas são exclusivas de owner/admin. Members leem rotinas dos departamentos aos
 quais têm acesso. Criar uma rotina publica sua versão 1 na mesma transação.
@@ -672,7 +618,7 @@ curl.exe "$BASE_URL/api/v1/routines/<UUID_DA_ROTINA>/versions/<UUID_DA_VERSAO>/"
   -b cookies.txt
 ```
 
-## 9. Presets de rotinas
+## 8. Presets de rotinas
 
 Presets são administrados por owner/admin. Seus itens capturam a versão da rotina no
 momento da configuração. Editar um preset não altera empresas já configuradas.
@@ -737,8 +683,7 @@ curl.exe -X POST "$BASE_URL/api/v1/routine-presets/<UUID_DO_PRESET>/restore/" `
 ### `POST /api/v1/routine-presets/{id}/apply/`
 
 Aplica a revisão lida do preset a uma empresa. Cria um vínculo para cada item e um
-recibo imutável da aplicação. A empresa precisa ter cobertura departamental durante
-toda a vigência solicitada.
+recibo imutável da aplicação. A vigência dos vínculos é independente de departamento.
 
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/routine-presets/<UUID_DO_PRESET>/apply/" `
@@ -749,10 +694,10 @@ curl.exe -X POST "$BASE_URL/api/v1/routine-presets/<UUID_DO_PRESET>/apply/" `
 
 Retorna `201` com um array não paginado de vínculos criados.
 
-## 10. Vínculos empresa–rotina
+## 9. Vínculos empresa–rotina
 
-Escritas são exclusivas de owner/admin. Um vínculo só é aceito quando a empresa possui
-cobertura contínua no departamento da rotina durante toda a vigência.
+Escritas são exclusivas de owner/admin. Um vínculo é aceito quando empresa e rotina
+pertencem ao mesmo tenant e a vigência informada é válida.
 
 ### `GET /api/v1/client-companies/{companyId}/routine-assignments/`
 
@@ -801,27 +746,23 @@ curl.exe -X DELETE "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/routine-
   -b cookies.txt -H "X-CSRFToken: $CSRF" -H 'If-Match: "1"'
 ```
 
-## 11. Competências
+## 10. Competências
 
 Todos os membros ativos do tenant podem consultar competências. Um mês futuro pode ser
 `projected`: ele existe apenas na resposta e sua consulta não grava `Competence` nem
-`Task`. Somente owner/admin pode abrir, finalizar, fechar ou bloquear períodos.
+`Task`. Somente owner/admin pode finalizar períodos.
 
-Estados persistidos: `draft`, `open`, `finalized`, `closed` e `locked`.
+Estados persistidos: `projected` e `finalized`.
 
-Transições permitidas:
+Transição permitida:
 
 ```text
-draft -> open
-open -> finalized
-finalized -> closed
-closed -> finalized | locked
-locked -> nenhuma
+projected -> finalized
+finalized -> nenhuma
 ```
 
-`finalized` congela o conjunto recorrente do mês, mas ainda permite trabalhar nas
-pendências. `closed` somente é aceito quando não existem tarefas não terminais.
-Reabrir `closed -> finalized` exige justificativa e não recalcula as rotinas.
+`finalized` congela o conjunto recorrente do mês e suas regras. As tarefas materializadas
+continuam podendo ser trabalhadas conforme suas próprias permissões.
 
 ### `GET /api/v1/competence-calendar/?from=YYYY-MM&to=YYYY-MM`
 
@@ -840,7 +781,7 @@ recorrência em uma chamada de navegação.
 
 ### `GET /api/v1/competences/by-period/{YYYY-MM}/`
 
-Obtém um mês pelo período. Um mês ainda não aberto retorna `status=projected`,
+Obtém um mês pelo período. Um mês ainda não persistido retorna `status=projected`,
 `persistence=projected`, `id=null`, `version=null` e um ETag opaco baseado na revisão
 das regras. Também informa `taskOccurrenceCount`. A leitura não grava nada.
 
@@ -848,21 +789,11 @@ das regras. Também informa `taskOccurrenceCount`. A leitura não grava nada.
 curl.exe -i "$BASE_URL/api/v1/competences/by-period/2026-10/" -b cookies.txt
 ```
 
-### `POST /api/v1/competences/by-period/{YYYY-MM}/open/`
-
-Cria e abre explicitamente a competência sem criar tarefas. Envie `{}`. Para um mês
-projetado não há `If-Match`; se já existir uma competência `draft`, envie seu ETag.
-
-```powershell
-curl.exe -X POST "$BASE_URL/api/v1/competences/by-period/2026-10/open/" `
-  -b cookies.txt -H "X-CSRFToken: $CSRF" -H "Content-Type: application/json" `
-  -d '{}'
-```
-
 ### `POST /api/v1/competences/by-period/{YYYY-MM}/finalize/`
 
 Comando owner/admin, atômico e idempotente. Exige o ETag numérico da competência
-aberta. Materializa todas as ocorrências recorrentes ainda virtuais como `pending`,
+projetada, quando ela já estiver persistida. Se o mês ainda não existir, o comando cria
+a competência projetada antes de finalizar. Materializa todas as ocorrências recorrentes ainda virtuais como `pending`,
 preserva os snapshots e muda o período para `finalized`. Não cria um evento individual
 para cada card automático; a `Task` guarda o motivo e a competência registra o evento
 agregado com a quantidade.
@@ -884,7 +815,9 @@ curl.exe "$BASE_URL/api/v1/competences/?page=1" -b cookies.txt
 
 ### `POST /api/v1/competences/`
 
-Cria uma competência mensal inicialmente em `draft`.
+Cria uma competência mensal inicialmente em `projected`. Essa criação explícita é
+opcional: a primeira mutação de uma ocorrência por período também pode criar a
+competência automaticamente.
 
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/competences/" `
@@ -902,16 +835,6 @@ Obtém uma competência e seu ETag.
 curl.exe -i "$BASE_URL/api/v1/competences/<UUID_DA_COMPETENCIA>/" -b cookies.txt
 ```
 
-### `POST /api/v1/competences/{competenceId}/transition/`
-
-Executa uma transição válida e grava um evento append-only.
-
-```powershell
-curl.exe -X POST "$BASE_URL/api/v1/competences/<UUID_DA_COMPETENCIA>/transition/" `
-  -b cookies.txt -H "X-CSRFToken: $CSRF" -H 'If-Match: "1"' `
-  -H "Content-Type: application/json" -d '{"targetStatus":"open","reason":""}'
-```
-
 ### `GET /api/v1/competences/{competenceId}/events/`
 
 Lista o histórico de transições com cursor estável.
@@ -923,7 +846,7 @@ curl.exe "$BASE_URL/api/v1/competences/<UUID_DA_COMPETENCIA>/events/?pageSize=50
 
 Para continuar, use diretamente a URL retornada em `next`.
 
-## 12. Tarefas
+## 11. Tarefas
 
 Uma tarefa sempre pertence a uma competência e a um departamento. Seu `kind` pode ser
 `ad_hoc` (avulsa) ou `scheduled` (ocorrência de rotina); o endpoint público de criação
@@ -1010,8 +933,8 @@ Exemplo de item virtual:
 ```
 
 Uma relação empresa–rotina só gera ocorrência quando sua vigência intersecta ao menos
-um dia do mês, a empresa continua coberta pelo departamento, a versão é recorrente e
-o mês atende à regra. Configurar empresa e rotina na tela sem esse vínculo mantém a
+um dia do mês, a versão é recorrente e o mês atende à regra. Configurar empresa e
+rotina na tela sem esse vínculo mantém a
 célula vazia.
 
 ### `GET /api/v1/competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/`
@@ -1026,7 +949,7 @@ curl.exe -i "$BASE_URL/api/v1/competences/by-period/2026-10/task-occurrences/<OC
 ### `PATCH /api/v1/competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/`
 
 Altera `title`, `description`, `observation`, `links`, `dueDate` ou
-`assigneeMemberId`. A competência precisa estar `open` ou `finalized`. Para um card
+`assigneeMemberId`. A competência precisa estar `projected`. Para um card
 virtual, devolva exatamente o ETag opaco recebido; para um real, devolva a versão
 numérica. A primeira diferença cria uma única `Task` com todos os defaults e snapshots
 daquele instante.
@@ -1064,7 +987,7 @@ curl.exe -X POST "$BASE_URL/api/v1/competences/by-period/2026-10/task-occurrence
 
 Depois da materialização, as alterações futuras da rotina, empresa ou vínculo não
 reescrevem o card. Remover um vínculo elimina somente ocorrências futuras que ainda
-são virtuais. Competências `finalized`, `closed` e `locked` leem somente snapshots
+são virtuais. Competências `finalized` leem somente snapshots
 persistidos.
 
 ### `GET /api/v1/competences/{competenceId}/tasks/`
@@ -1091,7 +1014,7 @@ curl.exe "$BASE_URL/api/v1/competences/<UUID_DA_COMPETENCIA>/tasks/?kind=ad_hoc&
 
 ### `POST /api/v1/competences/{competenceId}/tasks/`
 
-Cria uma tarefa avulsa (`kind=ad_hoc`) em uma competência `open` ou `finalized`.
+Cria uma tarefa avulsa (`kind=ad_hoc`) em uma competência `projected`.
 Owner/admin ou lead do departamento pode criar. Exige `title` e `Idempotency-Key` de 8 a 255 caracteres;
 `description`, `observation`, `dueDate`, `assigneeMemberId` e `links` são opcionais.
 
@@ -1104,8 +1027,8 @@ As relações aceitas são independentes:
   empresa–rotina.
 
 Quando `routineId` é informado, `departmentId` pode ser omitido; se for enviado,
-precisa coincidir com o departamento da rotina. Quando há empresa, ela precisa ter
-cobertura no departamento durante a competência. Sem `dueDate`, o prazo vem do
+precisa coincidir com o departamento da rotina. Quando há empresa, ela pode ser usada
+independentemente do departamento. Sem `dueDate`, o prazo vem do
 `defaultDueDays` da versão corrente da rotina ou, quando não há rotina, do primeiro
 dia da competência.
 
@@ -1204,7 +1127,7 @@ curl.exe "$BASE_URL/api/v1/competences/<UUID_DA_COMPETENCIA>/tasks/<UUID_DA_TARE
   -b cookies.txt
 ```
 
-## 13. Telas operacionais
+## 12. Telas operacionais
 
 Telas são configurações de navegação e visualização. Toda tela pertence
 obrigatoriamente a um departamento e admite somente dois tipos. Para uma área
@@ -1220,8 +1143,8 @@ permissão: seus eixos e tarefas são filtrados pelo escopo que o membro já pos
 O `type` é imutável depois da criação. Os arrays `companyIds` e `routineIds` são
 ordenados — a posição de cada UUID define a posição da linha ou coluna — e só são
 aceitos em `spreadsheet` (até 500 empresas e 200 rotinas). Em uma tela vinculada a um
-departamento, as empresas precisam possuir vínculo não cancelado com ele e as rotinas
-precisam pertencer a ele. Uma `agenda` rejeita esses dois arrays.
+departamento, qualquer empresa do tenant pode ser configurada; as rotinas precisam
+pertencer ao departamento da tela. Uma `agenda` rejeita esses dois arrays.
 
 ### `GET /api/v1/screens/`
 
@@ -1373,7 +1296,7 @@ Ambas as projeções limitam tarefas ao departamento obrigatório da tela.
 Uma planilha ainda exige que a tarefa possua simultaneamente uma das empresas e uma
 das rotinas configuradas; a agenda não usa esses eixos.
 
-## 14. Sequência mínima de uso
+## 13. Sequência mínima de uso
 
 Um fluxo completo típico é:
 
@@ -1384,7 +1307,7 @@ Um fluxo completo típico é:
 5. criar uma rotina, ou consultar uma existente;
 6. configurar a planilha com as empresas/rotinas selecionadas e/ou criar a agenda;
 7. opcionalmente vincular rotinas recorrentes ou aplicar um preset;
-8. criar e abrir a competência;
+8. consultar ou criar a competência `projected`; a primeira mutação também pode criá-la;
 9. criar uma tarefa avulsa com `Idempotency-Key` ou consultar ocorrências de rotina
    que já existam na competência;
 10. atribuir responsável e transicionar a tarefa;

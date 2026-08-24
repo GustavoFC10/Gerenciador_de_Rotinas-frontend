@@ -10046,6 +10046,10 @@ components:
           type: integer
           maximum: 3750
           minimum: 0
+        defaultAssigneeMemberId:
+          type: string
+          format: uuid
+          nullable: true
         recurrenceMonths:
           type: array
           items:
@@ -10202,6 +10206,10 @@ components:
           type: integer
           maximum: 3750
           minimum: 0
+        defaultAssigneeMemberId:
+          type: string
+          format: uuid
+          nullable: true
         recurrenceMonths:
           type: array
           items:
@@ -10236,6 +10244,11 @@ components:
         defaultDueDays:
           type: integer
           readOnly: true
+        defaultAssigneeMemberId:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
         recurrenceMonths:
           type: array
           items:
@@ -10252,6 +10265,7 @@ components:
           nullable: true
       required:
       - defaultDueDays
+      - defaultAssigneeMemberId
       - description
       - id
       - publishedAt

@@ -294,7 +294,10 @@ function buildRoutineControlResponse({
       })
     }
 
-    taskById.set(occurrence.occurrenceKey, toScheduledTask(occurrence))
+    taskById.set(
+      occurrence.occurrenceKey,
+      toScheduledTask(occurrence, competence.id),
+    )
   })
 
   // A projeção de tela contém um subconjunto dos cards. Mantemos esse fallback
@@ -313,7 +316,10 @@ function buildRoutineControlResponse({
           })
         }
 
-        taskById.set(occurrence.occurrenceKey, toScheduledTask(occurrence))
+        taskById.set(
+          occurrence.occurrenceKey,
+          toScheduledTask(occurrence, projection.competenceId),
+        )
       })
     })
   })
@@ -349,19 +355,20 @@ function buildRoutineControlResponse({
 }
 
 function toCompetenceStatus(value: string): CompetenceStatus | undefined {
-  return ['projected', 'draft', 'open', 'finalized', 'closed', 'locked'].includes(
-    value,
-  )
+  return ['projected', 'finalized'].includes(value)
     ? (value as CompetenceStatus)
     : undefined
 }
 
-function toScheduledTask(occurrence: ScheduledOccurrence): Task {
+function toScheduledTask(
+  occurrence: ScheduledOccurrence,
+  competenceId: string | null,
+): Task {
   return {
     id: occurrence.occurrenceKey,
     occurrenceKey: occurrence.occurrenceKey,
     taskId: occurrence.taskId,
-    competenceId: null,
+    competenceId,
     etag: occurrence.etag,
     persistence: occurrence.persistence,
     kind: occurrence.kind,
