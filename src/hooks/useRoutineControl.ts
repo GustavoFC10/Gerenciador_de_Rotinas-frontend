@@ -25,5 +25,6 @@ export function useRoutineControl(
     isInitialLoading: query.isPending && !query.data,
     isRefreshing: query.isFetching && Boolean(query.data),
     error,
+    refetch: query.refetch,
   }
 }

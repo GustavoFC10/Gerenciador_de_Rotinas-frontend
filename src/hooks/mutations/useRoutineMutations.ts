@@ -10,7 +10,7 @@ import {
   type RoutineInput,
   type RoutineResource,
 } from '../../services/routineService'
-import type { RoutineEditInput } from '../../pages/EntityDetailPage'
+import type { RoutineEditInput } from '../../types/routine'
 
 export function useRoutineMutations(scope: OrganizationQueryScope) {
   const queryClient = useQueryClient()

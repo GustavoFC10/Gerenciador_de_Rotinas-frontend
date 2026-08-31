@@ -10,21 +10,12 @@ import {
 } from '../../services/departmentService'
 import type { ClientCompanyPatch } from '../../services/companyService'
 import type { Client, Routine, RoutineRecurrence } from '../../types/domain'
+import type { RoutineEditInput } from '../../types/routine'
 import Button from '../ui/Button'
 import Select from '../ui/Select'
 import Textarea from '../ui/Textarea'
 import TextField from '../ui/TextField'
 import ClientRoutineAssignmentsPanel from './ClientRoutineAssignmentsPanel'
-
-export interface RoutineEditInput {
-  name: string
-  shotname: string
-  description: string
-  recurrence: RoutineRecurrence
-  defaultDueDays: number
-  defaultAssigneeMemberId?: string | null
-  recurrenceMonths: number[]
-}
 
 type EntityEditModalProps =
   | {

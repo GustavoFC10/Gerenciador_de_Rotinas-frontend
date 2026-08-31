@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
-import EntityEditModal, {
-  type RoutineEditInput,
-} from '../components/entities/EntityEditModal'
+import EntityEditModal from '../components/entities/EntityEditModal'
+import type { RoutineEditInput } from '../types/routine'
 import RoutineListComparison from '../components/routine-control/list/RoutineListComparison'
 import Button from '../components/ui/Button'
 import {
@@ -252,9 +251,7 @@ function EntityDetailPage({
           onClose={() => setIsEditing(false)}
           onSave={handleClientSave}
           onArchive={
-            onClientArchive
-              ? () => onClientArchive(client.id)
-              : undefined
+            onClientArchive ? () => onClientArchive(client.id) : undefined
           }
           routines={data.routines}
           period={competence}
@@ -315,7 +312,10 @@ function EntitySummary({
               label="Regime tributário"
               value={getClientTaxRegimeLabel(client.taxRegime)}
             />
-            <SummaryField label="CNPJ" value={client.document || 'Não informado'} />
+            <SummaryField
+              label="CNPJ"
+              value={client.document || 'Não informado'}
+            />
           </>
         ) : routine ? (
           <>
@@ -334,11 +334,17 @@ function EntitySummary({
             <SummaryField label="Responsável padrão" value={assigneeName} />
             <SummaryField
               label="Telas"
-              value={String(screens.length) + ' configurada' + (screens.length === 1 ? '' : 's')}
+              value={
+                String(screens.length) +
+                ' configurada' +
+                (screens.length === 1 ? '' : 's')
+              }
             />
             <SummaryField
               label="Tarefas na competência"
-              value={String(itemCount) + ' tarefa' + (itemCount === 1 ? '' : 's')}
+              value={
+                String(itemCount) + ' tarefa' + (itemCount === 1 ? '' : 's')
+              }
             />
             <SummaryField
               label="Exibição nas telas"
@@ -444,5 +450,5 @@ function SettingsIcon() {
   )
 }
 
-export type { RoutineEditInput }
+export type { RoutineEditInput } from '../types/routine'
 export default EntityDetailPage

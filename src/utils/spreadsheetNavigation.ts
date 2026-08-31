@@ -70,9 +70,9 @@ export function buildSpreadsheetNavigationItems(
  * sendo telas do departamento. Mantemos uma lista própria para que membros
  * possam descobri-las no menu sem inventar uma relação legada de "divisão".
  */
-export function buildAgendaNavigationItems(
-  data: { screens: readonly ScreenSummary[] },
-): ScreenNavigationItem[] {
+export function buildAgendaNavigationItems(data: {
+  screens: readonly ScreenSummary[]
+}): ScreenNavigationItem[] {
   return data.screens
     .filter((screen) => screen.type === 'agenda' && !screen.archivedAt)
     .sort(
@@ -102,9 +102,8 @@ export function resolveSpreadsheetSelection(
       null)
     : (availableScreens[0] ?? null)
   const department = screen
-    ? (spreadsheets.find(
-        (item) => item.departmentId === screen.departmentId,
-      ) ?? null)
+    ? (spreadsheets.find((item) => item.departmentId === screen.departmentId) ??
+      null)
     : null
 
   return {
@@ -130,6 +129,29 @@ export function buildSpreadsheetContextQuery(
 
   const query = searchParams.toString()
   return query ? `?${query}` : ''
+}
+
+export function isSpreadsheetContextRoute(
+  pathname: string,
+  search = '',
+): boolean {
+  if (new URLSearchParams(search).get('source') === 'catalog') return false
+
+  if (
+    pathname === ROUTES.COMPANY_CREATE ||
+    pathname === ROUTES.ROUTINE_CREATE ||
+    pathname === ROUTES.EMPLOYEE_CREATE
+  ) {
+    return false
+  }
+
+  return (
+    pathname === ROUTES.SPREADSHEET ||
+    pathname === ROUTES.LIST ||
+    pathname === ROUTES.TASKS ||
+    pathname.startsWith(`${ROUTES.COMPANIES}/`) ||
+    pathname.startsWith(`${ROUTES.ROUTINES}/`)
+  )
 }
 
 function buildSpreadsheetPath(

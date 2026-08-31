@@ -478,6 +478,39 @@ value}`. Cobrir as variantes com testes de semântica e teclado.
   time e corrigir o bootstrap do volume (ou documentar remoção explícita ao
   alterar dependências). Incluir atualização/auditoria regular das ferramentas.
 
+## Atualizacao de correcoes em 31/08/2026
+
+Esta rodada foi concentrada no orquestrador autenticado e preservou o contrato
+das paginas e dos hooks de mutacao existentes.
+
+- **A-007 corrigido:** a arvore de rotas operacionais agora tem fallback para a
+  rota inicial; URL autenticada desconhecida deixa de renderizar uma pagina vazia.
+- **A-009 mitigado:** `App.tsx` ficou restrito a sessao, escopo, consultas e
+  composicao de alto nivel. As rotas foram movidas para
+  `src/routes/AuthenticatedRoutes.tsx`; selecao de planilha e detalhes de tarefa
+  foram extraidos para hooks com contratos tipados.
+- **A-011 mitigado no agregado operacional:** `useRoutineControl` expoe
+  `refetch`, a tela mostra uma acao de tentativa segura e nao apresenta a
+  mensagem bruta recebida da API. Perfil e Agenda continuam acessiveis enquanto
+  o agregado operacional esta indisponivel. O retry das consultas internas de
+  EmployeesPage e AgendaPage continua pendente.
+- **A-006 mitigado para o dialogo de tarefa:** o novo `TaskDetailsDialog` usa
+  portal, foco inicial, trap de Tab, Escape, restauracao de foco, scroll lock e
+  fundo inerte. Os outros modais e drawers citados no achado ainda precisam de
+  uma primitiva compartilhada.
+- **A-012 melhorado:** foram incluidos testes para o fallback autenticado, o
+  dialogo e a regra pura de contexto da planilha. A lacuna de E2E e coverage
+  segue aberta.
+- **A-013 parcialmente mitigado:** a consulta de responsaveis so e executada
+  quando a tarefa selecionada pode ser editada. A invalidacao apos alteracoes
+  de membro continua como trabalho pendente.
+
+Validacao desta rodada: `npm run typecheck`, `npm run lint`, `npm test` (21
+arquivos e 58 testes) e `npm run build` passaram. O build ainda informa o chunk
+inicial acima de 500 kB, portanto A-018 permanece aberto.
+
+
+
 ## Limitações conhecidas da auditoria
 
 - A análise não pressupõe que recursos mapeados para versões futuras sejam

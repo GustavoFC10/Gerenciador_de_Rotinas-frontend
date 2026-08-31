@@ -26,7 +26,7 @@ type TaskChangeHandler<Value> = (
   value: Value,
 ) => void | Promise<void>
 
-interface RoutineDetailsCardProps {
+export interface RoutineDetailsCardProps {
   task?: Task | null
   client?: Client
   routine?: Routine
@@ -276,7 +276,10 @@ function TaskContentSection({
       </div>
 
       {isEditing ? (
-        <form className="mt-3 space-y-3" onSubmit={(event) => void handleSubmit(event)}>
+        <form
+          className="mt-3 space-y-3"
+          onSubmit={(event) => void handleSubmit(event)}
+        >
           <label className="grid gap-1.5">
             <span className="text-xs font-bold text-[var(--color-text-muted)]">
               Título da execução
@@ -303,7 +306,10 @@ function TaskContentSection({
             />
           </label>
           {error && (
-            <p className="text-sm font-semibold text-[var(--status-error-text)]" role="alert">
+            <p
+              className="text-sm font-semibold text-[var(--status-error-text)]"
+              role="alert"
+            >
               {error}
             </p>
           )}
@@ -327,7 +333,8 @@ function TaskContentSection({
         </form>
       ) : (
         <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
-          {model.description || 'Nenhuma descrição cadastrada para esta execução.'}
+          {model.description ||
+            'Nenhuma descrição cadastrada para esta execução.'}
         </p>
       )}
     </section>
@@ -383,11 +390,7 @@ function DetailsSidebar({
         className="mt-4 border-t border-[var(--color-divider)] pt-4"
         data-task-resources="links"
       >
-        <TaskLinksPanel
-          task={task}
-          title="Links úteis"
-          compact
-        />
+        <TaskLinksPanel task={task} title="Links úteis" compact />
       </div>
 
       <EntityFacts model={model} />
