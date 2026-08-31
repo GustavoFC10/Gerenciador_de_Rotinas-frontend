@@ -5,14 +5,19 @@ import { AppStateContext } from './appStateContextDefinition'
 import { useAuth } from '../hooks/useAuth'
 import {
   formatCompetence,
+  getCurrentCompetence,
   nextCompetence,
   previousCompetence,
 } from '../utils/competence'
 import type { AppPreferences } from '../types/domain'
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
-  const [competence, setCompetence] = useState('2026-06')
+  const { user, activeMembership } = useAuth()
+  const organizationId = activeMembership?.organization.id
+  const organizationTimeZone = activeMembership?.organization.timezone
+  const [competence, setCompetence] = useState(() =>
+    getCurrentCompetence(organizationTimeZone),
+  )
   const [preferences, setPreferences] = useState<AppPreferences>({
     theme: APP_THEME.LIGHT,
     density: 'compact',
@@ -23,6 +28,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.theme = preferences.theme
     document.documentElement.dataset.density = preferences.density
   }, [preferences.density, preferences.theme])
+
+  useEffect(() => {
+    if (!organizationId) return
+
+    setCompetence(getCurrentCompetence(organizationTimeZone))
+  }, [organizationId, organizationTimeZone])
 
   const value = useMemo(
     () =>

@@ -12,7 +12,9 @@ export function CreationErrorSummary({
   messages: string[]
 }) {
   const summaryRef = useRef<HTMLDivElement>(null)
-  const uniqueMessages = [...new Set(messages)]
+  const uniqueMessages = [
+    ...new Set(messages.filter((message) => Boolean(message))),
+  ]
   const messageSignature = uniqueMessages.join('\u0000')
 
   useEffect(() => {

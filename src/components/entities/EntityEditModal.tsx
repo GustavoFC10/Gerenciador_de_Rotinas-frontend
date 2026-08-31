@@ -1,21 +1,15 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 import {
   clientTaxRegimeOptions,
   routineRecurrenceOptions,
 } from '../../constants/entityOptions'
-import { departmentService, type TaskAssigneeResource } from '../../services/departmentService'
+import {
+  departmentService,
+  type TaskAssigneeResource,
+} from '../../services/departmentService'
 import type { ClientCompanyPatch } from '../../services/companyService'
-import type {
-  Client,
-  Routine,
-  RoutineRecurrence,
-} from '../../types/domain'
+import type { Client, Routine, RoutineRecurrence } from '../../types/domain'
 import Button from '../ui/Button'
 import Select from '../ui/Select'
 import Textarea from '../ui/Textarea'
@@ -41,7 +35,6 @@ type EntityEditModalProps =
       onArchive?: () => Promise<void>
       routines?: Routine[]
       period?: string
-      onRoutineAssignmentsChanged?: () => Promise<void>
     }
   | {
       type: 'routine'
@@ -152,7 +145,6 @@ function ClientEditForm({
   onArchive,
   routines,
   period,
-  onRoutineAssignmentsChanged,
 }: Extract<EntityEditModalProps, { type: 'client' }>) {
   const [name, setName] = useState(entity.name)
   const [code, setCode] = useState(entity.code)
@@ -169,9 +161,7 @@ function ClientEditForm({
     useState<ClientSettingsSection>('details')
 
   const isRegistrationSection = activeSection === 'details'
-  const canManageRoutineAssignments = Boolean(
-    routines && period && onRoutineAssignmentsChanged,
-  )
+  const canManageRoutineAssignments = Boolean(routines && period)
 
   async function handleArchive() {
     if (!onArchive) return
@@ -221,10 +211,7 @@ function ClientEditForm({
       return
     }
 
-    if (
-      email.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
-    ) {
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError('Informe um e-mail válido.')
       return
     }
@@ -329,9 +316,7 @@ function ClientEditForm({
                         value={code}
                         onChange={(event) =>
                           setCode(
-                            event.target.value
-                              .replace(/\D/g, '')
-                              .slice(0, 32),
+                            event.target.value.replace(/\D/g, '').slice(0, 32),
                           )
                         }
                         inputMode="numeric"
@@ -424,18 +409,14 @@ function ClientEditForm({
               </form>
             )}
 
-            {activeSection === 'routines' &&
-              routines &&
-              period &&
-              onRoutineAssignmentsChanged && (
-                <ClientRoutineAssignmentsPanel
-                  client={entity}
-                  routines={routines}
-                  period={period}
-                  canManage
-                  onChanged={onRoutineAssignmentsChanged}
-                />
-              )}
+            {activeSection === 'routines' && routines && period && (
+              <ClientRoutineAssignmentsPanel
+                client={entity}
+                routines={routines}
+                period={period}
+                canManage
+              />
+            )}
 
             {activeSection === 'danger' && onArchive && (
               <section aria-labelledby="company-danger-title">
@@ -447,10 +428,10 @@ function ClientEditForm({
                 />
                 <div className="mt-5 rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] p-4">
                   <p className="text-sm leading-6 text-[var(--status-error-text)]">
-                    Depois do arquivamento, a empresa deixa de aparecer em
-                    novas operações. Essa ação preserva os registros
-                    anteriores e pode ser recuperada pela administração quando
-                    o ciclo de restauração estiver disponível.
+                    Depois do arquivamento, a empresa deixa de aparecer em novas
+                    operações. Essa ação preserva os registros anteriores e pode
+                    ser recuperada pela administração quando o ciclo de
+                    restauração estiver disponível.
                   </p>
                   <Button
                     type="button"
@@ -625,12 +606,13 @@ function RoutineEditForm({
       return
     }
 
-    const expectedMonths = {
+    const expectedMonths: Partial<Record<RoutineRecurrence, number>> = {
       quarterly: 4,
       semiannual: 2,
       annual: 1,
-    }[recurrence]
-    if (expectedMonths && recurrenceMonths.length !== expectedMonths) {
+    }
+    const expectedMonthCount = expectedMonths[recurrence]
+    if (expectedMonthCount && recurrenceMonths.length !== expectedMonthCount) {
       setError('Selecione o ciclo compatível com a recorrência.')
       return
     }
@@ -898,7 +880,10 @@ function SectionHeader({
       <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
         {eyebrow}
       </p>
-      <h3 id={id} className="mt-1 text-base font-black text-[var(--color-text-strong)]">
+      <h3
+        id={id}
+        className="mt-1 text-base font-black text-[var(--color-text-strong)]"
+      >
         {title}
       </h3>
       <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
@@ -919,7 +904,12 @@ function DrawerActions({
 }) {
   return (
     <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-5 py-4 sm:px-6">
-      <Button type="button" tone="neutral" disabled={isSaving} onClick={onClose}>
+      <Button
+        type="button"
+        tone="neutral"
+        disabled={isSaving}
+        onClick={onClose}
+      >
         Cancelar
       </Button>
       <Button type="submit" disabled={isSaving}>
@@ -947,9 +937,21 @@ function getRecurrenceMonthOptions(
 ): Array<{ value: string; label: string; months: number[] }> {
   if (recurrence === 'quarterly') {
     return [
-      { value: '1-4-7-10', label: 'Janeiro, abril, julho e outubro', months: [1, 4, 7, 10] },
-      { value: '2-5-8-11', label: 'Fevereiro, maio, agosto e novembro', months: [2, 5, 8, 11] },
-      { value: '3-6-9-12', label: 'Março, junho, setembro e dezembro', months: [3, 6, 9, 12] },
+      {
+        value: '1-4-7-10',
+        label: 'Janeiro, abril, julho e outubro',
+        months: [1, 4, 7, 10],
+      },
+      {
+        value: '2-5-8-11',
+        label: 'Fevereiro, maio, agosto e novembro',
+        months: [2, 5, 8, 11],
+      },
+      {
+        value: '3-6-9-12',
+        label: 'Março, junho, setembro e dezembro',
+        months: [3, 6, 9, 12],
+      },
     ]
   }
 

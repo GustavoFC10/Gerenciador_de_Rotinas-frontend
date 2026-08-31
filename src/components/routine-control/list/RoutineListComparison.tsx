@@ -5,14 +5,9 @@ import { ROUTINE_STATUS } from '../../../constants/routineStatus'
 import RoutineListCardOptionThree from './RoutineListCardOptionThree'
 import RoutineListSection from './RoutineListSection'
 import { groupRoutineListItemsByStatus } from './routineListUtils'
-import type {
-  PendingStatusChange,
-  RoutineListItem,
-  RoutineStatus,
-} from '../../../types/domain'
+import type { RoutineListItem, RoutineStatus } from '../../../types/domain'
 
 type RoutineListQuickAction = 'attach'
-type StatusChangeInput = RoutineStatus | PendingStatusChange
 
 function normalizeSearchValue(value: unknown): string {
   return String(value ?? '')
@@ -60,16 +55,10 @@ function RoutineListComparison({
     action: RoutineListQuickAction,
   ) => void
   onItemNoteChange?: (item: RoutineListItem, notes: string) => void
-  onItemStatusChange?: (
-    item: RoutineListItem,
-    change: PendingStatusChange,
-  ) => void
+  onItemStatusChange?: (item: RoutineListItem, status: RoutineStatus) => void
   getAllowedStatusChanges?: (item: RoutineListItem) => readonly RoutineStatus[]
   showHeader?: boolean
 }) {
-  const [pendingChangeById, setPendingChangeById] = useState<
-    Record<string, PendingStatusChange | undefined>
-  >({})
   const [searchTerm, setSearchTerm] = useState('')
   const [contextMenu, setContextMenu] = useState<{
     item: RoutineListItem
@@ -77,16 +66,9 @@ function RoutineListComparison({
     y: number
     trigger: HTMLButtonElement
   } | null>(null)
-  const groupedItems = useMemo(() => {
-    return items.map((item) => ({
-      ...item,
-      pendingChange: pendingChangeById[item.id],
-      displayStatus: pendingChangeById[item.id]?.status ?? item.status,
-    }))
-  }, [items, pendingChangeById])
   const visibleItems = useMemo(
-    () => groupedItems.filter((item) => itemMatchesSearch(item, searchTerm)),
-    [groupedItems, searchTerm],
+    () => items.filter((item) => itemMatchesSearch(item, searchTerm)),
+    [items, searchTerm],
   )
   const groups = useMemo(
     () => groupRoutineListItemsByStatus(visibleItems),
@@ -106,44 +88,8 @@ function RoutineListComparison({
     ? 'overflow-hidden bg-[var(--color-list-panel-bg)] shadow-[var(--shadow-panel)]'
     : 'overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] shadow-[var(--shadow-panel)]'
 
-  function handlePendingStatusChange(
-    item: RoutineListItem,
-    change: StatusChangeInput,
-  ) {
-    const nextChange = normalizePendingChange(change)
-
-    if (!nextChange.status) return
-
-    setPendingChangeById((current) => {
-      const next = { ...current }
-
-      if (
-        nextChange.status === item.status &&
-        normalizeStatusDetail(nextChange.statusDetail) ===
-          normalizeStatusDetail(item.statusDetail)
-      ) {
-        delete next[item.id]
-      } else {
-        next[item.id] = nextChange
-      }
-
-      return next
-    })
-  }
-
-  function handlePendingStatusCancel(item: RoutineListItem) {
-    setPendingChangeById((current) => {
-      const next = { ...current }
-      delete next[item.id]
-      return next
-    })
-  }
-
-  function handlePendingStatusConfirm(item: RoutineListItem) {
-    if (!item.pendingChange) return
-
-    onItemStatusChange?.(item, item.pendingChange)
-    handlePendingStatusCancel(item)
+  function handleStatusChange(item: RoutineListItem, status: RoutineStatus) {
+    onItemStatusChange?.(item, status)
   }
 
   useEffect(() => {
@@ -177,12 +123,7 @@ function RoutineListComparison({
     const item = contextMenu?.item
     if (!item) return
 
-    setPendingChangeById((current) => {
-      const next = { ...current }
-      delete next[item.id]
-      return next
-    })
-    onItemStatusChange?.(item, { status, statusDetail: null })
+    onItemStatusChange?.(item, status)
   }
 
   function handleContextAttachmentAdd() {
@@ -250,10 +191,7 @@ function RoutineListComparison({
                       onQuickAction={onItemQuickAction}
                       onNoteChange={onItemNoteChange}
                       onStatusChange={
-                        canChangeStatus ? handlePendingStatusChange : undefined
-                      }
-                      onStatusConfirm={
-                        canChangeStatus ? handlePendingStatusConfirm : undefined
+                        canChangeStatus ? handleStatusChange : undefined
                       }
                       allowedStatusChanges={allowedStatuses}
                       onContextMenuOpen={
@@ -276,8 +214,6 @@ function RoutineListComparison({
           key={`${contextMenu.item.id}:${contextMenu.x}:${contextMenu.y}`}
           task={{
             ...contextMenu.item.task,
-            status:
-              contextMenu.item.displayStatus ?? contextMenu.item.task.status,
           }}
           label={getContextMenuLabel(contextMenu.item)}
           x={contextMenu.x}
@@ -359,11 +295,10 @@ function OverviewDivider() {
 
 function LedgerColumnHeader() {
   return (
-    <div className="hidden grid-cols-[minmax(15rem,1fr)_6rem_9rem_8rem_18rem] gap-2 border-b border-[var(--color-list-border)] bg-[var(--color-panel-soft-bg)] px-3 py-2 text-[9px] font-extrabold uppercase tracking-[0.12em] text-[var(--color-text-subtle)] xl:grid">
+    <div className="hidden grid-cols-[minmax(15rem,1fr)_6rem_9rem_18rem] gap-2 border-b border-[var(--color-list-border)] bg-[var(--color-panel-soft-bg)] px-3 py-2 text-[9px] font-extrabold uppercase tracking-[0.12em] text-[var(--color-text-subtle)] xl:grid">
       <span>Item</span>
       <span>Prazo</span>
       <span>Responsável</span>
-      <span>Estado</span>
       <span>Execução</span>
     </div>
   )
@@ -402,23 +337,6 @@ function ListSearchInput({
       />
     </label>
   )
-}
-
-function normalizePendingChange(
-  change: StatusChangeInput,
-): PendingStatusChange {
-  if (typeof change === 'string') {
-    return { status: change, statusDetail: null }
-  }
-
-  return {
-    status: change?.status,
-    statusDetail: change?.statusDetail ?? null,
-  }
-}
-
-function normalizeStatusDetail(detail?: string | null): string {
-  return detail ?? ''
 }
 
 export default RoutineListComparison

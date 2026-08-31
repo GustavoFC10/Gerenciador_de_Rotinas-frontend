@@ -1,5 +1,5 @@
 import { ROUTES } from '../constants/routes'
-import type { EntityId, RoutineControlData } from '../types/domain'
+import type { EntityId, ScreenSummary } from '../types/domain'
 import type {
   ScreenNavigationItem,
   SpreadsheetNavigationItem,
@@ -20,7 +20,7 @@ export interface SpreadsheetContext {
 }
 
 export function buildSpreadsheetNavigationItems(
-  data: Pick<RoutineControlData, 'screens'>,
+  data: { screens: readonly ScreenSummary[] },
   basePath = ROUTES.SPREADSHEET,
 ): SpreadsheetNavigationItem[] {
   const screens = data.screens
@@ -71,7 +71,7 @@ export function buildSpreadsheetNavigationItems(
  * possam descobri-las no menu sem inventar uma relação legada de "divisão".
  */
 export function buildAgendaNavigationItems(
-  data: Pick<RoutineControlData, 'screens'>,
+  data: { screens: readonly ScreenSummary[] },
 ): ScreenNavigationItem[] {
   return data.screens
     .filter((screen) => screen.type === 'agenda' && !screen.archivedAt)

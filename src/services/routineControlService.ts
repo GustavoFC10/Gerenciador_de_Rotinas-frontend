@@ -86,7 +86,10 @@ type ApiSpreadsheetProjection = SpreadsheetProjection
 export class RoutineControlService {
   constructor(private readonly client: HttpClient) {}
 
-  async get(period: string): Promise<RoutineControlResponse> {
+  async get(
+    period: string,
+    signal?: AbortSignal,
+  ): Promise<RoutineControlResponse> {
     const [
       departments,
       companies,
@@ -95,20 +98,22 @@ export class RoutineControlService {
       competence,
       scheduledOccurrences,
     ] = await Promise.all([
-        this.listAll<ApiDepartment>(ENDPOINTS.departments),
-        this.listAll<ApiCompany>(ENDPOINTS.clientCompanies),
-        this.listAll<ApiRoutine>(ENDPOINTS.routines),
-        this.listAll<ApiScreenSummary>(ENDPOINTS.screens),
-        this.client
-          .get<ApiCompetenceProjection>(
-            `${ENDPOINTS.competences}by-period/${encodeURIComponent(period)}/`,
-          )
-          .then((response) => response.data),
-        this.listAll<ScheduledOccurrence>(
-          `${ENDPOINTS.competences}by-period/${encodeURIComponent(period)}/task-occurrences/?pageSize=100`,
-          true,
-        ),
-      ])
+      this.listAll<ApiDepartment>(ENDPOINTS.departments, false, signal),
+      this.listAll<ApiCompany>(ENDPOINTS.clientCompanies, false, signal),
+      this.listAll<ApiRoutine>(ENDPOINTS.routines, false, signal),
+      this.listAll<ApiScreenSummary>(ENDPOINTS.screens, false, signal),
+      this.client
+        .get<ApiCompetenceProjection>(
+          `${ENDPOINTS.competences}by-period/${encodeURIComponent(period)}/`,
+          { signal },
+        )
+        .then((response) => response.data),
+      this.listAll<ScheduledOccurrence>(
+        `${ENDPOINTS.competences}by-period/${encodeURIComponent(period)}/task-occurrences/?pageSize=100`,
+        true,
+        signal,
+      ),
+    ])
     const activeScreenSummaries = screenSummaries.filter(
       (screen) => !screen.archivedAt,
     )
@@ -118,6 +123,7 @@ export class RoutineControlService {
           (
             await this.client.get<ApiScreen>(
               `${ENDPOINTS.screens}${screen.id}/`,
+              { signal },
             )
           ).data,
       ),
@@ -129,7 +135,7 @@ export class RoutineControlService {
         return (
           await this.client.get<ApiSpreadsheetProjection>(
             `${ENDPOINTS.screens}${screen.id}/projection/`,
-            { query: { period } },
+            { query: { period }, signal },
           )
         ).data
       }),
@@ -137,6 +143,8 @@ export class RoutineControlService {
     const adHocTasks = competence.id
       ? await this.listAll<TaskResource>(
           `${ENDPOINTS.competences}${encodeURIComponent(competence.id)}/tasks/?kind=ad_hoc&pageSize=100`,
+          false,
+          signal,
         )
       : []
 
@@ -159,6 +167,7 @@ export class RoutineControlService {
   private async listAll<T>(
     initialPath: string,
     retryOnRevisionConflict = false,
+    signal?: AbortSignal,
   ): Promise<T[]> {
     let restartAttempts = 0
 
@@ -168,7 +177,9 @@ export class RoutineControlService {
 
       try {
         while (nextPath) {
-          const pageResponse = await this.client.get<ApiPage<T>>(nextPath)
+          const pageResponse = await this.client.get<ApiPage<T>>(nextPath, {
+            signal,
+          })
           const page: ApiPage<T> = pageResponse.data
           results.push(...page.results)
           nextPath = page.next
@@ -195,10 +206,12 @@ export const routineControlService = new RoutineControlService(httpClient)
 
 export async function getRoutineControl({
   period,
+  signal,
 }: {
   period: string
+  signal?: AbortSignal
 }): Promise<RoutineControlResponse> {
-  return routineControlService.get(period)
+  return routineControlService.get(period, signal)
 }
 
 function buildRoutineControlResponse({

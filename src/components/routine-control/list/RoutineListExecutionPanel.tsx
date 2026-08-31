@@ -1,74 +1,35 @@
-import {
-  ROUTINE_STATUS,
-  routineStatusConfig,
-} from '../../../constants/routineStatus'
-
-import RoutineListQuickActions from './RoutineListQuickActions'
 import type { ReactNode } from 'react'
-import type {
-  PendingStatusChange,
-  RoutineListItem,
-  RoutineStatus,
-  RoutineStatusConfig,
-} from '../../../types/domain'
 
-const selectableStatusOrder: RoutineStatus[] = [
-  ROUTINE_STATUS.PENDING,
-  ROUTINE_STATUS.IN_PROGRESS,
-  ROUTINE_STATUS.ERROR,
-  ROUTINE_STATUS.NO_MOVEMENT,
-  ROUTINE_STATUS.COMPLETED,
-]
+import { RoutineStatusControl } from '../shared/RoutineCardActions'
+import RoutineListQuickActions from './RoutineListQuickActions'
+import type { RoutineListItem, RoutineStatus } from '../../../types/domain'
 
 function RoutineListExecutionPanel({
   item,
   onStatusChange,
-  onStatusConfirm,
   allowedStatusChanges,
   onQuickAction,
   className = '',
 }: {
   item: RoutineListItem
-  onStatusChange?: (item: RoutineListItem, change: PendingStatusChange) => void
-  onStatusConfirm?: (item: RoutineListItem) => void
+  onStatusChange?: (item: RoutineListItem, status: RoutineStatus) => void
   allowedStatusChanges?: readonly RoutineStatus[]
   onQuickAction?: (item: RoutineListItem, action: 'attach') => void
   className?: string
 }) {
-  const selectedStatus = item.pendingChange?.status ?? item.status
-  const selectedStatusConfig =
-    routineStatusConfig[selectedStatus] ?? routineStatusConfig[item.status]
-  const hasPendingChange = hasStatusChange(item)
-  const selectableStatuses = (allowedStatusChanges ?? selectableStatusOrder).filter(
-    (status) => status !== item.status,
-  )
-  const canChangeStatus = Boolean(onStatusChange && selectableStatuses.length)
-
-  function selectStatus(status: RoutineStatus) {
-    onStatusChange?.(item, {
-      status,
-      statusDetail: null,
-    })
-  }
-
   return (
     <PanelShell className={className}>
-      <div className="grid w-full grid-cols-[minmax(0,1fr)_7.75rem] items-center gap-2">
+      <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
         <div className="min-w-0">
-          <StatusSelector
-            selectedStatus={selectedStatus}
-            statuses={selectableStatuses}
-            onSelect={canChangeStatus ? selectStatus : undefined}
+          <RoutineStatusControl
+            task={item.task}
+            onStatusChange={(_, status) => onStatusChange?.(item, status)}
+            allowedStatusChanges={allowedStatusChanges}
+            variant="menu"
           />
         </div>
 
-        <PanelActions
-          item={item}
-          hasPendingChange={hasPendingChange && canChangeStatus}
-          selectedStatusConfig={selectedStatusConfig}
-          onStatusConfirm={onStatusConfirm}
-          onQuickAction={onQuickAction}
-        />
+        <PanelActions item={item} onQuickAction={onQuickAction} />
       </div>
     </PanelShell>
   )
@@ -94,34 +55,13 @@ function PanelShell({
 
 function PanelActions({
   item,
-  hasPendingChange,
-  selectedStatusConfig,
-  onStatusConfirm,
   onQuickAction,
 }: {
   item: RoutineListItem
-  hasPendingChange: boolean
-  selectedStatusConfig: RoutineStatusConfig
-  onStatusConfirm?: (item: RoutineListItem) => void
   onQuickAction?: (item: RoutineListItem, action: 'attach') => void
 }) {
   return (
-    <div className="flex w-[7.75rem] shrink-0 items-center justify-end gap-1.5">
-      {hasPendingChange && (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation()
-            onStatusConfirm?.(item)
-          }}
-          className={`min-h-7 rounded-[var(--radius-control)] border px-2.5 text-[10px] font-bold uppercase transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${selectedStatusConfig.surfaceClass}`}
-          aria-label="Confirmar estado"
-          title="Confirmar estado"
-        >
-          Confirmar
-        </button>
-      )}
-
+    <div className="flex shrink-0 items-center justify-end gap-1.5">
       <RoutineListQuickActions
         item={item}
         actions={['attach']}
@@ -130,99 +70,6 @@ function PanelActions({
       />
     </div>
   )
-}
-
-function StatusSelector({
-  selectedStatus,
-  statuses,
-  onSelect,
-}: {
-  selectedStatus: RoutineStatus
-  statuses: readonly RoutineStatus[]
-  onSelect?: (status: RoutineStatus) => void
-}) {
-  const selectedConfig = routineStatusConfig[selectedStatus]
-
-  if (!onSelect || statuses.length === 0) {
-    return (
-      <span
-        className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-2 text-xs font-bold text-[var(--color-text-muted)]"
-        aria-label={`Estado: ${selectedConfig.label}`}
-      >
-        <span className={`size-2.5 rounded-full ${selectedConfig.dotClass}`} />
-        {selectedConfig.label}
-      </span>
-    )
-  }
-
-  return (
-    <div
-      className="inline-flex items-center gap-1 rounded-full border border-[var(--color-list-border)] bg-[var(--color-list-panel-bg)] px-1 py-1"
-      aria-label="Alterar estado"
-    >
-      {statuses.map((value) => {
-        const config = routineStatusConfig[value]
-
-        return (
-        <StatusDotButton
-          key={value}
-          value={value}
-          config={config}
-          isSelected={false}
-          onSelect={onSelect}
-        />
-        )
-      })}
-    </div>
-  )
-}
-
-function StatusDotButton({
-  value,
-  config,
-  isSelected,
-  onSelect,
-}: {
-  value: RoutineStatus
-  config: RoutineStatusConfig
-  isSelected: boolean
-  onSelect?: (status: RoutineStatus) => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={(event) => {
-        event.stopPropagation()
-        onSelect?.(value)
-      }}
-      className={`grid size-6 place-items-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${
-        isSelected
-          ? 'bg-[var(--color-list-muted-bg)] ring-2 ring-[var(--color-text-strong)]'
-          : 'hover:bg-[var(--color-control-hover-bg)]'
-      }`}
-      aria-label={`Alterar para ${config.label}`}
-      title={config.label}
-    >
-      <span
-        className={`size-3.5 rounded-full ${config.dotClass}`}
-        aria-hidden="true"
-      />
-    </button>
-  )
-}
-
-function hasStatusChange(item: RoutineListItem): boolean {
-  if (!item.pendingChange) return false
-
-  return (
-    item.pendingChange.status !== item.status ||
-    normalizeDetail(item.pendingChange.statusDetail) !==
-      normalizeDetail(item.statusDetail)
-  )
-}
-
-function normalizeDetail(detail?: string | null): string {
-  return detail ?? ''
 }
 
 export default RoutineListExecutionPanel

@@ -72,6 +72,15 @@ export class TaskService {
     )
   }
 
+  getOccurrence(
+    period: string,
+    occurrenceKey: string,
+  ): Promise<ApiResponse<ScheduledOccurrence>> {
+    return this.client.get<ScheduledOccurrence>(
+      occurrencePath(period, occurrenceKey),
+    )
+  }
+
   transitionOccurrence(
     period: string,
     occurrenceKey: string,

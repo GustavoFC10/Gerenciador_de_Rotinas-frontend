@@ -79,7 +79,6 @@ function RoutineCardActions({
       <RoutineStatusControl
         task={task}
         onStatusChange={onStatusChange}
-        variant="strip"
       />
       <RoutineNotesPanel task={task} onNotesChange={onNotesChange} />
     </div>

@@ -101,7 +101,7 @@ export function RoutineAssigneeField({
     setError('')
     setDraftAssigneeId(task.assigneeId ?? '')
     isSavingRef.current = false
-  }, [task.id])
+  }, [task.assigneeId, task.id])
 
   async function handleChange(nextAssigneeId: EntityId | null) {
     if (!onChange || nextAssigneeId === task.assigneeId) {
@@ -201,7 +201,7 @@ export function RoutineDueDateField({
     setDraftDueDate(task.dueDate ?? '')
     isSavingRef.current = false
     hasValidationErrorRef.current = false
-  }, [task.id])
+  }, [task.dueDate, task.id])
 
   async function handleChange(nextDueDate: string) {
     if (!nextDueDate) {
@@ -451,10 +451,7 @@ function PencilIcon() {
   )
 }
 
-function finishEditingOnEscape(
-  event: KeyboardEvent,
-  onCancel: () => void,
-) {
+function finishEditingOnEscape(event: KeyboardEvent, onCancel: () => void) {
   if (event.key === 'Escape') {
     event.stopPropagation()
     onCancel()

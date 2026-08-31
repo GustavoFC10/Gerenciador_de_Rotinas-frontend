@@ -70,11 +70,15 @@ describe('TaskContextMenu', () => {
     const statusItems = [
       ...document.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'),
     ]
-    expect(statusItems).toHaveLength(5)
-    expect(statusItems[1]?.getAttribute('aria-checked')).toBe('true')
+    expect(statusItems).toHaveLength(4)
+    expect(
+      statusItems.every(
+        (item) => item.getAttribute('aria-checked') === 'false',
+      ),
+    ).toBe(true)
 
     await act(async () => {
-      statusItems[3]?.click()
+      statusItems[2]?.click()
     })
 
     expect(onStatusChange).toHaveBeenCalledWith(task.id, 'completed')

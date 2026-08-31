@@ -12,6 +12,7 @@ import {
   type AuthState,
   type LoginCredentials,
 } from '../services/authService'
+import { queryClient } from '../query/queryClient'
 import { AuthContext } from './authContextDefinition'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -42,17 +43,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (credentials: LoginCredentials) => {
     setInitializationError(null)
     const nextAuthState = await authService.login(credentials)
+    queryClient.clear()
     setAuthState(nextAuthState)
     return nextAuthState.session
   }, [])
 
   const logout = useCallback(async () => {
-    await authService.logout()
-    setAuthState(null)
+    try {
+      await authService.logout()
+    } finally {
+      queryClient.clear()
+      setAuthState(null)
+    }
   }, [])
 
   const selectActiveMembership = useCallback(async (membershipId: string) => {
-    setAuthState(await authService.selectActiveMembership(membershipId))
+    const nextAuthState = await authService.selectActiveMembership(membershipId)
+    queryClient.clear()
+    setAuthState(nextAuthState)
   }, [])
 
   const refreshSession = useCallback(async () => {

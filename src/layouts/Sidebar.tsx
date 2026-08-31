@@ -122,7 +122,7 @@ function Sidebar({
               Rotinas
             </p>
             <p className="mt-0.5 truncate text-xs font-medium text-[var(--color-text-muted)]">
-              Áreas de trabalho
+              Departamentos
             </p>
           </div>
         </Link>
@@ -176,7 +176,7 @@ function Sidebar({
         </ul>
 
         <NavigationSection
-          title="Áreas de trabalho"
+          title="Departamentos"
           isCollapsed={isCollapsed}
           className="mb-5"
         >
@@ -197,7 +197,7 @@ function Sidebar({
               <p
                 className={`px-2 py-3 text-sm text-[var(--color-text-muted)] ${collapsedLabelClass}`}
               >
-                Nenhuma área de trabalho disponível
+                Nenhum departamento disponível
               </p>
             </li>
           )}

@@ -26,6 +26,11 @@ describe('RoutineListComparison', () => {
     expect(markup).toContain('Responsável')
     expect(markup).toContain('Em andamento')
     expect(markup).toContain('Execução')
+    expect(markup).toContain('<details')
+    expect(markup).not.toContain('Confirmar estado')
+    expect(markup).not.toContain(
+      'grid-cols-[minmax(15rem,1fr)_6rem_9rem_8rem_18rem]',
+    )
     expect(markup).toContain('Ações de')
     expect(markup).toContain('aria-keyshortcuts="Shift+F10"')
     expect(markup).not.toContain('Trocar visualização da lista')

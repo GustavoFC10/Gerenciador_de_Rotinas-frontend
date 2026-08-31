@@ -1,17 +1,15 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import Button from '../components/ui/Button'
 import { focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
+import { useAuth } from '../hooks/useAuth'
 import WorkspaceBar from '../layouts/WorkspaceBar'
+import { queryKeys } from '../query/queryKeys'
 import {
   routinePresetService,
+  type RoutinePresetInput,
   type RoutinePresetResource,
 } from '../services/routinePresetService'
 import type { Routine } from '../types/domain'
@@ -22,35 +20,40 @@ interface RoutinePresetsPageProps {
   header?: ReactNode
 }
 
-function RoutinePresetsPage({
-  routines,
-  header,
-}: RoutinePresetsPageProps) {
-  const [presets, setPresets] = useState<RoutinePresetResource[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
+function RoutinePresetsPage({ routines, header }: RoutinePresetsPageProps) {
+  const { activeMembership } = useAuth()
+  const queryClient = useQueryClient()
   const [isCreating, setIsCreating] = useState(false)
-
-  async function loadPresets() {
-    setIsLoading(true)
-    setError('')
-
-    try {
-      setPresets(await routinePresetService.list())
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'Não foi possível carregar as predefinições.',
+  const scope = activeMembership
+    ? {
+        organizationId: activeMembership.organization.id,
+        membershipId: activeMembership.id,
+      }
+    : null
+  const queryKey = scope
+    ? queryKeys.routinePresets(scope)
+    : (['routine-presets', 'unauthenticated'] as const)
+  const presetsQuery = useQuery({
+    queryKey,
+    queryFn: () => routinePresetService.list(),
+    enabled: Boolean(scope),
+  })
+  const createPresetMutation = useMutation({
+    mutationFn: (input: RoutinePresetInput) =>
+      routinePresetService.create(input),
+    onSuccess: (response) => {
+      queryClient.setQueryData<RoutinePresetResource[]>(queryKey, (current) =>
+        current ? [...current, response.data] : current,
       )
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    void loadPresets()
-  }, [])
+    },
+  })
+  const presets = presetsQuery.data ?? []
+  const isLoading = presetsQuery.isPending && !presetsQuery.data
+  const error = presetsQuery.error
+    ? presetsQuery.error instanceof Error
+      ? presetsQuery.error.message
+      : 'Não foi possível carregar as predefinições.'
+    : ''
 
   return (
     <div
@@ -74,20 +77,19 @@ function RoutinePresetsPage({
         />
       )}
 
-      {header && (
-        <div className="mt-5 flex justify-end">
-          <Button onClick={() => setIsCreating(true)}>
-            <PlusIcon />
-            Nova predefinição
-          </Button>
-        </div>
-      )}
-
-      <section className="mb-5 rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-5 py-4 shadow-[var(--shadow-panel)] sm:px-6">
+      <section
+        className={`mb-5 flex flex-wrap items-center justify-between gap-4 rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-5 py-4 shadow-[var(--shadow-panel)] sm:px-6 ${header ? 'mt-5' : ''}`}
+      >
         <p className="max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
           Predefinições agrupam rotinas para aplicação consistente em empresas.
           Elas guardam a versão das rotinas escolhidas no momento da criação.
         </p>
+        {header && (
+          <Button className="shrink-0" onClick={() => setIsCreating(true)}>
+            <PlusIcon />
+            Nova predefinição
+          </Button>
+        )}
       </section>
 
       {error && (
@@ -120,7 +122,8 @@ function RoutinePresetsPage({
                   </p>
                 </div>
                 <span className="shrink-0 rounded-full bg-[var(--color-panel-soft-bg)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-muted)]">
-                  {preset.items.length} {preset.items.length === 1 ? 'rotina' : 'rotinas'}
+                  {preset.items.length}{' '}
+                  {preset.items.length === 1 ? 'rotina' : 'rotinas'}
                 </span>
               </div>
               <ul className="mt-4 space-y-2 border-t border-[var(--color-divider)] pt-3">
@@ -160,9 +163,10 @@ function RoutinePresetsPage({
         <PresetCreateDrawer
           routines={routines}
           onClose={() => setIsCreating(false)}
-          onCreated={async () => {
+          isSaving={createPresetMutation.isPending}
+          onCreate={async (input) => {
+            await createPresetMutation.mutateAsync(input)
             setIsCreating(false)
-            await loadPresets()
           }}
         />
       )}
@@ -173,18 +177,19 @@ function RoutinePresetsPage({
 function PresetCreateDrawer({
   routines,
   onClose,
-  onCreated,
+  onCreate,
+  isSaving,
 }: {
   routines: Routine[]
   onClose: () => void
-  onCreated: () => Promise<void>
+  onCreate: (input: RoutinePresetInput) => Promise<void>
+  isSaving: boolean
 }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [search, setSearch] = useState('')
   const [routineIds, setRoutineIds] = useState<string[]>([])
   const [error, setError] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
   const activeRoutines = useMemo(
     () =>
       routines
@@ -220,24 +225,20 @@ function PresetCreateDrawer({
       return
     }
 
-    setIsSaving(true)
     setError('')
 
     try {
-      await routinePresetService.create({
+      await onCreate({
         name: trimmedName,
         description: description.trim() || undefined,
         routineIds,
       })
-      await onCreated()
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
           : 'Não foi possível criar a predefinição.',
       )
-    } finally {
-      setIsSaving(false)
     }
   }
 
@@ -277,12 +278,17 @@ function PresetCreateDrawer({
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           {error && (
-            <p role="alert" className="mb-4 text-sm font-semibold text-[var(--status-error-text)]">
+            <p
+              role="alert"
+              className="mb-4 text-sm font-semibold text-[var(--status-error-text)]"
+            >
               {error}
             </p>
           )}
           <label className="grid gap-1.5">
-            <span className="text-sm font-bold text-[var(--color-text-strong)]">Nome *</span>
+            <span className="text-sm font-bold text-[var(--color-text-strong)]">
+              Nome *
+            </span>
             <input
               value={name}
               maxLength={160}
@@ -292,7 +298,9 @@ function PresetCreateDrawer({
             />
           </label>
           <label className="mt-4 grid gap-1.5">
-            <span className="text-sm font-bold text-[var(--color-text-strong)]">Descrição</span>
+            <span className="text-sm font-bold text-[var(--color-text-strong)]">
+              Descrição
+            </span>
             <textarea
               value={description}
               rows={3}
@@ -303,7 +311,9 @@ function PresetCreateDrawer({
           </label>
           <div className="mt-6 border-t border-[var(--color-divider)] pt-5">
             <label className="grid gap-1.5">
-              <span className="text-sm font-bold text-[var(--color-text-strong)]">Rotinas *</span>
+              <span className="text-sm font-bold text-[var(--color-text-strong)]">
+                Rotinas *
+              </span>
               <input
                 type="search"
                 value={search}
@@ -336,7 +346,12 @@ function PresetCreateDrawer({
           </div>
         </div>
         <footer className="flex justify-end gap-2 border-t border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-5 py-4 sm:px-6">
-          <Button type="button" tone="neutral" onClick={onClose} disabled={isSaving}>
+          <Button
+            type="button"
+            tone="neutral"
+            onClick={onClose}
+            disabled={isSaving}
+          >
             Cancelar
           </Button>
           <Button type="submit" disabled={isSaving}>
@@ -350,7 +365,14 @@ function PresetCreateDrawer({
 
 function PlusIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="mr-2 size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      className="mr-2 size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
       <path d="M12 5v14M5 12h14" strokeLinecap="round" />
     </svg>
   )

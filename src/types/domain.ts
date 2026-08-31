@@ -277,11 +277,6 @@ export interface RoutineListFilter {
   assigneeId?: EntityId
 }
 
-export interface PendingStatusChange {
-  status: RoutineStatus
-  statusDetail: string | null
-}
-
 export interface RoutineListItem {
   id: EntityId
   task: Task
@@ -304,8 +299,6 @@ export interface RoutineListItem {
   assigneeName: string
   notes?: string
   indicators: TaskIndicators
-  pendingChange?: PendingStatusChange
-  displayStatus?: RoutineStatus
 }
 
 export interface RoutineListViewData {
@@ -342,9 +335,6 @@ export interface RoutineListInteractionProps {
   onItemOpen?: (item: RoutineListItem) => void
   onItemQuickAction?: (item: RoutineListItem, action: 'attach') => void
   onItemNoteChange?: (item: RoutineListItem, notes: string) => void
-  onItemStatusChange?: (
-    item: RoutineListItem,
-    change: PendingStatusChange,
-  ) => void
+  onItemStatusChange?: (item: RoutineListItem, status: RoutineStatus) => void
   getAllowedStatusChanges?: (item: RoutineListItem) => readonly RoutineStatus[]
 }

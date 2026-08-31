@@ -87,6 +87,14 @@ describe('RoutineControlService', () => {
           })
         }
 
+        if (
+          url.pathname ===
+          '/api/v1/competences/by-period/2026-08/task-occurrences/'
+        ) {
+          expect(url.searchParams.get('pageSize')).toBe('100')
+          return jsonResponse({ next: null, results: [] })
+        }
+
         if (url.pathname === '/api/v1/screens/screen-1/') {
           return jsonResponse({
             id: 'screen-1',
@@ -218,7 +226,7 @@ describe('RoutineControlService', () => {
     ])
     expect(response.data.clients[0]).toMatchObject({
       id: 'company-1',
-      taxRegime: 'simples_nacional',
+      taxRegime: 'Simples Nacional',
     })
     expect(response.data.routines[0]).toMatchObject({
       id: 'routine-1',

@@ -237,7 +237,7 @@ function CreateScreenPage({
         <div
           className={
             'grid items-start gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)] ' +
-            (Object.keys(errors).length > 0 ? 'mt-4' : '')
+            (Object.values(errors).some(Boolean) ? 'mt-4' : '')
           }
         >
           <div className="space-y-5">

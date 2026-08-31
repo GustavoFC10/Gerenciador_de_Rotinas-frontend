@@ -1,9 +1,19 @@
 import { HttpClient, httpClient } from './httpClient'
 import type { ApiResponse } from './httpClient'
 import type { TaskResource } from './taskService'
-import type { Screen, ScreenType, SpreadsheetProjection } from '../types/domain'
+import type {
+  Screen,
+  ScreenSummary,
+  ScreenType,
+  SpreadsheetProjection,
+} from '../types/domain'
 
 const SCREENS_ENDPOINT = '/api/v1/screens/'
+
+interface ApiPage<T> {
+  next: string | null
+  results: T[]
+}
 
 export interface ScreenInput {
   name: string
@@ -37,8 +47,23 @@ export interface AgendaProjection {
 export class ScreenService {
   constructor(private readonly client: HttpClient) {}
 
-  get(id: string): Promise<ApiResponse<Screen>> {
-    return this.client.get<Screen>(screenPath(id))
+  get(id: string, signal?: AbortSignal): Promise<ApiResponse<Screen>> {
+    return this.client.get<Screen>(screenPath(id), { signal })
+  }
+
+  async listVisible(signal?: AbortSignal): Promise<ScreenSummary[]> {
+    const screens: ScreenSummary[] = []
+    let nextPath: string | null = `${SCREENS_ENDPOINT}?includeArchived=false`
+
+    while (nextPath) {
+      const response: ApiResponse<ApiPage<ScreenSummary>> = await this.client.get<
+        ApiPage<ScreenSummary>
+      >(nextPath, { signal })
+      screens.push(...response.data.results)
+      nextPath = response.data.next
+    }
+
+    return screens
   }
 
   create(input: ScreenInput): Promise<ApiResponse<Screen>> {
@@ -68,10 +93,11 @@ export class ScreenService {
   getProjection(
     id: string,
     period: string,
+    signal?: AbortSignal,
   ): Promise<ApiResponse<SpreadsheetProjection | AgendaProjection>> {
     return this.client.get<SpreadsheetProjection | AgendaProjection>(
       `${screenPath(id)}projection/`,
-      { query: { period } },
+      { query: { period }, signal },
     )
   }
 }

@@ -101,44 +101,33 @@ export function canAssignTask(
   return isOrganizationAdmin(user) || isLead(user, task.departmentId)
 }
 
-const taskTransitionTargets: Record<RoutineStatus, RoutineStatus[]> = {
-  pending: ['in_progress', 'completed', 'no_movement', 'error'],
-  in_progress: ['completed', 'no_movement', 'error'],
-  completed: ['pending'],
-  no_movement: ['pending'],
-  error: ['pending'],
-}
+const taskTransitionStatuses: RoutineStatus[] = [
+  ROUTINE_STATUS.PENDING,
+  ROUTINE_STATUS.IN_PROGRESS,
+  ROUTINE_STATUS.ERROR,
+  ROUTINE_STATUS.NO_MOVEMENT,
+  ROUTINE_STATUS.COMPLETED,
+]
 
 /**
- * Retorna somente as transições que o membro pode executar no card atual.
- * A filtragem é deliberadamente feita antes da UI: a API continua sendo a
- * autoridade, mas não oferecemos ações que ela inevitavelmente recusará.
+ * Retorna todos os estados disponíveis para o membro no card atual.
+ * A autorização continua respeitando o perfil e o departamento; uma vez
+ * autorizado, o membro pode escolher qualquer outro estado.
  */
 export function getAllowedTaskTransitionStatuses(
   user: AppUser | null | undefined,
   task: Task,
 ): RoutineStatus[] {
-  const targets = taskTransitionTargets[task.status] ?? []
-
-  if (isOrganizationAdmin(user)) return targets
-
   const departmentRole = getDepartmentAccessRole(user, task.departmentId)
+  const canChangeStatus =
+    isOrganizationAdmin(user) ||
+    departmentRole === DEPARTMENT_ACCESS_ROLE.LEAD ||
+    (departmentRole === DEPARTMENT_ACCESS_ROLE.CONTRIBUTOR &&
+      task.assigneeId === user?.membershipId)
 
-  if (departmentRole === DEPARTMENT_ACCESS_ROLE.LEAD) {
-    return targets.filter(
-      (status) =>
-        status !== ROUTINE_STATUS.ERROR && status !== ROUTINE_STATUS.PENDING,
-    )
-  }
+  if (!canChangeStatus) return []
 
-  if (
-    departmentRole === DEPARTMENT_ACCESS_ROLE.CONTRIBUTOR &&
-    task.assigneeId === user?.membershipId
-  ) {
-    return targets.filter((status) => status !== ROUTINE_STATUS.ERROR)
-  }
-
-  return []
+  return taskTransitionStatuses.filter((status) => status !== task.status)
 }
 
 export function canTransitionTask(

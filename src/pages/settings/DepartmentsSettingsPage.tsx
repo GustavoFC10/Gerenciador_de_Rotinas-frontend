@@ -15,31 +15,28 @@ import IconButton from '../../components/ui/IconButton'
 import Textarea from '../../components/ui/Textarea'
 import TextField from '../../components/ui/TextField'
 import { focusRing } from '../../constants/designTokens'
-import {
-  getSettingsDepartmentPath,
-  ROUTES,
-} from '../../constants/routes'
+import { getSettingsDepartmentPath, ROUTES } from '../../constants/routes'
 import { useOrganizationMembers } from '../../hooks/useOrganizationMembers'
-import { departmentService } from '../../services/departmentService'
+import type { DepartmentInput } from '../../services/departmentService'
 import type { Department, Screen } from '../../types/domain'
 import { normalizeSearch } from '../../utils/normalizeSearch'
 
 interface DepartmentsSettingsPageProps {
   departments: Department[]
   screens: Screen[]
-  onReload: () => Promise<void>
+  onDepartmentCreate: (input: DepartmentInput) => Promise<Department>
 }
 
 function DepartmentsSettingsPage({
   departments,
   screens,
-  onReload,
+  onDepartmentCreate,
 }: DepartmentsSettingsPageProps) {
   const navigate = useNavigate()
   const {
     members,
     error: membersError,
-    isLoading: isLoadingMembers,
+    isInitialLoading: isLoadingMembers,
   } = useOrganizationMembers()
   const [search, setSearch] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -54,9 +51,9 @@ function DepartmentsSettingsPage({
 
     return [...departments]
       .filter((department) =>
-        normalizeSearch([department.name, department.description ?? ''].join(' ')).includes(
-          query,
-        ),
+        normalizeSearch(
+          [department.name, department.description ?? ''].join(' '),
+        ).includes(query),
       )
       .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'))
   }, [departments, search])
@@ -66,7 +63,10 @@ function DepartmentsSettingsPage({
       screens
         .filter((screen) => !screen.archivedAt)
         .reduce((counts, screen) => {
-          counts.set(screen.departmentId, (counts.get(screen.departmentId) ?? 0) + 1)
+          counts.set(
+            screen.departmentId,
+            (counts.get(screen.departmentId) ?? 0) + 1,
+          )
           return counts
         }, new Map<string, number>()),
     [screens],
@@ -103,11 +103,10 @@ function DepartmentsSettingsPage({
     setFormError('')
 
     try {
-      const { data: department } = await departmentService.create({
+      const department = await onDepartmentCreate({
         name: trimmedName,
         description: description.trim() || undefined,
       })
-      await onReload()
       navigate(getSettingsDepartmentPath(department.id))
     } catch (caughtError) {
       setFormError(
@@ -206,16 +205,20 @@ function DepartmentsSettingsPage({
           )}
 
           {visibleDepartments.length > 0 ? (
-            <ul className="mt-5 divide-y divide-[var(--color-list-border)] border-y border-[var(--color-list-border)]">
+            <ul className="mt-5 divide-y divide-[var(--color-list-border)] overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-list-border)] bg-[var(--color-panel-bg)]">
               {visibleDepartments.map((department) => {
                 const memberCount = memberCountByDepartment.get(department.id)
-                const screenCount = screenCountByDepartment.get(department.id) ?? 0
+                const screenCount =
+                  screenCountByDepartment.get(department.id) ?? 0
 
                 return (
-                  <li key={department.id} className="py-4 first:pt-0 last:pb-0">
+                  <li key={department.id} className="px-4 py-4 sm:px-5">
                     <div className="flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap">
                       <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-sm font-black text-[var(--color-brand)]">
-                        {department.name.trim().slice(0, 1).toLocaleUpperCase('pt-BR') || 'D'}
+                        {department.name
+                          .trim()
+                          .slice(0, 1)
+                          .toLocaleUpperCase('pt-BR') || 'D'}
                       </span>
                       <div className="min-w-0 flex-1">
                         <Link
@@ -232,8 +235,8 @@ function DepartmentsSettingsPage({
                             {isLoadingMembers
                               ? 'Carregando membros'
                               : membersError
-                              ? 'Membros indisponíveis'
-                              : `${memberCount ?? 0} ${memberCount === 1 ? 'funcionário' : 'funcionários'}`}
+                                ? 'Membros indisponíveis'
+                                : `${memberCount ?? 0} ${memberCount === 1 ? 'funcionário' : 'funcionários'}`}
                           </Badge>
                           <Badge>
                             {screenCount} {screenCount === 1 ? 'tela' : 'telas'}

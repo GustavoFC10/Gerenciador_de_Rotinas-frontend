@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from 'react-router'
 
 import SettingsLayout from '../../components/settings/SettingsLayout'
 import { ROUTES } from '../../constants/routes'
+import type { DepartmentInput } from '../../services/departmentService'
+import type { ScreenInput, ScreenPatch } from '../../services/screenService'
 import type { RoutineControlData } from '../../types/domain'
 import {
   DepartmentScreenCreateSettingsPage,
@@ -28,7 +30,17 @@ interface SettingsRoutesProps {
     RoutineControlData,
     'departments' | 'screens' | 'clients' | 'routines'
   >
-  onReload: () => Promise<void>
+  onDepartmentCreate: (
+    input: DepartmentInput,
+  ) => Promise<RoutineControlData['departments'][number]>
+  onScreenCreate: (
+    input: ScreenInput,
+  ) => Promise<RoutineControlData['screens'][number]>
+  onScreenUpdate: (
+    screenId: string,
+    changes: ScreenPatch,
+    etag: string,
+  ) => Promise<RoutineControlData['screens'][number]>
 }
 
 /**
@@ -36,7 +48,12 @@ interface SettingsRoutesProps {
  * de App.tsx. O App apenas fornece os dados já carregados e a atualização
  * global depois de uma mutação real.
  */
-function SettingsRoutes({ data, onReload }: SettingsRoutesProps) {
+function SettingsRoutes({
+  data,
+  onDepartmentCreate,
+  onScreenCreate,
+  onScreenUpdate,
+}: SettingsRoutesProps) {
   return (
     <Routes>
       <Route element={<SettingsLayout />}>
@@ -48,13 +65,15 @@ function SettingsRoutes({ data, onReload }: SettingsRoutesProps) {
             <DepartmentsSettingsPage
               departments={data.departments}
               screens={data.screens}
-              onReload={onReload}
+              onDepartmentCreate={onDepartmentCreate}
             />
           }
         />
         <Route
           path="departamentos/:departmentId"
-          element={<DepartmentGeneralSettingsPage departments={data.departments} />}
+          element={
+            <DepartmentGeneralSettingsPage departments={data.departments} />
+          }
         />
         <Route
           path="departamentos/:departmentId/telas"
@@ -72,7 +91,7 @@ function SettingsRoutes({ data, onReload }: SettingsRoutesProps) {
               departments={data.departments}
               clients={data.clients}
               routines={data.routines}
-              onReload={onReload}
+              onScreenCreate={onScreenCreate}
             />
           }
         />
@@ -84,13 +103,15 @@ function SettingsRoutes({ data, onReload }: SettingsRoutesProps) {
               clients={data.clients}
               routines={data.routines}
               screens={data.screens}
-              onReload={onReload}
+              onScreenUpdate={onScreenUpdate}
             />
           }
         />
         <Route
           path="departamentos/:departmentId/permissoes"
-          element={<DepartmentPermissionsSettingsPage departments={data.departments} />}
+          element={
+            <DepartmentPermissionsSettingsPage departments={data.departments} />
+          }
         />
         <Route path="fluxos" element={<WorkflowsSettingsPage />} />
         <Route

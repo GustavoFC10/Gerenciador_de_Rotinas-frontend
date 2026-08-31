@@ -1,10 +1,8 @@
 import { useRef, type KeyboardEvent, type MouseEvent } from 'react'
 
-import { routineStatusConfig } from '../../../constants/routineStatus'
 import RoutineListExecutionPanel from './RoutineListExecutionPanel'
 import { formatShortDate, routineListStatusTone } from './routineListUtils'
 import type {
-  PendingStatusChange,
   RoutineListItem,
   RoutineStatus,
 } from '../../../types/domain'
@@ -14,7 +12,6 @@ function RoutineListCardOptionThree({
   onOpen,
   onQuickAction,
   onStatusChange,
-  onStatusConfirm,
   allowedStatusChanges,
   onContextMenuOpen,
   isContextMenuOpen = false,
@@ -23,8 +20,7 @@ function RoutineListCardOptionThree({
   onOpen?: (item: RoutineListItem) => void
   onQuickAction?: (item: RoutineListItem, action: 'attach') => void
   onNoteChange?: (item: RoutineListItem, notes: string) => void
-  onStatusChange?: (item: RoutineListItem, change: PendingStatusChange) => void
-  onStatusConfirm?: (item: RoutineListItem) => void
+  onStatusChange?: (item: RoutineListItem, status: RoutineStatus) => void
   allowedStatusChanges?: readonly RoutineStatus[]
   onContextMenuOpen?: (
     item: RoutineListItem,
@@ -35,9 +31,7 @@ function RoutineListCardOptionThree({
   isContextMenuOpen?: boolean
 }) {
   const openButtonRef = useRef<HTMLButtonElement | null>(null)
-  const displayStatus = item.displayStatus ?? item.status
-  const tone = routineListStatusTone[displayStatus]
-  const statusConfig = routineStatusConfig[displayStatus]
+  const tone = routineListStatusTone[item.status]
   const hasContextMenu = Boolean(onContextMenuOpen)
 
   function openContextMenuAtTrigger(trigger: HTMLButtonElement) {
@@ -91,7 +85,7 @@ function RoutineListCardOptionThree({
   return (
     <article
       onContextMenu={handleContextMenu}
-      className={`group/task-context grid min-w-0 gap-2 border-l-4 bg-[var(--color-panel-bg)] px-3 py-2.5 transition hover:bg-[var(--color-control-hover-bg)] sm:grid-cols-[minmax(12rem,1fr)_6rem_8rem] sm:items-center xl:grid-cols-[minmax(15rem,1fr)_6rem_9rem_8rem_18rem] ${tone.border} ${
+      className={`group/task-context grid min-w-0 gap-2 border-l-4 bg-[var(--color-panel-bg)] px-3 py-2.5 transition hover:bg-[var(--color-control-hover-bg)] sm:grid-cols-[minmax(12rem,1fr)_6rem_8rem] sm:items-center xl:grid-cols-[minmax(15rem,1fr)_6rem_9rem_18rem] ${tone.border} ${
         isContextMenuOpen
           ? 'bg-[var(--color-control-hover-bg)] ring-2 ring-inset ring-[var(--color-control-focus)]'
           : ''
@@ -155,25 +149,10 @@ function RoutineListCardOptionThree({
       <LedgerValue label="Prazo" value={formatShortDate(item.dueDate)} />
       <LedgerValue label="Responsável" value={item.assigneeName} desktopOnly />
 
-      <div className="min-w-0">
-        <span className="mb-1 block text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-subtle)] xl:hidden">
-          Estado
-        </span>
-        <span
-          className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold ${statusConfig.surfaceClass}`}
-        >
-          <span
-            className={`size-2 shrink-0 rounded-full ${statusConfig.dotClass}`}
-          />
-          <span className="truncate">{statusConfig.label}</span>
-        </span>
-      </div>
-
       <RoutineListExecutionPanel
         item={item}
         onQuickAction={onQuickAction}
         onStatusChange={onStatusChange}
-        onStatusConfirm={onStatusConfirm}
         allowedStatusChanges={allowedStatusChanges}
         className="sm:col-span-3 xl:col-span-1"
       />

@@ -8,28 +8,28 @@ import {
 } from '../../constants/routes'
 import CreateScreenPage from '../CreateScreenPage'
 import { ScreenEditDrawer } from '../ScreensPage'
-import { screenService } from '../../services/screenService'
-import type {
-  Client,
-  Department,
-  Routine,
-  Screen,
-} from '../../types/domain'
+import type { ScreenInput, ScreenPatch } from '../../services/screenService'
+import type { Client, Department, Routine, Screen } from '../../types/domain'
 
 interface DepartmentScreenSettingsPageProps {
   departments: Department[]
   clients: Client[]
   routines: Routine[]
   screens: Screen[]
-  onReload: () => Promise<void>
+  onScreenCreate: (input: ScreenInput) => Promise<Screen>
+  onScreenUpdate: (
+    screenId: string,
+    changes: ScreenPatch,
+    etag: string,
+  ) => Promise<Screen>
 }
 
 export function DepartmentScreenCreateSettingsPage({
   departments,
   clients,
   routines,
-  onReload,
-}: Omit<DepartmentScreenSettingsPageProps, 'screens'>) {
+  onScreenCreate,
+}: Omit<DepartmentScreenSettingsPageProps, 'screens' | 'onScreenUpdate'>) {
   const navigate = useNavigate()
   const { departmentId } = useParams()
   const department = departments.find((item) => item.id === departmentId)
@@ -44,11 +44,7 @@ export function DepartmentScreenCreateSettingsPage({
       clients={clients}
       routines={routines}
       fixedDepartmentId={department.id}
-      onCreate={async (input) => {
-        const { data: screen } = await screenService.create(input)
-        await onReload()
-        return screen
-      }}
+      onCreate={onScreenCreate}
       onCancel={() => navigate(getSettingsDepartmentScreensPath(department.id))}
       header={
         <DepartmentSettingsHeader
@@ -74,12 +70,14 @@ export function DepartmentScreenDetailSettingsPage({
   clients,
   routines,
   screens,
-  onReload,
-}: DepartmentScreenSettingsPageProps) {
+  onScreenUpdate,
+}: Omit<DepartmentScreenSettingsPageProps, 'onScreenCreate'>) {
   const navigate = useNavigate()
   const { departmentId, screenId } = useParams()
   const department = departments.find((item) => item.id === departmentId)
-  const screen = screens.find((item) => item.id === screenId && !item.archivedAt)
+  const screen = screens.find(
+    (item) => item.id === screenId && !item.archivedAt,
+  )
 
   if (!department) {
     return <Navigate to={ROUTES.SETTINGS_DEPARTMENTS} replace />
@@ -87,19 +85,13 @@ export function DepartmentScreenDetailSettingsPage({
 
   if (!screen) {
     return (
-      <Navigate
-        to={getSettingsDepartmentScreensPath(department.id)}
-        replace
-      />
+      <Navigate to={getSettingsDepartmentScreensPath(department.id)} replace />
     )
   }
 
   if (screen.departmentId !== department.id) {
     return (
-      <Navigate
-        to={getSettingsDepartmentPath(screen.departmentId)}
-        replace
-      />
+      <Navigate to={getSettingsDepartmentPath(screen.departmentId)} replace />
     )
   }
 
@@ -126,11 +118,13 @@ export function DepartmentScreenDetailSettingsPage({
           departments={departments}
           clients={clients}
           routines={routines}
-          onSaved={onReload}
+          onSave={onScreenUpdate}
           onSavedNavigate={(nextDepartmentId) =>
             navigate(getSettingsDepartmentScreensPath(nextDepartmentId))
           }
-          onClose={() => navigate(getSettingsDepartmentScreensPath(department.id))}
+          onClose={() =>
+            navigate(getSettingsDepartmentScreensPath(department.id))
+          }
         />
       </section>
     </>

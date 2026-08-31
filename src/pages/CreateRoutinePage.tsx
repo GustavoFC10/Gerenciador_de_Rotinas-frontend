@@ -1,25 +1,23 @@
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type FormEvent,
   type ReactNode,
 } from 'react'
 
-import {
-  CreationErrorSummary,
-  CreationSuccess,
-} from '../components/forms/CreationFeedback'
+import { CreationSuccess } from '../components/forms/CreationFeedback'
 import FormActions from '../components/forms/FormActions'
-import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Select from '../components/ui/Select'
 import Textarea from '../components/ui/Textarea'
 import TextField from '../components/ui/TextField'
 import { routineRecurrenceOptions } from '../constants/entityOptions'
 import WorkspaceBar from '../layouts/WorkspaceBar'
-import { departmentService, type TaskAssigneeResource } from '../services/departmentService'
+import {
+  departmentService,
+  type TaskAssigneeResource,
+} from '../services/departmentService'
 import type { RoutineInput, RoutineResource } from '../services/routineService'
 import type { Department, RoutineRecurrence } from '../types/domain'
 
@@ -41,10 +39,7 @@ interface RoutineFormValues {
   recurrenceMonths: number[]
 }
 
-type RoutineFormField =
-  | keyof RoutineFormValues
-  | 'schedule'
-  | 'submit'
+type RoutineFormField = keyof RoutineFormValues | 'schedule' | 'submit'
 
 type RoutineFormErrors = Partial<Record<RoutineFormField, string>>
 
@@ -72,9 +67,21 @@ const recurrenceMonthOptions: Record<
   Array<{ value: string; label: string; months: number[] }>
 > = {
   quarterly: [
-    { value: '1-4-7-10', label: 'Janeiro, abril, julho e outubro', months: [1, 4, 7, 10] },
-    { value: '2-5-8-11', label: 'Fevereiro, maio, agosto e novembro', months: [2, 5, 8, 11] },
-    { value: '3-6-9-12', label: 'Março, junho, setembro e dezembro', months: [3, 6, 9, 12] },
+    {
+      value: '1-4-7-10',
+      label: 'Janeiro, abril, julho e outubro',
+      months: [1, 4, 7, 10],
+    },
+    {
+      value: '2-5-8-11',
+      label: 'Fevereiro, maio, agosto e novembro',
+      months: [2, 5, 8, 11],
+    },
+    {
+      value: '3-6-9-12',
+      label: 'Março, junho, setembro e dezembro',
+      months: [3, 6, 9, 12],
+    },
   ],
   semiannual: [
     { value: '1-7', label: 'Janeiro e julho', months: [1, 7] },
@@ -240,18 +247,10 @@ function CreateRoutinePage({
     if (!values.departmentId) {
       nextErrors.departmentId = 'Selecione o departamento.'
     }
-    if (
-      !Number.isInteger(dueDays) ||
-      dueDays < 0 ||
-      dueDays > 3750
-    ) {
-      nextErrors.schedule =
-        'Informe um prazo inteiro entre 0 e 3.750 dias.'
+    if (!Number.isInteger(dueDays) || dueDays < 0 || dueDays > 3750) {
+      nextErrors.schedule = 'Informe um prazo inteiro entre 0 e 3.750 dias.'
     }
-    if (
-      values.recurrence !== 'on_demand' &&
-      !values.defaultAssigneeMemberId
-    ) {
+    if (values.recurrence !== 'on_demand' && !values.defaultAssigneeMemberId) {
       nextErrors.defaultAssigneeMemberId =
         'Selecione o responsável padrão da rotina recorrente.'
     }
@@ -381,12 +380,17 @@ function CreateRoutinePage({
                   description="Dê um nome claro ao trabalho e indique onde ele será executado."
                 />
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                  <FieldContainer error={errors.name} errorId="routine-name-error">
+                  <FieldContainer
+                    error={errors.name}
+                    errorId="routine-name-error"
+                  >
                     <TextField
                       id="routine-name"
                       label="Nome da rotina *"
                       value={values.name}
-                      onChange={(event) => updateField('name', event.target.value)}
+                      onChange={(event) =>
+                        updateField('name', event.target.value)
+                      }
                       placeholder="Ex.: Importar notas de entrada"
                       autoComplete="off"
                       autoFocus
@@ -479,7 +483,8 @@ function CreateRoutinePage({
                         id="routine-description-help"
                         className="mt-1.5 text-xs leading-5 text-[var(--color-text-muted)]"
                       >
-                        Esta orientação acompanhará a versão publicada do modelo.
+                        Esta orientação acompanhará a versão publicada do
+                        modelo.
                       </p>
                     )}
                   </FieldContainer>
@@ -594,9 +599,9 @@ function CreateRoutinePage({
                         Boolean(assigneesError)
                       }
                       required={values.recurrence !== 'on_demand'}
-                      aria-invalid={
-                        Boolean(errors.defaultAssigneeMemberId || assigneesError)
-                      }
+                      aria-invalid={Boolean(
+                        errors.defaultAssigneeMemberId || assigneesError,
+                      )}
                       aria-describedby="routine-assignee-help"
                     >
                       <option value="">
@@ -634,10 +639,7 @@ function CreateRoutinePage({
                           const option = monthOptions.find(
                             (item) => item.value === event.target.value,
                           )
-                          updateField(
-                            'recurrenceMonths',
-                            option?.months ?? [],
-                          )
+                          updateField('recurrenceMonths', option?.months ?? [])
                         }}
                         required
                         aria-invalid={Boolean(errors.schedule)}
@@ -673,8 +675,9 @@ function CreateRoutinePage({
         <Card className="mt-5 p-4 sm:p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="max-w-2xl text-xs leading-5 text-[var(--color-text-muted)]">
-              Ao criar, a API salva a identidade da rotina e publica sua primeira
-              versão. A associação a empresas e telas é feita separadamente.
+              Ao criar, a API salva a identidade da rotina e publica sua
+              primeira versão. A associação a empresas e telas é feita
+              separadamente.
             </p>
             <FormActions
               submitLabel="Criar rotina"
@@ -709,7 +712,10 @@ function SectionHeading({
         {number}
       </span>
       <div>
-        <h2 id={id} className="text-base font-black text-[var(--color-text-strong)]">
+        <h2
+          id={id}
+          className="text-base font-black text-[var(--color-text-strong)]"
+        >
           {title}
         </h2>
         <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
@@ -770,7 +776,10 @@ function RoutinePreview({
   recurrenceMonths: number[]
 }) {
   return (
-    <aside className="xl:sticky xl:top-4" aria-labelledby="routine-preview-title">
+    <aside
+      className="xl:sticky xl:top-4"
+      aria-labelledby="routine-preview-title"
+    >
       <Card>
         <header className="border-b border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-4 py-4">
           <div className="flex items-center justify-between gap-3">
@@ -802,7 +811,10 @@ function RoutinePreview({
             </p>
           </div>
 
-          <dl className="mt-4 divide-y divide-[var(--color-divider)]" aria-live="polite">
+          <dl
+            className="mt-4 divide-y divide-[var(--color-divider)]"
+            aria-live="polite"
+          >
             <PreviewItem
               label="Departamento"
               value={departmentName || 'Selecione'}
@@ -824,12 +836,12 @@ function RoutinePreview({
               }
             />
             {recurrenceMonths.length > 0 && (
-              <PreviewItem
-                label="Meses"
-                value={recurrenceMonths.join(', ')}
-              />
+              <PreviewItem label="Meses" value={recurrenceMonths.join(', ')} />
             )}
-            <PreviewItem label="Competência atual" value={formatPeriod(period)} />
+            <PreviewItem
+              label="Competência atual"
+              value={formatPeriod(period)}
+            />
           </dl>
 
           <div className="mt-4 flex items-start gap-2 rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-3">

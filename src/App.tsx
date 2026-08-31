@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import ErrorState from './components/common/ErrorState'
 import LoadingState from './components/common/LoadingState'
 import RequirePermission from './components/auth/RequirePermission'
 import RoutineDetailsCard from './components/routine-control/details/RoutineDetailsCard'
-import { routineStatusConfig } from './constants/routineStatus'
 import { ROUTES } from './constants/routes'
 import AppLayout from './layouts/AppLayout'
 import AgendaPage from './pages/AgendaPage'
@@ -13,11 +13,7 @@ import EntityDetailPage, {
   type RoutineEditInput,
 } from './pages/EntityDetailPage'
 import CompaniesPage from './pages/CompaniesPage'
-import CreateCompanyPage, {
-  CompanySetupError,
-  type CompanySetupInput,
-  type CreateCompanyResult,
-} from './pages/CreateCompanyPage'
+import CreateCompanyPage from './pages/CreateCompanyPage'
 import CreateEmployeePage from './pages/CreateEmployeePage'
 import CreateRoutinePage from './pages/CreateRoutinePage'
 import CreateScreenPage from './pages/CreateScreenPage'
@@ -34,25 +30,27 @@ import SettingsRoutes from './pages/settings/SettingsRoutes'
 import ScreensPage from './pages/ScreensPage'
 import SpreadsheetPage from './pages/SpreadsheetPage'
 import TasksPage from './pages/TasksPage'
+import { useCompanyMutations } from './hooks/mutations/useCompanyMutations'
+import { useCompetenceMutations } from './hooks/mutations/useCompetenceMutations'
+import { useDepartmentMutations } from './hooks/mutations/useDepartmentMutations'
+import { useRoutineMutations } from './hooks/mutations/useRoutineMutations'
+import { useScreenMutations } from './hooks/mutations/useScreenMutations'
+import { useTaskMutations } from './hooks/mutations/useTaskMutations'
+import { useNavigationScreens } from './hooks/useNavigationScreens'
 import { useRoutineControl } from './hooks/useRoutineControl'
 import { useAuth } from './hooks/useAuth'
 import { useAppState } from './hooks/useAppState'
-import {
-  companyService,
-  type ClientCompanyPatch,
-} from './services/companyService'
-import { competenceService } from './services/competenceService'
+import { queryKeys } from './query/queryKeys'
 import { departmentService } from './services/departmentService'
 import { organizationMemberService } from './services/organizationMemberService'
-import { routineService } from './services/routineService'
-import { screenService } from './services/screenService'
-import {
-  taskService,
-  type TaskPatchInput,
-  type TaskResource,
-} from './services/taskService'
 import type { MembershipInvitationResource } from './services/organizationMemberService'
 import type { RoutineInput, RoutineResource } from './services/routineService'
+import type { ClientCompanyPatch } from './services/companyService'
+import type { TaskPatchInput } from './services/taskService'
+import type {
+  CompanySetupInput,
+  CreateCompanyResult,
+} from './types/companySetup'
 import { selectScreenData } from './utils/routineControlScope'
 import {
   APP_PERMISSION,
@@ -70,14 +68,12 @@ import {
 } from './utils/spreadsheetNavigation'
 import type {
   Client,
-  CreateTaskLinkInput,
   Employee,
   Routine,
   RoutineControlData,
   RoutineListItem,
   RoutineStatus,
   Screen,
-  ScheduledOccurrence,
   Task,
   TaskRelations,
 } from './types/domain'
@@ -124,33 +120,71 @@ function App() {
 function AuthenticatedApp() {
   const navigate = useNavigate()
   const location = useLocation()
+  const queryClient = useQueryClient()
   const { competence, user } = useAppState()
-  const { response, setResponse, data, isLoading, error, reload } =
-    useRoutineControl(competence)
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [taskAssignees, setTaskAssignees] = useState<Employee[]>([])
-  const [pendingTaskTransition, setPendingTaskTransition] = useState<{
-    task: Task
-    status: RoutineStatus
-  } | null>(null)
-  const [transitionReason, setTransitionReason] = useState('')
+  const { activeMembership } = useAuth()
+  const scope = useMemo(
+    () => ({
+      organizationId: activeMembership!.organization.id,
+      membershipId: activeMembership!.id,
+    }),
+    [activeMembership],
+  )
+  const { response, data, isInitialLoading, isRefreshing, error } =
+    useRoutineControl(scope, competence)
+  const { data: navigationScreens } = useNavigationScreens(scope)
+  const { updateTask, transitionTask, createAdHocTask, isTransitioning } =
+    useTaskMutations({ ...scope, period: competence })
+  const { createCompany, updateCompany, archiveCompany } = useCompanyMutations({
+    ...scope,
+    period: competence,
+  })
+  const { createRoutine, updateRoutine } = useRoutineMutations(scope)
+  const { createDepartment } = useDepartmentMutations(scope)
+  const { createScreen, updateScreen } = useScreenMutations({
+    ...scope,
+    period: competence,
+  })
+  const { finalizeCompetence, isFinalizingCompetence } = useCompetenceMutations(
+    {
+      ...scope,
+      period: competence,
+    },
+  )
+  const inviteEmployeeMutation = useMutation({
+    mutationFn: (
+      input: Parameters<typeof organizationMemberService.invite>[0],
+    ) => organizationMemberService.invite(input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.members(scope),
+        exact: true,
+      }),
+  })
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const selectedTask =
+    data?.tasks.find((task) => task.id === selectedTaskId) ?? null
   const [transitionError, setTransitionError] = useState<string | null>(null)
-  const [isTransitioning, setIsTransitioning] = useState(false)
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
-  const selectedTaskId = selectedTask?.id
   const competenceStatus = response?.meta.competenceStatus
   const isProjectedCompetence = competenceStatus === 'projected'
   const canOperateTasks =
     isProjectedCompetence || competenceStatus === 'finalized'
   const canCreateAdHocTask = isProjectedCompetence
   const spreadsheetNavigationItems = useMemo(
-    () => (data ? buildSpreadsheetNavigationItems(data) : []),
-    [data],
+    () =>
+      buildSpreadsheetNavigationItems({
+        screens: navigationScreens ?? data?.screens ?? [],
+      }),
+    [data?.screens, navigationScreens],
   )
   const agendaNavigationItems = useMemo(
-    () => (data ? buildAgendaNavigationItems(data) : []),
-    [data],
+    () =>
+      buildAgendaNavigationItems({
+        screens: navigationScreens ?? data?.screens ?? [],
+      }),
+    [data?.screens, navigationScreens],
   )
   const spreadsheetSelection = useMemo(
     () =>
@@ -206,7 +240,7 @@ function AuthenticatedApp() {
     function handleDialogKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.preventDefault()
-        setSelectedTask(null)
+        setSelectedTaskId(null)
         return
       }
 
@@ -328,58 +362,54 @@ function AuthenticatedApp() {
 
   function canOperateTask(task: Task): boolean {
     return (
-      canOperateTasks &&
-      (isProjectedCompetence || hasMaterializedTask(task))
+      canOperateTasks && (isProjectedCompetence || hasMaterializedTask(task))
     )
   }
 
   const canEditSelectedTask = Boolean(
     selectedTask &&
-      canOperateTask(selectedTask) &&
-      canAssignTask(user, selectedTask),
+    canOperateTask(selectedTask) &&
+    canAssignTask(user, selectedTask),
   )
-  const selectedTaskStatusChanges = selectedTask && canOperateTask(selectedTask)
-    ? getAllowedTaskTransitionStatuses(user, selectedTask)
-    : []
+  const selectedTaskStatusChanges =
+    selectedTask && canOperateTask(selectedTask)
+      ? getAllowedTaskTransitionStatuses(user, selectedTask)
+      : []
 
-  useEffect(() => {
-    if (!selectedTask || !canAssignTask(user, selectedTask)) {
-      setTaskAssignees([])
-      return undefined
-    }
-
-    let isCurrent = true
-
-    void departmentService
-      .getTaskAssignees(selectedTask.departmentId)
-      .then(({ data: assignees }) => {
-        if (!isCurrent) return
-
-        setTaskAssignees(
-          assignees.map((assignee) => ({
-            id: assignee.id,
-            name: assignee.displayName,
-            role: assignee.organizationRole,
-            departmentAccesses: assignee.departmentRole
-              ? [
-                  {
-                    departmentId: selectedTask.departmentId,
-                    role: assignee.departmentRole,
-                  },
-                ]
-              : [],
-            active: true,
-          })),
-        )
-      })
-      .catch(() => {
-        if (isCurrent) setTaskAssignees([])
-      })
-
-    return () => {
-      isCurrent = false
-    }
-  }, [selectedTask?.departmentId, selectedTask?.id, user])
+  const taskAssigneesQuery = useQuery({
+    queryKey: selectedTask
+      ? queryKeys.taskAssignees(scope, selectedTask.departmentId)
+      : (['task-assignees', 'unavailable'] as const),
+    queryFn: ({ signal }) => {
+      if (!selectedTask) {
+        throw new Error('Selecione uma tarefa para carregar responsáveis.')
+      }
+      return departmentService.getTaskAssignees(
+        selectedTask.departmentId,
+        signal,
+      )
+    },
+    enabled: Boolean(selectedTask && canAssignTask(user, selectedTask)),
+  })
+  const taskAssignees = useMemo(
+    () =>
+      (taskAssigneesQuery.data?.data ?? []).map((assignee) => ({
+        id: assignee.id,
+        name: assignee.displayName,
+        role: assignee.organizationRole,
+        departmentAccesses:
+          assignee.departmentRole && selectedTask
+            ? [
+                {
+                  departmentId: selectedTask.departmentId,
+                  role: assignee.departmentRole,
+                },
+              ]
+            : [],
+        active: true,
+      })),
+    [selectedTask, taskAssigneesQuery.data],
+  )
 
   const selectedTaskEmployees = useMemo(() => {
     const employees = new Map<string, Employee>()
@@ -394,7 +424,7 @@ function AuthenticatedApp() {
   }, [selectedRelations.employees, taskAssignees])
 
   function handleRoutineListOpen(routine: Routine) {
-    setSelectedTask(null)
+    setSelectedTaskId(null)
     navigate(
       `${ROUTES.ROUTINES}/${encodeURIComponent(
         routine.id,
@@ -406,7 +436,7 @@ function AuthenticatedApp() {
   }
 
   function handleClientListOpen(client: Client) {
-    setSelectedTask(null)
+    setSelectedTaskId(null)
     navigate(
       `${ROUTES.COMPANIES}/${encodeURIComponent(
         client.id,
@@ -422,23 +452,42 @@ function AuthenticatedApp() {
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null
-    setSelectedTask(item.task)
+    setSelectedTaskId(item.task.id)
   }
 
-  function requestTaskTransition(taskId: string, status: RoutineStatus) {
+  async function requestTaskTransition(taskId: string, status: RoutineStatus) {
     const task = data?.tasks.find((item) => item.id === taskId)
 
     if (
       !task ||
       !canOperateTask(task) ||
-      !canTransitionTask(user, task, status)
+      !canTransitionTask(user, task, status) ||
+      isTransitioning
     ) {
       return
     }
 
-    setPendingTaskTransition({ task, status })
-    setTransitionReason('')
+    const needsReason =
+      status === 'no_movement' ||
+      status === 'error' ||
+      (status === 'pending' && task.status !== 'pending')
+    const reason = needsReason
+      ? window.prompt('Informe a justificativa para esta alteração de estado.')
+      : undefined
+
+    if (needsReason && !reason?.trim()) return
+
     setTransitionError(null)
+
+    try {
+      await transitionTask(taskId, status, reason?.trim())
+    } catch (caughtError) {
+      setTransitionError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Não foi possível alterar o estado da tarefa.',
+      )
+    }
   }
 
   function getTaskForUpdate(taskId: string): Task {
@@ -448,55 +497,12 @@ function AuthenticatedApp() {
         : data?.tasks.find((item) => item.id === taskId)
 
     if (!task) {
-      throw new Error('Não foi possível localizar a tarefa para salvar a alteração.')
-    }
-
-    return task
-  }
-
-  async function getMaterializedTaskEtag(task: Task): Promise<string> {
-    if (!hasMaterializedTask(task)) {
       throw new Error(
-        'A tarefa não contém os identificadores exigidos pela API para salvar a alteração.',
+        'Não foi possível localizar a tarefa para salvar a alteração.',
       )
     }
 
-    if (task.etag) return task.etag
-
-    const currentTask = await taskService.get(task.competenceId, task.taskId)
-
-    if (!currentTask.etag) {
-      throw new Error('A API não informou a versão atual da tarefa para salvar.')
-    }
-
-    return currentTask.etag
-  }
-
-  function applyTaskUpdate(task: Task, assignee: Employee | null) {
-    setSelectedTask((current) => (current?.id === task.id ? task : current))
-    setResponse((current) => {
-      if (!current) return current
-
-      const employees = assignee
-        ? [
-            ...current.data.employees.filter(
-              (employee) => employee.id !== assignee.id,
-            ),
-            assignee,
-          ]
-        : current.data.employees
-
-      return {
-        ...current,
-        data: {
-          ...current.data,
-          employees,
-          tasks: current.data.tasks.map((item) =>
-            item.id === task.id ? task : item,
-          ),
-        },
-      }
-    })
+    return task
   }
 
   async function updateTaskDetails(
@@ -506,55 +512,10 @@ function AuthenticatedApp() {
     const task = getTaskForUpdate(taskId)
 
     if (!canOperateTask(task)) {
-      throw new Error(
-        'A competência atual não permite alterar esta tarefa.',
-      )
+      throw new Error('A competência atual não permite alterar esta tarefa.')
     }
 
-    if (hasMaterializedTask(task)) {
-      const etag = await getMaterializedTaskEtag(task)
-      const response = await taskService.update(
-        task.competenceId,
-        task.taskId,
-        input,
-        etag,
-      )
-      const updatedTask = toTaskFromResource(
-        response.data,
-        response.etag ?? etag,
-      )
-
-      applyTaskUpdate(updatedTask, toTaskAssignee(response.data.assignee))
-      return
-    }
-
-    if (!isProjectedCompetence || !task.occurrenceKey) {
-      throw new Error(
-        'Somente ocorrências recorrentes de uma competência projetada podem ser alteradas por este fluxo.',
-      )
-    }
-
-    if (!task.etag) {
-      throw new Error('A tarefa não informou a versão necessária para salvar.')
-    }
-
-    const response = await taskService.updateOccurrence(
-      task.period,
-      task.occurrenceKey,
-      input,
-      task.etag,
-    )
-    const materializedCompetence =
-      response.data.taskId && !task.competenceId
-        ? await competenceService.getByPeriod(task.period)
-        : null
-    const updatedTask = toTaskFromScheduledOccurrence(
-      response.data,
-      response.etag ?? response.data.etag,
-      task.competenceId ?? materializedCompetence?.data.id ?? null,
-    )
-
-    applyTaskUpdate(updatedTask, toTaskAssignee(response.data.assignee))
+    await updateTask(taskId, input)
   }
 
   async function handleTaskAssigneeChange(
@@ -622,208 +583,27 @@ function AuthenticatedApp() {
     await updateTaskDetails(taskId, { observation: notes })
   }
 
-  async function handleTaskLinkAdd(
-    taskId: string,
-    link: CreateTaskLinkInput,
-  ): Promise<void> {
-    const task = getTaskForUpdate(taskId)
-    const links = task.links ?? []
-
-    if (links.length >= 20) {
-      throw new Error('Esta tarefa já atingiu o limite de 20 links.')
-    }
-
-    await updateTaskDetails(taskId, {
-      links: [...links, link].map(({ label, url }) => ({ label, url })),
-    })
-  }
-
-  async function handleTaskLinkRemove(
-    taskId: string,
-    linkId: string,
-  ): Promise<void> {
-    const task = getTaskForUpdate(taskId)
-    const links = task.links ?? []
-    const remainingLinks = links.filter((link) => link.id !== linkId)
-
-    if (remainingLinks.length === links.length) {
-      throw new Error('Não foi possível localizar o link para remover.')
-    }
-
-    await updateTaskDetails(taskId, {
-      links: remainingLinks.map(({ label, url }) => ({ label, url })),
-    })
-  }
-
-  async function confirmTaskTransition() {
-    if (!pendingTaskTransition) return
-
-    const { task, status } = pendingTaskTransition
-    const reason = transitionReason.trim()
-
-    if (transitionRequiresReason(task.status, status) && !reason) {
-      setTransitionError('Informe a justificativa exigida para esta transição.')
-      return
-    }
-
-    setIsTransitioning(true)
-    setTransitionError(null)
-
-    try {
-      if (hasMaterializedTask(task)) {
-        const etag = await getMaterializedTaskEtag(task)
-        await taskService.transition(
-          task.competenceId,
-          task.taskId,
-          { targetStatus: status, reason },
-          etag,
-        )
-      } else if (isProjectedCompetence && task.occurrenceKey && task.etag) {
-        await taskService.transitionOccurrence(
-          task.period,
-          task.occurrenceKey,
-          { targetStatus: status, reason },
-          task.etag,
-        )
-      } else {
-        throw new Error(
-          'A tarefa não contém os identificadores exigidos pela API.',
-        )
-      }
-
-      setPendingTaskTransition(null)
-      setSelectedTask(null)
-      await reload()
-    } catch (caughtError) {
-      setTransitionError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'Não foi possível alterar o estado da tarefa.',
-      )
-    } finally {
-      setIsTransitioning(false)
-    }
-  }
-
   async function handleCompanyCreate(
     input: CompanySetupInput,
   ): Promise<CreateCompanyResult> {
-    let company: { id: string; name: string } | null = null
-    let linkedRoutineCount = 0
-    let screenLinked = false
-    let screenName: string | undefined
-
-    try {
-      const createdCompany = await companyService.create(input.company)
-      company = {
-        id: createdCompany.data.id,
-        name: createdCompany.data.name,
-      }
-
-      for (const routineId of input.routineIds) {
-        await companyService.createRoutineAssignment(company.id, {
-          routineId,
-          startsOn: input.startsOn,
-          endsOn: null,
-        })
-        linkedRoutineCount += 1
-      }
-
-      if (input.screenId) {
-        const screenSnapshot = await screenService.get(input.screenId)
-
-        if (!screenSnapshot.etag) {
-          throw new Error(
-            'A API não informou a versão da tela para atualizar sua visualização.',
-          )
-        }
-
-        screenName = screenSnapshot.data.name
-        const companyIds = screenSnapshot.data.companies.map((item) => item.id)
-
-        if (!companyIds.includes(company.id)) {
-          await screenService.update(
-            input.screenId,
-            { companyIds: [...companyIds, company.id] },
-            screenSnapshot.etag,
-          )
-        }
-        screenLinked = true
-      }
-
-      await reload()
-
-      return {
-        company,
-        linkedRoutineCount,
-        screenName,
-      }
-    } catch (caughtError) {
-      if (!company) throw caughtError
-
-      try {
-        await reload()
-      } catch {
-        // A falha principal continua sendo mais útil para orientar a recuperação.
-      }
-
-      const nextStep =
-        linkedRoutineCount < input.routineIds.length
-          ? 'Abra a empresa e conclua os vínculos de rotina restantes.'
-          : input.screenId && !screenLinked
-            ? 'Abra a tela escolhida e inclua a empresa na composição visual.'
-            : 'Atualize a página para confirmar a operação concluída.'
-
-      throw new CompanySetupError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'A sequência de configuração da empresa foi interrompida.',
-        {
-          company,
-          linkedRoutineCount,
-          requestedRoutineCount: input.routineIds.length,
-          screenLinked,
-          nextStep,
-        },
-      )
-    }
+    return createCompany(input)
   }
 
   async function handleRoutineCreate(
     input: RoutineInput,
   ): Promise<RoutineResource> {
-    const { data: routine } = await routineService.create(input)
-    await reload()
-    return routine
+    return createRoutine(input)
   }
 
   async function handleCompanyUpdate(
     companyId: string,
     changes: ClientCompanyPatch,
   ): Promise<void> {
-    const currentCompany = await companyService.get(companyId)
-
-    if (!currentCompany.etag) {
-      throw new Error(
-        'Não foi possível obter a versão atual da empresa para salvar as alterações.',
-      )
-    }
-
-    await companyService.update(companyId, changes, currentCompany.etag)
-    await reload()
+    await updateCompany(companyId, changes)
   }
 
   async function handleCompanyArchive(companyId: string): Promise<void> {
-    const currentCompany = await companyService.get(companyId)
-
-    if (!currentCompany.etag) {
-      throw new Error(
-        'Não foi possível obter a versão atual da empresa para arquivá-la.',
-      )
-    }
-
-    await companyService.archive(companyId, currentCompany.etag)
-    await reload()
+    await archiveCompany(companyId)
     navigate(ROUTES.COMPANIES, { replace: true })
   }
 
@@ -831,102 +611,26 @@ function AuthenticatedApp() {
     routineId: string,
     changes: RoutineEditInput,
   ): Promise<void> {
-    let currentRoutine = await routineService.get(routineId)
-
-    if (!currentRoutine.etag) {
-      throw new Error(
-        'Não foi possível obter a versão atual da rotina para salvar as alterações.',
-      )
-    }
-
-    const identityChanged =
-      currentRoutine.data.name !== changes.name ||
-      currentRoutine.data.shotname !== changes.shotname
-
-    if (identityChanged) {
-      currentRoutine = await routineService.updateIdentity(
-        routineId,
-        { name: changes.name, shotname: changes.shotname },
-        currentRoutine.etag,
-      )
-    }
-
-    const currentVersion = currentRoutine.data.currentVersion
-    const versionChanged =
-      currentVersion.description !== changes.description ||
-      currentVersion.recurrence !== changes.recurrence ||
-      currentVersion.defaultDueDays !== changes.defaultDueDays ||
-      (currentVersion.defaultAssigneeMemberId ?? null) !==
-        (changes.defaultAssigneeMemberId ?? null) ||
-      currentVersion.recurrenceMonths.join(',') !==
-        changes.recurrenceMonths.join(',')
-
-    if (versionChanged) {
-      if (!currentRoutine.etag) {
-        throw new Error(
-          'A API não informou a versão necessária para publicar a nova regra da rotina.',
-        )
-      }
-
-      await routineService.publishVersion(
-        routineId,
-        {
-          description: changes.description,
-          recurrence: changes.recurrence,
-          defaultDueDays: changes.defaultDueDays,
-          recurrenceMonths: changes.recurrenceMonths,
-          defaultAssigneeMemberId:
-            changes.defaultAssigneeMemberId ?? null,
-        },
-        currentRoutine.etag,
-      )
-    }
-
-    await reload()
+    await updateRoutine(routineId, changes)
   }
 
   async function handleEmployeeInvite(
     input: Parameters<typeof organizationMemberService.invite>[0],
   ): Promise<MembershipInvitationResource> {
-    const { data: invitation } = await organizationMemberService.invite(input)
+    const { data: invitation } = await inviteEmployeeMutation.mutateAsync(input)
     return invitation
   }
 
   async function handleScreenCreate(
-    input: Parameters<typeof screenService.create>[0],
+    input: Parameters<typeof createScreen>[0],
   ): Promise<Screen> {
-    const { data: screen } = await screenService.create(input)
-    await reload()
-    return screen
+    return createScreen(input)
   }
 
   async function handleAdHocTaskCreate(
-    input: Parameters<typeof taskService.createAdHoc>[1],
+    input: Parameters<typeof createAdHocTask>[0],
   ) {
-    const competenceResponse = await competenceService.getByPeriod(competence)
-    const projection = competenceResponse.data
-    if (projection.status !== 'projected') {
-      throw new Error('A competência atual não aceita novas tarefas.')
-    }
-
-    const createdCompetence = projection.id
-      ? null
-      : await competenceService.create(competence)
-    const competenceId = projection.id ?? createdCompetence?.data.id
-
-    if (
-      !competenceId ||
-      (createdCompetence && createdCompetence.data.status !== 'projected')
-    ) {
-      throw new Error('Não foi possível preparar a competência para a nova tarefa.')
-    }
-
-    await taskService.createAdHoc(
-      competenceId,
-      input,
-      `ad-hoc-${globalThis.crypto.randomUUID()}`,
-    )
-    await reload()
+    await createAdHocTask(input)
   }
 
   async function handleCompetenceFinalize(): Promise<void> {
@@ -936,38 +640,47 @@ function AuthenticatedApp() {
       )
     }
 
-    const currentCompetence = await competenceService.getByPeriod(competence)
-
-    if (currentCompetence.data.status !== 'projected') {
-      await reload()
-      return
-    }
-
-    if (currentCompetence.data.id && !currentCompetence.etag) {
-      throw new Error(
-        'A API não informou a versão atual da competência para finalizar o período.',
-      )
-    }
-
-    await competenceService.finalizeByPeriod(
-      competence,
-      currentCompetence.data.id
-        ? currentCompetence.etag ?? undefined
-        : undefined,
-    )
-    await reload()
+    await finalizeCompetence()
   }
 
-  if (isLoading) {
-    return <LoadingState message="Carregando rotinas..." />
-  }
-
-  if (error || !response || !data) {
+  if (!response || !data) {
     return (
-      <ErrorState
-        title="Nao foi possivel carregar os dados"
-        description="Não foi possível carregar os dados da API."
-      />
+      <Routes>
+        <Route
+          element={
+            <AppLayout
+              spreadsheets={spreadsheetNavigationItems}
+              agendas={agendaNavigationItems}
+            />
+          }
+        >
+          <Route
+            path="*"
+            element={
+              <main
+                className="grid min-h-[24rem] place-items-center px-4"
+                aria-busy={isInitialLoading || undefined}
+              >
+                {error ? (
+                  <div
+                    role="alert"
+                    className="max-w-md rounded-[var(--radius-panel)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] p-5 text-center text-sm font-semibold text-[var(--status-error-text)]"
+                  >
+                    {error.message}
+                  </div>
+                ) : (
+                  <p
+                    role="status"
+                    className="text-sm font-semibold text-[var(--color-text-muted)]"
+                  >
+                    Carregando dados operacionais…
+                  </p>
+                )}
+              </main>
+            }
+          />
+        </Route>
+      </Routes>
     )
   }
 
@@ -987,6 +700,16 @@ function AuthenticatedApp() {
 
   return (
     <>
+      {(isRefreshing || isFinalizingCompetence) && (
+        <p
+          role="status"
+          className="fixed bottom-4 right-4 z-40 rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-3 py-2 text-sm font-semibold text-[var(--color-text-muted)] shadow-[var(--shadow-floating)]"
+        >
+          {isFinalizingCompetence
+            ? 'Finalizando competência…'
+            : 'Atualizando dados operacionais…'}
+        </p>
+      )}
       <Routes>
         <Route
           element={
@@ -1003,7 +726,7 @@ function AuthenticatedApp() {
                 data={data}
                 spreadsheets={spreadsheetNavigationItems}
                 generatedAt={response.meta.generatedAt}
-                onTaskOpen={setSelectedTask}
+                onTaskOpen={(task) => setSelectedTaskId(task.id)}
                 competenceStatus={response.meta.competenceStatus}
                 onCompetenceFinalize={handleCompetenceFinalize}
               />
@@ -1022,7 +745,7 @@ function AuthenticatedApp() {
                   visibleData={visibleData!}
                   onClientOpen={handleClientListOpen}
                   onRoutineOpen={handleRoutineListOpen}
-                  onTaskOpen={setSelectedTask}
+                  onTaskOpen={(task) => setSelectedTaskId(task.id)}
                   onTaskStatusChange={requestTaskTransition}
                   getAllowedTaskStatusChanges={(task) =>
                     canOperateTask(task)
@@ -1048,10 +771,9 @@ function AuthenticatedApp() {
                 screenDepartmentId={selectedDepartment?.id}
                 onClientUpdate={handleCompanyUpdate}
                 onClientArchive={handleCompanyArchive}
-                onClientRoutineAssignmentsChange={reload}
                 onItemOpen={handleListItemOpen}
-                onItemStatusChange={(item, change) =>
-                  requestTaskTransition(item.task.id, change.status)
+                onItemStatusChange={(item, status) =>
+                  requestTaskTransition(item.task.id, status)
                 }
                 getAllowedStatusChanges={(item) =>
                   canOperateTask(item.task)
@@ -1072,8 +794,8 @@ function AuthenticatedApp() {
                 screenDepartmentId={selectedDepartment?.id}
                 onRoutineUpdate={handleRoutineUpdate}
                 onItemOpen={handleListItemOpen}
-                onItemStatusChange={(item, change) =>
-                  requestTaskTransition(item.task.id, change.status)
+                onItemStatusChange={(item, status) =>
+                  requestTaskTransition(item.task.id, status)
                 }
                 getAllowedStatusChanges={(item) =>
                   canOperateTask(item.task)
@@ -1091,8 +813,8 @@ function AuthenticatedApp() {
                 screenId={selectedScreen?.id}
                 screenName={selectedScreen?.name}
                 onItemOpen={handleListItemOpen}
-                onItemStatusChange={(item, change) =>
-                  requestTaskTransition(item.task.id, change.status)
+                onItemStatusChange={(item, status) =>
+                  requestTaskTransition(item.task.id, status)
                 }
                 getAllowedStatusChanges={(item) =>
                   canOperateTask(item.task)
@@ -1108,8 +830,8 @@ function AuthenticatedApp() {
               <MyTasksPage
                 data={data}
                 onItemOpen={handleListItemOpen}
-                onItemStatusChange={(item, change) =>
-                  requestTaskTransition(item.task.id, change.status)
+                onItemStatusChange={(item, status) =>
+                  requestTaskTransition(item.task.id, status)
                 }
                 getAllowedStatusChanges={(item) =>
                   canOperateTask(item.task)
@@ -1129,7 +851,12 @@ function AuthenticatedApp() {
               <RequirePermission
                 permission={APP_PERMISSION.MANAGE_ORGANIZATION}
               >
-                <SettingsRoutes data={data} onReload={reload} />
+                <SettingsRoutes
+                  data={data}
+                  onDepartmentCreate={createDepartment}
+                  onScreenCreate={createScreen}
+                  onScreenUpdate={updateScreen}
+                />
               </RequirePermission>
             }
           />
@@ -1194,7 +921,7 @@ function AuthenticatedApp() {
                   departments={data.departments}
                   clients={data.clients}
                   routines={data.routines}
-                  onScreenUpdated={reload}
+                  onScreenSave={updateScreen}
                 />
               </RequirePermission>
             }
@@ -1253,7 +980,7 @@ function AuthenticatedApp() {
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
-              setSelectedTask(null)
+              setSelectedTaskId(null)
             }
           }}
         >
@@ -1283,131 +1010,21 @@ function AuthenticatedApp() {
               onNotesChange={
                 canEditSelectedTask ? handleTaskNotesChange : undefined
               }
-              onLinkAdd={canEditSelectedTask ? handleTaskLinkAdd : undefined}
-              onLinkRemove={
-                canEditSelectedTask ? handleTaskLinkRemove : undefined
-              }
-              onClose={() => setSelectedTask(null)}
+              onClose={() => setSelectedTaskId(null)}
             />
           </div>
         </div>
       )}
 
-      {pendingTaskTransition && (
-        <TaskTransitionDialog
-          task={pendingTaskTransition.task}
-          status={pendingTaskTransition.status}
-          reason={transitionReason}
-          error={transitionError}
-          isSubmitting={isTransitioning}
-          onReasonChange={setTransitionReason}
-          onCancel={() => {
-            if (!isTransitioning) setPendingTaskTransition(null)
-          }}
-          onConfirm={() => void confirmTaskTransition()}
-        />
+      {transitionError && (
+        <p
+          role="alert"
+          className="fixed right-4 bottom-4 z-[110] max-w-md rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3 py-2 text-sm font-semibold text-[var(--status-error-text)] shadow-[var(--shadow-floating)]"
+        >
+          {transitionError}
+        </p>
       )}
     </>
-  )
-}
-
-function TaskTransitionDialog({
-  task,
-  status,
-  reason,
-  error,
-  isSubmitting,
-  onReasonChange,
-  onCancel,
-  onConfirm,
-}: {
-  task: Task
-  status: RoutineStatus
-  reason: string
-  error: string | null
-  isSubmitting: boolean
-  onReasonChange: (value: string) => void
-  onCancel: () => void
-  onConfirm: () => void
-}) {
-  const requiresReason = transitionRequiresReason(task.status, status)
-  const statusLabel = routineStatusConfig[status].label
-
-  return (
-    <div
-      className="fixed inset-0 z-[60] grid place-items-center bg-[var(--color-overlay-bg)] p-4 backdrop-blur-[2px]"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !isSubmitting) onCancel()
-      }}
-    >
-      <section
-        className="w-full max-w-lg rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-5 shadow-[var(--shadow-floating)]"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="task-transition-title"
-      >
-        <h2
-          id="task-transition-title"
-          className="text-lg font-extrabold text-[var(--color-text-strong)]"
-        >
-          Alterar para {statusLabel}
-        </h2>
-        <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-          {task.title ?? 'Esta tarefa'} será atualizada diretamente na API.
-        </p>
-
-        <label className="mt-4 grid gap-1.5 text-sm font-bold text-[var(--color-text-main)]">
-          <span>Justificativa{requiresReason ? ' *' : ' (opcional)'}</span>
-          <textarea
-            value={reason}
-            onChange={(event) => onReasonChange(event.currentTarget.value)}
-            disabled={isSubmitting}
-            required={requiresReason}
-            maxLength={1000}
-            rows={4}
-            className="rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] p-3 text-[var(--color-control-text)]"
-          />
-        </label>
-        {error && (
-          <p
-            role="alert"
-            className="mt-3 text-sm font-semibold text-[var(--status-error-text)]"
-          >
-            {error}
-          </p>
-        )}
-        <div className="mt-5 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isSubmitting}
-            className="min-h-10 rounded-[var(--radius-control)] border border-[var(--color-button-neutral-border)] px-4 text-sm font-bold disabled:opacity-60"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isSubmitting}
-            className="min-h-10 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-4 text-sm font-bold text-[var(--color-button-primary-text)] disabled:opacity-60"
-          >
-            {isSubmitting ? 'Salvando…' : 'Confirmar'}
-          </button>
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function transitionRequiresReason(
-  currentStatus: RoutineStatus,
-  nextStatus: RoutineStatus,
-): boolean {
-  return (
-    nextStatus === 'error' ||
-    nextStatus === 'no_movement' ||
-    (nextStatus === 'pending' && currentStatus !== 'pending')
   )
 }
 
@@ -1437,90 +1054,6 @@ function isSpreadsheetContextRoute(pathname: string, search = ''): boolean {
     pathname.startsWith(`${ROUTES.COMPANIES}/`) ||
     pathname.startsWith(`${ROUTES.ROUTINES}/`)
   )
-}
-
-function toTaskFromScheduledOccurrence(
-  occurrence: ScheduledOccurrence,
-  etag: string | null,
-  competenceId: string | null,
-): Task {
-  return {
-    id: occurrence.occurrenceKey,
-    occurrenceKey: occurrence.occurrenceKey,
-    taskId: occurrence.taskId,
-    competenceId,
-    etag: etag ?? occurrence.etag,
-    persistence: occurrence.persistence,
-    kind: occurrence.kind,
-    title: occurrence.title,
-    description: occurrence.description,
-    clientId: occurrence.clientCompanyId,
-    routineId: occurrence.routineId,
-    departmentId: occurrence.departmentId,
-    assigneeId: occurrence.assignee?.id ?? null,
-    status: occurrence.status,
-    period: occurrence.referenceMonth.slice(0, 7),
-    referenceMonth: occurrence.referenceMonth,
-    dueDate: occurrence.dueDate,
-    completedAt:
-      occurrence.status === 'completed'
-        ? (occurrence.updatedAt ?? occurrence.createdAt)
-        : null,
-    notes: occurrence.observation || undefined,
-    links: toTaskLinks(occurrence.occurrenceKey, occurrence.links),
-    createdAt: occurrence.createdAt ?? undefined,
-    updatedAt: occurrence.updatedAt,
-    indicators: { attachments: 0 },
-  }
-}
-
-function toTaskFromResource(resource: TaskResource, etag: string | null): Task {
-  const stableId = resource.occurrenceKey ?? resource.id
-
-  return {
-    id: stableId,
-    occurrenceKey: resource.occurrenceKey ?? undefined,
-    taskId: resource.id,
-    competenceId: resource.competenceId,
-    etag: etag ?? undefined,
-    persistence: resource.occurrenceKey ? 'materialized' : undefined,
-    kind: resource.kind,
-    title: resource.title,
-    description: resource.description,
-    clientId: resource.clientCompanyId,
-    routineId: resource.routineId,
-    departmentId: resource.departmentId,
-    assigneeId: resource.assignee?.id ?? null,
-    status: resource.status,
-    period: resource.competence.slice(0, 7),
-    referenceMonth: resource.competence,
-    dueDate: resource.dueDate,
-    completedAt: resource.status === 'completed' ? resource.updatedAt : null,
-    notes: resource.observation || undefined,
-    links: toTaskLinks(stableId, resource.links),
-    createdAt: resource.createdAt,
-    updatedAt: resource.updatedAt,
-    indicators: { attachments: 0 },
-  }
-}
-
-function toTaskLinks(
-  taskId: string,
-  links: Array<{ label: string; url: string }>,
-) {
-  return links.map((link, index) => ({
-    id: `${taskId}:link:${index}`,
-    label: link.label,
-    url: link.url,
-  }))
-}
-
-function toTaskAssignee(
-  assignee: { id: string; displayName: string } | null,
-): Employee | null {
-  return assignee
-    ? { id: assignee.id, name: assignee.displayName, active: true }
-    : null
 }
 
 export default App

@@ -42,12 +42,11 @@ export class RoutinePresetService {
     let next: string | null = ROUTINE_PRESETS_ENDPOINT
 
     while (next) {
-      const response = await this.client.get<Page<RoutinePresetResource>>(next, {
-        query:
-          next === ROUTINE_PRESETS_ENDPOINT
-            ? { includeArchived }
-            : undefined,
-      })
+      const response: ApiResponse<Page<RoutinePresetResource>> =
+        await this.client.get<Page<RoutinePresetResource>>(next, {
+          query:
+            next === ROUTINE_PRESETS_ENDPOINT ? { includeArchived } : undefined,
+        })
       results.push(...response.data.results)
       next = response.data.next
     }
@@ -55,8 +54,13 @@ export class RoutinePresetService {
     return results
   }
 
-  create(input: RoutinePresetInput): Promise<ApiResponse<RoutinePresetResource>> {
-    return this.client.post<RoutinePresetResource>(ROUTINE_PRESETS_ENDPOINT, input)
+  create(
+    input: RoutinePresetInput,
+  ): Promise<ApiResponse<RoutinePresetResource>> {
+    return this.client.post<RoutinePresetResource>(
+      ROUTINE_PRESETS_ENDPOINT,
+      input,
+    )
   }
 }
 

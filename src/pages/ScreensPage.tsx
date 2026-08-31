@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
 import {
@@ -29,7 +23,7 @@ import TextField from '../components/ui/TextField'
 import { focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { isApiError } from '../services/httpClient'
-import { screenService } from '../services/screenService'
+import { screenService, type ScreenPatch } from '../services/screenService'
 import type { Client, Department, Routine, Screen } from '../types/domain'
 import { normalizeSearch } from '../utils/normalizeSearch'
 
@@ -55,7 +49,11 @@ interface ScreensPageProps {
   departments: Department[]
   clients: Client[]
   routines: Routine[]
-  onScreenUpdated: () => Promise<void>
+  onScreenSave: (
+    screenId: string,
+    changes: ScreenPatch,
+    etag: string,
+  ) => Promise<Screen>
 }
 
 function ScreensPage({
@@ -63,7 +61,7 @@ function ScreensPage({
   departments,
   clients,
   routines,
-  onScreenUpdated,
+  onScreenSave,
 }: ScreensPageProps) {
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
@@ -86,9 +84,11 @@ function ScreensPage({
       )
       .sort(
         (left, right) =>
-          (departments.find(
-            (department) => department.id === left.departmentId,
-          )?.name ?? left.departmentName).localeCompare(
+          (
+            departments.find(
+              (department) => department.id === left.departmentId,
+            )?.name ?? left.departmentName
+          ).localeCompare(
             departments.find(
               (department) => department.id === right.departmentId,
             )?.name ?? right.departmentName,
@@ -131,7 +131,9 @@ function ScreensPage({
         searchPlaceholder="Buscar por tela, departamento ou tipo"
         searchValue={search}
         onSearchChange={setSearch}
-        action={<CatalogAction to={ROUTES.SCREEN_CREATE}>Nova tela</CatalogAction>}
+        action={
+          <CatalogAction to={ROUTES.SCREEN_CREATE}>Nova tela</CatalogAction>
+        }
       >
         <CatalogHeader gridClass={screenGrid}>
           <span>Tela</span>
@@ -178,7 +180,7 @@ function ScreensPage({
           clients={clients}
           routines={routines}
           onClose={closeScreenEditor}
-          onSaved={onScreenUpdated}
+          onSave={onScreenSave}
         />
       )}
     </>
@@ -228,7 +230,7 @@ export function ScreenEditDrawer({
   clients,
   routines,
   onClose,
-  onSaved,
+  onSave,
   onSavedNavigate,
   presentation = 'drawer',
 }: {
@@ -237,7 +239,11 @@ export function ScreenEditDrawer({
   clients: Client[]
   routines: Routine[]
   onClose: () => void
-  onSaved: () => Promise<void>
+  onSave: (
+    screenId: string,
+    changes: ScreenPatch,
+    etag: string,
+  ) => Promise<Screen>
   onSavedNavigate?: (departmentId: string) => void
   presentation?: 'drawer' | 'page'
 }) {
@@ -410,8 +416,7 @@ export function ScreenEditDrawer({
         routines
           .filter(
             (routine) =>
-              routine.active !== false &&
-              routine.departmentId === departmentId,
+              routine.active !== false && routine.departmentId === departmentId,
           )
           .map((routine) => routine.id),
       ),
@@ -453,7 +458,9 @@ export function ScreenEditDrawer({
           description:
             client.code + (client.legalName ? ' · ' + client.legalName : ''),
           selectable,
-          warning: selectable ? undefined : 'Empresa arquivada ou indisponível.',
+          warning: selectable
+            ? undefined
+            : 'Empresa arquivada ou indisponível.',
         })
       }
     })
@@ -511,8 +518,7 @@ export function ScreenEditDrawer({
     [activeCompanyIds, companyIds],
   )
   const invalidRoutineIds = useMemo(
-    () =>
-      routineIds.filter((routineId) => !eligibleRoutineIds.has(routineId)),
+    () => routineIds.filter((routineId) => !eligibleRoutineIds.has(routineId)),
     [eligibleRoutineIds, routineIds],
   )
 
@@ -557,9 +563,7 @@ export function ScreenEditDrawer({
     }
 
     if (!activeCompanyIds.has(companyId)) {
-      setSubmitError(
-        'Selecione apenas empresas ativas do tenant.',
-      )
+      setSubmitError('Selecione apenas empresas ativas do tenant.')
       return
     }
 
@@ -580,9 +584,7 @@ export function ScreenEditDrawer({
     }
 
     if (!eligibleRoutineIds.has(routineId)) {
-      setSubmitError(
-        'Selecione apenas rotinas ativas do departamento da tela.',
-      )
+      setSubmitError('Selecione apenas rotinas ativas do departamento da tela.')
       return
     }
 
@@ -622,7 +624,9 @@ export function ScreenEditDrawer({
     if (!nextName) nextErrors.name = 'Informe o nome da tela.'
     if (!departmentId) {
       nextErrors.departmentId = 'Selecione o departamento da tela.'
-    } else if (!departments.some((department) => department.id === departmentId)) {
+    } else if (
+      !departments.some((department) => department.id === departmentId)
+    ) {
       nextErrors.departmentId = 'Selecione um departamento disponível.'
     }
     if (nextName.length > 160) {
@@ -633,7 +637,8 @@ export function ScreenEditDrawer({
       !Number.isSafeInteger(nextPosition) ||
       nextPosition < 0
     ) {
-      nextErrors.position = 'Informe uma posição inteira igual ou maior que zero.'
+      nextErrors.position =
+        'Informe uma posição inteira igual ou maior que zero.'
     }
 
     setErrors(nextErrors)
@@ -686,7 +691,7 @@ export function ScreenEditDrawer({
     setStatusMessage('')
 
     try {
-      const updatedScreen = await screenService.update(
+      const updatedScreen = await onSave(
         snapshot.id,
         {
           ...(nameChanged ? { name: nextName } : {}),
@@ -701,9 +706,8 @@ export function ScreenEditDrawer({
         },
         etag,
       )
-      await onSaved()
       if (onSavedNavigate) {
-        onSavedNavigate(updatedScreen.data.departmentId)
+        onSavedNavigate(updatedScreen.departmentId)
       } else {
         onClose()
       }
@@ -732,11 +736,7 @@ export function ScreenEditDrawer({
       }
       role={isDrawer ? 'presentation' : undefined}
       onMouseDown={(event) => {
-        if (
-          isDrawer &&
-          event.target === event.currentTarget &&
-          !isSaving
-        ) {
+        if (isDrawer && event.target === event.currentTarget && !isSaving) {
           onClose()
         }
       }}
@@ -788,7 +788,12 @@ export function ScreenEditDrawer({
                 <CloseIcon />
               </button>
             ) : (
-              <Button type="button" tone="neutral" disabled={isSaving} onClick={onClose}>
+              <Button
+                type="button"
+                tone="neutral"
+                disabled={isSaving}
+                onClick={onClose}
+              >
                 Voltar às telas
               </Button>
             )}
@@ -839,7 +844,7 @@ export function ScreenEditDrawer({
                   ...Object.values(errors).filter(
                     (message): message is string => Boolean(message),
                   ),
-                  submitError,
+                  ...(submitError ? [submitError] : []),
                 ]}
               />
 
@@ -926,7 +931,9 @@ export function ScreenEditDrawer({
                       required
                       aria-invalid={Boolean(errors.position)}
                       aria-describedby={
-                        errors.position ? 'edit-screen-position-error' : undefined
+                        errors.position
+                          ? 'edit-screen-position-error'
+                          : undefined
                       }
                     />
                     <FieldError id="edit-screen-position-error">
@@ -1055,7 +1062,9 @@ function OrderedSelection({
   const visibleItems = useMemo(
     () =>
       items.filter((item) =>
-        normalizeSearch([item.label, item.description].join(' ')).includes(query),
+        normalizeSearch([item.label, item.description].join(' ')).includes(
+          query,
+        ),
       ),
     [items, query],
   )
@@ -1240,7 +1249,10 @@ function DrawerSectionHeader({
       <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
         {eyebrow}
       </p>
-      <h3 id={id} className="mt-1 text-base font-black text-[var(--color-text-strong)]">
+      <h3
+        id={id}
+        className="mt-1 text-base font-black text-[var(--color-text-strong)]"
+      >
         {title}
       </h3>
       <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
@@ -1253,7 +1265,9 @@ function DrawerSectionHeader({
 function MetadataItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-bold text-[var(--color-text-muted)]">{label}</dt>
+      <dt className="text-xs font-bold text-[var(--color-text-muted)]">
+        {label}
+      </dt>
       <dd className="mt-1 text-sm font-extrabold text-[var(--color-text-strong)]">
         {value}
       </dd>
@@ -1261,18 +1275,24 @@ function MetadataItem({ label, value }: { label: string; value: string }) {
   )
 }
 
-function getOrderedIds(items: Array<{ id: string; position: number }>): string[] {
+function getOrderedIds(
+  items: Array<{ id: string; position: number }>,
+): string[] {
   return [...items]
     .sort(
       (left, right) =>
-        left.position - right.position || left.id.localeCompare(right.id, 'pt-BR'),
+        left.position - right.position ||
+        left.id.localeCompare(right.id, 'pt-BR'),
     )
     .map((item) => item.id)
     .filter((id, index, all) => all.indexOf(id) === index)
 }
 
 function sameOrder(left: string[], right: string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index])
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  )
 }
 
 function moveInOrder(
@@ -1283,11 +1303,7 @@ function moveInOrder(
   const currentIndex = items.indexOf(id)
   const nextIndex = currentIndex + (direction === 'up' ? -1 : 1)
 
-  if (
-    currentIndex < 0 ||
-    nextIndex < 0 ||
-    nextIndex >= items.length
-  ) {
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= items.length) {
     return items
   }
 

@@ -78,7 +78,7 @@ describe('write services', () => {
     await new TaskService(client).transitionOccurrence(
       '2026-08',
       'occurrence-1',
-      { targetStatus: 'completed', reason: '' },
+      { targetStatus: 'completed' },
       'virtual:revision-1',
     )
 
@@ -87,7 +87,7 @@ describe('write services', () => {
     )
     expect(fetchImplementation.mock.calls[0]?.[1]).toMatchObject({
       method: 'POST',
-      body: JSON.stringify({ targetStatus: 'completed', reason: '' }),
+      body: JSON.stringify({ targetStatus: 'completed' }),
     })
     expect(
       new Headers(fetchImplementation.mock.calls[0]?.[1]?.headers).get(
@@ -171,6 +171,35 @@ describe('write services', () => {
         'If-Match',
       ),
     ).toBe('"2"')
+  })
+
+  it('lista todas as telas visÃ­veis para a navegaÃ§Ã£o', async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          next: 'https://api.example.com/api/v1/screens/?page=2',
+          results: [{ id: 'screen-1', name: 'Fiscal' }],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          next: null,
+          results: [{ id: 'screen-2', name: 'Pessoal' }],
+        }),
+      )
+    const client = createClient(fetchImplementation)
+
+    const screens = await new ScreenService(client).listVisible()
+
+    expect(screens).toEqual([
+      { id: 'screen-1', name: 'Fiscal' },
+      { id: 'screen-2', name: 'Pessoal' },
+    ])
+    expect(fetchImplementation.mock.calls.map(([url]) => url)).toEqual([
+      'https://api.example.com/api/v1/screens/?includeArchived=false',
+      'https://api.example.com/api/v1/screens/?page=2',
+    ])
   })
 })
 

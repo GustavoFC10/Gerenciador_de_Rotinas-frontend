@@ -6,7 +6,6 @@ import {
   CreationSuccess,
   FieldError,
 } from '../components/forms/CreationFeedback'
-import CreationProgress from '../components/forms/CreationProgress'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import TextField from '../components/ui/TextField'
@@ -18,25 +17,13 @@ import { ROUTES } from '../constants/routes'
 import WorkspaceBar from '../layouts/WorkspaceBar'
 import type { Routine, Screen } from '../types/domain'
 import type { ClientCompanyInput } from '../services/companyService'
+import {
+  CompanySetupError,
+  type CompanySetupInput,
+  type CompanySetupPartialResult,
+  type CreateCompanyResult,
+} from '../types/companySetup'
 import { formatRoutineSchedule } from '../utils/routineSchedule'
-
-const steps = [
-  {
-    id: 'company',
-    label: 'Dados da empresa',
-    description: 'Identificação e contato',
-  },
-  {
-    id: 'operations',
-    label: 'Operação',
-    description: 'Tela e rotinas',
-  },
-  {
-    id: 'review',
-    label: 'Revisar',
-    description: 'Conferência antes de criar',
-  },
-]
 
 interface CompanyDraft {
   name: string
@@ -51,46 +38,9 @@ interface CompanyDraft {
   startsOn: string
 }
 
-type CompanyField =
-  | 'name'
-  | 'code'
-  | 'cnpj'
-  | 'email'
-  | 'startsOn'
-  | 'submit'
+type CompanyField = 'name' | 'code' | 'cnpj' | 'email' | 'startsOn' | 'submit'
 
 type CompanyErrors = Partial<Record<CompanyField, string>>
-
-export interface CompanySetupInput {
-  company: ClientCompanyInput
-  screenId?: string
-  routineIds: string[]
-  startsOn: string
-}
-
-export interface CreateCompanyResult {
-  company: { id: string; name: string }
-  linkedRoutineCount: number
-  screenName?: string
-}
-
-export interface CompanySetupPartialResult {
-  company: { id: string; name: string }
-  linkedRoutineCount: number
-  requestedRoutineCount: number
-  screenLinked: boolean
-  nextStep: string
-}
-
-export class CompanySetupError extends Error {
-  readonly partial: CompanySetupPartialResult
-
-  constructor(message: string, partial: CompanySetupPartialResult) {
-    super(message)
-    this.name = 'CompanySetupError'
-    this.partial = partial
-  }
-}
 
 interface CreateCompanyPageProps {
   screens: Screen[]
@@ -156,18 +106,14 @@ function CreateCompanyPage({
   const availableRoutines = useMemo(
     () =>
       routines
-        .filter(
-          (routine) => routine.active !== false,
-        )
+        .filter((routine) => routine.active !== false)
         .filter((routine) => {
           const query = routineSearch.trim().toLocaleLowerCase('pt-BR')
           if (!query) return true
 
           return [routine.name, routine.shortName, routine.description]
             .filter(Boolean)
-            .some((value) =>
-              value?.toLocaleLowerCase('pt-BR').includes(query),
-            )
+            .some((value) => value?.toLocaleLowerCase('pt-BR').includes(query))
         })
         .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR')),
     [routineSearch, routines],
@@ -407,25 +353,27 @@ function CreateCompanyPage({
         context={{ label: 'Cadastros', to: ROUTES.HOME }}
         label="Empresa"
         title="Adicionar empresa"
-        meta="Cadastro em 3 etapas"
+        meta={
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-3 py-1 text-xs font-bold">
+            Cadastro guiado
+          </span>
+        }
       />
 
-      <div className="mb-5">
-        <CreationProgress
-          steps={steps}
-          currentStep={step}
-          onStepSelect={setStep}
-        />
-      </div>
+      <p className="-mt-1 mb-5 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
+        Cadastre a empresa e, se necessário, já defina a tela e as rotinas que
+        iniciam sua operação. Você pode voltar às etapas concluídas antes de
+        criar.
+      </p>
 
       <form onSubmit={(event) => void handleSubmit(event)} noValidate>
         <CreationErrorSummary
-          messages={Object.values(errors).filter(
-            (message): message is string => Boolean(message),
+          messages={Object.values(errors).filter((message): message is string =>
+            Boolean(message),
           )}
         />
 
-        <div className={Object.keys(errors).length > 0 ? 'mt-4' : ''}>
+        <div className={Object.values(errors).some(Boolean) ? 'mt-4' : ''}>
           {step === 0 && (
             <CompanyDataStep
               draft={draft}
@@ -585,7 +533,9 @@ function CompanyDataStep({
                 maxLength={18}
                 placeholder="00.000.000/0000-00"
                 aria-invalid={Boolean(errors.cnpj)}
-                aria-describedby={errors.cnpj ? 'company-cnpj-error' : undefined}
+                aria-describedby={
+                  errors.cnpj ? 'company-cnpj-error' : undefined
+                }
               />
             </FieldGroup>
           </div>
@@ -602,7 +552,9 @@ function CompanyDataStep({
               autoComplete="email"
               placeholder="contato@empresa.com.br"
               aria-invalid={Boolean(errors.email)}
-              aria-describedby={errors.email ? 'company-email-error' : undefined}
+              aria-describedby={
+                errors.email ? 'company-email-error' : undefined
+              }
             />
           </FieldGroup>
           <TextField
@@ -918,7 +870,10 @@ function CompanyReviewStep({
         description="Confira os dados e os vínculos que serão registrados na organização."
       />
       <div className="divide-y divide-[var(--color-divider)] px-5 sm:px-6">
-        <ReviewSection title="Dados da empresa" onChange={() => onChangeStep(0)}>
+        <ReviewSection
+          title="Dados da empresa"
+          onChange={() => onChangeStep(0)}
+        >
           <ReviewGrid
             entries={[
               ['Nome', draft.name],
@@ -935,14 +890,19 @@ function CompanyReviewStep({
             entries={[
               [
                 'Início das rotinas',
-                routines.length > 0 ? formatDate(draft.startsOn) : 'Não se aplica',
+                routines.length > 0
+                  ? formatDate(draft.startsOn)
+                  : 'Não se aplica',
               ],
               ['Tela operacional', screen?.name || 'Não selecionada'],
               ['Rotinas', String(routines.length)],
             ]}
           />
           {routines.length > 0 && (
-            <ul className="mt-4 grid gap-2 sm:grid-cols-2" aria-label="Rotinas selecionadas">
+            <ul
+              className="mt-4 grid gap-2 sm:grid-cols-2"
+              aria-label="Rotinas selecionadas"
+            >
               {routines.map((routine) => (
                 <li
                   key={routine.id}
@@ -952,8 +912,9 @@ function CompanyReviewStep({
                     {routine.name}
                   </span>
                   <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
-                    {routine.shortName} · {getRoutineRecurrenceLabel(routine.recurrence)}{' '}
-                    · {formatRoutineSchedule(routine)}
+                    {routine.shortName} ·{' '}
+                    {getRoutineRecurrenceLabel(routine.recurrence)} ·{' '}
+                    {formatRoutineSchedule(routine)}
                   </span>
                 </li>
               ))}
@@ -1116,8 +1077,12 @@ function EmptyPanel({
 }) {
   return (
     <div className="px-5 py-10 text-center">
-      <p className="text-sm font-bold text-[var(--color-text-strong)]">{title}</p>
-      <p className="mt-1 text-sm text-[var(--color-text-muted)]">{description}</p>
+      <p className="text-sm font-bold text-[var(--color-text-strong)]">
+        {title}
+      </p>
+      <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+        {description}
+      </p>
     </div>
   )
 }

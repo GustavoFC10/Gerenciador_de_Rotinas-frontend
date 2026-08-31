@@ -8,6 +8,7 @@ import {
   canCreateCompany,
   canCreateEmployee,
   canCreateRoutine,
+  getAllowedTaskTransitionStatuses,
   getDepartmentAccessRole,
   hasAppPermission,
   isLead,
@@ -54,6 +55,27 @@ describe('backend-aligned permissions', () => {
     expect(
       hasAppPermission(adminUserMock, APP_PERMISSION.CREATE_EMPLOYEE),
     ).toBe(true)
+  })
+
+  it('allows every other status for members authorized to operate a task', () => {
+    const statuses = [
+      'pending',
+      'in_progress',
+      'error',
+      'no_movement',
+      'completed',
+    ] as const
+
+    statuses.forEach((currentStatus) => {
+      const task = {
+        ...buildTask('dept-fiscal'),
+        status: currentStatus,
+      }
+
+      expect(getAllowedTaskTransitionStatuses(adminUserMock, task)).toEqual(
+        statuses.filter((status) => status !== currentStatus),
+      )
+    })
   })
 })
 

@@ -5,7 +5,6 @@ import {
 } from '../../../constants/routineStatus'
 import type {
   Client,
-  CreateTaskLinkInput,
   Department,
   Employee,
   EntityId,
@@ -41,8 +40,6 @@ interface RoutineDetailsCardProps {
   onAttachmentRemove?: (taskId: EntityId, attachmentId: EntityId) => void
   onContentChange?: TaskChangeHandler<{ title: string; description: string }>
   onNotesChange?: TaskChangeHandler<string>
-  onLinkAdd?: TaskChangeHandler<CreateTaskLinkInput>
-  onLinkRemove?: TaskChangeHandler<EntityId>
   onClose?: () => void
 }
 
@@ -72,8 +69,6 @@ function RoutineDetailsCard({
   onAttachmentRemove,
   onContentChange,
   onNotesChange,
-  onLinkAdd,
-  onLinkRemove,
   onClose,
 }: RoutineDetailsCardProps) {
   if (!task) return null
@@ -144,8 +139,6 @@ function RoutineDetailsCard({
             allowedStatusChanges={allowedStatusChanges}
             onAssigneeChange={onAssigneeChange}
             onDueDateChange={onDueDateChange}
-            onLinkAdd={onLinkAdd}
-            onLinkRemove={onLinkRemove}
           />
         </aside>
       </div>
@@ -349,8 +342,6 @@ function DetailsSidebar({
   allowedStatusChanges,
   onAssigneeChange,
   onDueDateChange,
-  onLinkAdd,
-  onLinkRemove,
 }: {
   task: Task
   employees: Employee[]
@@ -359,8 +350,6 @@ function DetailsSidebar({
   allowedStatusChanges?: readonly RoutineStatus[]
   onAssigneeChange?: TaskChangeHandler<EntityId | null>
   onDueDateChange?: TaskChangeHandler<string>
-  onLinkAdd?: TaskChangeHandler<CreateTaskLinkInput>
-  onLinkRemove?: TaskChangeHandler<EntityId>
 }) {
   return (
     <section aria-labelledby={`details-title-${task.id}`}>
@@ -398,8 +387,6 @@ function DetailsSidebar({
           task={task}
           title="Links úteis"
           compact
-          onLinkAdd={onLinkAdd}
-          onLinkRemove={onLinkRemove}
         />
       </div>
 

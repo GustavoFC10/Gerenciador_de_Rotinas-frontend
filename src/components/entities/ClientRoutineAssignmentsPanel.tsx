@@ -1,16 +1,13 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-} from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
   companyService,
   type ClientRoutineAssignmentResource,
 } from '../../services/companyService'
 import type { Client, Routine } from '../../types/domain'
+import { queryKeys } from '../../query/queryKeys'
+import { useAuth } from '../../hooks/useAuth'
 import Button from '../ui/Button'
 import Select from '../ui/Select'
 import TextField from '../ui/TextField'
@@ -20,51 +17,46 @@ interface ClientRoutineAssignmentsPanelProps {
   routines: Routine[]
   period: string
   canManage: boolean
-  onChanged: () => Promise<void>
 }
+
+const EMPTY_ASSIGNMENTS: ClientRoutineAssignmentResource[] = []
 
 function ClientRoutineAssignmentsPanel({
   client,
   routines,
   period,
   canManage,
-  onChanged,
 }: ClientRoutineAssignmentsPanelProps) {
+  const { activeMembership } = useAuth()
+  const queryClient = useQueryClient()
+  const scope = {
+    organizationId: activeMembership!.organization.id,
+    membershipId: activeMembership!.id,
+  }
   const referenceDate = `${period}-01`
-  const [assignments, setAssignments] = useState<
-    ClientRoutineAssignmentResource[]
-  >([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadError, setLoadError] = useState('')
   const [actionError, setActionError] = useState('')
   const [actionMessage, setActionMessage] = useState('')
-  const [isChanging, setIsChanging] = useState(false)
   const [routineId, setRoutineId] = useState('')
   const [startsOn, setStartsOn] = useState(referenceDate)
   const [endsOn, setEndsOn] = useState('')
   const [endingId, setEndingId] = useState<string | null>(null)
   const [endDates, setEndDates] = useState<Record<string, string>>({})
 
-  const reloadAssignments = useCallback(async () => {
-    setIsLoading(true)
-    setLoadError('')
-
-    try {
-      setAssignments(await companyService.listRoutineAssignments(client.id))
-    } catch (caughtError) {
-      setLoadError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'Não foi possível carregar as rotinas vinculadas.',
-      )
-    } finally {
-      setIsLoading(false)
-    }
-  }, [client.id])
-
-  useEffect(() => {
-    void reloadAssignments()
-  }, [reloadAssignments])
+  const assignmentsQuery = useQuery({
+    queryKey: queryKeys.companyRoutineAssignments(scope, client.id),
+    queryFn: () => companyService.listRoutineAssignments(client.id),
+  })
+  const assignments = assignmentsQuery.data ?? EMPTY_ASSIGNMENTS
+  const isLoading = assignmentsQuery.isPending && !assignmentsQuery.data
+  const loadError = assignmentsQuery.error
+    ? assignmentsQuery.error instanceof Error
+      ? assignmentsQuery.error.message
+      : 'Não foi possível carregar as rotinas vinculadas.'
+    : ''
+  const assignmentMutation = useMutation({
+    mutationFn: (action: () => Promise<void>) => action(),
+  })
+  const isChanging = assignmentMutation.isPending
 
   const availableRoutines = useMemo(() => {
     if (!isValidRange(startsOn, endsOn)) return []
@@ -86,19 +78,17 @@ function ClientRoutineAssignmentsPanel({
     )
   }, [assignments, endsOn, routines, startsOn])
 
-  async function refreshAfterAction(message: string) {
-    await onChanged()
-    await reloadAssignments()
-    setActionMessage(message)
-  }
+  const invalidateAffectedOperationalContexts = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.routineControlRoot(scope),
+    })
 
   async function withAction(action: () => Promise<void>) {
-    setIsChanging(true)
     setActionError('')
     setActionMessage('')
 
     try {
-      await action()
+      await assignmentMutation.mutateAsync(action)
     } catch (caughtError) {
       setActionError(
         caughtError instanceof Error
@@ -106,7 +96,7 @@ function ClientRoutineAssignmentsPanel({
           : 'Não foi possível alterar as rotinas vinculadas.',
       )
     } finally {
-      setIsChanging(false)
+      // O estado pending pertence à mutation e bloqueia novas ações duplicadas.
     }
   }
 
@@ -124,7 +114,9 @@ function ClientRoutineAssignmentsPanel({
     }
 
     if (!isValidRange(startsOn, endsOn)) {
-      setActionError('A data final deve ser igual ou posterior à data de início.')
+      setActionError(
+        'A data final deve ser igual ou posterior à data de início.',
+      )
       return
     }
 
@@ -146,14 +138,19 @@ function ClientRoutineAssignmentsPanel({
     }
 
     void withAction(async () => {
-      await companyService.createRoutineAssignment(client.id, {
+      const response = await companyService.createRoutineAssignment(client.id, {
         routineId,
         startsOn,
         endsOn: optionalDate(endsOn),
       })
+      queryClient.setQueryData<ClientRoutineAssignmentResource[]>(
+        queryKeys.companyRoutineAssignments(scope, client.id),
+        (current) => (current ? [...current, response.data] : current),
+      )
       setRoutineId('')
       setEndsOn('')
-      await refreshAfterAction('Rotina vinculada à empresa.')
+      void invalidateAffectedOperationalContexts()
+      setActionMessage('Rotina vinculada à empresa.')
     })
   }
 
@@ -185,14 +182,22 @@ function ClientRoutineAssignmentsPanel({
         )
       }
 
-      await companyService.endRoutineAssignment(
+      const response = await companyService.endRoutineAssignment(
         client.id,
         assignment.id,
         nextEndsOn,
         snapshot.etag,
       )
+      queryClient.setQueryData<ClientRoutineAssignmentResource[]>(
+        queryKeys.companyRoutineAssignments(scope, client.id),
+        (current) =>
+          current?.map((item) =>
+            item.id === assignment.id ? response.data : item,
+          ),
+      )
       setEndingId(null)
-      await refreshAfterAction('Vínculo de rotina encerrado.')
+      void invalidateAffectedOperationalContexts()
+      setActionMessage('Vínculo de rotina encerrado.')
     })
   }
 
@@ -216,7 +221,12 @@ function ClientRoutineAssignmentsPanel({
         assignment.id,
         snapshot.etag,
       )
-      await refreshAfterAction('Vínculo de rotina cancelado.')
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.companyRoutineAssignments(scope, client.id),
+        exact: true,
+      })
+      void invalidateAffectedOperationalContexts()
+      setActionMessage('Vínculo de rotina cancelado.')
     })
   }
 
@@ -282,7 +292,9 @@ function ClientRoutineAssignmentsPanel({
                     </p>
                     <p className="mt-1 text-xs font-bold text-[var(--color-text-subtle)]">
                       {status}
-                      {assignment.sourcePresetId ? ' · Aplicada por predefinição' : ''}
+                      {assignment.sourcePresetId
+                        ? ' · Aplicada por predefinição'
+                        : ''}
                     </p>
                   </div>
 

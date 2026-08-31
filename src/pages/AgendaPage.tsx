@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router'
 
 import ErrorState from '../components/common/ErrorState'
@@ -6,11 +7,10 @@ import LoadingState from '../components/common/LoadingState'
 import { routineStatusConfig } from '../constants/routineStatus'
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
+import { useAuth } from '../hooks/useAuth'
 import WorkspaceBar from '../layouts/WorkspaceBar'
-import {
-  screenService,
-  type AgendaProjection,
-} from '../services/screenService'
+import { queryKeys } from '../query/queryKeys'
+import { screenService, type AgendaProjection } from '../services/screenService'
 import type { TaskResource } from '../services/taskService'
 import type { RoutineStatus } from '../types/domain'
 
@@ -25,54 +25,44 @@ const agendaStatuses: RoutineStatus[] = [
 function AgendaPage() {
   const [searchParams] = useSearchParams()
   const { competence } = useAppState()
+  const { activeMembership } = useAuth()
   const screenId = searchParams.get('screenId')
-  const [projection, setProjection] = useState<AgendaProjection | null>(null)
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let isCurrent = true
-
-    if (!screenId) {
-      setProjection(null)
-      setError('Selecione uma agenda para abrir.')
-      setIsLoading(false)
-      return () => {
-        isCurrent = false
+  const scope = activeMembership
+    ? {
+        organizationId: activeMembership.organization.id,
+        membershipId: activeMembership.id,
       }
-    }
+    : null
+  const agendaQuery = useQuery({
+    queryKey:
+      scope && screenId
+        ? queryKeys.agendaProjection(scope, screenId, competence)
+        : (['agenda-projection', 'unavailable'] as const),
+    queryFn: async ({ signal }) => {
+      if (!screenId) throw new Error('Selecione uma agenda para abrir.')
 
-    setIsLoading(true)
-    setError('')
-
-    void screenService
-      .getProjection(screenId, competence)
-      .then((response) => {
-        if (!isCurrent) return
-        if (response.data.type !== 'agenda') {
-          setError('A tela selecionada não é uma agenda.')
-          setProjection(null)
-          return
-        }
-        setProjection(response.data)
-      })
-      .catch((caughtError: unknown) => {
-        if (!isCurrent) return
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : 'Não foi possível carregar a agenda.',
-        )
-        setProjection(null)
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoading(false)
-      })
-
-    return () => {
-      isCurrent = false
-    }
-  }, [competence, screenId])
+      const response = await screenService.getProjection(
+        screenId,
+        competence,
+        signal,
+      )
+      if (response.data.type !== 'agenda') {
+        throw new Error('A tela selecionada não é uma agenda.')
+      }
+      return response.data
+    },
+    enabled: Boolean(scope && screenId),
+  })
+  const projection: AgendaProjection | null = agendaQuery.data ?? null
+  const isLoading =
+    Boolean(screenId) && agendaQuery.isPending && !agendaQuery.data
+  const error = !screenId
+    ? 'Selecione uma agenda para abrir.'
+    : agendaQuery.error instanceof Error
+      ? agendaQuery.error.message
+      : agendaQuery.error
+        ? 'Não foi possível carregar a agenda.'
+        : ''
 
   const columns = useMemo(() => {
     if (!projection) return []

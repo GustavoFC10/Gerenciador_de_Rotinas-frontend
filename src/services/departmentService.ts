@@ -1,9 +1,6 @@
 import { HttpClient, httpClient } from './httpClient'
 import type { ApiResponse } from './httpClient'
-import type {
-  DepartmentAccessRole,
-  OrganizationRole,
-} from '../types/domain'
+import type { DepartmentAccessRole, OrganizationRole } from '../types/domain'
 
 const DEPARTMENTS_ENDPOINT = '/api/v1/departments/'
 
@@ -37,9 +34,13 @@ export class DepartmentService {
     return this.client.get<DepartmentResource>(departmentPath(id))
   }
 
-  getTaskAssignees(id: string): Promise<ApiResponse<TaskAssigneeResource[]>> {
+  getTaskAssignees(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<ApiResponse<TaskAssigneeResource[]>> {
     return this.client.get<TaskAssigneeResource[]>(
       `${departmentPath(id)}task-assignees/`,
+      { signal },
     )
   }
 }

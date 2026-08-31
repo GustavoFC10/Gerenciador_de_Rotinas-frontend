@@ -26,12 +26,12 @@ import Button from '../components/ui/Button'
 import Select from '../components/ui/Select'
 import TextField from '../components/ui/TextField'
 import { focusRing } from '../constants/designTokens'
-import {
-  DEPARTMENT_ACCESS_ROLE,
-  ORGANIZATION_ROLE,
-} from '../constants/roles'
+import { DEPARTMENT_ACCESS_ROLE, ORGANIZATION_ROLE } from '../constants/roles'
 import { ROUTES } from '../constants/routes'
 import { useOrganizationMembers } from '../hooks/useOrganizationMembers'
+import { useAuth } from '../hooks/useAuth'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '../query/queryKeys'
 import type {
   Department,
   DepartmentAccessRole,
@@ -51,7 +51,10 @@ const employeeGrid =
 
 function EmployeesPage({ departments }: { departments: Department[] }) {
   const { user } = useAppState()
-  const { members, isLoading, error, reload } = useOrganizationMembers()
+  const { refreshSession } = useAuth()
+  const queryClient = useQueryClient()
+  const { members, isInitialLoading, error, replaceMember, scope } =
+    useOrganizationMembers()
   const [search, setSearch] = useState('')
   const [selectedMember, setSelectedMember] =
     useState<OrganizationMemberResource | null>(null)
@@ -75,7 +78,9 @@ function EmployeesPage({ departments }: { departments: Department[] }) {
       )
   }, [departments, members, search])
 
-  if (isLoading) return <LoadingState message="Carregando funcionários..." />
+  if (isInitialLoading) {
+    return <LoadingState message="Carregando funcionários..." />
+  }
 
   if (error) {
     return (
@@ -177,7 +182,16 @@ function EmployeesPage({ departments }: { departments: Department[] }) {
           canAssignOwner={isOwner(user)}
           onMemberChange={async (member) => {
             setSelectedMember(member)
-            await reload()
+            replaceMember(member)
+
+            if (member.id === user.membershipId) {
+              await refreshSession()
+              if (scope) {
+                void queryClient.invalidateQueries({
+                  queryKey: queryKeys.scope(scope),
+                })
+              }
+            }
           }}
           onClose={() => setSelectedMember(null)}
         />
@@ -208,14 +222,65 @@ function EmployeeProfilePanel({
   const [departmentRoles, setDepartmentRoles] = useState<
     Record<string, DepartmentAccessRole | ''>
   >(() => getDepartmentAccessDraft(member))
-  const [isSavingProfile, setIsSavingProfile] = useState(false)
-  const [isSavingAccesses, setIsSavingAccesses] = useState(false)
-  const [isOffboarding, setIsOffboarding] = useState(false)
+  const accessCompletedChangesRef = useRef(0)
   const [actionMessage, setActionMessage] = useState('')
   const [actionError, setActionError] = useState('')
+  const profileMutation = useMutation({
+    mutationFn: ({
+      memberId,
+      displayName,
+      role: nextRole,
+    }: {
+      memberId: string
+      displayName: string
+      role?: OrganizationRole
+    }) =>
+      organizationMemberService.update(memberId, {
+        displayName,
+        ...(nextRole ? { role: nextRole } : {}),
+      }),
+  })
+  const accessMutation = useMutation({
+    mutationFn: async ({
+      memberId,
+      changes,
+    }: {
+      memberId: string
+      changes: Array<{
+        departmentId: string
+        role: DepartmentAccessRole | ''
+      }>
+    }) => {
+      accessCompletedChangesRef.current = 0
+
+      for (const change of changes) {
+        if (change.role) {
+          await organizationMemberService.setDepartmentAccess(
+            memberId,
+            change.departmentId,
+            change.role,
+          )
+        } else {
+          await organizationMemberService.removeDepartmentAccess(
+            memberId,
+            change.departmentId,
+          )
+        }
+        accessCompletedChangesRef.current += 1
+      }
+
+      return organizationMemberService.get(memberId)
+    },
+  })
+  const offboardMutation = useMutation({
+    mutationFn: (memberId: string) =>
+      organizationMemberService.offboard(memberId),
+  })
+  const isSavingProfile = profileMutation.isPending
+  const isSavingAccesses = accessMutation.isPending
+  const isOffboarding = offboardMutation.isPending
   const canEditProfile =
-    canManage &&
-    (canAssignOwner || member.role !== ORGANIZATION_ROLE.OWNER)
+    canManage && (canAssignOwner || member.role !== ORGANIZATION_ROLE.OWNER)
   const canOffboard =
     canManage &&
     member.status === 'active' &&
@@ -284,12 +349,12 @@ function EmployeeProfilePanel({
       return
     }
 
-    setIsSavingProfile(true)
     setActionError('')
     setActionMessage('')
 
     try {
-      const response = await organizationMemberService.update(member.id, {
+      const response = await profileMutation.mutateAsync({
+        memberId: member.id,
         displayName: nextDisplayName,
         ...(role !== member.role ? { role } : {}),
       })
@@ -301,8 +366,6 @@ function EmployeeProfilePanel({
           ? caughtError.message
           : 'Não foi possível atualizar o perfil.',
       )
-    } finally {
-      setIsSavingProfile(false)
     }
   }
 
@@ -328,29 +391,17 @@ function EmployeeProfilePanel({
       return
     }
 
-    setIsSavingAccesses(true)
     setActionMessage('')
     setActionError('')
-    let completedChanges = 0
 
     try {
-      for (const change of changes) {
-        if (change.nextRole) {
-          await organizationMemberService.setDepartmentAccess(
-            member.id,
-            change.department.id,
-            change.nextRole,
-          )
-        } else {
-          await organizationMemberService.removeDepartmentAccess(
-            member.id,
-            change.department.id,
-          )
-        }
-        completedChanges += 1
-      }
-
-      const response = await organizationMemberService.get(member.id)
+      const response = await accessMutation.mutateAsync({
+        memberId: member.id,
+        changes: changes.map((change) => ({
+          departmentId: change.department.id,
+          role: change.nextRole,
+        })),
+      })
       await onMemberChange(response.data)
       setActionMessage('Acessos por departamento atualizados.')
     } catch (caughtError) {
@@ -362,6 +413,7 @@ function EmployeeProfilePanel({
         // painel também recarrega os dados atuais do backend.
       }
 
+      const completedChanges = accessCompletedChangesRef.current
       const detail =
         caughtError instanceof Error
           ? caughtError.message
@@ -371,12 +423,10 @@ function EmployeeProfilePanel({
           ? `${completedChanges} alteração(ões) foram aplicadas antes da falha. ${detail}`
           : detail,
       )
-    } finally {
-      setIsSavingAccesses(false)
     }
   }
 
-  function handleOffboard() {
+  async function handleOffboard() {
     if (!canOffboard) return
     if (
       !window.confirm(
@@ -386,25 +436,20 @@ function EmployeeProfilePanel({
       return
     }
 
-    void (async () => {
-      setIsOffboarding(true)
-      setActionError('')
-      setActionMessage('')
+    setActionError('')
+    setActionMessage('')
 
-      try {
-        const response = await organizationMemberService.offboard(member.id)
-        await onMemberChange(response.data)
-        setActionMessage('Acesso do funcionário desativado.')
-      } catch (caughtError) {
-        setActionError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : 'Não foi possível desativar o acesso do funcionário.',
-        )
-      } finally {
-        setIsOffboarding(false)
-      }
-    })()
+    try {
+      const response = await offboardMutation.mutateAsync(member.id)
+      await onMemberChange(response.data)
+      setActionMessage('Acesso do funcionário desativado.')
+    } catch (caughtError) {
+      setActionError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Não foi possível desativar o acesso do funcionário.',
+      )
+    }
   }
 
   return (
@@ -556,8 +601,8 @@ function EmployeeProfilePanel({
               </p>
             ) : member.status !== 'active' ? (
               <p className="mt-4 rounded-[var(--radius-control)] bg-[var(--color-panel-soft-bg)] px-3 py-2 text-sm leading-5 text-[var(--color-text-muted)]">
-                Os acessos de departamento ficam disponíveis depois que a
-                pessoa aceitar o convite e o membro estiver ativo.
+                Os acessos de departamento ficam disponíveis depois que a pessoa
+                aceitar o convite e o membro estiver ativo.
               </p>
             ) : canManage ? (
               <form
@@ -565,8 +610,8 @@ function EmployeeProfilePanel({
                 onSubmit={(event) => void handleAccessSave(event)}
               >
                 <p className="text-sm leading-5 text-[var(--color-text-muted)]">
-                  Defina o papel em cada departamento. Cada linha é gravada
-                  pela API de acesso departamental.
+                  Defina o papel em cada departamento. Cada linha é gravada pela
+                  API de acesso departamental.
                 </p>
                 <div className="mt-3 space-y-3">
                   {departments.map((department) => (
@@ -578,16 +623,14 @@ function EmployeeProfilePanel({
                       onChange={(event) =>
                         setDepartmentRoles((current) => ({
                           ...current,
-                          [department.id]: event.target
-                            .value as DepartmentAccessRole | '',
+                          [department.id]: event.target.value as
+                            DepartmentAccessRole | '',
                         }))
                       }
                       disabled={isSavingAccesses}
                     >
                       <option value="">Sem acesso</option>
-                      <option value={DEPARTMENT_ACCESS_ROLE.LEAD}>
-                        Líder
-                      </option>
+                      <option value={DEPARTMENT_ACCESS_ROLE.LEAD}>Líder</option>
                       <option value={DEPARTMENT_ACCESS_ROLE.CONTRIBUTOR}>
                         Colaborador
                       </option>
@@ -624,7 +667,10 @@ function getDepartmentAccessDraft(
   member: OrganizationMemberResource,
 ): Record<string, DepartmentAccessRole | ''> {
   return Object.fromEntries(
-    member.departmentAccesses.map((access) => [access.departmentId, access.role]),
+    member.departmentAccesses.map((access) => [
+      access.departmentId,
+      access.role,
+    ]),
   )
 }
 

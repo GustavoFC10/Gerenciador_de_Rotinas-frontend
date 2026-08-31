@@ -49,7 +49,6 @@ interface EntityDetailPageProps extends Omit<
     changes: RoutineEditInput,
   ) => Promise<void>
   onClientArchive?: (clientId: EntityId) => Promise<void>
-  onClientRoutineAssignmentsChange?: () => Promise<void>
 }
 
 function EntityDetailPage({
@@ -61,7 +60,6 @@ function EntityDetailPage({
   onClientUpdate,
   onRoutineUpdate,
   onClientArchive,
-  onClientRoutineAssignmentsChange,
   onItemOpen,
   onItemStatusChange,
   getAllowedStatusChanges,
@@ -260,7 +258,6 @@ function EntityDetailPage({
           }
           routines={data.routines}
           period={competence}
-          onRoutineAssignmentsChanged={onClientRoutineAssignmentsChange}
         />
       )}
 
