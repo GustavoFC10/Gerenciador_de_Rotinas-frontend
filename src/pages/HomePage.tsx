@@ -1,10 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import HomePersonalPeriodCard from '../components/home/HomePersonalPeriodCard'
 import HomePrioritySection from '../components/home/HomePrioritySection'
 import HomeRoleOverviewSection from '../components/home/HomeRoleOverviewSection'
 import HomeSpreadsheetSection from '../components/home/HomeSpreadsheetSection'
-import Button from '../components/ui/Button'
 import { useAppState } from '../hooks/useAppState'
 import WorkspaceBar from '../layouts/WorkspaceBar'
 import type {
@@ -30,18 +29,9 @@ function HomePage({
   spreadsheets,
   generatedAt,
   onTaskOpen,
-  competenceStatus,
-  onCompetenceFinalize,
 }: HomePageProps) {
   const { user, competence, formattedCompetence } = useAppState()
-  const [isFinalizingCompetence, setIsFinalizingCompetence] = useState(false)
-  const [competenceFinalizeError, setCompetenceFinalizeError] = useState('')
   const referenceDate = getReferenceDate(generatedAt, competence)
-  const canFinalizeCompetence = Boolean(
-    competenceStatus === 'projected' &&
-      onCompetenceFinalize &&
-      isOrganizationAdmin(user),
-  )
   const overview = useMemo(
     () =>
       buildHomeOverview({
@@ -54,30 +44,6 @@ function HomePage({
     [competence, data, referenceDate, spreadsheets, user],
   )
 
-  async function handleCompetenceFinalize() {
-    if (!onCompetenceFinalize || isFinalizingCompetence) return
-
-    const shouldFinalize = window.confirm(
-      `Finalizar a competência ${formattedCompetence}? As ocorrências recorrentes serão materializadas e as regras deste mês ficarão congeladas.`,
-    )
-    if (!shouldFinalize) return
-
-    setIsFinalizingCompetence(true)
-    setCompetenceFinalizeError('')
-
-    try {
-      await onCompetenceFinalize()
-    } catch (error) {
-      setCompetenceFinalizeError(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível finalizar a competência.',
-      )
-    } finally {
-      setIsFinalizingCompetence(false)
-    }
-  }
-
   return (
     <div className="mx-auto w-full max-w-[90rem]">
       <WorkspaceBar
@@ -87,31 +53,7 @@ function HomePage({
             {formattedCompetence} · {formatUpdatedAt(generatedAt)}
           </span>
         }
-        actions={
-          canFinalizeCompetence ? (
-            <Button
-              size="sm"
-              tone="neutral"
-              onClick={() => void handleCompetenceFinalize()}
-              disabled={isFinalizingCompetence}
-              title="Materializar as rotinas recorrentes e congelar as regras deste mês"
-            >
-              {isFinalizingCompetence
-                ? 'Finalizando…'
-                : 'Finalizar competência'}
-            </Button>
-          ) : undefined
-        }
       />
-
-      {competenceFinalizeError && (
-        <p
-          role="alert"
-          className="mb-4 text-sm font-semibold text-[var(--status-error-text)]"
-        >
-          {competenceFinalizeError}
-        </p>
-      )}
 
       <HomeSpreadsheetSection summaries={overview.spreadsheets} />
 

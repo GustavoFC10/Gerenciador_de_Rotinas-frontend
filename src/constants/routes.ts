@@ -1,5 +1,6 @@
 export const ROUTES = {
   LOGIN: '/login',
+  ACCEPT_INVITATION: '/accept-invitation',
   HOME: '/',
   SPREADSHEET: '/planilha',
   AGENDA: '/agenda',

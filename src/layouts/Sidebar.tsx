@@ -72,17 +72,6 @@ function Sidebar({
         screenId: contextualSpreadsheetId,
       }).toString()}`
     : ROUTES.TASKS
-  const managementDepartments = [
-    ...new Map(
-      [...spreadsheets, ...agendas].map((spreadsheet) => [
-        spreadsheet.departmentId,
-        {
-          id: spreadsheet.departmentId,
-          name: spreadsheet.name,
-        },
-      ]),
-    ).values(),
-  ]
   const collapsedLabelClass = isCollapsed ? 'lg:sr-only' : ''
 
   return (
@@ -284,18 +273,6 @@ function Sidebar({
                   onNavigate={onMobileClose}
                 />
               )}
-              {managementDepartments.map((department) => (
-                <NavigationLink
-                  key={department.id}
-                  to={`${ROUTES.DEPARTMENT_DASHBOARD}?departmentId=${encodeURIComponent(
-                    department.id,
-                  )}`}
-                  label={`Visão de ${department.name}`}
-                  icon="chart"
-                  isCollapsed={isCollapsed}
-                  onNavigate={onMobileClose}
-                />
-              ))}
             </NavigationSection>
           </>
         )}

@@ -16,6 +16,7 @@ import { useNavigationScreens } from './hooks/useNavigationScreens'
 import { useRoutineControl } from './hooks/useRoutineControl'
 import { useSpreadsheetContext } from './hooks/useSpreadsheetContext'
 import { useTaskDetailsController } from './hooks/useTaskDetailsController'
+import AcceptInvitationPage from './pages/AcceptInvitationPage'
 import LoginPage from './pages/LoginPage'
 import MembershipSelectionPage from './pages/MembershipSelectionPage'
 import { queryKeys } from './query/queryKeys'
@@ -28,6 +29,10 @@ import { isOrganizationAdmin } from './utils/permissions'
 function App() {
   const { activeMembership, isAuthenticated, isInitializing } = useAuth()
   const location = useLocation()
+
+  if (location.pathname === ROUTES.ACCEPT_INVITATION) {
+    return <AcceptInvitationPage />
+  }
 
   if (isInitializing) {
     return <LoadingState message={'Restaurando sess\u00e3o...'} />

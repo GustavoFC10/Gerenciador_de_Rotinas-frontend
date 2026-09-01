@@ -164,6 +164,43 @@ describe('AuthService', () => {
     expect(client.getCsrfToken()).toBe('csrf-rotacionado')
   })
 
+  it('aceita um convite com CSRF e o payload esperado', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ csrfToken: 'csrf-inicial' }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    const { client, service } = createService(fetchMock)
+
+    await expect(
+      service.acceptInvitation({
+        token: 'token-recebido-por-email',
+        password: 'Senha-segura-2026!',
+        passwordConfirm: 'Senha-segura-2026!',
+      }),
+    ).resolves.toBeUndefined()
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://api.example.com/api/v1/auth/csrf/',
+    )
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      'https://api.example.com/api/v1/auth/invitations/accept/',
+    )
+
+    const request = fetchMock.mock.calls[1]?.[1]
+    const headers = new Headers(request?.headers)
+    expect(request?.method).toBe('POST')
+    expect(request?.credentials).toBe('include')
+    expect(headers.get('X-CSRFToken')).toBe('csrf-inicial')
+    expect(request?.body).toBe(
+      JSON.stringify({
+        token: 'token-recebido-por-email',
+        password: 'Senha-segura-2026!',
+        passwordConfirm: 'Senha-segura-2026!',
+      }),
+    )
+    expect(client.getCsrfToken()).toBe('csrf-inicial')
+  })
+
   it('seleciona a associação ativa no escopo da sessão', async () => {
     const selectedSession = {
       ...sessionFixture,

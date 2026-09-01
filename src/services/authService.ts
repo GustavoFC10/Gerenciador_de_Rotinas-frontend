@@ -10,6 +10,7 @@ const AUTH_ENDPOINTS = {
   csrf: '/api/v1/auth/csrf/',
   login: '/api/v1/auth/login/',
   logout: '/api/v1/auth/logout/',
+  acceptInvitation: '/api/v1/auth/invitations/accept/',
   session: '/api/v1/auth/session/',
   activeMembership: '/api/v1/auth/active-membership/',
   departments: '/api/v1/departments/',
@@ -18,6 +19,12 @@ const AUTH_ENDPOINTS = {
 export interface LoginCredentials {
   email: string
   password: string
+}
+
+export interface InvitationAcceptanceCredentials {
+  token: string
+  password: string
+  passwordConfirm: string
 }
 
 export interface UserSummary {
@@ -99,6 +106,18 @@ export class AuthService {
 
     this.client.setCsrfToken(data.csrfToken)
     return await this.hydrateAuthState(toAuthSession(data))
+  }
+
+  async acceptInvitation(
+    credentials: InvitationAcceptanceCredentials,
+  ): Promise<void> {
+    await this.ensureCsrfToken()
+
+    await this.client.post<void>(AUTH_ENDPOINTS.acceptInvitation, {
+      token: credentials.token,
+      password: credentials.password,
+      passwordConfirm: credentials.passwordConfirm,
+    })
   }
 
   async logout(): Promise<void> {
