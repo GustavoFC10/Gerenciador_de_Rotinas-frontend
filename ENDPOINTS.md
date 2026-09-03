@@ -517,7 +517,7 @@ pública da rotina é:
 - `defaultDueDays`: quantidade de dias, entre 0 e 3750, somada ao primeiro dia da
   competência para obter o vencimento padrão.
 - `defaultAssigneeMemberId`: UUID de um membro ativo elegível do departamento, salvo
-  como responsável padrão. É obrigatório para recorrências e pode ser obtido em
+  como responsável padrão. É opcional e pode ser obtido em
   `GET /api/v1/departments/{departmentId}/task-assignees/`.
 
 Campos do contrato anterior não são aceitos pelos serializers atuais.
@@ -535,11 +535,11 @@ curl.exe "$BASE_URL/api/v1/routines/?departmentId=<UUID_DO_DEPARTAMENTO>&orderin
 
 ### `POST /api/v1/routines/`
 
-Para uma rotina recorrente, o corpo também deve informar `defaultAssigneeMemberId`,
-com o UUID de um membro ativo elegível retornado por
-`GET /api/v1/departments/{departmentId}/task-assignees/`. O campo é salvo na versão
-publicada e será usado nas ocorrências futuras. `defaultDueDays` continua sendo o
-prazo padrão, contado a partir do primeiro dia da competência.
+Se `defaultAssigneeMemberId` for informado, ele deve ser o UUID de um membro ativo
+ elegível retornado por `GET /api/v1/departments/{departmentId}/task-assignees/`.
+O campo, quando presente, é salvo na versão publicada e será usado nas ocorrências
+ futuras. `defaultDueDays` continua sendo o prazo padrão, contado a partir do
+ primeiro dia da competência.
 
 Cria a rotina e publica a primeira regra.
 
@@ -866,8 +866,8 @@ in_progress -> completed | no_movement | error
 completed | no_movement | error -> pending
 ```
 
-`no_movement`, `error` e reabertura para `pending` exigem `reason`. Owner/admin pode
-executar todas as transições válidas. Lead opera seu departamento, mas não classifica
+As informações contextuais da mudança devem ser registradas em `observation`, usando o
+endpoint de edição da tarefa. Owner/admin pode executar todas as transições válidas. Lead opera seu departamento, mas não classifica
 como `error` nem reabre tarefas; contributor opera apenas tarefas atribuídas a si e
 não pode classificar como `error`; viewer apenas lê.
 
@@ -964,14 +964,14 @@ curl.exe -X PATCH "$BASE_URL/api/v1/competences/by-period/2026-10/task-occurrenc
 ### `POST /api/v1/competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/transition/`
 
 Transiciona o card. Se ele ainda for virtual, o mesmo comando o materializa diretamente
-no estado solicitado e cria o evento correspondente. Aplicam-se as mesmas permissões e
-regras de justificativa das tarefas reais.
+no estado solicitado e cria o evento correspondente. As informações contextuais devem
+ser registradas em `observation` antes ou depois da transição.
 
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/competences/by-period/2026-10/task-occurrences/<OCCURRENCE_KEY>/transition/" `
   -b cookies.txt -H "X-CSRFToken: $CSRF" `
   -H 'If-Match: "virtual:HASH_RECEBIDO"' -H "Content-Type: application/json" `
-  -d '{"targetStatus":"in_progress","reason":""}'
+  -d '{"targetStatus":"in_progress"}'
 ```
 
 ### `POST /api/v1/competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/attachments/`
@@ -1090,20 +1090,23 @@ Executa uma transição da máquina de estados e cria um `TaskEvent` na mesma tr
 curl.exe -X POST "$BASE_URL/api/v1/competences/<UUID_DA_COMPETENCIA>/tasks/<UUID_DA_TAREFA>/transition/" `
   -b cookies.txt -H "X-CSRFToken: $CSRF" -H 'If-Match: "2"' `
   -H "Content-Type: application/json" `
-  -d '{"targetStatus":"completed","reason":""}'
+  -d '{"targetStatus":"completed"}'
 ```
 
 Exemplo sem movimento:
 
 ```json
-{"targetStatus":"no_movement","reason":"Empresa sem movimento na competência."}
+{"targetStatus":"no_movement"}
 ```
 
 Exemplo de erro:
 
 ```json
-{"targetStatus":"error","reason":"Falha de validação identificada durante a execução."}
+{"targetStatus":"error"}
 ```
+
+Quando houver contexto sobre a transição, atualize `observation` pelo endpoint de
+edição da tarefa.
 
 ### `POST /api/v1/competences/{competenceId}/tasks/{taskId}/archive/`
 
@@ -1318,3 +1321,43 @@ O contrato gerado automaticamente continua sendo a referência de tipos e respos
 - schema: `/api/schema/`;
 - Swagger UI: `/api/docs/`;
 - artefato versionado: `openapi.yml`.
+
+## 14. Administracao interna da plataforma
+
+Todas as rotas deste grupo exigem sessao autenticada, CSRF nas mutacoes e
+`is_staff=True`. Elas nao dependem da organizacao ativa da sessao.
+
+### `GET /api/internal/v1/organizations/`
+
+Lista todas as organizacoes provisionadas, com status, timezone e contagens de membros
+e departamentos.
+
+### `POST /api/internal/v1/organizations/provision/`
+
+Cria a organizacao, o perfil de owner pendente e seu convite em uma unica operacao.
+`slug` e opcional; quando ausente, e derivado do nome.
+
+```powershell
+curl.exe -X POST "$BASE_URL/api/internal/v1/organizations/provision/" `
+  -b cookies.txt -H "X-CSRFToken: $CSRF" -H "Content-Type: application/json" `
+  -d '{"name":"Escritorio ABC","timezone":"America/Sao_Paulo","ownerName":"Joao Silva","ownerEmail":"joao@abc.com"}'
+```
+
+A resposta retorna `organization`, `owner`, `invitation` e `delivery` (`sent` ou
+`failed`). Uma falha de entrega nao desfaz os recursos provisionados.
+
+### `GET /api/internal/v1/organizations/{organizationId}/`
+
+Retorna os dados da organizacao, seus owners e o convite mais recente de cada owner.
+
+### `POST /api/internal/v1/organizations/{organizationId}/owners/`
+
+Adiciona ou reemite o convite de um owner pendente.
+
+```json
+{"name":"Maria Silva","email":"maria@abc.com"}
+```
+
+### `POST /api/internal/v1/invitations/{invitationId}/resend/`
+
+Reemite o convite de um owner pendente ou expirado, invalidando o convite anterior.

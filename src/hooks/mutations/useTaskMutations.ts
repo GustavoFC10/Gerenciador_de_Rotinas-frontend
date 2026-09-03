@@ -31,7 +31,6 @@ interface TaskMutationScope extends OrganizationQueryScope {
 interface TaskTransitionVariables {
   taskId: string
   status: RoutineStatus
-  reason?: string
 }
 
 export function useTaskMutations({
@@ -126,11 +125,10 @@ export function useTaskMutations({
   })
 
   const transitionMutation = useMutation({
-    mutationFn: async ({ taskId, status, reason }: TaskTransitionVariables) => {
+    mutationFn: async ({ taskId, status }: TaskTransitionVariables) => {
       const task = getTask(queryClient, scope, period, taskId)
       const input = {
         targetStatus: status,
-        ...(reason ? { reason } : {}),
       }
 
       try {
@@ -254,8 +252,8 @@ export function useTaskMutations({
       [updateMutation],
     ),
     transitionTask: useCallback(
-      (taskId: string, status: RoutineStatus, reason?: string) =>
-        transitionMutation.mutateAsync({ taskId, status, reason }),
+      (taskId: string, status: RoutineStatus) =>
+        transitionMutation.mutateAsync({ taskId, status }),
       [transitionMutation],
     ),
     createAdHocTask: createAdHocMutation.mutateAsync,

@@ -119,9 +119,6 @@ function CreateCompanyPage({
     [routineSearch, routines],
   )
   const selectedRoutineIds = new Set(draft.routineIds)
-  const selectedRoutines = routines.filter((routine) =>
-    selectedRoutineIds.has(routine.id),
-  )
   if (result) {
     return (
       <div className="mx-auto w-full max-w-[90rem]">
@@ -154,9 +151,7 @@ function CreateCompanyPage({
             onClick: () => {
               setDraft(getInitialDraft(period))
               setErrors({})
-              setRoutineSearch('')
               setStep(0)
-              setPendingScreenId(null)
               setResult(null)
             },
           }}
@@ -178,9 +173,7 @@ function CreateCompanyPage({
           onCreateAnother={() => {
             setDraft(getInitialDraft(period))
             setErrors({})
-            setRoutineSearch('')
             setStep(0)
-            setPendingScreenId(null)
             setPartialResult(null)
           }}
         />
@@ -389,7 +382,6 @@ function CreateCompanyPage({
               selectedScreen={selectedScreen}
               selectedRoutineIds={selectedRoutineIds}
               errors={errors}
-              routineSearch={routineSearch}
               onScreenChange={requestScreenChange}
               onRestoreSuggestions={restoreScreenSuggestions}
               pendingScreenId={pendingScreenId}
@@ -401,6 +393,7 @@ function CreateCompanyPage({
               }}
               onCancelScreenChange={() => setPendingScreenId(null)}
               onStartChange={(startsOn) => updateDraft('startsOn', startsOn)}
+              routineSearch={routineSearch}
               onRoutineSearchChange={setRoutineSearch}
               onRoutineToggle={toggleRoutine}
             />
@@ -409,7 +402,7 @@ function CreateCompanyPage({
             <CompanyReviewStep
               draft={draft}
               screen={selectedScreen}
-              routines={selectedRoutines}
+              routines={routines.filter((routine) => selectedRoutineIds.has(routine.id))}
               onChangeStep={setStep}
             />
           )}
@@ -604,7 +597,6 @@ function CompanyOperationsStep({
   selectedScreen,
   selectedRoutineIds,
   errors,
-  routineSearch,
   onScreenChange,
   onRestoreSuggestions,
   pendingScreenId,
@@ -612,6 +604,7 @@ function CompanyOperationsStep({
   onConfirmScreenChange,
   onCancelScreenChange,
   onStartChange,
+  routineSearch,
   onRoutineSearchChange,
   onRoutineToggle,
 }: {
@@ -621,7 +614,6 @@ function CompanyOperationsStep({
   selectedScreen?: Screen
   selectedRoutineIds: Set<string>
   errors: CompanyErrors
-  routineSearch: string
   onScreenChange: (screenId: string) => void
   onRestoreSuggestions: () => void
   pendingScreenId: string | null
@@ -629,6 +621,7 @@ function CompanyOperationsStep({
   onConfirmScreenChange: () => void
   onCancelScreenChange: () => void
   onStartChange: (startsOn: string) => void
+  routineSearch: string
   onRoutineSearchChange: (value: string) => void
   onRoutineToggle: (routineId: string) => void
 }) {
@@ -636,12 +629,6 @@ function CompanyOperationsStep({
     (left, right) =>
       Number(selectedRoutineIds.has(right.id)) -
         Number(selectedRoutineIds.has(left.id)) ||
-      Number(
-        Boolean(selectedScreen?.routines.some((item) => item.id === right.id)),
-      ) -
-        Number(
-          Boolean(selectedScreen?.routines.some((item) => item.id === left.id)),
-        ) ||
       left.name.localeCompare(right.name, 'pt-BR'),
   )
 
@@ -651,7 +638,7 @@ function CompanyOperationsStep({
         <StepHeader
           eyebrow="Etapa 2 de 3"
           title="Organize a operação"
-          description="A empresa já pertence ao tenant inteiro. Escolha, se necessário, uma tela inicial e as rotinas que serão vinculadas."
+          description="Escolha uma tela para selecionar suas rotinas e ajuste a lista antes de criar a empresa."
         />
         <div className="space-y-4 px-5 py-5">
           <FieldGroup error={errors.startsOn} errorId="company-starts-on-error">
@@ -661,7 +648,7 @@ function CompanyOperationsStep({
               type="date"
               value={draft.startsOn}
               onChange={(event) => onStartChange(event.target.value)}
-              required={selectedRoutineIds.size > 0}
+              required={draft.routineIds.length > 0}
               aria-invalid={Boolean(errors.startsOn)}
               aria-describedby={
                 errors.startsOn
@@ -683,8 +670,8 @@ function CompanyOperationsStep({
               Tela operacional (opcional)
             </legend>
             <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
-              A tela organiza a matriz e pode sugerir as rotinas iniciais; ela
-              não altera o vínculo das rotinas com a empresa.
+              A tela organiza a matriz, recebe a empresa após o cadastro e
+              seleciona suas rotinas como ponto de partida.
             </p>
             <div className="mt-3 grid gap-2">
               <ScreenChoice
@@ -703,10 +690,7 @@ function CompanyOperationsStep({
                     (screen.companies.length === 1
                       ? ' empresa · '
                       : ' empresas · ') +
-                    screen.routines.length +
-                    (screen.routines.length === 1
-                      ? ' rotina sugerida'
-                      : ' rotinas sugeridas')
+                    'planilha operacional'
                   }
                   onChange={() => onScreenChange(screen.id)}
                 />
@@ -729,9 +713,9 @@ function CompanyOperationsStep({
               </p>
               <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
                 {pendingScreen
-                  ? `Usar “${pendingScreen.name}” aplicará as sugestões dessa tela.`
-                  : 'Remover a tela limpará as sugestões aplicadas.'}{' '}
-                Suas seleções manuais atuais serão removidas.
+                  ? `Usar “${pendingScreen.name}” selecionará as rotinas dessa tela.`
+                  : 'Remover a tela limpará as rotinas selecionadas.'}{' '}
+                Seus ajustes atuais serão removidos.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button size="sm" onClick={onConfirmScreenChange}>
@@ -747,18 +731,17 @@ function CompanyOperationsStep({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-black text-[var(--color-text-strong)]">
                 {selectedScreen
-                  ? 'Sugestões da tela ' + selectedScreen.name
+                  ? 'Rotinas da tela ' + selectedScreen.name
                   : 'Escolha uma tela, se necessário'}
               </p>
               {selectedScreen && (
                 <Button size="sm" tone="neutral" onClick={onRestoreSuggestions}>
-                  Restaurar sugestões
+                  Restaurar rotinas da tela
                 </Button>
               )}
             </div>
             <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
-              Quando selecionada, a tela sugere rotinas e recebe a empresa em
-              sua matriz após a criação.
+              Você pode ajustar a lista de rotinas à direita antes de criar a empresa.
             </p>
           </div>
         </div>
@@ -766,19 +749,16 @@ function CompanyOperationsStep({
 
       <Card>
         <div className="border-b border-[var(--color-divider)] px-5 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-black text-[var(--color-text-strong)]">
-                Revise as rotinas atribuídas
-              </h2>
-              <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
-                {selectedRoutineIds.size}
-                {selectedRoutineIds.size === 1
-                  ? ' rotina selecionada.'
-                  : ' rotinas selecionadas.'}
-              </p>
-            </div>
-          </div>
+          <h2 className="text-lg font-black text-[var(--color-text-strong)]">
+            Rotinas atribuídas
+          </h2>
+          <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
+            {selectedRoutineIds.size}{' '}
+            {selectedRoutineIds.size === 1
+              ? 'rotina selecionada.'
+              : 'rotinas selecionadas.'}{' '}
+            {selectedScreen && 'Você pode incluir ou remover rotinas desta seleção.'}
+          </p>
           <div className="mt-4">
             <TextField
               id="company-routine-search"
@@ -822,15 +802,12 @@ function CompanyOperationsStep({
                           </span>
                           {suggested && (
                             <span className="rounded-full bg-[var(--color-brand-soft)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[var(--color-brand)]">
-                              Sugerida pela tela
+                              Da tela
                             </span>
                           )}
                         </span>
                         <span className="mt-1 block text-xs leading-5 text-[var(--color-text-muted)]">
-                          {routine.shortName}
-                          {' · '}
-                          {getRoutineRecurrenceLabel(routine.recurrence)}
-                          {' · '}
+                          {routine.shortName} · {getRoutineRecurrenceLabel(routine.recurrence)} ·{' '}
                           {formatRoutineSchedule(routine)}
                         </span>
                         {routine.description && (
@@ -890,12 +867,12 @@ function CompanyReviewStep({
             entries={[
               [
                 'Início das rotinas',
-                routines.length > 0
+                draft.routineIds.length > 0
                   ? formatDate(draft.startsOn)
                   : 'Não se aplica',
               ],
               ['Tela operacional', screen?.name || 'Não selecionada'],
-              ['Rotinas', String(routines.length)],
+              ['Rotinas', String(draft.routineIds.length)],
             ]}
           />
           {routines.length > 0 && (
@@ -912,8 +889,7 @@ function CompanyReviewStep({
                     {routine.name}
                   </span>
                   <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
-                    {routine.shortName} ·{' '}
-                    {getRoutineRecurrenceLabel(routine.recurrence)} ·{' '}
+                    {routine.shortName} · {getRoutineRecurrenceLabel(routine.recurrence)} ·{' '}
                     {formatRoutineSchedule(routine)}
                   </span>
                 </li>

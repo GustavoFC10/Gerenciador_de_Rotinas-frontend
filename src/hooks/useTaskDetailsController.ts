@@ -256,22 +256,12 @@ export function useTaskDetailsController({
         return
       }
 
-      const needsReason =
-        status === 'no_movement' ||
-        status === 'error' ||
-        (status === 'pending' && task.status !== 'pending')
-      const reason = needsReason
-        ? window.prompt(
-            'Informe a justificativa para esta alteração de estado.',
-          )
-        : undefined
-
-      if (needsReason && !reason?.trim()) return
+      
 
       setTransitionError(null)
 
       try {
-        await transitionTask(taskId, status, reason?.trim())
+        await transitionTask(taskId, status)
       } catch {
         setTransitionError(
           'N\u00e3o foi poss\u00edvel alterar o estado da tarefa. Tente novamente.',

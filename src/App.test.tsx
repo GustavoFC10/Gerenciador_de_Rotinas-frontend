@@ -1,6 +1,7 @@
 /** @vitest-environment happy-dom */
 
 import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -50,4 +51,67 @@ describe('App', () => {
     expect(markup).toContain('name="passwordConfirm"')
     expect(markup).not.toContain('name="email"')
   })
+
+  it('renders the internal skeleton before requiring an active membership', () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter initialEntries={[ROUTES.INTERNAL_ORGANIZATIONS]}>
+        <QueryClientProvider client={internalQueryClient}>
+          <AuthContext.Provider value={internalAuthValue}>
+            <App />
+          </AuthContext.Provider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+
+    expect(markup).toContain('id="internal-main-content"')
+    expect(markup).toContain('>INTERNO<')
+    expect(markup).not.toContain('Escolha onde deseja trabalhar')
+  })
+
+  it('blocks the internal area for an authenticated non-staff user', () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter initialEntries={[ROUTES.INTERNAL_ORGANIZATIONS]}>
+        <QueryClientProvider client={internalQueryClient}>
+          <AuthContext.Provider value={nonStaffInternalAuthValue}>
+            <App />
+          </AuthContext.Provider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+
+    expect(markup).toContain('Acesso restrito')
+    expect(markup).not.toContain('id="internal-main-content"')
+  })
 })
+
+const internalAuthValue: AuthContextValue = {
+  ...authValue,
+  session: {
+    user: {
+      id: 'internal-user',
+      email: 'time@plataforma.test',
+      isPlatformStaff: true,
+    },
+    memberships: [],
+    activeMembership: null,
+  },
+  isAuthenticated: true,
+  isInitializing: false,
+}
+
+const internalQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+  },
+})
+
+const nonStaffInternalAuthValue: AuthContextValue = {
+  ...internalAuthValue,
+  session: {
+    ...internalAuthValue.session!,
+    user: {
+      ...internalAuthValue.session!.user,
+      isPlatformStaff: false,
+    },
+  },
+}

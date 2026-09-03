@@ -17,7 +17,6 @@ export interface TaskPatchInput {
 
 export interface TaskTransitionInput {
   targetStatus: RoutineStatus
-  reason?: string
 }
 
 export interface AdHocTaskInput extends TaskPatchInput {
@@ -151,12 +150,10 @@ export class TaskService {
   archive(
     competenceId: string,
     taskId: string,
-    reason: string,
     etag: string,
   ): Promise<ApiResponse<void>> {
     return this.client.post<void>(
       `${taskPath(competenceId, taskId)}archive/`,
-      { reason },
       { ifMatch: etag },
     )
   }

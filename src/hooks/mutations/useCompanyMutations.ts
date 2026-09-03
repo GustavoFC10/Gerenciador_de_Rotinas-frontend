@@ -45,12 +45,13 @@ export function useCompanyMutations({
       try {
         const createdCompany = await companyService.create(input.company)
         const client = toClientFromResource(createdCompany.data)
-        company = { id: client.id, name: client.name }
+        const createdCompanySummary = { id: client.id, name: client.name }
+        company = createdCompanySummary
         upsertClientInOperationalContexts(queryClient, scope, client)
 
         for (const routineId of input.routineIds) {
           const assignment = await companyService.createRoutineAssignment(
-            company.id,
+            createdCompanySummary.id,
             {
               routineId,
               startsOn: input.startsOn,
@@ -58,7 +59,7 @@ export function useCompanyMutations({
             },
           )
           queryClient.setQueryData(
-            queryKeys.companyRoutineAssignments(scope, company.id),
+            queryKeys.companyRoutineAssignments(scope, createdCompanySummary.id),
             (current: ClientRoutineAssignmentResource[] | undefined) =>
               current ? [...current, assignment.data] : current,
           )
@@ -79,10 +80,10 @@ export function useCompanyMutations({
             (item) => item.id,
           )
 
-          if (!companyIds.includes(company.id)) {
+          if (!companyIds.includes(createdCompanySummary.id)) {
             const response = await screenService.update(
               input.screenId,
-              { companyIds: [...companyIds, company.id] },
+              { companyIds: [...companyIds, createdCompanySummary.id] },
               screenSnapshot.etag,
             )
             upsertScreenInOperationalContexts(queryClient, scope, response.data)

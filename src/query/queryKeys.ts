@@ -8,6 +8,9 @@ function scopeKey({ organizationId, membershipId }: OrganizationQueryScope) {
 }
 
 export const queryKeys = {
+  internalOrganizations: () => ['internal', 'organizations'] as const,
+  internalOrganization: (organizationId: string) =>
+    ['internal', 'organizations', organizationId] as const,
   scope: scopeKey,
   routineControlRoot: (scope: OrganizationQueryScope) =>
     [...scopeKey(scope), 'routine-control'] as const,
@@ -37,6 +40,4 @@ export const queryKeys = {
     screenId: string,
     period: string,
   ) => [...scopeKey(scope), 'agenda-projection', screenId, period] as const,
-  routinePresets: (scope: OrganizationQueryScope) =>
-    [...scopeKey(scope), 'routine-presets'] as const,
 }

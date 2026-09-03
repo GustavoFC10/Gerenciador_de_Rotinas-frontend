@@ -22,7 +22,7 @@ const destinations = [
   {
     to: ROUTES.SETTINGS_WORKFLOWS,
     title: 'Fluxos de trabalho',
-    description: 'Predefinições, automações e atalhos operacionais.',
+    description: 'Automações e atalhos operacionais.',
   },
   {
     to: ROUTES.SETTINGS_INTEGRATIONS,

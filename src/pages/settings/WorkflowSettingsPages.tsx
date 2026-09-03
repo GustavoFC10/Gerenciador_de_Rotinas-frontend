@@ -11,12 +11,6 @@ import { ROUTES } from '../../constants/routes'
 
 const workflowDestinations = [
   {
-    to: ROUTES.SETTINGS_WORKFLOW_PRESETS,
-    title: 'Predefinições',
-    description: 'Padronize conjuntos reutilizáveis de rotinas.',
-    available: true,
-  },
-  {
     to: ROUTES.SETTINGS_WORKFLOW_AUTOMATIONS,
     title: 'Automações',
     description: 'Automatize ações recorrentes do fluxo de trabalho.',

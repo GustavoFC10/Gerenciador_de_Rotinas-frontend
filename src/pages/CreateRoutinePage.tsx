@@ -250,10 +250,6 @@ function CreateRoutinePage({
     if (!Number.isInteger(dueDays) || dueDays < 0 || dueDays > 3750) {
       nextErrors.schedule = 'Informe um prazo inteiro entre 0 e 3.750 dias.'
     }
-    if (values.recurrence !== 'on_demand' && !values.defaultAssigneeMemberId) {
-      nextErrors.defaultAssigneeMemberId =
-        'Selecione o responsável padrão da rotina recorrente.'
-    }
     if (
       values.recurrence === 'quarterly' &&
       values.recurrenceMonths.length !== 4
@@ -581,11 +577,7 @@ function CreateRoutinePage({
                   >
                     <Select
                       id="routine-assignee"
-                      label={
-                        values.recurrence === 'on_demand'
-                          ? 'Responsável padrão (opcional)'
-                          : 'Responsável padrão *'
-                      }
+                      label="Responsável padrão (opcional)"
                       value={values.defaultAssigneeMemberId}
                       onChange={(event) =>
                         updateField(
@@ -598,7 +590,7 @@ function CreateRoutinePage({
                         isLoadingAssignees ||
                         Boolean(assigneesError)
                       }
-                      required={values.recurrence !== 'on_demand'}
+                      required={false}
                       aria-invalid={Boolean(
                         errors.defaultAssigneeMemberId || assigneesError,
                       )}

@@ -20,7 +20,6 @@ import IntegrationSettingsPages, {
 } from './IntegrationSettingsPages'
 import OrganizationSettingsPage from './OrganizationSettingsPage'
 import SettingsOverviewPage from './SettingsOverviewPage'
-import WorkflowPresetsSettingsPage from './WorkflowPresetsSettingsPage'
 import WorkflowsSettingsPage, {
   WorkflowDevelopmentPage,
 } from './WorkflowSettingsPages'
@@ -115,10 +114,6 @@ function SettingsRoutes({
         />
         <Route path="fluxos" element={<WorkflowsSettingsPage />} />
         <Route
-          path="fluxos/predefinicoes"
-          element={<WorkflowPresetsSettingsPage routines={data.routines} />}
-        />
-        <Route
           path="fluxos/automacoes"
           element={<WorkflowDevelopmentPage kind="automations" />}
         />
@@ -132,10 +127,6 @@ function SettingsRoutes({
           element={<IntegrationDetailSettingsPage />}
         />
 
-        <Route
-          path="predefinicoes"
-          element={<Navigate to={ROUTES.SETTINGS_WORKFLOW_PRESETS} replace />}
-        />
         <Route path="*" element={<Navigate to={ROUTES.SETTINGS} replace />} />
       </Route>
     </Routes>

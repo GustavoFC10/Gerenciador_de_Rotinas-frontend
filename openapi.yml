@@ -4,6 +4,233 @@ info:
   version: 1.0.0
   description: API do Gerenciador de Rotinas.
 paths:
+  /api/internal/v1/invitations/{invitationId}/resend/:
+    post:
+      operationId: api_internal_v1_invitations_resend_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: path
+        name: invitationId
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - internal-organizations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalInvitation'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/internal/v1/organizations/:
+    get:
+      operationId: api_internal_v1_organizations_list
+      tags:
+      - internal-organizations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InternalOrganizationList'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+      parameters:
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+  /api/internal/v1/organizations/{organizationId}/:
+    get:
+      operationId: api_internal_v1_organizations_retrieve
+      parameters:
+      - in: path
+        name: organizationId
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - internal-organizations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalOrganizationDetail'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/internal/v1/organizations/{organizationId}/owners/:
+    post:
+      operationId: api_internal_v1_organizations_owners_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: path
+        name: organizationId
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - internal-organizations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddOwnerInput'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalInvitation'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/internal/v1/organizations/provision/:
+    post:
+      operationId: api_internal_v1_organizations_provision_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - internal-organizations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvisionOrganizationInput'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProvisionOrganizationResponse'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
   /api/v1/auth/active-membership/:
     put:
       operationId: auth_active_membership_update
@@ -7710,6 +7937,19 @@ components:
           format: uuid
       required:
       - membershipId
+    AddOwnerInput:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        name:
+          type: string
+          maxLength: 160
+        email:
+          type: string
+          format: email
+      required:
+      - email
+      - name
     AgendaColumn:
       type: object
       properties:
@@ -8216,6 +8456,14 @@ components:
           type: string
       required:
       - csrfToken
+    DeliveryEnum:
+      enum:
+      - sent
+      - failed
+      type: string
+      description: |-
+        * `sent` - sent
+        * `failed` - failed
     Department:
       type: object
       properties:
@@ -8300,6 +8548,157 @@ components:
           type: string
       required:
       - name
+    InternalInvitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        expiresAt:
+          type: string
+          format: date-time
+          readOnly: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+      required:
+      - createdAt
+      - email
+      - expiresAt
+      - id
+      - status
+    InternalOrganizationDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        timezone:
+          type: string
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        memberCount:
+          type: integer
+          readOnly: true
+        departmentCount:
+          type: integer
+          readOnly: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalOwner'
+          readOnly: true
+      required:
+      - createdAt
+      - departmentCount
+      - id
+      - memberCount
+      - name
+      - owners
+      - slug
+      - status
+      - timezone
+    InternalOrganizationList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        timezone:
+          type: string
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        memberCount:
+          type: integer
+          readOnly: true
+        departmentCount:
+          type: integer
+          readOnly: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - createdAt
+      - departmentCount
+      - id
+      - memberCount
+      - name
+      - slug
+      - status
+      - timezone
+    InternalOwner:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        displayName:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/OrganizationMemberRoleEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusA48Enum'
+          readOnly: true
+        joinedAt:
+          type: string
+          format: date-time
+          readOnly: true
+        invitation:
+          allOf:
+          - $ref: '#/components/schemas/InternalInvitation'
+          nullable: true
+          readOnly: true
+      required:
+      - displayName
+      - email
+      - id
+      - invitation
+      - joinedAt
+      - role
+      - status
     InvitationAcceptInput:
       type: object
       description: Reject input keys that are not part of the public API contract.
@@ -8456,7 +8855,7 @@ components:
           readOnly: true
         status:
           allOf:
-          - $ref: '#/components/schemas/OrganizationMemberStatusEnum'
+          - $ref: '#/components/schemas/StatusA48Enum'
           readOnly: true
         joinedAt:
           type: string
@@ -8496,18 +8895,6 @@ components:
         * `owner` - Proprietário
         * `admin` - Administrador
         * `member` - Membro
-    OrganizationMemberStatusEnum:
-      enum:
-      - pending
-      - active
-      - suspended
-      - inactive
-      type: string
-      description: |-
-        * `pending` - Pendente
-        * `active` - Ativo
-        * `suspended` - Suspenso
-        * `inactive` - Inativo
     OrganizationSummary:
       type: object
       properties:
@@ -9041,6 +9428,47 @@ components:
       - name
       - position
       - shotname
+    ProvisionOrganizationInput:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        name:
+          type: string
+          maxLength: 160
+        slug:
+          type: string
+          maxLength: 80
+          pattern: ^[-a-zA-Z0-9_]+$
+        timezone:
+          type: string
+          default: America/Sao_Paulo
+          maxLength: 64
+        ownerName:
+          type: string
+          maxLength: 160
+        ownerEmail:
+          type: string
+          format: email
+      required:
+      - name
+      - ownerEmail
+      - ownerName
+    ProvisionOrganizationResponse:
+      type: object
+      properties:
+        organization:
+          $ref: '#/components/schemas/InternalOrganizationList'
+        owner:
+          $ref: '#/components/schemas/InternalOwner'
+        invitation:
+          $ref: '#/components/schemas/InternalInvitation'
+        delivery:
+          $ref: '#/components/schemas/DeliveryEnum'
+      required:
+      - delivery
+      - invitation
+      - organization
+      - owner
     Routine:
       type: object
       properties:
@@ -9804,6 +10232,18 @@ components:
       - spreadsheet
       type: string
       description: '* `spreadsheet` - spreadsheet'
+    StatusA48Enum:
+      enum:
+      - pending
+      - active
+      - suspended
+      - inactive
+      type: string
+      description: |-
+        * `pending` - Pendente
+        * `active` - Ativo
+        * `suspended` - Suspenso
+        * `inactive` - Inativo
     Task:
       type: object
       properties:
@@ -10168,9 +10608,12 @@ components:
         email:
           type: string
           format: email
+        isPlatformStaff:
+          type: boolean
       required:
       - email
       - id
+      - isPlatformStaff
   securitySchemes:
     cookieAuth:
       type: apiKey

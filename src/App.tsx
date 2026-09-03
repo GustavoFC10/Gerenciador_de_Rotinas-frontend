@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import LoadingState from './components/common/LoadingState'
 import TaskDetailsDialog from './components/routine-control/details/TaskDetailsDialog'
-import { ROUTES } from './constants/routes'
+import { isInternalRoute, ROUTES } from './constants/routes'
 import { useAppState } from './hooks/useAppState'
 import { useAuth } from './hooks/useAuth'
 import { useCompanyMutations } from './hooks/mutations/useCompanyMutations'
@@ -19,15 +19,18 @@ import { useTaskDetailsController } from './hooks/useTaskDetailsController'
 import AcceptInvitationPage from './pages/AcceptInvitationPage'
 import LoginPage from './pages/LoginPage'
 import MembershipSelectionPage from './pages/MembershipSelectionPage'
+import InternalAccessDeniedPage from './pages/internal/InternalAccessDeniedPage'
 import { queryKeys } from './query/queryKeys'
 import AuthenticatedRoutes from './routes/AuthenticatedRoutes'
+import InternalAdminRoutes from './routes/InternalAdminRoutes'
 import type { MembershipSummary } from './services/authService'
 import { organizationMemberService } from './services/organizationMemberService'
 import type { MembershipInvitationResource } from './services/organizationMemberService'
 import { isOrganizationAdmin } from './utils/permissions'
 
 function App() {
-  const { activeMembership, isAuthenticated, isInitializing } = useAuth()
+  const { activeMembership, isAuthenticated, isInitializing, session } =
+    useAuth()
   const location = useLocation()
 
   if (location.pathname === ROUTES.ACCEPT_INVITATION) {
@@ -56,6 +59,16 @@ function App() {
         />
       </Routes>
     )
+  }
+
+  // A area interna nao depende de uma organization ativa nem dos dados
+  // operacionais carregados por AuthenticatedApp.
+  if (isInternalRoute(location.pathname)) {
+    if (!session?.user.isPlatformStaff) {
+      return <InternalAccessDeniedPage />
+    }
+
+    return <InternalAdminRoutes />
   }
 
   if (!activeMembership) {

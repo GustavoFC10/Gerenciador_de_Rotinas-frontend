@@ -30,6 +30,7 @@ export interface InvitationAcceptanceCredentials {
 export interface UserSummary {
   id: string
   email: string
+  isPlatformStaff: boolean
 }
 
 export interface OrganizationSummary {

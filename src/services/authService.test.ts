@@ -7,6 +7,7 @@ const sessionFixture: AuthSession = {
   user: {
     id: '0f35fd79-d00f-43cf-a201-f4a1029b02da',
     email: 'admin@example.com',
+    isPlatformStaff: false,
   },
   memberships: [
     {

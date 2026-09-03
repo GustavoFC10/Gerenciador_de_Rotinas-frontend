@@ -592,11 +592,6 @@ function RoutineEditForm({
       return
     }
 
-    if (recurrence !== 'on_demand' && !defaultAssigneeMemberId) {
-      setError('Selecione o responsável padrão da rotina recorrente.')
-      return
-    }
-
     const expectedMonths: Partial<Record<RoutineRecurrence, number>> = {
       quarterly: 4,
       semiannual: 2,
@@ -746,17 +741,13 @@ function RoutineEditForm({
             <div>
               <Select
                 id="edit-routine-assignee"
-                label={
-                  recurrence === 'on_demand'
-                    ? 'Responsável padrão (opcional)'
-                    : 'Responsável padrão *'
-                }
+                label="Responsável padrão (opcional)"
                 value={defaultAssigneeMemberId}
                 onChange={(event) =>
                   setDefaultAssigneeMemberId(event.target.value)
                 }
                 disabled={isLoadingAssignees || Boolean(assigneesError)}
-                required={recurrence !== 'on_demand'}
+                required={false}
               >
                 <option value="">
                   {isLoadingAssignees
