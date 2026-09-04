@@ -389,9 +389,10 @@ curl.exe "$BASE_URL/api/v1/client-companies/?search=exemplo&ordering=code&page=1
 
 ### `POST /api/v1/client-companies/`
 
-Cria uma empresa. O código interno aceita de 1 a 32 dígitos e preserva zeros à
-esquerda; `legalName` é a razão social e permanece separado do nome de exibição,
-CNPJ, e-mail e celular. A razão social é opcional nesta etapa.
+Cria uma empresa. O código interno é opcional e, quando informado, aceita de 1
+a 32 dígitos e preserva zeros à esquerda; `legalName` é a razão social e
+permanece separado do nome de exibição, CNPJ, e-mail e celular. A razão social
+é opcional nesta etapa.
 
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/client-companies/" `

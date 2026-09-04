@@ -192,8 +192,8 @@ function ClientEditForm({
       return
     }
 
-    if (!/^[0-9]{1,32}$/.test(normalizedCode)) {
-      setError('Informe um código numérico com até 32 dígitos.')
+    if (normalizedCode && !/^[0-9]{1,32}$/.test(normalizedCode)) {
+      setError('Use um código numérico com até 32 dígitos.')
       return
     }
 
@@ -212,7 +212,7 @@ function ClientEditForm({
     try {
       await onSave({
         name: name.trim(),
-        code: normalizedCode,
+        ...(normalizedCode ? { code: normalizedCode } : {}),
         legalName: legalName.trim(),
         cnpj: formatCnpj(normalizedCnpj),
         email: email.trim(),
@@ -303,7 +303,7 @@ function ClientEditForm({
                       </div>
                       <TextField
                         id="edit-company-code"
-                        label="Código *"
+                        label="Código (opcional)"
                         value={code}
                         onChange={(event) =>
                           setCode(
@@ -312,7 +312,6 @@ function ClientEditForm({
                         }
                         inputMode="numeric"
                         maxLength={32}
-                        required
                       />
                     </div>
                   </section>

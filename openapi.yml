@@ -8106,7 +8106,6 @@ components:
           type: string
           maxLength: 80
       required:
-      - code
       - name
     ClientContact:
       type: object

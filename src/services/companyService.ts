@@ -4,7 +4,7 @@ import type { ApiResponse } from './httpClient'
 const CLIENT_COMPANIES_ENDPOINT = '/api/v1/client-companies/'
 
 export interface ClientCompanyInput {
-  code: string
+  code?: string
   name: string
   legalName?: string
   cnpj?: string

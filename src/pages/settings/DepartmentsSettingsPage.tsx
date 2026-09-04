@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import EmptyState from '../../components/common/EmptyState'
@@ -12,6 +12,7 @@ import FormShell from '../../components/forms/FormShell'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import IconButton from '../../components/ui/IconButton'
+import FloatingMenu from '../../components/ui/FloatingMenu'
 import Textarea from '../../components/ui/Textarea'
 import TextField from '../../components/ui/TextField'
 import { focusRing } from '../../constants/designTokens'
@@ -290,6 +291,8 @@ function DepartmentActionMenu({
   onDevelopmentNotice: (message: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const menuId = useId()
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
 
   function notify(action: 'edição' | 'exclusão') {
     onDevelopmentNotice(
@@ -301,37 +304,41 @@ function DepartmentActionMenu({
   return (
     <div className="relative">
       <IconButton
+        ref={triggerRef}
         label={`Mais ações para ${departmentName}`}
         tone="ghost"
         aria-expanded={isOpen}
         aria-haspopup="menu"
+        aria-controls={isOpen ? menuId : undefined}
         onClick={() => setIsOpen((current) => !current)}
       >
         <DotsIcon />
       </IconButton>
-      {isOpen && (
-        <div
-          role="menu"
-          className="absolute right-0 z-10 mt-1 w-44 overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-1 shadow-[var(--shadow-floating)]"
+      <FloatingMenu
+        anchorRef={triggerRef}
+        id={menuId}
+        isOpen={isOpen}
+        onDismiss={() => setIsOpen(false)}
+        className="w-44 overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-1 shadow-[var(--shadow-floating)]"
+        ariaLabel={`Ações para ${departmentName}`}
+      >
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => notify('edição')}
+          className={`flex min-h-9 w-full items-center rounded-[var(--radius-control)] px-2.5 text-left text-sm font-semibold text-[var(--color-text-main)] hover:bg-[var(--color-control-hover-bg)] ${focusRing}`}
         >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => notify('edição')}
-            className={`flex min-h-9 w-full items-center rounded-[var(--radius-control)] px-2.5 text-left text-sm font-semibold text-[var(--color-text-main)] hover:bg-[var(--color-control-hover-bg)] ${focusRing}`}
-          >
-            Editar dados
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => notify('exclusão')}
-            className={`flex min-h-9 w-full items-center rounded-[var(--radius-control)] px-2.5 text-left text-sm font-semibold text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)] ${focusRing}`}
-          >
-            Excluir departamento
-          </button>
-        </div>
-      )}
+          Editar dados
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => notify('exclusão')}
+          className={`flex min-h-9 w-full items-center rounded-[var(--radius-control)] px-2.5 text-left text-sm font-semibold text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)] ${focusRing}`}
+        >
+          Excluir departamento
+        </button>
+      </FloatingMenu>
     </div>
   )
 }

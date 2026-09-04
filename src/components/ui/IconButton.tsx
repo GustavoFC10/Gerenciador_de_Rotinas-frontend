@@ -1,5 +1,6 @@
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
+
 import { buttonTone, focusRing } from '../../constants/designTokens'
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode
@@ -7,25 +8,26 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   tone?: keyof typeof buttonTone
 }
 
-function IconButton({
-  children,
-  label,
-  type = 'button',
-  tone = 'neutral',
-  className = '',
-  ...props
-}: IconButtonProps) {
-  return (
-    <button
-      type={type}
-      aria-label={label}
-      title={label}
-      className={`grid size-8 place-items-center rounded-[var(--radius-control)] transition ${buttonTone[tone]} ${focusRing} ${className}`}
-      {...props}
-    >
-      {children}
-    </button>
-  )
-}
+const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
+  function IconButton(
+    { children, label, type = 'button', tone = 'neutral', className = '', ...props },
+    ref,
+  ) {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        aria-label={label}
+        title={label}
+        className={`grid size-8 place-items-center rounded-[var(--radius-control)] transition ${buttonTone[tone]} ${focusRing} ${className}`}
+        {...props}
+      >
+        {children}
+      </button>
+    )
+  },
+)
+
+IconButton.displayName = 'IconButton'
 
 export default IconButton

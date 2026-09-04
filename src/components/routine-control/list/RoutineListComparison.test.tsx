@@ -26,7 +26,8 @@ describe('RoutineListComparison', () => {
     expect(markup).toContain('Responsável')
     expect(markup).toContain('Em andamento')
     expect(markup).toContain('Execução')
-    expect(markup).toContain('<details')
+    expect(markup).toContain('data-status-menu-trigger="true"')
+    expect(markup).not.toContain('<details')
     expect(markup).not.toContain('Confirmar estado')
     expect(markup).not.toContain(
       'grid-cols-[minmax(15rem,1fr)_6rem_9rem_8rem_18rem]',

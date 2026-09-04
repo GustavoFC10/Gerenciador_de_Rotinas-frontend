@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import {
   ROUTINE_STATUS,
@@ -11,6 +11,7 @@ import type {
   TaskAttachment,
 } from '../../../types/domain'
 import { getRoutineAttachments } from '../details/routineDetailsUtils'
+import FloatingMenu from '../../ui/FloatingMenu'
 import RoutineStatusIcon from './RoutineStatusIcon'
 
 type AttachmentVariant = 'list' | 'gallery' | 'preview' | 'embedded'
@@ -344,6 +345,9 @@ export function RoutineStatusControl({
   const statusEntries = (allowedStatusChanges ?? selectableStatusOrder)
     .filter((status) => status !== task.status)
     .map((status) => [status, routineStatusConfig[status]] as const)
+  const menuTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const menuId = useId()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   if (!onStatusChange || statusEntries.length === 0) {
     return (
@@ -516,22 +520,38 @@ export function RoutineStatusControl({
   }
 
   return (
-    <details className={`group relative ${className}`}>
-      <summary
-        className={`inline-flex min-h-9 cursor-pointer list-none items-center gap-2 rounded-[var(--radius-control)] border px-3 text-sm font-bold transition marker:hidden hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${currentStatus.surfaceClass}`}
+    <>
+      <button
+        ref={menuTriggerRef}
+        type="button"
+        onClick={() => setIsMenuOpen((isOpen) => !isOpen)}
+        className={`inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border px-3 text-sm font-bold transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${currentStatus.surfaceClass} ${className}`}
+        aria-haspopup="menu"
+        aria-expanded={isMenuOpen}
+        aria-controls={isMenuOpen ? menuId : undefined}
+        data-status-menu-trigger
       >
         <RoutineStatusIcon status={task.status} className="size-4" />
         {currentStatus.label}
-        <ChevronDownIcon />
-      </summary>
-      <div className="absolute right-0 z-30 mt-1 w-48 rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-1 shadow-[var(--shadow-floating)]">
+        <ChevronDownIcon isOpen={isMenuOpen} />
+      </button>
+
+      <FloatingMenu
+        anchorRef={menuTriggerRef}
+        id={menuId}
+        isOpen={isMenuOpen}
+        onDismiss={() => setIsMenuOpen(false)}
+        className="w-48 rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-1 shadow-[var(--shadow-floating)]"
+        ariaLabel="Selecionar estado da execução"
+      >
         {statusEntries.map(([value, config]) => (
           <button
             key={value}
             type="button"
-            onClick={(event) => {
+            role="menuitem"
+            onClick={() => {
               onStatusChange?.(task.id, value)
-              event.currentTarget.closest('details')?.removeAttribute('open')
+              setIsMenuOpen(false)
             }}
             className="flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)]"
           >
@@ -539,8 +559,8 @@ export function RoutineStatusControl({
             <span className="flex-1">{config.label}</span>
           </button>
         ))}
-      </div>
-    </details>
+      </FloatingMenu>
+    </>
   )
 }
 
@@ -987,11 +1007,11 @@ function NoteIcon() {
   )
 }
 
-function ChevronDownIcon() {
+function ChevronDownIcon({ isOpen = false }: { isOpen?: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="size-3.5 transition group-open:rotate-180"
+      className={`size-3.5 transition ${isOpen ? 'rotate-180' : ''}`}
       fill="none"
       stroke="currentColor"
       aria-hidden="true"

@@ -9,6 +9,23 @@ import { ScreenService } from './screenService'
 import { TaskService } from './taskService'
 
 describe('write services', () => {
+  it('cria empresa sem enviar código quando ele não foi informado', async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ id: 'company-1', name: 'Sem código' }))
+    const client = createClient(fetchImplementation)
+
+    await new CompanyService(client).create({ name: 'Sem código' })
+
+    expect(fetchImplementation).toHaveBeenCalledWith(
+      'https://api.example.com/api/v1/client-companies/',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ name: 'Sem código' }),
+      }),
+    )
+  })
+
   it('envia alterações de empresa com CSRF e If-Match', async () => {
     const fetchImplementation = vi
       .fn<typeof fetch>()

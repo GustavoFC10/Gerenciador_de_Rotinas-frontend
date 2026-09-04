@@ -236,8 +236,8 @@ function CreateCompanyPage({
       nextErrors.name = 'Informe o nome da empresa.'
     }
 
-    if (!/^[0-9]{1,32}$/.test(code)) {
-      nextErrors.code = 'Informe um código numérico com até 32 dígitos.'
+    if (code && !/^[0-9]{1,32}$/.test(code)) {
+      nextErrors.code = 'Use um código numérico com até 32 dígitos.'
     }
 
     if (cnpj && cnpj.length !== 14) {
@@ -488,7 +488,7 @@ function CompanyDataStep({
             <FieldGroup error={errors.code} errorId="company-code-error">
               <TextField
                 id="company-code"
-                label="Código *"
+                label="Código (opcional)"
                 value={draft.code}
                 onChange={(event) =>
                   onUpdate(
@@ -499,7 +499,6 @@ function CompanyDataStep({
                 inputMode="numeric"
                 maxLength={32}
                 placeholder="Ex.: 007"
-                required
                 aria-invalid={Boolean(errors.code)}
                 aria-describedby={
                   errors.code ? 'company-code-error' : 'company-code-hint'
@@ -510,7 +509,7 @@ function CompanyDataStep({
                   id="company-code-hint"
                   className="mt-1.5 text-xs text-[var(--color-text-muted)]"
                 >
-                  Somente números, com até 32 dígitos.
+                  Se informado, use somente números, com até 32 dígitos.
                 </p>
               )}
             </FieldGroup>
@@ -854,7 +853,7 @@ function CompanyReviewStep({
           <ReviewGrid
             entries={[
               ['Nome', draft.name],
-              ['Código', draft.code],
+              ['Código', draft.code || 'Não informado'],
               ['Razão social', draft.legalName || 'Não informada'],
               ['CNPJ', draft.cnpj || 'Não informado'],
               ['E-mail', draft.email || 'Não informado'],
