@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   formatCompetence,
+  formatCompetenceLong,
   getCurrentCompetence,
   nextCompetence,
   previousCompetence,
@@ -10,6 +11,14 @@ import {
 describe('competence utils', () => {
   it('formats competence as month/year', () => {
     expect(formatCompetence('2026-06')).toBe('06/2026')
+  })
+
+  it('formats competence with the month written in Portuguese', () => {
+    expect(formatCompetenceLong('2026-07')).toBe('Julho de 2026')
+  })
+
+  it('returns an empty label for an invalid competence', () => {
+    expect(formatCompetenceLong('2026-13')).toBe('')
   })
 
   it('moves to the next competence', () => {

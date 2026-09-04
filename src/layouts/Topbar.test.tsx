@@ -46,12 +46,25 @@ describe('Topbar', () => {
     expect(renderTopbar(false)).toContain('aria-controls="app-sidebar"')
   })
 
-  it('presents the current competence as information, not an inert button', () => {
+  it('presents the current competence with the month written in full', () => {
     const markup = renderTopbar(false)
-    const currentCompetenceElement =
-      markup.match(/<span[^>]*aria-label="Competência atual:[^>]*>/)?.[0] ?? ''
 
-    expect(currentCompetenceElement).toContain('Competência atual: 07/2026')
-    expect(currentCompetenceElement).toMatch(/^<span/)
+    expect(markup).toContain('aria-label="Competência atual: Julho de 2026"')
+    expect(markup).toContain('>Julho de 2026</span>')
+  })
+
+  it('uses the full topbar width for competence navigation', () => {
+    const markup = renderTopbar(false)
+
+    expect(markup).toContain('grid w-full grid-cols-')
+    expect(markup).toContain('Anterior')
+    expect(markup).toContain('Próxima')
+  })
+
+  it('keeps profile information out of the topbar', () => {
+    const markup = renderTopbar(false)
+
+    expect(markup).not.toContain('Ana Souza')
+    expect(markup).not.toContain('Abrir perfil')
   })
 })

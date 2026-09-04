@@ -1,9 +1,8 @@
 import type { RefObject } from 'react'
-import { Link } from 'react-router'
 
 import { appThemeClass, focusRing } from '../constants/designTokens'
-import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
+import { formatCompetenceLong } from '../utils/competence'
 
 function Topbar({
   isNavigationOpen,
@@ -15,86 +14,56 @@ function Topbar({
   menuButtonRef: RefObject<HTMLButtonElement | null>
 }) {
   const {
+    competence,
     formattedCompetence,
     goToNextCompetence,
     goToPreviousCompetence,
-    user,
   } = useAppState()
+  const competenceLabel = formatCompetenceLong(competence)
 
   return (
     <header
-      className={`sticky top-0 z-40 flex min-h-14 items-center justify-between border-b px-4 backdrop-blur ${appThemeClass.topbar}`}
+      className={`sticky top-0 z-40 flex min-h-[4.5rem] items-stretch border-b backdrop-blur ${appThemeClass.topbar}`}
     >
-      <div className="flex items-center gap-2">
-        <button
-          ref={menuButtonRef}
-          type="button"
-          onClick={onNavigationOpen}
-          className={`mr-1 grid size-9 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] lg:hidden ${focusRing}`}
-          aria-label="Abrir navegação"
-          aria-controls="app-sidebar"
-          aria-expanded={isNavigationOpen}
-        >
-          <MenuIcon />
-        </button>
+      <button
+        ref={menuButtonRef}
+        type="button"
+        onClick={onNavigationOpen}
+        className={`absolute left-4 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] lg:hidden ${focusRing}`}
+        aria-label="Abrir navegação"
+        aria-controls="app-sidebar"
+        aria-expanded={isNavigationOpen}
+      >
+        <MenuIcon />
+      </button>
+
+      <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch">
         <button
           type="button"
           onClick={goToPreviousCompetence}
-          className={`grid size-8 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] ${focusRing}`}
+          className={`group ml-14 flex min-w-0 items-center justify-self-start px-4 text-sm font-bold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] sm:px-6 lg:ml-0 lg:px-8 ${focusRing}`}
           aria-label="Competência anterior"
         >
           <ChevronIcon direction="left" />
+          <span className="ml-2 hidden sm:inline">Anterior</span>
         </button>
         <span
-          className="inline-flex min-h-8 items-center rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 text-sm font-bold text-[var(--color-control-text)]"
-          aria-label={`Competência atual: ${formattedCompetence}`}
+          className="inline-flex items-center justify-center px-4 text-center text-base font-extrabold tracking-tight text-[var(--color-text-strong)] sm:text-lg"
+          aria-label={`Competência atual: ${competenceLabel || formattedCompetence}`}
         >
-          {formattedCompetence}
+          {competenceLabel || formattedCompetence}
         </span>
         <button
           type="button"
           onClick={goToNextCompetence}
-          className={`grid size-8 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] ${focusRing}`}
+          className={`group flex min-w-0 items-center justify-self-end px-4 text-sm font-bold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] sm:px-6 lg:px-8 ${focusRing}`}
           aria-label="Próxima competência"
         >
+          <span className="mr-2 hidden sm:inline">Próxima</span>
           <ChevronIcon direction="right" />
         </button>
       </div>
-
-      <div className="flex items-center gap-3">
-        <div className="hidden text-right sm:block">
-          <p className="text-sm font-bold text-[var(--color-text-main)]">
-            {user.name}
-          </p>
-          <p className="text-xs font-medium text-[var(--color-text-muted)]">
-            {user.role}
-          </p>
-        </div>
-        <Link
-          to={ROUTES.PROFILE}
-          className="grid size-9 place-items-center rounded-full bg-[var(--color-control-bg)] text-[var(--color-brand)] ring-1 ring-[var(--color-control-border)] transition hover:bg-[var(--color-control-hover-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
-          aria-label="Abrir perfil"
-          title="Perfil"
-        >
-          <UserIcon />
-        </Link>
-      </div>
     </header>
-  )
-}
-
-function UserIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-5"
-      fill="none"
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M20 21a8 8 0 0 0-16 0" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" strokeWidth="1.8" />
-    </svg>
   )
 }
 

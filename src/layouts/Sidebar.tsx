@@ -277,8 +277,102 @@ function Sidebar({
           </>
         )}
       </nav>
+
+      <SidebarProfile
+        isCollapsed={isCollapsed}
+        onNavigate={onMobileClose}
+        user={user}
+      />
     </aside>
   )
+}
+
+function SidebarProfile({
+  isCollapsed,
+  onNavigate,
+  user,
+}: {
+  isCollapsed: boolean
+  onNavigate: () => void
+  user: ReturnType<typeof useAppState>['user']
+}) {
+  const initials = getUserInitials(user.name)
+
+  return (
+    <div
+      className={`shrink-0 border-t border-[var(--color-sidebar-border)] p-3 ${
+        isCollapsed ? 'lg:px-2' : ''
+      }`}
+      data-sidebar-profile
+    >
+      <Link
+        to={ROUTES.PROFILE}
+        onClick={onNavigate}
+        title={isCollapsed ? `Perfil: ${user.name}` : undefined}
+        aria-label={`Abrir perfil de ${user.name}`}
+        className={`group flex min-h-12 items-center gap-3 rounded-[var(--radius-nav-item)] p-2 transition motion-reduce:transition-none hover:bg-[var(--color-nav-item-hover-bg)] ${
+          isCollapsed ? 'lg:justify-center lg:p-1' : ''
+        } ${focusRing}`}
+      >
+        <UserAvatar avatarUrl={user.avatarUrl} initials={initials} />
+        <span
+          className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}
+        >
+          <span className="block truncate text-sm font-bold text-[var(--color-text-strong)]">
+            {user.name}
+          </span>
+          <span className="block truncate text-xs font-medium text-[var(--color-text-muted)]">
+            {user.email}
+          </span>
+        </span>
+        <NavigationIcon
+          name="chevron-right"
+          className={`size-4 shrink-0 text-[var(--color-text-muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--color-text-strong)] motion-reduce:transition-none ${
+            isCollapsed ? 'lg:hidden' : ''
+          }`}
+        />
+      </Link>
+    </div>
+  )
+}
+
+function UserAvatar({
+  avatarUrl,
+  initials,
+}: {
+  avatarUrl: string
+  initials: string
+}) {
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt=""
+        className="size-9 shrink-0 rounded-full object-cover ring-1 ring-[var(--color-control-border)]"
+      />
+    )
+  }
+
+  return (
+    <span
+      className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--color-sidebar-icon-bg)] text-xs font-extrabold text-[var(--color-sidebar-icon-text)] ring-1 ring-[var(--color-control-border)]"
+      aria-hidden="true"
+    >
+      {initials}
+    </span>
+  )
+}
+
+function getUserInitials(name: string): string {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+
+  return initials || 'U'
 }
 
 function getSelectedSpreadsheetId(

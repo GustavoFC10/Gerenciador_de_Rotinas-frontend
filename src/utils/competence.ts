@@ -6,6 +6,18 @@ export function formatCompetence(competence: string): string {
   return `${month}/${year}`
 }
 
+export function formatCompetenceLong(competence: string): string {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(competence)) return ''
+
+  const label = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'UTC',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(`${competence}-01T12:00:00Z`))
+
+  return label.charAt(0).toLocaleUpperCase('pt-BR') + label.slice(1)
+}
+
 export function getCurrentCompetence(
   timeZone: string | undefined,
   now: Date = new Date(),
