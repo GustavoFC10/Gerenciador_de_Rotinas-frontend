@@ -1,14 +1,19 @@
 /** @vitest-environment happy-dom */
 
+import { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router'
-import { afterEach, describe, expect, it } from 'vitest'
+import { MemoryRouter, useLocation } from 'react-router'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 import { ROUTES } from './constants/routes'
 import { AuthContext } from './contexts/authContextDefinition'
 import type { AuthContextValue } from './contexts/authContextDefinition'
+import { internalOrganizationService } from './services/internalOrganizationService'
+
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const authValue: AuthContextValue = {
   session: null,
@@ -82,7 +87,58 @@ describe('App', () => {
     expect(markup).toContain('Acesso restrito')
     expect(markup).not.toContain('id="internal-main-content"')
   })
+
+  it('redirects a staff account without an organization to the internal area', async () => {
+    const host = document.createElement('div')
+    const root = createRoot(host)
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    document.body.appendChild(host)
+    const listOrganizations = vi
+      .spyOn(internalOrganizationService, 'list')
+      .mockResolvedValue({
+        data: [],
+        status: 200,
+        etag: null,
+        requestId: null,
+        headers: new Headers(),
+      })
+
+    try {
+      await act(async () => {
+        root.render(
+          <MemoryRouter initialEntries={[ROUTES.HOME]}>
+            <QueryClientProvider client={queryClient}>
+              <AuthContext.Provider value={internalAuthValue}>
+                <App />
+                <LocationProbe />
+              </AuthContext.Provider>
+            </QueryClientProvider>
+          </MemoryRouter>,
+        )
+      })
+
+      expect(host.querySelector('[data-location]')?.textContent).toBe(
+        ROUTES.INTERNAL_ORGANIZATIONS,
+      )
+      expect(host.textContent).not.toContain('Escolha onde deseja trabalhar')
+    } finally {
+      await act(async () => {
+        root.unmount()
+      })
+      queryClient.clear()
+      listOrganizations.mockRestore()
+      host.remove()
+    }
+  })
 })
+
+function LocationProbe() {
+  const location = useLocation()
+
+  return <output data-location>{location.pathname}</output>
+}
 
 const internalAuthValue: AuthContextValue = {
   ...authValue,
