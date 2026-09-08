@@ -71,6 +71,12 @@ function App() {
     return <InternalAdminRoutes />
   }
 
+  // Contas Django is_staff usam exclusivamente a administração interna. Elas
+  // podem não ter uma associação organizacional para selecionar.
+  if (session?.user.isPlatformStaff) {
+    return <Navigate to={ROUTES.INTERNAL_ORGANIZATIONS} replace />
+  }
+
   if (!activeMembership) {
     return <MembershipSelectionPage />
   }
