@@ -79,6 +79,7 @@ async function renderRoutes(
               onCompanyCreate={unimplemented}
               onCompanyUpdate={unimplemented}
               onCompanyArchive={unimplemented}
+              onCompanyRestore={unimplemented}
               onRoutineCreate={unimplemented}
               onRoutineUpdate={unimplemented}
               onEmployeeInvite={unimplemented}

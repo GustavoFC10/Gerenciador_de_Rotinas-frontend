@@ -117,10 +117,11 @@ function AuthenticatedApp({
     competenceStatus: response?.meta.competenceStatus,
     selectedDepartment: spreadsheetContext.selectedDepartment,
   })
-  const { createCompany, updateCompany, archiveCompany } = useCompanyMutations({
-    ...scope,
-    period: competence,
-  })
+  const { createCompany, updateCompany, archiveCompany, restoreCompany } =
+    useCompanyMutations({
+      ...scope,
+      period: competence,
+    })
   const { createRoutine, updateRoutine } = useRoutineMutations(scope)
   const { createDepartment } = useDepartmentMutations(scope)
   const { createScreen, updateScreen } = useScreenMutations({
@@ -188,6 +189,7 @@ function AuthenticatedApp({
         onCompanyCreate={createCompany}
         onCompanyUpdate={updateCompany}
         onCompanyArchive={archiveCompany}
+        onCompanyRestore={restoreCompany}
         onRoutineCreate={createRoutine}
         onRoutineUpdate={updateRoutine}
         onEmployeeInvite={handleEmployeeInvite}

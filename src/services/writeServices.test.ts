@@ -50,6 +50,44 @@ describe('write services', () => {
     expect(headers.get('If-Match')).toBe('"3"')
   })
 
+  it('desarquiva empresa com CSRF e If-Match', async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ id: 'company-1', archivedAt: null }))
+    const client = createClient(fetchImplementation)
+
+    await new CompanyService(client).restore('company-1', '"4"')
+
+    expect(fetchImplementation).toHaveBeenCalledWith(
+      'https://api.example.com/api/v1/client-companies/company-1/restore/',
+      expect.objectContaining({ method: 'POST', body: '{}' }),
+    )
+    const headers = new Headers(fetchImplementation.mock.calls[0]?.[1]?.headers)
+    expect(headers.get('X-CSRFToken')).toBe('csrf-token')
+    expect(headers.get('If-Match')).toBe('"4"')
+  })
+
+  it('remove definitivamente o vínculo entre empresa e rotina', async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(null, { status: 204 }))
+    const client = createClient(fetchImplementation)
+
+    await new CompanyService(client).removeRoutineAssignment(
+      'company-1',
+      'assignment-1',
+      '"5"',
+    )
+
+    expect(fetchImplementation).toHaveBeenCalledWith(
+      'https://api.example.com/api/v1/client-companies/company-1/routine-assignments/assignment-1/',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+    const headers = new Headers(fetchImplementation.mock.calls[0]?.[1]?.headers)
+    expect(headers.get('X-CSRFToken')).toBe('csrf-token')
+    expect(headers.get('If-Match')).toBe('"5"')
+  })
+
   it('publica uma nova versão de rotina no endpoint específico', async () => {
     const fetchImplementation = vi
       .fn<typeof fetch>()

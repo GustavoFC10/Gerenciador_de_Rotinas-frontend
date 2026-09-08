@@ -19,6 +19,7 @@ import IntegrationSettingsPages, {
   IntegrationDetailSettingsPage,
 } from './IntegrationSettingsPages'
 import OrganizationSettingsPage from './OrganizationSettingsPage'
+import ArchivedCompaniesSettingsPage from './ArchivedCompaniesSettingsPage'
 import SettingsOverviewPage from './SettingsOverviewPage'
 import WorkflowsSettingsPage, {
   WorkflowDevelopmentPage,
@@ -29,6 +30,7 @@ interface SettingsRoutesProps {
     RoutineControlData,
     'departments' | 'screens' | 'clients' | 'routines'
   >
+  onCompanyRestore: (companyId: string) => Promise<unknown>
   onDepartmentCreate: (
     input: DepartmentInput,
   ) => Promise<RoutineControlData['departments'][number]>
@@ -49,6 +51,7 @@ interface SettingsRoutesProps {
  */
 function SettingsRoutes({
   data,
+  onCompanyRestore,
   onDepartmentCreate,
   onScreenCreate,
   onScreenUpdate,
@@ -58,6 +61,14 @@ function SettingsRoutes({
       <Route element={<SettingsLayout />}>
         <Route index element={<SettingsOverviewPage />} />
         <Route path="organizacao" element={<OrganizationSettingsPage />} />
+        <Route
+          path="empresas-arquivadas"
+          element={
+            <ArchivedCompaniesSettingsPage
+              onCompanyRestore={onCompanyRestore}
+            />
+          }
+        />
         <Route
           path="departamentos"
           element={

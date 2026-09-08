@@ -62,6 +62,16 @@ export interface ClientCompanyResource {
 export class CompanyService {
   constructor(private readonly client: HttpClient) {}
 
+  listAll(includeArchived = false): Promise<ClientCompanyResource[]> {
+    const query = new URLSearchParams({
+      includeArchived: String(includeArchived),
+    })
+
+    return this.collectPages<ClientCompanyResource>(
+      `${CLIENT_COMPANIES_ENDPOINT}?${query.toString()}`,
+    )
+  }
+
   get(id: string): Promise<ApiResponse<ClientCompanyResource>> {
     return this.client.get<ClientCompanyResource>(companyPath(id))
   }
@@ -113,7 +123,7 @@ export class CompanyService {
   listRoutineAssignments(
     companyId: string,
   ): Promise<ClientRoutineAssignmentResource[]> {
-    return this.listAll<ClientRoutineAssignmentResource>(
+    return this.collectPages<ClientRoutineAssignmentResource>(
       companyPath(companyId) + 'routine-assignments/',
     )
   }
@@ -140,7 +150,7 @@ export class CompanyService {
     )
   }
 
-  cancelRoutineAssignment(
+  removeRoutineAssignment(
     companyId: string,
     assignmentId: string,
     etag: string,
@@ -151,7 +161,7 @@ export class CompanyService {
     )
   }
 
-  private async listAll<T>(initialPath: string): Promise<T[]> {
+  private async collectPages<T>(initialPath: string): Promise<T[]> {
     const results: T[] = []
     let nextPath: string | null = initialPath
 

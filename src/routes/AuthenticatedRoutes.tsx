@@ -71,6 +71,7 @@ interface AuthenticatedRoutesProps {
     changes: ClientCompanyPatch,
   ) => Promise<Client>
   onCompanyArchive: (companyId: string) => Promise<void>
+  onCompanyRestore: (companyId: string) => Promise<Client>
   onRoutineCreate: (input: RoutineInput) => Promise<RoutineResource>
   onRoutineUpdate: (
     routineId: string,
@@ -102,6 +103,7 @@ function AuthenticatedRoutes({
   onCompanyCreate,
   onCompanyUpdate,
   onCompanyArchive,
+  onCompanyRestore,
   onRoutineCreate,
   onRoutineUpdate,
   onEmployeeInvite,
@@ -135,6 +137,7 @@ function AuthenticatedRoutes({
             onCompanyCreate,
             onCompanyUpdate,
             onCompanyArchive,
+            onCompanyRestore,
             onRoutineCreate,
             onRoutineUpdate,
             onEmployeeInvite,
@@ -183,6 +186,7 @@ function renderOperationalRoutes({
   onCompanyCreate,
   onCompanyUpdate,
   onCompanyArchive,
+  onCompanyRestore,
   onRoutineCreate,
   onRoutineUpdate,
   onEmployeeInvite,
@@ -364,6 +368,7 @@ function renderOperationalRoutes({
           <RequirePermission permission={APP_PERMISSION.MANAGE_ORGANIZATION}>
             <SettingsRoutes
               data={data}
+              onCompanyRestore={onCompanyRestore}
               onDepartmentCreate={onDepartmentCreate}
               onScreenCreate={onScreenCreate}
               onScreenUpdate={onScreenUpdate}

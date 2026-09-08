@@ -26,6 +26,7 @@ export const ROUTES = {
   ROLES: '/cargos',
   SETTINGS: '/configuracoes',
   SETTINGS_ORGANIZATION: '/configuracoes/organizacao',
+  SETTINGS_ARCHIVED_COMPANIES: '/configuracoes/empresas-arquivadas',
   SETTINGS_DEPARTMENTS: '/configuracoes/departamentos',
   SETTINGS_WORKFLOWS: '/configuracoes/fluxos',
   SETTINGS_WORKFLOW_AUTOMATIONS: '/configuracoes/fluxos/automacoes',
