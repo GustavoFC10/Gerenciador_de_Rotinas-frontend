@@ -14,6 +14,10 @@ jobs:
   frontend:
     name: Frontend checks
     runs-on: ubuntu-latest
+    env:
+      # Required to initialize the HTTP client during unit tests and Vite builds.
+      # CI does not need access to the deployed API.
+      VITE_API_URL: http://localhost:3000
 
     steps:
       - name: Checkout
