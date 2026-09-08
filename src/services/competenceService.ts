@@ -1,8 +1,7 @@
 import { HttpClient, httpClient } from './httpClient'
 import type { ApiResponse } from './httpClient'
 
-export type CompetenceStatus =
-  'projected' | 'finalized'
+export type CompetenceStatus = 'projected' | 'finalized'
 
 export interface CompetenceProjection {
   id: string | null
@@ -32,10 +31,9 @@ export class CompetenceService {
   }
 
   create(period: string): Promise<ApiResponse<CompetenceResource>> {
-    return this.client.post<CompetenceResource>(
-      '/api/v1/competences/',
-      { period },
-    )
+    return this.client.post<CompetenceResource>('/api/v1/competences/', {
+      period,
+    })
   }
 
   finalizeByPeriod(

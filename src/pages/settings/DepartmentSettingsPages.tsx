@@ -57,12 +57,16 @@ export function DepartmentGeneralSettingsPage({
           />
         </SettingsContentSection>
 
-        <Card className="border-[var(--status-error-border)] p-5 sm:p-6" variant="flat">
+        <Card
+          className="border-[var(--status-error-border)] p-5 sm:p-6"
+          variant="flat"
+        >
           <h2 className="text-base font-black text-[var(--status-error-text)]">
             Zona de perigo
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
-            A exclusão de um departamento pode afetar telas e acessos relacionados.
+            A exclusão de um departamento pode afetar telas e acessos
+            relacionados.
           </p>
           <DepartmentDevelopmentAction
             label="Excluir departamento"
@@ -84,9 +88,7 @@ export function DepartmentScreensSettingsPage({
 
   const departmentScreens = screens
     .filter(
-      (screen) =>
-        screen.departmentId === department.id &&
-        !screen.archivedAt,
+      (screen) => screen.departmentId === department.id && !screen.archivedAt,
     )
     .sort(
       (left, right) =>
@@ -176,15 +178,18 @@ export function DepartmentPermissionsSettingsPage({
           rows={[
             {
               role: 'Owner e admin',
-              detail: 'Podem atribuir responsáveis e executar as transições permitidas.',
+              detail:
+                'Podem atribuir responsáveis e executar as transições permitidas.',
             },
             {
               role: 'Lead',
-              detail: 'Pode atribuir responsáveis e avançar tarefas, sem marcar erro ou reabrir tarefas.',
+              detail:
+                'Pode atribuir responsáveis e avançar tarefas, sem marcar erro ou reabrir tarefas.',
             },
             {
               role: 'Contributor',
-              detail: 'Pode avançar apenas as próprias tarefas, conforme as transições permitidas.',
+              detail:
+                'Pode avançar apenas as próprias tarefas, conforme as transições permitidas.',
             },
             {
               role: 'Viewer',
@@ -199,11 +204,13 @@ export function DepartmentPermissionsSettingsPage({
           rows={[
             {
               role: 'Owner e admin',
-              detail: 'Podem administrar a organização, criar telas e configurar sua composição.',
+              detail:
+                'Podem administrar a organização, criar telas e configurar sua composição.',
             },
             {
               role: 'Membros do departamento',
-              detail: 'Usam as telas às quais têm acesso, sem alterar a configuração estrutural.',
+              detail:
+                'Usam as telas às quais têm acesso, sem alterar a configuração estrutural.',
             },
           ]}
         />
@@ -297,13 +304,13 @@ function DepartmentDatum({ label, value }: { label: string; value: string }) {
 
 function useSettingsDepartment(departments: Department[]): Department | null {
   const { departmentId } = useParams()
-  return departments.find((department) => department.id === departmentId) ?? null
+  return (
+    departments.find((department) => department.id === departmentId) ?? null
+  )
 }
 
 function MissingDepartmentPage() {
-  return (
-    <Navigate to={ROUTES.SETTINGS_DEPARTMENTS} replace />
-  )
+  return <Navigate to={ROUTES.SETTINGS_DEPARTMENTS} replace />
 }
 
 function ScreenTypeMark({ type }: { type: Screen['type'] }) {

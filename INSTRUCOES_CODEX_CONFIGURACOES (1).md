@@ -699,17 +699,17 @@ Não criar estilos isolados para:
 
 Seguir obrigatoriamente:
 
-| Situação | Componente |
-|---|---|
-| Categoria principal de Configurações | Sidebar/nav principal |
-| Lista de entidades | Lista ou tabela |
-| Entrar em entidade | Nova rota/página |
-| 2–4 aspectos do mesmo objeto | Navegação local horizontal |
-| Liga/desliga | Switch existente |
-| Escolha exclusiva | Select ou radio |
-| Ações secundárias | Menu de contexto |
-| Ação destrutiva | Seção "Zona de perigo" |
-| Hierarquia de localização | Breadcrumb |
+| Situação                             | Componente                 |
+| ------------------------------------ | -------------------------- |
+| Categoria principal de Configurações | Sidebar/nav principal      |
+| Lista de entidades                   | Lista ou tabela            |
+| Entrar em entidade                   | Nova rota/página           |
+| 2–4 aspectos do mesmo objeto         | Navegação local horizontal |
+| Liga/desliga                         | Switch existente           |
+| Escolha exclusiva                    | Select ou radio            |
+| Ações secundárias                    | Menu de contexto           |
+| Ação destrutiva                      | Seção "Zona de perigo"     |
+| Hierarquia de localização            | Breadcrumb                 |
 
 Não criar um padrão diferente sem necessidade.
 

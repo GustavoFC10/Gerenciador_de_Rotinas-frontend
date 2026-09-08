@@ -402,7 +402,9 @@ function CreateCompanyPage({
             <CompanyReviewStep
               draft={draft}
               screen={selectedScreen}
-              routines={routines.filter((routine) => selectedRoutineIds.has(routine.id))}
+              routines={routines.filter((routine) =>
+                selectedRoutineIds.has(routine.id),
+              )}
               onChangeStep={setStep}
             />
           )}
@@ -740,7 +742,8 @@ function CompanyOperationsStep({
               )}
             </div>
             <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
-              Você pode ajustar a lista de rotinas à direita antes de criar a empresa.
+              Você pode ajustar a lista de rotinas à direita antes de criar a
+              empresa.
             </p>
           </div>
         </div>
@@ -756,7 +759,8 @@ function CompanyOperationsStep({
             {selectedRoutineIds.size === 1
               ? 'rotina selecionada.'
               : 'rotinas selecionadas.'}{' '}
-            {selectedScreen && 'Você pode incluir ou remover rotinas desta seleção.'}
+            {selectedScreen &&
+              'Você pode incluir ou remover rotinas desta seleção.'}
           </p>
           <div className="mt-4">
             <TextField
@@ -806,7 +810,8 @@ function CompanyOperationsStep({
                           )}
                         </span>
                         <span className="mt-1 block text-xs leading-5 text-[var(--color-text-muted)]">
-                          {routine.shortName} · {getRoutineRecurrenceLabel(routine.recurrence)} ·{' '}
+                          {routine.shortName} ·{' '}
+                          {getRoutineRecurrenceLabel(routine.recurrence)} ·{' '}
                           {formatRoutineSchedule(routine)}
                         </span>
                         {routine.description && (
@@ -888,7 +893,8 @@ function CompanyReviewStep({
                     {routine.name}
                   </span>
                   <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
-                    {routine.shortName} · {getRoutineRecurrenceLabel(routine.recurrence)} ·{' '}
+                    {routine.shortName} ·{' '}
+                    {getRoutineRecurrenceLabel(routine.recurrence)} ·{' '}
                     {formatRoutineSchedule(routine)}
                   </span>
                 </li>

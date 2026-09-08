@@ -390,9 +390,7 @@ function RoutineControlTable({
               ? onTaskStatusChange
               : undefined
           }
-          allowedStatusChanges={getAllowedTaskStatusChanges?.(
-            contextMenu.task,
-          )}
+          allowedStatusChanges={getAllowedTaskStatusChanges?.(contextMenu.task)}
           onAttachmentAdd={
             onTaskAttachmentAdd ? handleTaskAttachmentAdd : undefined
           }

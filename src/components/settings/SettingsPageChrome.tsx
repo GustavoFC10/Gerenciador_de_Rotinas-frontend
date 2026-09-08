@@ -46,7 +46,9 @@ export function SettingsPageHeader({
             </p>
           )}
         </div>
-        {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
+        {actions && (
+          <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>
+        )}
       </div>
       {children}
     </header>
@@ -62,9 +64,15 @@ export function SettingsBreadcrumb({
     <nav aria-label="Caminho de navegação">
       <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-[var(--color-text-muted)]">
         {items.map((item, index) => (
-          <li key={`${item.label}-${index}`} className="flex items-center gap-2">
+          <li
+            key={`${item.label}-${index}`}
+            className="flex items-center gap-2"
+          >
             {index > 0 && (
-              <span aria-hidden="true" className="text-[var(--color-text-subtle)]">
+              <span
+                aria-hidden="true"
+                className="text-[var(--color-text-subtle)]"
+              >
                 /
               </span>
             )}

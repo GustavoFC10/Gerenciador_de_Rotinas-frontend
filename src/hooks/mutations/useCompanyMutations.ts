@@ -59,7 +59,10 @@ export function useCompanyMutations({
             },
           )
           queryClient.setQueryData(
-            queryKeys.companyRoutineAssignments(scope, createdCompanySummary.id),
+            queryKeys.companyRoutineAssignments(
+              scope,
+              createdCompanySummary.id,
+            ),
             (current: ClientRoutineAssignmentResource[] | undefined) =>
               current ? [...current, assignment.data] : current,
           )

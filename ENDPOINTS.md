@@ -134,7 +134,7 @@ curl.exe -c cookies.txt "$BASE_URL/api/v1/auth/csrf/"
 Exemplo de resposta:
 
 ```json
-{"csrfToken":"TOKEN_MASCARADO"}
+{ "csrfToken": "TOKEN_MASCARADO" }
 ```
 
 ### `POST /api/v1/auth/login/`
@@ -537,10 +537,10 @@ curl.exe "$BASE_URL/api/v1/routines/?departmentId=<UUID_DO_DEPARTAMENTO>&orderin
 ### `POST /api/v1/routines/`
 
 Se `defaultAssigneeMemberId` for informado, ele deve ser o UUID de um membro ativo
- elegível retornado por `GET /api/v1/departments/{departmentId}/task-assignees/`.
+elegível retornado por `GET /api/v1/departments/{departmentId}/task-assignees/`.
 O campo, quando presente, é salvo na versão publicada e será usado nas ocorrências
- futuras. `defaultDueDays` continua sendo o prazo padrão, contado a partir do
- primeiro dia da competência.
+futuras. `defaultDueDays` continua sendo o prazo padrão, contado a partir do
+primeiro dia da competência.
 
 Cria a rotina e publica a primeira regra.
 
@@ -1097,13 +1097,13 @@ curl.exe -X POST "$BASE_URL/api/v1/competences/<UUID_DA_COMPETENCIA>/tasks/<UUID
 Exemplo sem movimento:
 
 ```json
-{"targetStatus":"no_movement"}
+{ "targetStatus": "no_movement" }
 ```
 
 Exemplo de erro:
 
 ```json
-{"targetStatus":"error"}
+{ "targetStatus": "error" }
 ```
 
 Quando houver contexto sobre a transição, atualize `observation` pelo endpoint de
@@ -1250,20 +1250,39 @@ Exemplo resumido:
 ```json
 {
   "type": "spreadsheet",
-  "screen": {"id": "<UUID_DA_TELA>", "name": "MEI", "type": "spreadsheet"},
+  "screen": { "id": "<UUID_DA_TELA>", "name": "MEI", "type": "spreadsheet" },
   "competenceId": null,
   "period": "2026-10",
   "rows": [
-    {"id": "<UUID_DA_EMPRESA>", "code": "007", "name": "Empresa X", "legalName": "Empresa X Ltda.", "position": 0}
+    {
+      "id": "<UUID_DA_EMPRESA>",
+      "code": "007",
+      "name": "Empresa X",
+      "legalName": "Empresa X Ltda.",
+      "position": 0
+    }
   ],
   "columns": [
-    {"id": "<UUID_DA_ROTINA>", "shotname": "DAS", "name": "Apuração mensal do DAS", "departmentId": "<UUID_DO_DEPARTAMENTO>", "position": 0}
+    {
+      "id": "<UUID_DA_ROTINA>",
+      "shotname": "DAS",
+      "name": "Apuração mensal do DAS",
+      "departmentId": "<UUID_DO_DEPARTAMENTO>",
+      "position": 0
+    }
   ],
   "cells": [
     {
       "companyId": "<UUID_DA_EMPRESA>",
       "routineId": "<UUID_DA_ROTINA>",
-      "tasks": [{"occurrenceKey":"<UUID_ESTAVEL>","taskId":null,"persistence":"virtual","status":"pending"}]
+      "tasks": [
+        {
+          "occurrenceKey": "<UUID_ESTAVEL>",
+          "taskId": null,
+          "persistence": "virtual",
+          "status": "pending"
+        }
+      ]
     }
   ]
 }
@@ -1283,15 +1302,30 @@ Exemplo resumido:
 ```json
 {
   "type": "agenda",
-  "screen": {"id": "<UUID_DA_TELA>", "name": "Agenda Fiscal", "type": "agenda"},
+  "screen": {
+    "id": "<UUID_DA_TELA>",
+    "name": "Agenda Fiscal",
+    "type": "agenda"
+  },
   "competenceId": "<UUID_DA_COMPETENCIA_OU_NULL>",
   "period": "2026-10",
   "columns": [
-    {"status": "pending", "count": 1, "tasks": [{"id": "<UUID_DA_TAREFA>", "kind": "ad_hoc", "title": "Revisar pendência"}], "hasMore": false},
-    {"status": "in_progress", "count": 0, "tasks": [], "hasMore": false},
-    {"status": "completed", "count": 0, "tasks": [], "hasMore": false},
-    {"status": "no_movement", "count": 0, "tasks": [], "hasMore": false},
-    {"status": "error", "count": 0, "tasks": [], "hasMore": false}
+    {
+      "status": "pending",
+      "count": 1,
+      "tasks": [
+        {
+          "id": "<UUID_DA_TAREFA>",
+          "kind": "ad_hoc",
+          "title": "Revisar pendência"
+        }
+      ],
+      "hasMore": false
+    },
+    { "status": "in_progress", "count": 0, "tasks": [], "hasMore": false },
+    { "status": "completed", "count": 0, "tasks": [], "hasMore": false },
+    { "status": "no_movement", "count": 0, "tasks": [], "hasMore": false },
+    { "status": "error", "count": 0, "tasks": [], "hasMore": false }
   ]
 }
 ```
@@ -1356,7 +1390,7 @@ Retorna os dados da organizacao, seus owners e o convite mais recente de cada ow
 Adiciona ou reemite o convite de um owner pendente.
 
 ```json
-{"name":"Maria Silva","email":"maria@abc.com"}
+{ "name": "Maria Silva", "email": "maria@abc.com" }
 ```
 
 ### `POST /api/internal/v1/invitations/{invitationId}/resend/`

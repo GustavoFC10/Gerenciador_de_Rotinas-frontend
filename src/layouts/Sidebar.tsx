@@ -315,9 +315,7 @@ function SidebarProfile({
         } ${focusRing}`}
       >
         <UserAvatar avatarUrl={user.avatarUrl} initials={initials} />
-        <span
-          className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}
-        >
+        <span className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}>
           <span className="block truncate text-sm font-bold text-[var(--color-text-strong)]">
             {user.name}
           </span>

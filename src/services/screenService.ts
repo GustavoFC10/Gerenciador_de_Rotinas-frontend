@@ -56,9 +56,8 @@ export class ScreenService {
     let nextPath: string | null = `${SCREENS_ENDPOINT}?includeArchived=false`
 
     while (nextPath) {
-      const response: ApiResponse<ApiPage<ScreenSummary>> = await this.client.get<
-        ApiPage<ScreenSummary>
-      >(nextPath, { signal })
+      const response: ApiResponse<ApiPage<ScreenSummary>> =
+        await this.client.get<ApiPage<ScreenSummary>>(nextPath, { signal })
       screens.push(...response.data.results)
       nextPath = response.data.next
     }

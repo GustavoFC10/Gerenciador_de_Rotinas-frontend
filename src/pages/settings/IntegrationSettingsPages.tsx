@@ -44,7 +44,10 @@ function IntegrationsSettingsPage() {
               to={`${ROUTES.SETTINGS_INTEGRATIONS}/${integration.id}`}
               className={`group rounded-[var(--radius-panel)] ${focusRing}`}
             >
-              <Card className="h-full p-5 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)]" variant="flat">
+              <Card
+                className="h-full p-5 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)]"
+                variant="flat"
+              >
                 <span className="flex min-w-0 items-start gap-3">
                   <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-sm font-black text-[var(--color-brand)]">
                     {integration.title.slice(0, 1)}
@@ -74,7 +77,8 @@ export function IntegrationDetailSettingsPage() {
   const { integrationId } = useParams()
   const integration = integrations.find((item) => item.id === integrationId)
 
-  if (!integration) return <Navigate to={ROUTES.SETTINGS_INTEGRATIONS} replace />
+  if (!integration)
+    return <Navigate to={ROUTES.SETTINGS_INTEGRATIONS} replace />
 
   return (
     <>

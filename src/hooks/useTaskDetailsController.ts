@@ -256,8 +256,6 @@ export function useTaskDetailsController({
         return
       }
 
-      
-
       setTransitionError(null)
 
       try {

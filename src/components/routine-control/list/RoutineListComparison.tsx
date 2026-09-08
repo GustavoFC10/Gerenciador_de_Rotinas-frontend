@@ -180,7 +180,7 @@ function RoutineListComparison({
                   const allowedStatuses = getAllowedStatusChanges?.(item)
                   const canChangeStatus = Boolean(
                     onItemStatusChange &&
-                      (allowedStatuses ? allowedStatuses.length : true),
+                    (allowedStatuses ? allowedStatuses.length : true),
                   )
 
                   return (

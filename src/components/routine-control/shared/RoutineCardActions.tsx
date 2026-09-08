@@ -77,10 +77,7 @@ function RoutineCardActions({
 }: RoutineCardActionsProps) {
   return (
     <div className={`space-y-3 ${className}`}>
-      <RoutineStatusControl
-        task={task}
-        onStatusChange={onStatusChange}
-      />
+      <RoutineStatusControl task={task} onStatusChange={onStatusChange} />
       <RoutineNotesPanel task={task} onNotesChange={onNotesChange} />
     </div>
   )
@@ -246,11 +243,7 @@ export function RoutineNotesPanel({
   }, [task.id, task.notes])
 
   async function saveNotes() {
-    if (
-      !onNotesChange ||
-      isSaving ||
-      draftNotes === (task.notes ?? '')
-    ) {
+    if (!onNotesChange || isSaving || draftNotes === (task.notes ?? '')) {
       return
     }
 

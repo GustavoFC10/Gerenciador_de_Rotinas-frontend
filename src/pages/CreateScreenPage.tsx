@@ -19,7 +19,13 @@ import TextField from '../components/ui/TextField'
 import { ROUTES } from '../constants/routes'
 import WorkspaceBar from '../layouts/WorkspaceBar'
 import type { ScreenInput } from '../services/screenService'
-import type { Client, Department, Routine, Screen, ScreenType } from '../types/domain'
+import type {
+  Client,
+  Department,
+  Routine,
+  Screen,
+  ScreenType,
+} from '../types/domain'
 
 interface CreateScreenPageProps {
   departments: Department[]
@@ -47,8 +53,10 @@ function CreateScreenPage({
   const requestedDepartmentId = searchParams.get('departmentId')
   const [name, setName] = useState('')
   const [type, setType] = useState<ScreenType>('spreadsheet')
-  const [departmentId, setDepartmentId] = useState(() =>
-    fixedDepartmentId ?? getInitialDepartmentId(departments, requestedDepartmentId),
+  const [departmentId, setDepartmentId] = useState(
+    () =>
+      fixedDepartmentId ??
+      getInitialDepartmentId(departments, requestedDepartmentId),
   )
   const [companyIds, setCompanyIds] = useState<string[]>([])
   const [routineIds, setRoutineIds] = useState<string[]>([])
@@ -76,9 +84,7 @@ function CreateScreenPage({
             client.code + ' ' + client.name + ' ' + (client.legalName ?? ''),
           ).includes(normalizeForSearch(companySearch)),
         )
-        .sort((left, right) =>
-          left.name.localeCompare(right.name, 'pt-BR'),
-        ),
+        .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR')),
     [clients, companySearch],
   )
   const visibleRoutines = useMemo(
@@ -86,17 +92,18 @@ function CreateScreenPage({
       routines
         .filter(
           (routine) =>
-            routine.departmentId === departmentId &&
-            routine.active !== false,
+            routine.departmentId === departmentId && routine.active !== false,
         )
         .filter((routine) =>
           normalizeForSearch(
-            routine.name + ' ' + routine.shortName + ' ' + (routine.description ?? ''),
+            routine.name +
+              ' ' +
+              routine.shortName +
+              ' ' +
+              (routine.description ?? ''),
           ).includes(normalizeForSearch(routineSearch)),
         )
-        .sort((left, right) =>
-          left.name.localeCompare(right.name, 'pt-BR'),
-        ),
+        .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR')),
     [departmentId, routineSearch, routines],
   )
 
@@ -149,7 +156,8 @@ function CreateScreenPage({
     setName('')
     setType('spreadsheet')
     setDepartmentId(
-      fixedDepartmentId ?? getInitialDepartmentId(departments, requestedDepartmentId),
+      fixedDepartmentId ??
+        getInitialDepartmentId(departments, requestedDepartmentId),
     )
     setCompanyIds([])
     setRoutineIds([])
@@ -165,11 +173,7 @@ function CreateScreenPage({
     setErrors((current) => ({ ...current, departmentId: undefined }))
   }
 
-  function toggle(
-    selection: string[],
-    id: string,
-    maximum: number,
-  ): string[] {
+  function toggle(selection: string[], id: string, maximum: number): string[] {
     return selection.includes(id)
       ? selection.filter((item) => item !== id)
       : selection.length >= maximum
@@ -223,14 +227,14 @@ function CreateScreenPage({
 
       <p className="-mt-1 mb-5 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
         Telas organizam a visualização dentro de um departamento. Em uma
-        planilha, qualquer empresa ativa do tenant pode compor as linhas;
-        as rotinas precisam pertencer ao departamento escolhido.
+        planilha, qualquer empresa ativa do tenant pode compor as linhas; as
+        rotinas precisam pertencer ao departamento escolhido.
       </p>
 
       <form onSubmit={(event) => void handleSubmit(event)} noValidate>
         <CreationErrorSummary
-          messages={Object.values(errors).filter(
-            (message): message is string => Boolean(message),
+          messages={Object.values(errors).filter((message): message is string =>
+            Boolean(message),
           )}
         />
 
@@ -275,11 +279,11 @@ function CreateScreenPage({
                     id="screen-department"
                     label="Departamento *"
                     value={departmentId}
-                    onChange={(event) =>
-                      updateDepartment(event.target.value)
-                    }
+                    onChange={(event) => updateDepartment(event.target.value)}
                     required
-                    disabled={departments.length === 0 || Boolean(fixedDepartmentId)}
+                    disabled={
+                      departments.length === 0 || Boolean(fixedDepartmentId)
+                    }
                     aria-invalid={Boolean(errors.departmentId)}
                   >
                     <option value="">Selecione</option>
@@ -331,15 +335,19 @@ function CreateScreenPage({
                     items={visibleCompanies.map((client) => ({
                       id: client.id,
                       label: client.name,
-                      description: client.code + (client.legalName ? ' · ' + client.legalName : ''),
+                      description:
+                        client.code +
+                        (client.legalName ? ' · ' + client.legalName : ''),
                     }))}
                     selectedIds={companyIds}
                     onToggle={(id) => {
-                      if (!companyIds.includes(id) && companyIds.length >= 500) {
+                      if (
+                        !companyIds.includes(id) &&
+                        companyIds.length >= 500
+                      ) {
                         setErrors((current) => ({
                           ...current,
-                          submit:
-                            'Uma tela aceita no máximo 500 empresas.',
+                          submit: 'Uma tela aceita no máximo 500 empresas.',
                         }))
                         return
                       }
@@ -361,11 +369,13 @@ function CreateScreenPage({
                     }))}
                     selectedIds={routineIds}
                     onToggle={(id) => {
-                      if (!routineIds.includes(id) && routineIds.length >= 200) {
+                      if (
+                        !routineIds.includes(id) &&
+                        routineIds.length >= 200
+                      ) {
                         setErrors((current) => ({
                           ...current,
-                          submit:
-                            'Uma tela aceita no máximo 200 rotinas.',
+                          submit: 'Uma tela aceita no máximo 200 rotinas.',
                         }))
                         return
                       }
@@ -406,10 +416,7 @@ function CreateScreenPage({
             </Button>
             <Button
               type="submit"
-              disabled={
-                isSubmitting ||
-                departments.length === 0
-              }
+              disabled={isSubmitting || departments.length === 0}
             >
               {isSubmitting ? 'Criando…' : 'Criar tela'}
             </Button>
@@ -616,7 +623,9 @@ function ScreenPreview({
             {name.trim() || 'Nova tela'}
           </h2>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            {type === 'spreadsheet' ? 'Planilha operacional' : 'Agenda operacional'}
+            {type === 'spreadsheet'
+              ? 'Planilha operacional'
+              : 'Agenda operacional'}
           </p>
         </header>
         <dl className="divide-y divide-[var(--color-divider)] px-5 py-4">
@@ -637,9 +646,9 @@ function ScreenPreview({
         </dl>
         <div className="border-t border-[var(--color-divider)] px-5 py-4">
           <p className="text-xs leading-5 text-[var(--color-text-muted)]">
-            Empresas e rotinas entram como composição visual. As empresas
-            ativas do tenant podem ser usadas em qualquer departamento; as
-            rotinas acompanham o departamento da tela.
+            Empresas e rotinas entram como composição visual. As empresas ativas
+            do tenant podem ser usadas em qualquer departamento; as rotinas
+            acompanham o departamento da tela.
           </p>
         </div>
       </Card>
@@ -675,7 +684,7 @@ function getInitialDepartmentId(
     (department) => department.id === requestedDepartmentId,
   )
     ? requestedDepartmentId!
-    : departments[0]?.id ?? ''
+    : (departments[0]?.id ?? '')
 }
 
 export default CreateScreenPage

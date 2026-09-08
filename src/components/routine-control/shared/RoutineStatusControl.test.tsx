@@ -67,9 +67,8 @@ describe('RoutineStatusControl', () => {
     expect(host.contains(menu)).toBe(false)
     expect(menu?.className).toContain('fixed')
 
-    const statusOptions = menu?.querySelectorAll<HTMLButtonElement>(
-      '[role="menuitem"]',
-    )
+    const statusOptions =
+      menu?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
     expect(statusOptions).toHaveLength(4)
 
     await act(async () => {

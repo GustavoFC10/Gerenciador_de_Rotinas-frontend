@@ -152,10 +152,9 @@ export class TaskService {
     taskId: string,
     etag: string,
   ): Promise<ApiResponse<void>> {
-    return this.client.post<void>(
-      `${taskPath(competenceId, taskId)}archive/`,
-      { ifMatch: etag },
-    )
+    return this.client.post<void>(`${taskPath(competenceId, taskId)}archive/`, {
+      ifMatch: etag,
+    })
   }
 }
 

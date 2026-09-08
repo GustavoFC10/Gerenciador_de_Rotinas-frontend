@@ -39,14 +39,20 @@ function SettingsOverviewPage() {
         description="Gerencie o funcionamento do escritório. Escolha uma área para configurar seus recursos e regras operacionais."
       />
 
-      <section className="grid gap-3 pt-6 sm:grid-cols-2" aria-label="Áreas de configuração">
+      <section
+        className="grid gap-3 pt-6 sm:grid-cols-2"
+        aria-label="Áreas de configuração"
+      >
         {destinations.map((destination) => (
           <Link
             key={destination.to}
             to={destination.to}
             className={`group min-w-0 rounded-[var(--radius-panel)] ${focusRing}`}
           >
-            <Card className="h-full p-5 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)]" variant="flat">
+            <Card
+              className="h-full p-5 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)]"
+              variant="flat"
+            >
               <div className="flex items-start gap-4">
                 <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-sm font-black text-[var(--color-brand)]">
                   {destination.title.slice(0, 1)}

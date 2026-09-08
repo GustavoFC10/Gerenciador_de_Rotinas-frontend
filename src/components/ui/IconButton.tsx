@@ -10,7 +10,14 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
   function IconButton(
-    { children, label, type = 'button', tone = 'neutral', className = '', ...props },
+    {
+      children,
+      label,
+      type = 'button',
+      tone = 'neutral',
+      className = '',
+      ...props
+    },
     ref,
   ) {
     return (

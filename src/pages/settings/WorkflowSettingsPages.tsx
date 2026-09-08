@@ -36,14 +36,20 @@ function WorkflowsSettingsPage() {
         description="Padronize como as operações recorrentes são configuradas e evoluem na organização."
       />
 
-      <section className="grid gap-3 pt-6" aria-label="Áreas de fluxos de trabalho">
+      <section
+        className="grid gap-3 pt-6"
+        aria-label="Áreas de fluxos de trabalho"
+      >
         {workflowDestinations.map((destination) => (
           <Link
             key={destination.to}
             to={destination.to}
             className={`group rounded-[var(--radius-panel)] ${focusRing}`}
           >
-            <Card className="p-5 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)]" variant="flat">
+            <Card
+              className="p-5 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)]"
+              variant="flat"
+            >
               <div className="flex min-w-0 items-center gap-4">
                 <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-sm font-black text-[var(--color-brand)]">
                   {destination.title.slice(0, 1)}

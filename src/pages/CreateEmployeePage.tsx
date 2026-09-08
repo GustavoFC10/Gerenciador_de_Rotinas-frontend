@@ -82,8 +82,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
   const allowedRoles = useMemo(
     () =>
       invitationRoles.filter(
-        (role) =>
-          role.value !== ORGANIZATION_ROLE.OWNER || isOwner(user),
+        (role) => role.value !== ORGANIZATION_ROLE.OWNER || isOwner(user),
       ),
     [user],
   )
@@ -193,8 +192,8 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
 
       <form onSubmit={(event) => void handleSubmit(event)} noValidate>
         <CreationErrorSummary
-          messages={Object.values(errors).filter(
-            (message): message is string => Boolean(message),
+          messages={Object.values(errors).filter((message): message is string =>
+            Boolean(message),
           )}
         />
 
@@ -223,9 +222,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
                     autoComplete="name"
                     aria-invalid={Boolean(errors.displayName)}
                     aria-describedby={
-                      errors.displayName
-                        ? 'employee-name-error'
-                        : undefined
+                      errors.displayName ? 'employee-name-error' : undefined
                     }
                     placeholder="Ex.: Mariana Costa"
                     required
@@ -241,7 +238,9 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
                     label="E-mail para convite *"
                     type="email"
                     value={draft.email}
-                    onChange={(event) => updateDraft('email', event.target.value)}
+                    onChange={(event) =>
+                      updateDraft('email', event.target.value)
+                    }
                     autoComplete="email"
                     aria-invalid={Boolean(errors.email)}
                     aria-describedby={
@@ -274,7 +273,9 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
               <fieldset
                 className="space-y-2 px-5 py-5 sm:px-6"
                 aria-invalid={Boolean(errors.role)}
-                aria-describedby={errors.role ? 'employee-role-error' : undefined}
+                aria-describedby={
+                  errors.role ? 'employee-role-error' : undefined
+                }
               >
                 <legend className="sr-only">Cargo organizacional</legend>
                 {allowedRoles.map((role) => {
@@ -334,8 +335,8 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
                     Próxima etapa após a ativação
                   </p>
                   <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-                    Abra o perfil do membro ativo para definir os departamentos e
-                    o papel de lead, contributor ou viewer. O identificador
+                    Abra o perfil do membro ativo para definir os departamentos
+                    e o papel de lead, contributor ou viewer. O identificador
                     retornado agora é do convite, não do membro.
                   </p>
                 </div>

@@ -2001,7 +2001,7 @@ em componente alto da árvore para mutations locais.
 Não passar genericamente:
 
 ```tsx
-onReload={reload}
+onReload = { reload }
 ```
 
 Não usar `window.location.reload()` para sincronizar dados.

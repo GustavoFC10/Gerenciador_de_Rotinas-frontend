@@ -52,7 +52,14 @@ function SpreadsheetPage({
       <WorkspaceBar
         label="Departamento"
         title={title}
-        meta={screen.name + ' · ' + screen.companies.length + ' empresas · ' + screen.routines.length + ' rotinas'}
+        meta={
+          screen.name +
+          ' · ' +
+          screen.companies.length +
+          ' empresas · ' +
+          screen.routines.length +
+          ' rotinas'
+        }
       />
 
       <SpreadsheetScreenNavigation

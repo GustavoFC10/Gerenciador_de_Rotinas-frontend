@@ -2,10 +2,7 @@ import { useRef, type KeyboardEvent, type MouseEvent } from 'react'
 
 import RoutineListExecutionPanel from './RoutineListExecutionPanel'
 import { formatShortDate, routineListStatusTone } from './routineListUtils'
-import type {
-  RoutineListItem,
-  RoutineStatus,
-} from '../../../types/domain'
+import type { RoutineListItem, RoutineStatus } from '../../../types/domain'
 
 function RoutineListCardOptionThree({
   item,

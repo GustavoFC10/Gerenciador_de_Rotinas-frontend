@@ -38,7 +38,10 @@ function OrganizationSettingsPage() {
         >
           <dl className="grid gap-4 sm:grid-cols-2">
             <OrganizationDatum label="Nome" value={organization?.name ?? '—'} />
-            <OrganizationDatum label="Identificador" value={organization?.slug ?? '—'} />
+            <OrganizationDatum
+              label="Identificador"
+              value={organization?.slug ?? '—'}
+            />
           </dl>
           {isEditNoticeVisible && (
             <p

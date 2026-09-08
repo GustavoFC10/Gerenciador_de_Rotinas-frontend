@@ -88,7 +88,9 @@ function AcceptInvitationPage() {
               className="mt-7 w-full"
               onClick={() => navigate(destination, { replace: true })}
             >
-              {isAuthenticated ? 'Ir para a área de trabalho' : 'Ir para o login'}
+              {isAuthenticated
+                ? 'Ir para a área de trabalho'
+                : 'Ir para o login'}
             </Button>
           </div>
         ) : (

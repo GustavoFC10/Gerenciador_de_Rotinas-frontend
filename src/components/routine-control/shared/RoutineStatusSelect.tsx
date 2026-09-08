@@ -22,7 +22,9 @@ function RoutineStatusSelect({
           className={`flex min-h-10 w-full cursor-pointer list-none items-center justify-between gap-3 rounded-[var(--radius-control)] border px-3 text-sm font-bold transition marker:hidden hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)] ${currentStatus.surfaceClass}`}
         >
           <span className="flex min-w-0 items-center gap-2">
-            <span className={`size-2.5 shrink-0 rounded-full ${currentStatus.dotClass}`} />
+            <span
+              className={`size-2.5 shrink-0 rounded-full ${currentStatus.dotClass}`}
+            />
             <span className="truncate">{currentStatus.label}</span>
           </span>
           <ChevronDownIcon />
@@ -50,7 +52,14 @@ function RoutineStatusSelect({
 
 function ChevronDownIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="size-4 shrink-0 transition group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      className="size-4 shrink-0 transition group-open:rotate-180"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
       <path d="m7 9.5 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )

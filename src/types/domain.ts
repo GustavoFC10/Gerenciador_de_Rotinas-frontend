@@ -12,9 +12,7 @@ export interface DepartmentAccessAssignment {
 export type RoutineStatus =
   'pending' | 'in_progress' | 'error' | 'completed' | 'no_movement'
 
-export type CompetenceStatus =
-  | 'projected'
-  | 'finalized'
+export type CompetenceStatus = 'projected' | 'finalized'
 
 export interface Department {
   id: EntityId

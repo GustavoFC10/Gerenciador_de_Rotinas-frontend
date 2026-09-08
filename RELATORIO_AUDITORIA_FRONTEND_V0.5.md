@@ -509,8 +509,6 @@ Validacao desta rodada: `npm run typecheck`, `npm run lint`, `npm test` (21
 arquivos e 58 testes) e `npm run build` passaram. O build ainda informa o chunk
 inicial acima de 500 kB, portanto A-018 permanece aberto.
 
-
-
 ## Limitações conhecidas da auditoria
 
 - A análise não pressupõe que recursos mapeados para versões futuras sejam
