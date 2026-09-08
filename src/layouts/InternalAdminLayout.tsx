@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router'
 
 import Badge from '../components/ui/Badge'
 import { appThemeClass, focusRing } from '../constants/designTokens'
+import { useAuth } from '../hooks/useAuth'
 
 const internalOrganizationsPath = '/internal/organizations'
 
@@ -10,6 +12,19 @@ const internalOrganizationsPath = '/internal/organizations'
  * ativa, da competência ou da navegação operacional do cliente.
  */
 function InternalAdminLayout() {
+  const { logout } = useAuth()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  async function handleLogout(): Promise<void> {
+    setIsLoggingOut(true)
+
+    try {
+      await logout()
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
+
   return (
     <div className={`min-h-screen ${appThemeClass.shell}`}>
       <a
@@ -41,12 +56,14 @@ function InternalAdminLayout() {
 
         <div className="flex shrink-0 items-center gap-3">
           <Badge variant="brand">INTERNO</Badge>
-          <Link
-            to="/"
-            className={`hidden rounded-[var(--radius-control)] px-2 py-1 text-sm font-bold text-[var(--color-brand)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-brand-strong)] sm:inline-flex ${focusRing}`}
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            disabled={isLoggingOut}
+            className={`inline-flex min-h-9 items-center justify-center rounded-[var(--radius-control)] px-3 text-sm font-bold text-[var(--color-brand)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-brand-strong)] disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
           >
-            Voltar ao aplicativo
-          </Link>
+            {isLoggingOut ? 'Saindo…' : 'Sair'}
+          </button>
         </div>
       </header>
 

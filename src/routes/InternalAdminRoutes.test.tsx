@@ -7,6 +7,8 @@ import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ROUTES } from '../constants/routes'
+import { AuthContext } from '../contexts/authContextDefinition'
+import type { AuthContextValue } from '../contexts/authContextDefinition'
 import type { ApiResponse } from '../services/httpClient'
 import {
   internalOrganizationService,
@@ -85,8 +87,10 @@ async function renderRoutes(initialEntry: string) {
     root.render(
       <MemoryRouter initialEntries={[initialEntry]}>
         <QueryClientProvider client={queryClient}>
-          <InternalAdminRoutes />
-          <LocationProbe />
+          <AuthContext.Provider value={staffAuthValue}>
+            <InternalAdminRoutes />
+            <LocationProbe />
+          </AuthContext.Provider>
         </QueryClientProvider>
       </MemoryRouter>,
     )
@@ -97,6 +101,30 @@ async function renderRoutes(initialEntry: string) {
       window.setTimeout(resolve, 0)
     })
   })
+}
+
+const staffAuthValue: AuthContextValue = {
+  session: {
+    user: {
+      id: 'staff-user',
+      email: 'staff@example.com',
+      isPlatformStaff: true,
+    },
+    memberships: [],
+    activeMembership: null,
+  },
+  user: null,
+  memberships: [],
+  activeMembership: null,
+  isAuthenticated: true,
+  isInitializing: false,
+  initializationError: null,
+  login: async () => {
+    throw new Error('Not implemented in this test.')
+  },
+  logout: async () => undefined,
+  selectActiveMembership: async () => undefined,
+  refreshSession: async () => undefined,
 }
 
 function LocationProbe() {
