@@ -201,8 +201,14 @@ function ClientRoutineAssignmentsPanel({
     })
   }
 
-  function handleCancel(assignment: ClientRoutineAssignmentResource) {
-    if (!window.confirm('Cancelar este vínculo de rotina programado?')) return
+  function handleRemove(assignment: ClientRoutineAssignmentResource) {
+    if (
+      !window.confirm(
+        'Remover este vínculo de rotina? A remoção é imediata e não mantém histórico do vínculo.',
+      )
+    ) {
+      return
+    }
 
     void withAction(async () => {
       const snapshot = await companyService.getRoutineAssignment(
@@ -212,11 +218,11 @@ function ClientRoutineAssignmentsPanel({
 
       if (!snapshot.etag) {
         throw new Error(
-          'A API não informou a versão necessária para cancelar o vínculo.',
+          'A API não informou a versão necessária para remover o vínculo.',
         )
       }
 
-      await companyService.cancelRoutineAssignment(
+      await companyService.removeRoutineAssignment(
         client.id,
         assignment.id,
         snapshot.etag,
@@ -226,7 +232,7 @@ function ClientRoutineAssignmentsPanel({
         exact: true,
       })
       void invalidateAffectedOperationalContexts()
-      setActionMessage('Vínculo de rotina cancelado.')
+      setActionMessage('Vínculo de rotina removido.')
     })
   }
 
@@ -305,10 +311,10 @@ function ClientRoutineAssignmentsPanel({
                           size="sm"
                           tone="neutral"
                           className="border-[var(--status-error-border)] text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)]"
-                          onClick={() => handleCancel(assignment)}
+                          onClick={() => handleRemove(assignment)}
                           disabled={isChanging}
                         >
-                          Cancelar
+                          Remover
                         </Button>
                       ) : isEnding ? (
                         <>
@@ -344,14 +350,25 @@ function ClientRoutineAssignmentsPanel({
                           </Button>
                         </>
                       ) : (
-                        <Button
-                          size="sm"
-                          tone="neutral"
-                          onClick={() => beginEnd(assignment)}
-                          disabled={isChanging}
-                        >
-                          Encerrar
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            tone="neutral"
+                            className="border-[var(--status-error-border)] text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)]"
+                            onClick={() => handleRemove(assignment)}
+                            disabled={isChanging}
+                          >
+                            Remover
+                          </Button>
+                          <Button
+                            size="sm"
+                            tone="neutral"
+                            onClick={() => beginEnd(assignment)}
+                            disabled={isChanging}
+                          >
+                            Encerrar com data
+                          </Button>
+                        </>
                       )}
                     </div>
                   )}

@@ -11,6 +11,7 @@ import { toClientFromResource } from '../../query/routineControlMappers'
 import { isApiError } from '../../services/httpClient'
 import {
   companyService,
+  type ClientCompanyResource,
   type ClientCompanyPatch,
   type ClientRoutineAssignmentResource,
 } from '../../services/companyService'
@@ -229,6 +230,50 @@ export function useCompanyMutations({
       void queryClient.invalidateQueries({
         queryKey: queryKeys.routineControlRoot(scope),
       })
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.archivedCompanies(scope),
+        exact: true,
+      })
+    },
+  })
+
+  const restoreCompanyMutation = useMutation({
+    mutationFn: async (companyId: string) => {
+      const snapshot = await companyService.get(companyId)
+
+      if (!snapshot.etag) {
+        throw new Error(
+          'A API nao informou a versao atual da empresa para desarquiva-la.',
+        )
+      }
+
+      try {
+        const response = await companyService.restore(companyId, snapshot.etag)
+        const client = toClientFromResource(response.data)
+        upsertClientInOperationalContexts(queryClient, scope, client)
+        queryClient.setQueryData<ClientCompanyResource[]>(
+          queryKeys.archivedCompanies(scope),
+          (current) => current?.filter((company) => company.id !== companyId),
+        )
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.routineControlRoot(scope),
+        })
+        return client
+      } catch (error) {
+        if (isApiError(error) && error.status === 412) {
+          const current = await companyService.get(companyId)
+          upsertClientInOperationalContexts(
+            queryClient,
+            scope,
+            toClientFromResource(current.data),
+          )
+          throw new Error(
+            'Esta empresa foi alterada por outra pessoa. Os dados mais recentes foram carregados.',
+            { cause: error },
+          )
+        }
+        throw error
+      }
     },
   })
 
@@ -240,5 +285,6 @@ export function useCompanyMutations({
       [updateCompanyMutation],
     ),
     archiveCompany: archiveCompanyMutation.mutateAsync,
+    restoreCompany: restoreCompanyMutation.mutateAsync,
   }
 }

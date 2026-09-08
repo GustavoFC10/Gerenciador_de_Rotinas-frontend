@@ -1973,7 +1973,9 @@ paths:
               schema:
                 type: string
                 maxLength: 64
-          description: Vínculo cancelado sem apagar o histórico.
+          description:
+            Vínculo excluído definitivamente. Registros operacionais mantêm
+            somente seus snapshots.
         '400':
           content:
             application/problem+json:
@@ -2448,8 +2450,8 @@ paths:
                 type: string
                 maxLength: 64
           description:
-            Empresa arquivada; atribuições vigentes ou futuras foram encerradas
-            ou canceladas sem apagar o histórico.
+            Empresa arquivada; seus vínculos de rotina foram excluídos
+            definitivamente.
         '400':
           content:
             application/problem+json:
@@ -8279,6 +8281,7 @@ components:
         code:
           type: string
           readOnly: true
+          nullable: true
         name:
           type: string
           readOnly: true
@@ -8332,9 +8335,13 @@ components:
       description: Reject input keys that are not part of the public API contract.
       properties:
         code:
-          type: string
-          maxLength: 32
-          pattern: ^[0-9]{1,32}$
+          nullable: true
+          oneOf:
+            - type: string
+              maxLength: 32
+              pattern: ^[0-9]{1,32}$
+            - type: string
+              maxLength: 0
         name:
           type: string
           maxLength: 160
@@ -8930,7 +8937,7 @@ components:
           readOnly: true
         status:
           allOf:
-            - $ref: '#/components/schemas/StatusA48Enum'
+            - $ref: '#/components/schemas/OrganizationMemberStatusEnum'
           readOnly: true
         joinedAt:
           type: string
@@ -9105,7 +9112,7 @@ components:
           readOnly: true
         status:
           allOf:
-            - $ref: '#/components/schemas/StatusA48Enum'
+            - $ref: '#/components/schemas/OrganizationMemberStatusEnum'
           readOnly: true
         joinedAt:
           type: string
@@ -9145,6 +9152,18 @@ components:
         * `owner` - Proprietário
         * `admin` - Administrador
         * `member` - Membro
+    OrganizationMemberStatusEnum:
+      enum:
+        - pending
+        - active
+        - suspended
+        - inactive
+      type: string
+      description: |-
+        * `pending` - Pendente
+        * `active` - Ativo
+        * `suspended` - Suspenso
+        * `inactive` - Inativo
     OrganizationSummary:
       type: object
       properties:
@@ -9487,9 +9506,13 @@ components:
       description: Reject input keys that are not part of the public API contract.
       properties:
         code:
-          type: string
-          maxLength: 32
-          pattern: ^[0-9]{1,32}$
+          nullable: true
+          oneOf:
+            - type: string
+              maxLength: 32
+              pattern: ^[0-9]{1,32}$
+            - type: string
+              maxLength: 0
         name:
           type: string
           maxLength: 160
@@ -10269,6 +10292,7 @@ components:
         code:
           type: string
           readOnly: true
+          nullable: true
         name:
           type: string
           readOnly: true
@@ -10482,18 +10506,6 @@ components:
         - spreadsheet
       type: string
       description: '* `spreadsheet` - spreadsheet'
-    StatusA48Enum:
-      enum:
-        - pending
-        - active
-        - suspended
-        - inactive
-      type: string
-      description: |-
-        * `pending` - Pendente
-        * `active` - Ativo
-        * `suspended` - Suspenso
-        * `inactive` - Inativo
     Task:
       type: object
       properties:
