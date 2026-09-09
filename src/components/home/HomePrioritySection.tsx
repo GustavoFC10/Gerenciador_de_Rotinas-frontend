@@ -63,10 +63,10 @@ function HomePrioritySection({
           id="home-priorities-title"
           className="text-lg font-extrabold text-[var(--color-text-strong)]"
         >
-          Prioridades
+          Prioridades da equipe
         </h2>
         <span className="inline-flex min-h-7 items-center rounded-full bg-[var(--color-panel-soft-bg)] px-2.5 text-xs font-bold text-[var(--color-text-muted)] ring-1 ring-[var(--color-panel-border)]">
-          {openCount} {openCount === 1 ? 'aberta' : 'abertas'}
+          {openCount} {openCount === 1 ? 'tarefa aberta' : 'tarefas abertas'}
         </span>
       </div>
 
@@ -85,7 +85,7 @@ function HomePrioritySection({
             Tudo em dia nesta competência
           </p>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            Você não tem tarefas abertas atribuídas no momento.
+            Não há tarefas abertas nos departamentos aos quais você tem acesso.
           </p>
         </div>
       )}

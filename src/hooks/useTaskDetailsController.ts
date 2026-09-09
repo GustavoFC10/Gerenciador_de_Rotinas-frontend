@@ -20,6 +20,7 @@ import {
   canTransitionTask,
   getAllowedTaskTransitionStatuses,
 } from '../utils/permissions'
+import { getErrorMessage } from '../utils/apiErrors'
 import { buildTaskRelations } from '../utils/routineRelations'
 
 interface UseTaskDetailsControllerOptions {
@@ -260,9 +261,12 @@ export function useTaskDetailsController({
 
       try {
         await transitionTask(taskId, status)
-      } catch {
+      } catch (error) {
         setTransitionError(
-          'N\u00e3o foi poss\u00edvel alterar o estado da tarefa. Tente novamente.',
+          getErrorMessage(
+            error,
+            'Não foi possível alterar o estado da tarefa. Tente novamente.',
+          ),
         )
       }
     },

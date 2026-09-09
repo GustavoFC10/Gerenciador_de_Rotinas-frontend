@@ -234,10 +234,10 @@ function DepartmentsSettingsPage({
                         <div className="mt-2 flex flex-wrap gap-2">
                           <Badge>
                             {isLoadingMembers
-                              ? 'Carregando membros'
+                              ? 'Carregando a equipe'
                               : membersError
-                                ? 'Membros indisponíveis'
-                                : `${memberCount ?? 0} ${memberCount === 1 ? 'funcionário' : 'funcionários'}`}
+                                ? 'Equipe indisponível'
+                                : `${memberCount ?? 0} ${memberCount === 1 ? 'colaborador' : 'colaboradores'}`}
                           </Badge>
                           <Badge>
                             {screenCount} {screenCount === 1 ? 'tela' : 'telas'}

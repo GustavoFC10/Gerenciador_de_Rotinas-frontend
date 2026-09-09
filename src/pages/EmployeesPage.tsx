@@ -79,14 +79,15 @@ function EmployeesPage({ departments }: { departments: Department[] }) {
   }, [departments, members, search])
 
   if (isInitialLoading) {
-    return <LoadingState message="Carregando funcionários..." />
+    return <LoadingState message="Carregando a equipe..." />
   }
 
   if (error) {
     return (
       <ErrorState
-        title="Não foi possível carregar os funcionários"
+        title="Não foi possível carregar a equipe"
         description="Verifique suas permissões e tente novamente."
+        error={error}
       />
     )
   }
@@ -94,10 +95,10 @@ function EmployeesPage({ departments }: { departments: Department[] }) {
   return (
     <>
       <CatalogList
-        title="Funcionários"
+        title="Equipe"
         countLabel={`${members.length} cadastrados`}
         resultLabel={`${filteredMembers.length} de ${members.length}`}
-        searchLabel="Buscar funcionários"
+        searchLabel="Buscar na equipe"
         searchPlaceholder="Buscar por nome, e-mail, cargo ou departamento"
         searchValue={search}
         onSearchChange={setSearch}
@@ -108,14 +109,14 @@ function EmployeesPage({ departments }: { departments: Department[] }) {
                 Cargos e permissões
               </CatalogSecondaryAction>
               <CatalogAction to={ROUTES.EMPLOYEE_CREATE}>
-                Adicionar funcionário
+                Adicionar colaborador
               </CatalogAction>
             </div>
           ) : undefined
         }
       >
         <CatalogHeader gridClass={employeeGrid}>
-          <span>Funcionário</span>
+          <span>Colaborador</span>
           <span>E-mail</span>
           <span>Cargo</span>
           <span>Departamentos</span>
@@ -165,8 +166,8 @@ function EmployeesPage({ departments }: { departments: Department[] }) {
           <CatalogEmpty
             title={
               search
-                ? `Nenhum funcionário encontrado para “${search}”.`
-                : 'Nenhum funcionário cadastrado.'
+                ? `Nenhum colaborador encontrado para “${search}”.`
+                : 'Nenhum colaborador cadastrado na equipe.'
             }
             searchValue={search}
             onClear={() => setSearch('')}
@@ -329,7 +330,7 @@ function EmployeeProfilePanel({
     const nextDisplayName = displayName.trim()
 
     if (!nextDisplayName) {
-      setActionError('Informe o nome do funcionário.')
+      setActionError('Informe o nome do colaborador.')
       return
     }
 
@@ -430,7 +431,7 @@ function EmployeeProfilePanel({
     if (!canOffboard) return
     if (
       !window.confirm(
-        `Desativar o acesso de ${member.displayName}? Esta ação encerra o vínculo do membro na organização.`,
+        `Desativar o acesso de ${member.displayName}? Esta ação encerra o vínculo do colaborador na organização.`,
       )
     ) {
       return
@@ -442,12 +443,12 @@ function EmployeeProfilePanel({
     try {
       const response = await offboardMutation.mutateAsync(member.id)
       await onMemberChange(response.data)
-      setActionMessage('Acesso do funcionário desativado.')
+      setActionMessage('Acesso do colaborador desativado.')
     } catch (caughtError) {
       setActionError(
         caughtError instanceof Error
           ? caughtError.message
-          : 'Não foi possível desativar o acesso do funcionário.',
+          : 'Não foi possível desativar o acesso do colaborador.',
       )
     }
   }
@@ -471,7 +472,7 @@ function EmployeeProfilePanel({
         <header className="flex items-start justify-between gap-4 border-b border-[var(--color-divider)] px-5 py-4">
           <div className="min-w-0">
             <p className="text-xs font-bold text-[var(--color-text-muted)]">
-              Perfil do funcionário
+              Perfil do colaborador
             </p>
             <h2
               id="employee-profile-title"
@@ -602,7 +603,7 @@ function EmployeeProfilePanel({
             ) : member.status !== 'active' ? (
               <p className="mt-4 rounded-[var(--radius-control)] bg-[var(--color-panel-soft-bg)] px-3 py-2 text-sm leading-5 text-[var(--color-text-muted)]">
                 Os acessos de departamento ficam disponíveis depois que a pessoa
-                aceitar o convite e o membro estiver ativo.
+                aceitar o convite e o colaborador estiver ativo.
               </p>
             ) : canManage ? (
               <form
@@ -713,7 +714,7 @@ function MemberStatus({ status }: { status: OrganizationMemberStatus }) {
 function getRoleLabel(role: OrganizationRole): string {
   if (role === ORGANIZATION_ROLE.OWNER) return 'Proprietário'
   if (role === ORGANIZATION_ROLE.ADMIN) return 'Administrador'
-  return 'Membro'
+  return 'Colaborador'
 }
 
 function getDepartmentAccessLabel(role: DepartmentAccessRole): string {

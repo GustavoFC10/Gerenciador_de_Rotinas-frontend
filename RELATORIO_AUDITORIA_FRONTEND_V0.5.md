@@ -408,7 +408,7 @@ value}`. Cobrir as variantes com testes de semântica e teclado.
   Em falha, o próprio código cria `CompanySetupError` e orienta reparo manual
   ([`119-144`](src/hooks/mutations/useCompanyMutations.ts:119) e
   [`CreateCompanyPage.tsx:968-1024`](src/pages/CreateCompanyPage.tsx:968)). A
-  edição de acessos de funcionário aplica um departamento por vez em
+  edição de acessos de colaborador aplica um departamento por vez em
   [`EmployeesPage.tsx:243-273`](src/pages/EmployeesPage.tsx:243) e também
   reconhece estado parcialmente aplicado em [`408-425`](src/pages/EmployeesPage.tsx:408)).
 - **Impacto:** uma operação comum pode terminar com empresa criada, apenas parte

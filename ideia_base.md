@@ -27,14 +27,14 @@ O sistema deve priorizar velocidade operacional e simplicidade visual, evitando 
 
 - Autenticação
 - Cadastro de Empresas
-- Cadastro de Funcionários
+- Cadastro da Equipe
 - Cadastro de Departamentos
 - Definição de Líderes
 - Cadastro de Rotinas Modelo
 - Geração Automática de Tasks
 - Atribuição de Tasks
 - Dashboard Gerencial
-- Tela Operacional do Funcionário
+- Tela Operacional do Colaborador
 - Comentários
 - Avisos
 - Histórico
@@ -61,7 +61,7 @@ Permissões:
 
 - Cadastro de clientes
 - Cadastro de departamentos
-- Cadastro de funcionários
+- Cadastro da equipe
 - Configuração de rotinas
 - Visualização global
 - Reatribuição de tarefas
@@ -81,9 +81,9 @@ Permissões:
 
 ---
 
-## Funcionário
+## Colaborador
 
-Responsável pela execução das rotinas.
+Atua na execução das rotinas do seu departamento.
 
 Permissões:
 
@@ -136,7 +136,7 @@ Empresa disponível para geração de rotinas.
 
 ---
 
-## UC03 – Cadastrar Funcionário
+## UC03 – Cadastrar Colaborador
 
 ### Ator
 
@@ -144,7 +144,7 @@ Manager
 
 ### Fluxo Principal
 
-1. Acessa área de funcionários.
+1. Acessa a área da equipe.
 2. Informa dados.
 3. Define departamento.
 4. Salva cadastro.
@@ -174,7 +174,7 @@ Manager
 ### Fluxo Principal
 
 1. Seleciona departamento.
-2. Escolhe funcionário.
+2. Escolhe colaborador.
 3. Define como líder.
 
 ---
@@ -238,7 +238,7 @@ Histórico atualizado.
 
 ### Ator
 
-Funcionário
+Colaborador
 
 ### Fluxo Principal
 
@@ -252,7 +252,7 @@ Funcionário
 
 ### Ator
 
-Funcionário
+Colaborador
 
 ### Fluxo Principal
 
@@ -272,7 +272,7 @@ Histórico atualizado.
 
 ### Ator
 
-Funcionário
+Colaborador
 
 ### Fluxo Principal
 
@@ -326,7 +326,7 @@ Conclusão
 
 ## Fluxo de Comunicação
 
-Funcionário
+Colaborador
 ↓
 Aviso
 ↓
@@ -433,7 +433,7 @@ Apresentar visão inicial.
 - Sem responsável
 - Avisos
 
-### Funcionário
+### Colaborador
 
 - Minhas pendentes
 - Minhas atrasadas
@@ -650,7 +650,7 @@ Distribuição de tarefas.
 
 Por Departamento
 
-Por Funcionário
+Por Colaborador
 
 Por Cliente
 
@@ -680,7 +680,7 @@ RN09 – Apenas Manager define líderes.
 
 RN10 – Líder só gerencia tarefas do próprio departamento.
 
-RN11 – Funcionário altera apenas tarefas atribuídas a ele.
+RN11 – Colaborador atua nas tarefas do escopo do seu departamento.
 
 RN12 – Toda task inicia como Pendente.
 

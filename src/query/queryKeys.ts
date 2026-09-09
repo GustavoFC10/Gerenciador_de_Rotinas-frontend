@@ -24,10 +24,14 @@ export const queryKeys = {
     [...scopeKey(scope), 'member', memberId] as const,
   archivedCompanies: (scope: OrganizationQueryScope) =>
     [...scopeKey(scope), 'archived-companies'] as const,
+  archivedRoutines: (scope: OrganizationQueryScope) =>
+    [...scopeKey(scope), 'archived-routines'] as const,
+  companyRoutineAssignmentsRoot: (scope: OrganizationQueryScope) =>
+    [...scopeKey(scope), 'company-routine-assignments'] as const,
   companyRoutineAssignments: (
     scope: OrganizationQueryScope,
     companyId: string,
-  ) => [...scopeKey(scope), 'company-routine-assignments', companyId] as const,
+  ) => [...queryKeys.companyRoutineAssignmentsRoot(scope), companyId] as const,
   screen: (scope: OrganizationQueryScope, screenId: string) =>
     [...scopeKey(scope), 'screen', screenId] as const,
   screenProjection: (

@@ -162,6 +162,14 @@ function Sidebar({
             end
             onNavigate={onMobileClose}
           />
+          <NavigationLink
+            to={ROUTES.MY_TASKS}
+            label="Minhas tarefas"
+            icon="tasks"
+            isCollapsed={isCollapsed}
+            end
+            onNavigate={onMobileClose}
+          />
         </ul>
 
         <NavigationSection
@@ -242,7 +250,7 @@ function Sidebar({
           {canViewEmployees(user) && (
             <NavigationLink
               to={ROUTES.EMPLOYEES}
-              label="Funcionários"
+              label="Equipe"
               icon="people"
               end
               isCollapsed={isCollapsed}

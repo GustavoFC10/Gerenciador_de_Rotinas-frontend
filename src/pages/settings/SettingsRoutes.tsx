@@ -31,6 +31,7 @@ interface SettingsRoutesProps {
     'departments' | 'screens' | 'clients' | 'routines'
   >
   onCompanyRestore: (companyId: string) => Promise<unknown>
+  onRoutineRestore: (routineId: string) => Promise<unknown>
   onDepartmentCreate: (
     input: DepartmentInput,
   ) => Promise<RoutineControlData['departments'][number]>
@@ -52,6 +53,7 @@ interface SettingsRoutesProps {
 function SettingsRoutes({
   data,
   onCompanyRestore,
+  onRoutineRestore,
   onDepartmentCreate,
   onScreenCreate,
   onScreenUpdate,
@@ -62,12 +64,17 @@ function SettingsRoutes({
         <Route index element={<SettingsOverviewPage />} />
         <Route path="organizacao" element={<OrganizationSettingsPage />} />
         <Route
-          path="empresas-arquivadas"
+          path="arquivados"
           element={
             <ArchivedCompaniesSettingsPage
               onCompanyRestore={onCompanyRestore}
+              onRoutineRestore={onRoutineRestore}
             />
           }
+        />
+        <Route
+          path="empresas-arquivadas"
+          element={<Navigate to={ROUTES.SETTINGS_ARCHIVED} replace />}
         />
         <Route
           path="departamentos"

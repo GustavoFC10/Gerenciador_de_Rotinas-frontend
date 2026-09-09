@@ -268,8 +268,8 @@ Exemplos:
 - editar empresa;
 - editar rotina;
 - editar tela;
-- alterar perfil de funcionário;
-- alterar acesso quando o backend retorna o membro atualizado.
+- alterar perfil de colaborador;
+- alterar acesso quando o backend retorna o colaborador atualizado.
 
 Estratégia:
 
@@ -913,7 +913,7 @@ A tela de Settings continua montada.
 
 ---
 
-# 23. Funcionários e acessos
+# 23. Equipe e acessos
 
 ## Perfil
 
@@ -1851,7 +1851,7 @@ Migrar:
 
 Adicionar success UX nos creates.
 
-## Fase 4 — Screens, departamentos e funcionários
+## Fase 4 — Screens, departamentos e equipe
 
 Migrar:
 

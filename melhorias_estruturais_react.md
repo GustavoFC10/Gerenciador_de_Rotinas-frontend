@@ -392,7 +392,7 @@ Vantagens:
 
 - Menu muda por perfil.
 - Acoes aparecem/desaparecem corretamente.
-- Facilita MVP com funcionario/lider/manager.
+- Facilita MVP com colaborador/lider/manager.
 
 Cuidados:
 
@@ -447,7 +447,7 @@ src/services/
   taskService.js
   companyService.js
   routineService.js
-  employeeService.js
+  organizationMemberService.js
 ```
 
 Vantagens:
@@ -465,7 +465,7 @@ Recomendacao:
 Recompensa: Media  
 Esforco: Medio
 
-Como as telas cruzam empresas, rotinas, tarefas e funcionarios, pode valer normalizar dados em maps.
+Como as telas cruzam empresas, rotinas, tarefas e equipe, pode valer normalizar dados em maps.
 
 Exemplo:
 
@@ -516,7 +516,7 @@ Telas futuras terao muitos formularios:
 - Nova rotina.
 - Nova empresa.
 - Perfil.
-- Funcionario.
+- Colaborador.
 - Cargo.
 
 Vale definir:

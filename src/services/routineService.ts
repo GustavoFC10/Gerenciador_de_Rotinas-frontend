@@ -4,6 +4,11 @@ import type { RoutineRecurrence } from '../types/domain'
 
 const ROUTINES_ENDPOINT = '/api/v1/routines/'
 
+interface PaginatedResponse<T> {
+  next: string | null
+  results: T[]
+}
+
 export interface RoutineInput {
   departmentId: string
   name: string
@@ -56,6 +61,16 @@ export interface RoutineVersionResource {
 export class RoutineService {
   constructor(private readonly client: HttpClient) {}
 
+  listAll(includeArchived = false): Promise<RoutineResource[]> {
+    const query = new URLSearchParams({
+      includeArchived: String(includeArchived),
+    })
+
+    return this.collectPages<RoutineResource>(
+      `${ROUTINES_ENDPOINT}?${query.toString()}`,
+    )
+  }
+
   get(id: string): Promise<ApiResponse<RoutineResource>> {
     return this.client.get<RoutineResource>(routinePath(id))
   }
@@ -96,6 +111,20 @@ export class RoutineService {
       {},
       { ifMatch: etag },
     )
+  }
+
+  private async collectPages<T>(initialPath: string): Promise<T[]> {
+    const results: T[] = []
+    let nextPath: string | null = initialPath
+
+    while (nextPath) {
+      const response: ApiResponse<PaginatedResponse<T>> =
+        await this.client.get<PaginatedResponse<T>>(nextPath)
+      results.push(...response.data.results)
+      nextPath = response.data.next
+    }
+
+    return results
   }
 }
 

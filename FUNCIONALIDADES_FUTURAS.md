@@ -200,7 +200,7 @@ Estes textos apareceram na varredura, mas representam estados normais ou auxilia
   não funcionalidades futuras;
 - “Ainda não existe uma tela de planilha disponível” e “Nenhuma rotina ativa disponível” em
   `CreateCompanyPage`: estados de catálogo vazio/dependência de dados;
-- “Empresa arquivada ou indisponível”, “Membros indisponíveis” e mensagens equivalentes:
+- “Empresa arquivada ou indisponível”, “Equipe indisponível” e mensagens equivalentes:
   estados de acesso, filtro ou falha de carregamento;
 - “Prévia indisponível” para tipos de arquivo desconhecidos: fallback visual de preview;
 - placeholders gerados por utilitários de layout e mocks de usuários em testes: infraestrutura
@@ -209,6 +209,6 @@ Estes textos apareceram na varredura, mas representam estados normais ou auxilia
 ## Observação sobre a documentação existente
 
 `README.md` e `ARQUITETURA_FRONTEND.md` ainda descrevem algumas rotas antigas como planejadas,
-inclusive Rotinas, Empresas e Funcionários. Essas áreas já possuem páginas funcionais no código
+inclusive Rotinas, Empresas e Equipe. Essas áreas já possuem páginas funcionais no código
 atual e, por isso, não foram registradas como placeholders neste inventário. As rotas que ainda
 usam `PlaceholderPage` são Dashboard do departamento, Dashboard geral e Cargos.

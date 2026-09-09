@@ -45,6 +45,18 @@ function MyTasksPage({
     [data, user.membershipId],
   )
 
+  async function handlePersonalTaskCreate(
+    input: AdHocTaskInput,
+  ): Promise<void> {
+    if (!onLooseTaskCreate) return
+
+    await onLooseTaskCreate({
+      ...input,
+      // A tarefa pessoal é sempre identificada pelo colaborador que a criou.
+      assigneeMemberId: user.membershipId,
+    })
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <WorkspaceBar
@@ -80,7 +92,7 @@ function MyTasksPage({
           data={data}
           departmentIds={creatableDepartmentIds}
           onClose={() => setIsFormOpen(false)}
-          onCreate={onLooseTaskCreate!}
+          onCreate={handlePersonalTaskCreate}
         />
       )}
     </div>

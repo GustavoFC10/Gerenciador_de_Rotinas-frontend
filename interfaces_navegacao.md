@@ -7,7 +7,7 @@ Este documento consolida a proposta de interface do MVP para o sistema de contro
 A direcao mais forte para o MVP e:
 
 - A planilha do departamento como centro operacional.
-- Funcionarios acessam apenas as planilhas dos seus departamentos.
+- A equipe acessa apenas as planilhas dos seus departamentos.
 - A home facilita chegar rapidamente na planilha.
 - Listas funcionam como visualizacao de foco: rotina especifica, empresa especifica, busca, minhas tarefas, lista global.
 - Tarefas avulsas usam o mesmo formato visual da lista.
@@ -17,7 +17,7 @@ A direcao mais forte para o MVP e:
 
 ## Perfis e Permissoes
 
-### Funcionario
+### Colaborador
 
 Deve acessar:
 
@@ -32,24 +32,24 @@ Deve acessar:
 Nao deve acessar:
 
 - Dashboard gerencial completo.
-- Cadastro de funcionarios.
+- Cadastro da equipe.
 - Gerenciamento de cargos.
 - Edicao ampla de rotinas, empresas e prazos, salvo se houver permissao especifica.
 
 Observacao:
 
-- Se o funcionario pertence a mais de um departamento, o menu lateral pode listar uma planilha por departamento.
+- Se o colaborador pertence a mais de um departamento, o menu lateral pode listar uma planilha por departamento.
 
 ### Lider de Departamento
 
-Deve acessar tudo do funcionario, mais:
+Deve acessar tudo do colaborador, mais:
 
 - Dashboard simples do departamento.
 - Cadastro/edicao de rotinas do departamento.
 - Cadastro/edicao de empresas, se isso fizer parte da operacao do setor.
 - Designacao de tarefas.
 - Alteracao de prazos.
-- Listagem de funcionarios do departamento.
+- Visualização da equipe do departamento.
 
 Cuidados:
 
@@ -62,7 +62,7 @@ Deve acessar tudo do lider, mais:
 
 - Dashboard completo.
 - Visao entre departamentos.
-- Cadastro de funcionarios.
+- Cadastro da equipe.
 - Gerenciamento de cargos.
 - Configuracoes globais.
 - Todos os departamentos.
@@ -77,34 +77,39 @@ Cuidados:
 
 A home nao deve ser uma landing page e tambem nao precisa ser um dashboard complexo no primeiro momento. Ela deve ser uma tela operacional de entrada com atalhos.
 
-Estrutura sugerida:
+Estrutura sugerida para a execucao compartilhada por departamento:
 
 ```text
 Home
 - Saudacao/contexto do usuario
 - Competencia ativa
-- Atalho principal: abrir planilha do departamento
-- Minhas tarefas pendentes
-- Erros/pendencias que exigem atencao
-- Atalhos secundarios: lista global, busca, nova tarefa
+- Resumo da equipe nos departamentos aos quais a pessoa tem acesso
+- Prioridades da equipe: erros, atrasos e prazos proximos
+- Andamento por area de trabalho/planilha
+- Atalhos para a lista completa e para cada planilha do departamento
 ```
 
 Vantagens:
 
 - Nao joga o usuario direto em uma planilha gigante sem contexto.
 - Ainda mantem a planilha como centro do sistema.
-- Funciona para funcionario e lider.
-- Pode evoluir para dashboard por perfil.
+- Funciona para colaborador, lider e manager sem pressupor responsavel
+  individual em cada tarefa.
+- Mantem a planilha como centro da execucao conjunta e pode evoluir para
+  dashboards mais detalhados.
 
 Alternativas analisadas:
 
 - Planilha como home direta: muito eficiente, mas pode ser brusca e pouco orientadora.
-- Dashboard como home: bom para manager/lider, mas menos util para funcionario no MVP.
+- Dashboard como home: bom para manager/lider, mas menos util para colaborador no MVP.
 - Perfil como home: nao recomendado; perfil e configuracao, nao operacao.
 
 Recomendacao:
 
-- Home operacional com atalho muito forte para a planilha.
+- Home operacional coletiva, com prioridades e progresso do departamento antes
+  do recorte individual.
+- A lista de "Minhas tarefas" continua como recorte opcional quando houver
+  atribuicoes individuais, sem ser a premissa da operacao.
 - Para usuarios que preferirem, futuramente permitir "abrir direto na planilha" como preferencia de perfil.
 
 ## Competencia Ativa
@@ -151,7 +156,7 @@ Motivo:
 
 ## Menu Lateral
 
-### Estrutura para Funcionario
+### Estrutura para Colaborador
 
 ```text
 Operacao
@@ -188,7 +193,7 @@ Planilhas
 
 Vantagem:
 
-- Acesso direto ao que o funcionario usa diariamente.
+- Acesso direto ao que o colaborador usa diariamente.
 
 Cuidados:
 
@@ -210,7 +215,7 @@ Gestao do departamento
 - Designacao de tarefas
 - Rotinas
 - Empresas
-- Funcionarios
+- Equipe
 ```
 
 Vantagem:
@@ -236,7 +241,7 @@ Gestao
 - Departamentos
 - Empresas
 - Rotinas
-- Funcionarios
+- Equipe
 
 Administracao
 - Cargos
@@ -418,7 +423,7 @@ Funcao:
 
 - Mostrar todas as tarefas acessiveis ao usuario.
 
-Para funcionario:
+Para colaborador:
 
 - Apenas tarefas do seu escopo.
 
@@ -648,18 +653,18 @@ Cuidados:
 - Dashboard completo demais pode atrasar o MVP.
 - Melhor comecar clicavel e operacional, nao apenas visual.
 
-## Listagem de Funcionarios
+## Gestão da Equipe
 
 Para lider:
 
-- Listar funcionarios do departamento.
+- Visualizar a equipe do departamento.
 - Ver carga de tarefas.
 - Ver tarefas em andamento/pendentes.
 
 Para manager:
 
 - Listar todos.
-- Criar/editar funcionarios.
+- Criar/editar colaboradores.
 - Gerenciar cargos.
 
 MVP:
@@ -673,14 +678,14 @@ Manager:
 
 - Criar cargos.
 - Associar permissões.
-- Definir se cargo e manager, lider ou funcionario.
+- Definir se cargo e manager, lider ou colaborador.
 
 MVP simplificado:
 
 - Usar papeis fixos inicialmente:
   - Manager.
   - Lider.
-  - Funcionario.
+  - Colaborador.
 
 Futuro:
 
@@ -800,11 +805,13 @@ Motivo:
 
 Melhor abordagem:
 
-- Comecar com indicadores de erro, atraso e sem responsavel.
+- Comecar com indicadores de erro, atraso, prazo proximo e andamento. A
+  ausencia de responsavel individual e normal na execucao compartilhada e nao
+  deve ser tratada como alerta.
 
 ## Arquitetura Sugerida de Telas
 
-### Funcionario
+### Colaborador
 
 ```text
 Home
@@ -826,7 +833,7 @@ Lista global
 Dashboard do departamento
 Rotinas
 Empresas
-Funcionarios
+Equipe
 Perfil
 ```
 
@@ -842,7 +849,7 @@ Dashboard geral
 Departamentos
 Rotinas
 Empresas
-Funcionarios
+Equipe
 Cargos
 Configuracoes
 Perfil
@@ -906,7 +913,7 @@ Depois:
 
 1. Designacao em lote.
 2. Dashboard completo do manager.
-3. Cadastro de funcionarios.
+3. Cadastro da equipe.
 4. Gerenciamento de cargos.
 5. Busca global mais avancada.
 6. Preferencias salvas por usuario.

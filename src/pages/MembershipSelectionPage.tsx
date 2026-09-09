@@ -118,7 +118,7 @@ function MembershipSelectionPage() {
 function roleLabel(role: 'owner' | 'admin' | 'member'): string {
   if (role === 'owner') return 'Proprietário'
   if (role === 'admin') return 'Administrador'
-  return 'Membro'
+  return 'Colaborador'
 }
 
 export default MembershipSelectionPage

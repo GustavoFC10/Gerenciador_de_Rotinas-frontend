@@ -76,30 +76,35 @@ flowchart TD
 
 As constantes de rota ficam em `src/constants/routes.ts`. As rotas autenticadas sao renderizadas dentro de `AppLayout` usando `Outlet`.
 
-| Rota                      | Tela                 | Situacao               |
-| ------------------------- | -------------------- | ---------------------- |
-| `/login`                  | `LoginPage`          | Publica                |
-| `/`                       | `HomePage`           | Operacional            |
-| `/planilha`               | `SpreadsheetPage`    | Operacional            |
-| `/agenda`                 | `AgendaPage`         | Operacional            |
-| `/lista`                  | `ListPage`           | Operacional            |
-| `/tarefas-fiscal`         | `TasksPage`          | Operacional            |
-| `/minhas-tarefas`         | `MyTasksPage`        | Operacional            |
-| `/perfil`                 | `ProfilePage`        | Usuario                |
-| `/empresas`               | `CompaniesPage`      | Entidade               |
-| `/empresas/nova`          | `CreateCompanyPage`  | Entidade/admin         |
-| `/empresas/:clientId`     | `EntityDetailPage`   | Entidade               |
-| `/rotinas`                | `RoutinesPage`       | Entidade/admin         |
-| `/rotinas/nova`           | `CreateRoutinePage`  | Entidade/admin         |
-| `/rotinas/:routineId`     | `EntityDetailPage`   | Entidade               |
-| `/funcionarios`           | `EmployeesPage`      | Admin                  |
-| `/funcionarios/novo`      | `CreateEmployeePage` | Admin                  |
-| `/telas`                  | `ScreensPage`        | Admin                  |
-| `/telas/nova`             | `CreateScreenPage`   | Admin                  |
-| `/configuracoes`          | `SettingsPage`       | Admin                  |
-| `/dashboard-departamento` | `PlaceholderPage`    | Estrutural/placeholder |
-| `/dashboard-geral`        | `PlaceholderPage`    | Estrutural/placeholder |
-| `/cargos`                 | `PlaceholderPage`    | Estrutural/placeholder |
+| Rota                        | Tela                           | Situacao               |
+| --------------------------- | ------------------------------ | ---------------------- |
+| `/login`                    | `LoginPage`                    | Publica                |
+| `/`                         | `HomePage`                     | Operacional            |
+| `/planilha`                 | `SpreadsheetPage`              | Operacional            |
+| `/agenda`                   | `AgendaPage`                   | Operacional            |
+| `/lista`                    | `ListPage`                     | Operacional            |
+| `/tarefas-fiscal`           | `TasksPage`                    | Operacional            |
+| `/minhas-tarefas`           | `MyTasksPage`                  | Operacional            |
+| `/perfil`                   | `ProfilePage`                  | Usuario                |
+| `/empresas`                 | `CompaniesPage`                | Entidade               |
+| `/empresas/nova`            | `CreateCompanyPage`            | Entidade/admin         |
+| `/empresas/:clientId`       | `EntityDetailPage`             | Entidade               |
+| `/rotinas`                  | `RoutinesPage`                 | Entidade/admin         |
+| `/rotinas/nova`             | `CreateRoutinePage`            | Entidade/admin         |
+| `/rotinas/:routineId`       | `EntityDetailPage`             | Entidade               |
+| `/equipe`                   | `EmployeesPage`                | Admin                  |
+| `/equipe/novo`              | `CreateEmployeePage`           | Admin                  |
+| `/telas`                    | `ScreensPage`                  | Admin                  |
+| `/telas/nova`               | `CreateScreenPage`             | Admin                  |
+| `/configuracoes`            | `SettingsPage`                 | Admin                  |
+| `/configuracoes/arquivados` | `ArchivedEntitiesSettingsPage` | Admin                  |
+| `/dashboard-departamento`   | `PlaceholderPage`              | Estrutural/placeholder |
+| `/dashboard-geral`          | `PlaceholderPage`              | Estrutural/placeholder |
+| `/cargos`                   | `PlaceholderPage`              | Estrutural/placeholder |
+
+Na interface, as rotas da equipe usam **`/equipe`** e **`/equipe/novo`**. Os caminhos antigos
+`/funcionarios` e `/funcionarios/novo` são somente redirecionamentos de compatibilidade. A área
+**Arquivados** reúne, em abas, empresas e rotinas; restaurar não reabre vínculos encerrados.
 
 O detalhe de tarefa nao possui rota propria: `AuthenticatedApp` controla a tarefa selecionada e abre `RoutineDetailsCard` em um overlay. O mesmo componente tambem concentra o comportamento de foco, teclado e retorno de foco do dialogo.
 
@@ -132,7 +137,7 @@ As telas ficam em `src/pages` e representam entradas de navegacao. As paginas de
 - `components/common`: estados comuns de carregamento, erro e vazio.
 - `components/auth`: protecao de permissao.
 - `components/forms`: shell, secoes, progresso, acoes e feedback de formularios.
-- `components/home`: secoes da home, prioridades, periodo pessoal e visao por papel.
+- `components/home`: resumo coletivo da competencia, prioridades e progresso por departamento.
 - `components/catalog`: listas reutilizaveis de entidades.
 - `components/entities`: edicao de entidades e gestao dos vinculos diretos entre empresa e rotina.
 - `components/context-menu`: menus contextuais de empresa e tarefa.
@@ -162,7 +167,7 @@ As preferencias atualizam `data-theme` e `data-density` no elemento `html`.
 - `useAppState`: acesso ao estado global da aplicacao.
 - `useRoutineControl`: carrega o agregado operacional, controla loading/erro/reload e permite atualizacoes locais.
 - `useRoutineListView`: controla filtros e modo da lista operacional.
-- `useOrganizationMembers`: consulta e gerencia membros para fluxos de organizacao.
+- `useOrganizationMembers`: consulta e gerencia colaboradores para fluxos de organizacao.
 - `useCompetence`: regras e estado de competencia.
 - `useFormState`: estado comum de formularios.
 
@@ -173,7 +178,7 @@ O tipo `RoutineControlResponse`, em `src/types/domain.ts`, representa o agregado
 - departamentos;
 - empresas/clientes;
 - rotinas;
-- funcionarios;
+- equipe (colaboradores);
 - telas;
 - projecoes de planilha;
 - tarefas.
@@ -191,7 +196,7 @@ Os servicos ficam em `src/services`. Eles encapsulam operacoes por recurso e ret
 - `routineService.ts`: rotinas e ciclo de vida de suas versoes.
 - `screenService.ts`: telas, composicao e projecoes.
 - `departmentService.ts`: departamentos e responsaveis disponiveis.
-- `organizationMemberService.ts`: membros, convites e acessos departamentais.
+- `organizationMemberService.ts`: colaboradores, convites e acessos departamentais.
 - `competenceService.ts`: consulta, criacao projetada e finalizacao de competencias.
 
 ### Cliente HTTP
@@ -205,9 +210,14 @@ Os servicos ficam em `src/services`. Eles encapsulam operacoes por recurso e ret
 - gerencia CSRF para operacoes de escrita;
 - suporta `If-Match` e `Idempotency-Key`;
 - diferencia `ApiError` de `ApiNetworkError`;
-- normaliza respostas de erro no formato `ProblemDetails`.
+- normaliza respostas de erro no formato `ProblemDetails`;
+- preserva `X-Request-ID` e `Retry-After` nas falhas retornadas pela API.
 
 Os servicos aceitam um cliente injetavel para facilitar testes, e a aplicacao tambem expoe instancias compartilhadas baseadas no cliente HTTP comum.
+
+### Apresentacao de erros
+
+`src/utils/apiErrors.ts` transforma `ProblemDetails.errors` em mensagens de interface. O utilitario aceita arrays, objetos aninhados e erros gerais (`nonFieldErrors`), prioriza essas mensagens sobre `detail` e usa `title` como fallback. Status de conflito, concorrencia, limite e indisponibilidade recebem orientacoes de recuperacao; corpos de erros `5xx` nao sao exibidos. Estados de erro que precisam de suporte podem mostrar o `X-Request-ID` preservado.
 
 ## 9. Tipos, constantes e utilitarios
 
@@ -236,6 +246,7 @@ Os servicos aceitam um cliente injetavel para facilitar testes, e a aplicacao ta
 - relacoes: `routineRelations`;
 - agenda e recorrencia: `routineSchedule`;
 - links e clipboard: `taskLinks`, `clientClipboard`;
+- apresentacao segura de erros HTTP: `apiErrors`;
 - visao da home: `homeOverview`.
 
 ## 10. Estilos e design system

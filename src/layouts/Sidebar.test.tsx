@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
-import { memberUserMock } from '../constants/roles'
+import { adminUserMock, memberUserMock } from '../constants/roles'
 import {
   AppStateContext,
   type AppStateContextValue,
@@ -25,10 +25,13 @@ const appState = {
   goToPreviousCompetence: () => undefined,
 } satisfies AppStateContextValue
 
-function renderSidebar(isCollapsed = false) {
+function renderSidebar(
+  isCollapsed = false,
+  user: AppStateContextValue['user'] = memberUserMock,
+) {
   return renderToStaticMarkup(
     <MemoryRouter>
-      <AppStateContext.Provider value={appState}>
+      <AppStateContext.Provider value={{ ...appState, user }}>
         <Sidebar
           spreadsheets={[]}
           agendas={[]}
@@ -57,5 +60,19 @@ describe('Sidebar', () => {
   it('keeps profile details available visually when the sidebar is expanded', () => {
     expect(renderSidebar(false)).not.toContain('lg:sr-only')
     expect(renderSidebar(true)).toContain('lg:sr-only')
+  })
+
+  it('labels the organization-member list as Equipe', () => {
+    expect(renderSidebar(false, adminUserMock)).toContain('>Equipe<')
+  })
+
+  it('places Minhas tarefas immediately after Início in global navigation', () => {
+    const markup = renderSidebar()
+    const homeIndex = markup.indexOf('>Início<')
+    const myTasksIndex = markup.indexOf('>Minhas tarefas<')
+
+    expect(markup).toContain('href="/minhas-tarefas"')
+    expect(homeIndex).toBeGreaterThan(-1)
+    expect(myTasksIndex).toBeGreaterThan(homeIndex)
   })
 })

@@ -272,11 +272,11 @@ Organize as áreas do escritório e configure como cada uma trabalha.
 [ + Novo departamento ]
 
 Fiscal
-12 funcionários · 3 telas
+12 colaboradores · 3 telas
 [menu] [abrir]
 
 Contábil
-8 funcionários · 2 telas
+8 colaboradores · 2 telas
 [menu] [abrir]
 ```
 
