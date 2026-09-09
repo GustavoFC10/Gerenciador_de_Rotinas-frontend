@@ -15,9 +15,10 @@ const destinations = [
     description: 'Dados e parâmetros gerais do escritório.',
   },
   {
-    to: ROUTES.SETTINGS_ARCHIVED_COMPANIES,
-    title: 'Empresas arquivadas',
-    description: 'Consulte e restaure empresas removidas da operação ativa.',
+    to: ROUTES.SETTINGS_ARCHIVED,
+    title: 'Arquivados',
+    description:
+      'Consulte e restaure empresas e rotinas removidas da operação ativa.',
   },
   {
     to: ROUTES.SETTINGS_DEPARTMENTS,

@@ -48,6 +48,7 @@ interface EntityDetailPageProps extends Omit<
     changes: RoutineEditInput,
   ) => Promise<void>
   onClientArchive?: (clientId: EntityId) => Promise<void>
+  onRoutineArchive?: (routineId: EntityId) => Promise<void>
 }
 
 function EntityDetailPage({
@@ -59,6 +60,7 @@ function EntityDetailPage({
   onClientUpdate,
   onRoutineUpdate,
   onClientArchive,
+  onRoutineArchive,
   onItemOpen,
   onItemStatusChange,
   getAllowedStatusChanges,
@@ -264,6 +266,9 @@ function EntityDetailPage({
           entity={routine}
           onClose={() => setIsEditing(false)}
           onSave={handleRoutineSave}
+          onArchive={
+            onRoutineArchive ? () => onRoutineArchive(routine.id) : undefined
+          }
         />
       )}
     </div>

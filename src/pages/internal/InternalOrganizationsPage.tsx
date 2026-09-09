@@ -98,7 +98,7 @@ function InternalOrganizationsPage() {
               <span>Nome</span>
               <span>Identificador</span>
               <span>Status</span>
-              <span>Membros</span>
+              <span>Equipe</span>
               <span>Timezone</span>
               <span>Criada em</span>
               <span />
@@ -124,7 +124,7 @@ function InternalOrganizationsPage() {
                         status={organization.status}
                       />
                     </ListDatum>
-                    <ListDatum label="Membros">
+                    <ListDatum label="Equipe">
                       {organization.memberCount}
                     </ListDatum>
                     <ListDatum label="Timezone">

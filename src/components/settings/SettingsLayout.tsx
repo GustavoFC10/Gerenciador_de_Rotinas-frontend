@@ -6,7 +6,7 @@ import { ROUTES } from '../../constants/routes'
 const navigationItems = [
   { to: ROUTES.SETTINGS, label: 'Visão geral', end: true },
   { to: ROUTES.SETTINGS_ORGANIZATION, label: 'Organização' },
-  { to: ROUTES.SETTINGS_ARCHIVED_COMPANIES, label: 'Empresas arquivadas' },
+  { to: ROUTES.SETTINGS_ARCHIVED, label: 'Arquivados' },
   { to: ROUTES.SETTINGS_DEPARTMENTS, label: 'Departamentos' },
   { to: ROUTES.SETTINGS_WORKFLOWS, label: 'Fluxos de trabalho' },
   { to: ROUTES.SETTINGS_INTEGRATIONS, label: 'Integrações' },

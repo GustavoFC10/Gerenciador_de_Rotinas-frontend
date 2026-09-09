@@ -208,7 +208,7 @@ export function DepartmentPermissionsSettingsPage({
                 'Podem administrar a organização, criar telas e configurar sua composição.',
             },
             {
-              role: 'Membros do departamento',
+              role: 'Equipe do departamento',
               detail:
                 'Usam as telas às quais têm acesso, sem alterar a configuração estrutural.',
             },
@@ -228,9 +228,9 @@ export function DepartmentPermissionsSettingsPage({
           }
         >
           <p className="text-sm leading-6 text-[var(--color-text-muted)]">
-            Owners e admins têm acesso administrativo global. Para members,
-            configure os papéis lead, contributor ou viewer no departamento
-            correspondente.
+            Owners e admins têm acesso administrativo global. Para
+            colaboradores, configure os papéis lead, contributor ou viewer no
+            departamento correspondente.
           </p>
         </SettingsContentSection>
       </div>

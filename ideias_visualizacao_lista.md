@@ -143,7 +143,7 @@ Forca:
 
 - Excelente para execucao diaria.
 - Deixa atrasos e proximos vencimentos muito claros.
-- Ajuda funcionarios a decidir o que fazer primeiro.
+- Ajuda a equipe a decidir o que fazer primeiro.
 
 Risco:
 

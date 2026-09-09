@@ -53,10 +53,13 @@ function selectTasks(tasks: Task[], filter: RoutineListFilter): Task[] {
   }
 
   if (filter.type === ROUTINE_LIST_MODE.MY_TASKS) {
-    return tasks.filter((task) => task.assigneeId === filter.assigneeId)
+    return tasks.filter(
+      (task) => task.kind === 'ad_hoc' && task.assigneeId === filter.assigneeId,
+    )
   }
 
-  return tasks
+  // Tarefas avulsas são pessoais e ficam exclusivamente em “Minhas tarefas”.
+  return tasks.filter((task) => task.kind !== 'ad_hoc')
 }
 
 function getListTitle(
@@ -85,8 +88,8 @@ function getListDescription(filter: RoutineListFilter): string {
   if (filter.type === ROUTINE_LIST_MODE.ROUTINE)
     return 'Todas as empresas vinculadas a esta rotina.'
   if (filter.type === ROUTINE_LIST_MODE.MY_TASKS)
-    return 'Tarefas de rotina e avulsas atribuidas a voce.'
-  return 'Todas as tarefas fiscais acessiveis ao usuario.'
+    return 'Tarefas avulsas criadas por você.'
+  return 'Todas as tarefas recorrentes acessíveis ao usuário.'
 }
 
 function buildRoutineListItem(

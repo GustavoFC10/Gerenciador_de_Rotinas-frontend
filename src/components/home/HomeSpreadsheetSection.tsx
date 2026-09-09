@@ -10,9 +10,9 @@ function HomeSpreadsheetSection({
   summaries: HomeSpreadsheetSummary[]
 }) {
   return (
-    <section className="mb-5" aria-labelledby="home-spreadsheets-title">
+    <section className="mt-5" aria-labelledby="home-spreadsheets-title">
       <HomeSectionHeading
-        title="Áreas de trabalho"
+        title="Áreas de trabalho da equipe"
         titleId="home-spreadsheets-title"
       />
 
@@ -38,11 +38,11 @@ function HomeSpreadsheetSection({
 }
 
 function SpreadsheetCard({ summary }: { summary: HomeSpreadsheetSummary }) {
-  const hasPersonalTasks = summary.personalTotal > 0
+  const hasTasks = summary.total > 0
   const attentionLabel =
-    summary.personalAttention === 1
-      ? '1 tarefa sua exige atenção'
-      : `${summary.personalAttention} tarefas suas exigem atenção`
+    summary.attention === 1
+      ? '1 tarefa do departamento exige atenção'
+      : `${summary.attention} tarefas do departamento exigem atenção`
 
   return (
     <Link
@@ -79,7 +79,7 @@ function SpreadsheetCard({ summary }: { summary: HomeSpreadsheetSummary }) {
       </div>
 
       <div className="mt-auto pt-5">
-        {summary.personalAttention > 0 ? (
+        {summary.attention > 0 ? (
           <p className="flex items-center gap-2 text-sm font-bold text-[var(--status-error-text)]">
             <HomeIcon name="alert" className="size-4 shrink-0" />
             {attentionLabel}
@@ -87,24 +87,23 @@ function SpreadsheetCard({ summary }: { summary: HomeSpreadsheetSummary }) {
         ) : (
           <p className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-muted)]">
             <HomeIcon name="check" className="size-4 shrink-0" />
-            {hasPersonalTasks
-              ? 'Nenhuma tarefa sua exige atenção'
-              : 'Sem tarefas atribuídas nesta competência'}
+            {hasTasks
+              ? 'Nenhuma tarefa do departamento exige atenção'
+              : 'Sem tarefas nesta competência'}
           </p>
         )}
 
-        {hasPersonalTasks && (
+        {hasTasks && (
           <div className="mt-3">
             <div className="mb-1.5 flex items-center justify-between gap-3 text-xs font-semibold text-[var(--color-text-muted)]">
-              <span>Seu andamento</span>
+              <span>Andamento do departamento</span>
               <span>
-                {summary.personalFinalized} de {summary.personalTotal}{' '}
-                encerradas
+                {summary.finalized} de {summary.total} encerradas
               </span>
             </div>
             <HomeProgressBar
-              value={summary.personalCompletionPercentage}
-              label={`Andamento pessoal na área de trabalho ${summary.spreadsheet.name}`}
+              value={summary.completionPercentage}
+              label={`Andamento do departamento na área de trabalho ${summary.spreadsheet.name}`}
             />
           </div>
         )}

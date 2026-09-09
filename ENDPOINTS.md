@@ -252,8 +252,8 @@ Retorna `201` com ID, e-mail, nome, papel, expiração e criação do convite.
 
 ### `GET /api/v1/organization-members/`
 
-Lista funcionários do tenant com paginação comum. `owner/admin` recebe perfis de todos
-os status. Um member com acesso `lead` recebe somente funcionários ativos ligados a
+Lista integrantes da equipe do tenant com paginação comum. `owner/admin` recebe perfis de todos
+os status. Um member com acesso `lead` recebe somente colaboradores ativos ligados a
 algum departamento que lidera; os `departmentAccesses` da resposta também ficam
 limitados a esses departamentos. Contributor/viewer recebe `403`.
 
@@ -263,11 +263,11 @@ curl.exe "$BASE_URL/api/v1/organization-members/?page=1" -b cookies.txt
 
 ### `GET /api/v1/organization-members/{id}/`
 
-Retorna um funcionário dentro do mesmo escopo da listagem. Um ID de outro tenant ou
+Retorna um colaborador dentro do mesmo escopo da listagem. Um ID de outro tenant ou
 fora dos departamentos liderados retorna `404`.
 
 ```powershell
-curl.exe "$BASE_URL/api/v1/organization-members/<UUID_DO_FUNCIONARIO>/" -b cookies.txt
+curl.exe "$BASE_URL/api/v1/organization-members/<UUID_DO_COLABORADOR>/" -b cookies.txt
 ```
 
 ### `PATCH /api/v1/organization-members/{id}/`
@@ -277,29 +277,29 @@ Somente `owner/admin`; um admin não pode promover nem alterar owner, e o últim
 owner/admin ativo não pode ser rebaixado.
 
 ```powershell
-curl.exe -X PATCH "$BASE_URL/api/v1/organization-members/<UUID_DO_FUNCIONARIO>/" `
+curl.exe -X PATCH "$BASE_URL/api/v1/organization-members/<UUID_DO_COLABORADOR>/" `
   -b cookies.txt -H "X-CSRFToken: $CSRF" -H "Content-Type: application/json" `
   -d '{"displayName":"Maria Silva","role":"member"}'
 ```
 
 ### `POST /api/v1/organization-members/{id}/offboard/`
 
-Desliga o funcionário sem apagar o perfil, vínculos ou histórico. O status passa a
+Desliga o colaborador sem apagar o perfil, vínculos ou histórico. O status passa a
 `inactive` e as sessões da identidade vinculada são revogadas. Somente `owner/admin`;
 a proteção do último owner/admin continua válida.
 
 ```powershell
-curl.exe -X POST "$BASE_URL/api/v1/organization-members/<UUID_DO_FUNCIONARIO>/offboard/" `
+curl.exe -X POST "$BASE_URL/api/v1/organization-members/<UUID_DO_COLABORADOR>/offboard/" `
   -b cookies.txt -H "X-CSRFToken: $CSRF"
 ```
 
 ### `GET /api/v1/organization-members/{memberId}/department-accesses/`
 
-Lista os papéis departamentais do funcionário. Owner/admin vê todos; líder vê somente
+Lista os papéis departamentais do colaborador. Owner/admin vê todos; líder vê somente
 os acessos relativos aos departamentos que lidera.
 
 ```powershell
-curl.exe "$BASE_URL/api/v1/organization-members/<UUID_DO_FUNCIONARIO>/department-accesses/" `
+curl.exe "$BASE_URL/api/v1/organization-members/<UUID_DO_COLABORADOR>/department-accesses/" `
   -b cookies.txt
 ```
 
@@ -309,17 +309,17 @@ Concede acesso ou substitui o papel existente por `lead`, `contributor` ou `view
 Somente `owner/admin`.
 
 ```powershell
-curl.exe -X PUT "$BASE_URL/api/v1/organization-members/<UUID_DO_FUNCIONARIO>/department-accesses/<UUID_DO_DEPARTAMENTO>/" `
+curl.exe -X PUT "$BASE_URL/api/v1/organization-members/<UUID_DO_COLABORADOR>/department-accesses/<UUID_DO_DEPARTAMENTO>/" `
   -b cookies.txt -H "X-CSRFToken: $CSRF" -H "Content-Type: application/json" `
   -d '{"role":"contributor"}'
 ```
 
 ### `DELETE /api/v1/organization-members/{memberId}/department-accesses/{departmentId}/`
 
-Revoga o acesso sem desligar o funcionário. Somente `owner/admin`; retorna `204`.
+Revoga o acesso sem desligar o colaborador. Somente `owner/admin`; retorna `204`.
 
 ```powershell
-curl.exe -X DELETE "$BASE_URL/api/v1/organization-members/<UUID_DO_FUNCIONARIO>/department-accesses/<UUID_DO_DEPARTAMENTO>/" `
+curl.exe -X DELETE "$BASE_URL/api/v1/organization-members/<UUID_DO_COLABORADOR>/department-accesses/<UUID_DO_DEPARTAMENTO>/" `
   -b cookies.txt -H "X-CSRFToken: $CSRF"
 ```
 

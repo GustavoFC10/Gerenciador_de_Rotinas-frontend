@@ -612,7 +612,8 @@ function CreateRoutinePage({
                         id="routine-assignee-help"
                         className="mt-1.5 text-xs leading-5 text-[var(--color-text-muted)]"
                       >
-                        A lista vem dos membros elegíveis deste departamento.
+                        A lista vem dos colaboradores elegíveis deste
+                        departamento.
                       </p>
                     )}
                   </FieldContainer>

@@ -1,7 +1,10 @@
 import { useCallback } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { upsertRoutineInOperationalContexts } from '../../query/routineControlCache'
+import {
+  markRoutineInactiveInOperationalContexts,
+  upsertRoutineInOperationalContexts,
+} from '../../query/routineControlCache'
 import { queryKeys, type OrganizationQueryScope } from '../../query/queryKeys'
 import { toRoutineFromResource } from '../../query/routineControlMappers'
 import { isApiError } from '../../services/httpClient'
@@ -122,6 +125,73 @@ export function useRoutineMutations(scope: OrganizationQueryScope) {
     },
   })
 
+  const archiveMutation = useMutation({
+    mutationFn: async (routineId: string): Promise<void> => {
+      const snapshot = await routineService.get(routineId)
+
+      if (!snapshot.etag) {
+        throw new Error(
+          'A API nao informou a versao atual da rotina para arquiva-la.',
+        )
+      }
+
+      try {
+        await routineService.archive(routineId, snapshot.etag)
+      } catch (error) {
+        if (await refreshRoutineAfterConflict(error, routineId)) {
+          throw new Error(
+            'Esta rotina foi alterada por outra pessoa. Os dados mais recentes foram carregados.',
+            { cause: error },
+          )
+        }
+        throw error
+      }
+
+      markRoutineInactiveInOperationalContexts(queryClient, scope, routineId)
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.routineControlRoot(scope),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.archivedRoutines(scope),
+        exact: true,
+      })
+    },
+  })
+
+  const restoreMutation = useMutation({
+    mutationFn: async (routineId: string): Promise<RoutineResource> => {
+      const snapshot = await routineService.get(routineId)
+
+      if (!snapshot.etag) {
+        throw new Error(
+          'A API nao informou a versao atual da rotina para desarquiva-la.',
+        )
+      }
+
+      try {
+        const response = await routineService.restore(routineId, snapshot.etag)
+        const routine = toRoutineFromResource(response.data)
+        upsertRoutineInOperationalContexts(queryClient, scope, routine)
+        queryClient.setQueryData<RoutineResource[]>(
+          queryKeys.archivedRoutines(scope),
+          (current) => current?.filter((item) => item.id !== routineId),
+        )
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.routineControlRoot(scope),
+        })
+        return response.data
+      } catch (error) {
+        if (await refreshRoutineAfterConflict(error, routineId)) {
+          throw new Error(
+            'Esta rotina foi alterada por outra pessoa. Os dados mais recentes foram carregados.',
+            { cause: error },
+          )
+        }
+        throw error
+      }
+    },
+  })
+
   return {
     createRoutine: createMutation.mutateAsync,
     updateRoutine: useCallback(
@@ -129,6 +199,8 @@ export function useRoutineMutations(scope: OrganizationQueryScope) {
         updateMutation.mutateAsync({ routineId, changes }),
       [updateMutation],
     ),
+    archiveRoutine: archiveMutation.mutateAsync,
+    restoreRoutine: restoreMutation.mutateAsync,
   }
 
   async function refreshRoutineAfterConflict(

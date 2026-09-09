@@ -122,7 +122,8 @@ function AuthenticatedApp({
       ...scope,
       period: competence,
     })
-  const { createRoutine, updateRoutine } = useRoutineMutations(scope)
+  const { createRoutine, updateRoutine, archiveRoutine, restoreRoutine } =
+    useRoutineMutations(scope)
   const { createDepartment } = useDepartmentMutations(scope)
   const { createScreen, updateScreen } = useScreenMutations({
     ...scope,
@@ -192,6 +193,8 @@ function AuthenticatedApp({
         onCompanyRestore={restoreCompany}
         onRoutineCreate={createRoutine}
         onRoutineUpdate={updateRoutine}
+        onRoutineArchive={archiveRoutine}
+        onRoutineRestore={restoreRoutine}
         onEmployeeInvite={handleEmployeeInvite}
         onDepartmentCreate={createDepartment}
         onScreenCreate={createScreen}

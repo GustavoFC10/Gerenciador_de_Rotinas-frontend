@@ -32,6 +32,7 @@ type EntityEditModalProps =
       entity: Routine
       onClose: () => void
       onSave: (changes: RoutineEditInput) => Promise<void>
+      onArchive?: () => Promise<void>
     }
 
 type ClientSettingsSection = 'details' | 'routines' | 'danger'
@@ -506,6 +507,7 @@ function RoutineEditForm({
   entity,
   onClose,
   onSave,
+  onArchive,
 }: Extract<EntityEditModalProps, { type: 'routine' }>) {
   const [name, setName] = useState(entity.name)
   const [shotname, setShotname] = useState(entity.shortName)
@@ -527,6 +529,8 @@ function RoutineEditForm({
   const [assigneesError, setAssigneesError] = useState('')
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [archiveError, setArchiveError] = useState('')
+  const [isArchiving, setIsArchiving] = useState(false)
 
   useEffect(() => {
     let isCurrent = true
@@ -560,6 +564,34 @@ function RoutineEditForm({
   function updateRecurrence(nextRecurrence: RoutineRecurrence) {
     setRecurrence(nextRecurrence)
     setRecurrenceMonths([])
+  }
+
+  async function handleArchive() {
+    if (!onArchive) return
+
+    if (
+      !window.confirm(
+        'Arquivar esta rotina? Todos os vínculos com empresas serão encerrados imediatamente. O histórico de tarefas será preservado.',
+      )
+    ) {
+      return
+    }
+
+    setIsArchiving(true)
+    setArchiveError('')
+
+    try {
+      await onArchive()
+      onClose()
+    } catch (caughtError) {
+      setArchiveError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Não foi possível arquivar a rotina.',
+      )
+    } finally {
+      setIsArchiving(false)
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -797,11 +829,42 @@ function RoutineEditForm({
         </section>
       </div>
 
-      <DrawerActions
-        isSaving={isSaving}
-        submitLabel="Salvar e publicar versão"
-        onClose={onClose}
-      />
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-5 py-4 sm:px-6">
+        <div>
+          {onArchive && (
+            <Button
+              type="button"
+              tone="neutral"
+              className="border-[var(--status-error-border)] text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)]"
+              onClick={() => void handleArchive()}
+              disabled={isSaving || isArchiving}
+            >
+              {isArchiving ? 'Arquivando…' : 'Arquivar rotina'}
+            </Button>
+          )}
+          {archiveError && (
+            <p
+              role="alert"
+              className="mt-2 max-w-sm text-sm font-semibold text-[var(--status-error-text)]"
+            >
+              {archiveError}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            tone="neutral"
+            disabled={isSaving || isArchiving}
+            onClick={onClose}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isSaving || isArchiving}>
+            {isSaving ? 'Salvando…' : 'Salvar e publicar versão'}
+          </Button>
+        </div>
+      </footer>
     </form>
   )
 }
@@ -871,32 +934,6 @@ function SectionHeader({
         {description}
       </p>
     </div>
-  )
-}
-
-function DrawerActions({
-  isSaving,
-  submitLabel,
-  onClose,
-}: {
-  isSaving: boolean
-  submitLabel: string
-  onClose: () => void
-}) {
-  return (
-    <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-5 py-4 sm:px-6">
-      <Button
-        type="button"
-        tone="neutral"
-        disabled={isSaving}
-        onClick={onClose}
-      >
-        Cancelar
-      </Button>
-      <Button type="submit" disabled={isSaving}>
-        {isSaving ? 'Salvando…' : submitLabel}
-      </Button>
-    </footer>
   )
 }
 

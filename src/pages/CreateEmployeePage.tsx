@@ -50,7 +50,7 @@ const invitationRoles: Array<{
 }> = [
   {
     value: ORGANIZATION_ROLE.MEMBER,
-    label: 'Membro',
+    label: 'Colaborador',
     description:
       'Participa dos departamentos que receberem acesso após a ativação.',
     permissionSummary: 'Acesso definido por departamento',
@@ -96,12 +96,12 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
         <WorkspaceBar
           context={{ label: 'Cadastros', to: ROUTES.HOME }}
           label="Equipe"
-          title="Adicionar funcionário"
+          title="Adicionar colaborador"
         />
         <CreationSuccess
           eyebrow="Convite enviado"
           title={invitation.displayName}
-          description="O convite foi enviado por e-mail. A pessoa cria o próprio acesso ao aceitar; os departamentos são configurados depois que o membro existir."
+          description="O convite foi enviado por e-mail. A pessoa cria o próprio acesso ao aceitar; os departamentos são configurados depois que o colaborador estiver ativo."
           detail={
             selectedRole.label +
             ' · expira em ' +
@@ -186,7 +186,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
       <WorkspaceBar
         context={{ label: 'Cadastros', to: ROUTES.HOME }}
         label="Equipe"
-        title="Adicionar funcionário"
+        title="Adicionar colaborador"
         meta="Convite e acesso"
       />
 
@@ -327,7 +327,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
               <SectionHeader
                 eyebrow="Escopo"
                 title="Acesso aos departamentos"
-                description="Essa configuração usa o identificador do membro, que só existe depois que o convite é aceito."
+                description="Essa configuração usa o identificador do colaborador, que só existe depois que o convite é aceito."
               />
               <div className="px-5 py-5 sm:px-6">
                 <div className="rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-4">
@@ -335,9 +335,10 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
                     Próxima etapa após a ativação
                   </p>
                   <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-                    Abra o perfil do membro ativo para definir os departamentos
-                    e o papel de lead, contributor ou viewer. O identificador
-                    retornado agora é do convite, não do membro.
+                    Abra o perfil do colaborador ativo para definir os
+                    departamentos e o papel de lead, contributor ou viewer. O
+                    identificador retornado agora é do convite, não do
+                    colaborador.
                   </p>
                 </div>
               </div>

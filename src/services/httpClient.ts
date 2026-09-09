@@ -1,3 +1,5 @@
+import { formatProblemDetailsMessage } from '../utils/apiErrors'
+
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD'
 
 type QueryPrimitive = string | number | boolean
@@ -44,6 +46,7 @@ export class ApiError extends Error {
   readonly status: number
   readonly problem: ProblemDetails
   readonly requestId: string | null
+  readonly retryAfter: string | null
   readonly response: Response
 
   constructor({
@@ -55,11 +58,17 @@ export class ApiError extends Error {
     requestId: string | null
     response: Response
   }) {
-    super(problem.detail || problem.title)
+    super(
+      formatProblemDetailsMessage(problem, {
+        status: response.status,
+        retryAfter: response.headers.get('Retry-After'),
+      }),
+    )
     this.name = 'ApiError'
     this.status = response.status
     this.problem = problem
     this.requestId = requestId
+    this.retryAfter = response.headers.get('Retry-After')
     this.response = response
   }
 }
@@ -174,7 +183,8 @@ export class HttpClient {
       })
     }
 
-    const responseRequestId = response.headers.get('X-Request-ID')
+    const responseRequestId =
+      response.headers.get('X-Request-ID')?.trim() || requestId
 
     if (!response.ok) {
       throw new ApiError({
@@ -347,11 +357,7 @@ async function readProblemDetails(response: Response): Promise<ProblemDetails> {
 
   const contentType = response.headers.get('Content-Type')
 
-  if (!isJsonContentType(contentType)) {
-    return isHtmlContentType(contentType)
-      ? fallback
-      : { ...fallback, detail: text }
-  }
+  if (!isJsonContentType(contentType)) return fallback
 
   try {
     const parsed = JSON.parse(text) as Partial<ProblemDetails>
@@ -365,7 +371,7 @@ async function readProblemDetails(response: Response): Promise<ProblemDetails> {
       ...(parsed.errors !== undefined ? { errors: parsed.errors } : {}),
     }
   } catch {
-    return { ...fallback, detail: text }
+    return fallback
   }
 }
 
@@ -376,8 +382,4 @@ function isJsonContentType(contentType: string | null): boolean {
       contentType.includes('application/problem+json') ||
       contentType.includes('+json')),
   )
-}
-
-function isHtmlContentType(contentType: string | null): boolean {
-  return Boolean(contentType?.includes('text/html'))
 }

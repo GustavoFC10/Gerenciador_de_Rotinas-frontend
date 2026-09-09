@@ -2,13 +2,13 @@ import { Link } from 'react-router'
 
 import { focusRing } from '../../constants/designTokens'
 import { ROUTES } from '../../constants/routes'
-import type { HomePersonalOverview } from '../../utils/homeOverview'
+import type { HomeDepartmentOverview } from '../../utils/homeOverview'
 import { HomeIcon, HomeProgressBar, HomeSummaryMetric } from './HomePrimitives'
 
-function HomePersonalPeriodCard({
+function HomeDepartmentPeriodCard({
   overview,
 }: {
-  overview: HomePersonalOverview
+  overview: HomeDepartmentOverview
 }) {
   return (
     <aside
@@ -17,17 +17,17 @@ function HomePersonalPeriodCard({
     >
       <div className="flex items-center gap-3">
         <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-          <HomeIcon name="tasks" className="size-5" />
+          <HomeIcon name="people" className="size-5" />
         </span>
         <div>
           <h2
             id="home-period-title"
             className="text-lg font-extrabold text-[var(--color-text-strong)]"
           >
-            Minha competência
+            Competência da equipe
           </h2>
           <p className="text-sm text-[var(--color-text-muted)]">
-            Somente tarefas atribuídas a você.
+            Visão conjunta dos departamentos aos quais você tem acesso.
           </p>
         </div>
       </div>
@@ -54,7 +54,7 @@ function HomePersonalPeriodCard({
             </div>
             <HomeProgressBar
               value={overview.completionPercentage}
-              label="Andamento das minhas tarefas na competência"
+              label="Andamento das tarefas da equipe na competência"
             />
           </div>
 
@@ -83,16 +83,17 @@ function HomePersonalPeriodCard({
         </>
       ) : (
         <p className="mt-5 rounded-[var(--radius-control)] bg-[var(--color-panel-soft-bg)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
-          Você não tem tarefas atribuídas nesta competência.
+          Não há tarefas nos departamentos aos quais você tem acesso nesta
+          competência.
         </p>
       )}
 
       <div className="mt-5 border-t border-[var(--color-divider)] pt-4">
         <Link
-          to={ROUTES.MY_TASKS}
+          to={ROUTES.TASKS}
           className={`inline-flex items-center gap-2 rounded-[var(--radius-control)] text-sm font-bold text-[var(--color-brand)] hover:text-[var(--color-brand-strong)] ${focusRing}`}
         >
-          Ver minhas tarefas
+          Ver todas as tarefas
           <HomeIcon name="arrow" className="size-4" />
         </Link>
       </div>
@@ -100,4 +101,4 @@ function HomePersonalPeriodCard({
   )
 }
 
-export default HomePersonalPeriodCard
+export default HomeDepartmentPeriodCard

@@ -294,7 +294,7 @@ function OrganizationDetail({
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <MetricCard
-                label="Membros"
+                label="Equipe"
                 value={String(organization.memberCount)}
                 description="Pessoas vinculadas a organizacao."
               />

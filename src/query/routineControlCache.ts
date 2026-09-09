@@ -136,6 +136,47 @@ export function upsertRoutineInOperationalContexts(
   }))
 }
 
+/**
+ * A API encerra todos os vínculos ativos ao arquivar uma rotina. Espelhamos
+ * isso nos contextos já renderizados para que planilhas e catálogos não
+ * continuem oferecendo a rotina enquanto a recarga acontece.
+ */
+export function markRoutineInactiveInOperationalContexts(
+  queryClient: QueryClient,
+  scope: OrganizationQueryScope,
+  routineId: string,
+): void {
+  updateOperationalContexts(queryClient, scope, (current) => ({
+    ...current,
+    data: {
+      ...current.data,
+      routines: current.data.routines.map((routine) =>
+        routine.id === routineId ? { ...routine, active: false } : routine,
+      ),
+      screens: current.data.screens.map((screen) => ({
+        ...screen,
+        routines: screen.routines.filter((routine) => routine.id !== routineId),
+      })),
+      spreadsheetProjections: current.data.spreadsheetProjections.map(
+        (projection) => ({
+          ...projection,
+          columns: projection.columns.filter(
+            (routine) => routine.id !== routineId,
+          ),
+          cells: projection.cells.filter(
+            (cell) => cell.routineId !== routineId,
+          ),
+        }),
+      ),
+    },
+  }))
+  queryClient.setQueriesData<{ routineId: string }[]>(
+    { queryKey: queryKeys.companyRoutineAssignmentsRoot(scope) },
+    (current) =>
+      current?.filter((assignment) => assignment.routineId !== routineId),
+  )
+}
+
 export function upsertScreenInOperationalContexts(
   queryClient: QueryClient,
   scope: OrganizationQueryScope,

@@ -1,14 +1,14 @@
 # Gerenciador de Rotinas - Frontend
 
-Frontend do MVP para um sistema de controle de rotinas contabeis. A proposta do produto e substituir gradualmente planilhas operacionais por uma interface unica para acompanhar empresas, rotinas, responsaveis, status, prazos, observacoes e tarefas avulsas.
+Frontend do MVP para um sistema de controle de rotinas contabeis. A proposta do produto e substituir gradualmente planilhas operacionais por uma interface unica para acompanhar empresas, rotinas, departamentos, status, prazos, observacoes e tarefas avulsas.
 
 O foco atual do MVP e validar a experiencia operacional:
 
 - planilha de empresas x rotinas como tela central;
-- listas reutilizaveis para focar por rotina, empresa, tarefas fiscais ou responsavel;
+- listas reutilizaveis para focar por rotina, empresa, tarefas fiscais ou departamento;
 - tarefas avulsas no mesmo modelo visual das tarefas de rotina;
 - detalhe de tarefa em modo de leitura;
-- base de navegacao por perfil para funcionario, lider e manager;
+- base de navegacao por perfil para colaborador, lider e manager;
 - integração direta com a API REST, incluindo autenticação e projeções de telas.
 
 ## Stack
@@ -144,8 +144,8 @@ Configuracao esperada:
 ### Implementado no frontend
 
 - Layout base com sidebar, topbar e area de conteudo.
-- Home operacional personalizada por usuário e competência, com planilhas,
-  prioridades, andamento pessoal e expansão por cargo.
+- Home operacional coletiva por competência, com planilhas acessíveis,
+  prioridades e andamento por departamento.
 - Planilha operacional por departamento.
 - Clique em rotina para abrir lista filtrada por rotina.
 - Clique em empresa para abrir lista filtrada por empresa.
@@ -166,7 +166,7 @@ As rotas abaixo existem na proposta de navegacao do MVP:
 - Dashboard geral;
 - Rotinas;
 - Empresas;
-- Funcionarios;
+- Equipe;
 - Cargos.
 
 Essas telas representam a direcao do MVP final, mas ainda precisam de implementacao funcional e integracao com backend.
@@ -179,7 +179,7 @@ O MVP parte destes conceitos:
 - tarefas avulsas podem nao ter empresa ou rotina;
 - status operacional inicial: pendente, em andamento, erro e concluido;
 - alteracoes de status, prazo e responsavel devem gerar historico quando o backend existir;
-- funcionarios enxergam apenas seu escopo operacional;
+- colaboradores enxergam apenas seu escopo operacional;
 - lideres devem operar e acompanhar seu departamento;
 - managers devem ter visao global e acesso administrativo;
 - a planilha deve continuar sendo o centro da operacao, mas listas resolvem foco, busca e execucao diaria.
@@ -198,7 +198,7 @@ O MVP parte destes conceitos:
 | `/dashboard-geral`        | Dashboard do manager                             |
 | `/rotinas`                | Cadastro/manutencao de rotinas                   |
 | `/empresas`               | Cadastro/manutencao de empresas                  |
-| `/funcionarios`           | Funcionarios                                     |
+| `/equipe`                 | Equipe                                           |
 | `/cargos`                 | Cargos e permissoes                              |
 
 ## Estrutura esperada do projeto
@@ -237,7 +237,7 @@ Dados esperados:
 - departamentos;
 - empresas/clientes;
 - rotinas;
-- funcionários visíveis no escopo retornado pela API;
+- colaboradores visíveis no escopo retornado pela API;
 - telas operacionais e seus eixos;
 - projeções mensais de cada tela;
 - ocorrências recorrentes e metadados de competência.
@@ -271,5 +271,5 @@ Cobertura recomendada para o MVP:
 
 - Persistir atualizações de status, prazo, responsável, comentários e links com ETag.
 - Implementar dashboards simples e clicaveis para lider e manager.
-- Implementar cadastros de rotinas, empresas, funcionarios e cargos.
+- Implementar cadastros de rotinas, empresas, equipe e cargos.
 - Adicionar lint, formatacao, CI e testes de componentes/fluxos.

@@ -1,3 +1,5 @@
+import { getErrorPresentation } from '../../utils/apiErrors'
+
 function ErrorState({
   title = 'Nao foi possivel carregar',
   description,
@@ -5,8 +7,10 @@ function ErrorState({
 }: {
   title?: string
   description?: string
-  error?: Error | null
+  error?: unknown
 }) {
+  const presentation = error ? getErrorPresentation(error) : null
+
   return (
     <main className="grid min-h-screen place-items-center bg-[var(--color-app-bg)] px-4">
       <div className="rounded-[var(--radius-panel)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] p-5 text-center shadow-[var(--shadow-panel)]">
@@ -18,9 +22,14 @@ function ErrorState({
             {description}
           </p>
         )}
-        {error && (
+        {presentation && (
           <p className="mt-2 text-sm text-[var(--status-error-text)]">
-            {error.message}
+            {presentation.message}
+          </p>
+        )}
+        {presentation?.supportReference && (
+          <p className="mt-2 text-xs font-semibold text-[var(--status-error-text)]">
+            {presentation.supportReference}
           </p>
         )}
       </div>

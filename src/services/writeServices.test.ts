@@ -124,6 +124,66 @@ describe('write services', () => {
     ).toBe('"4"')
   })
 
+  it('arquiva e restaura rotina com CSRF e If-Match', async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        jsonResponse({ id: 'routine-1', archivedAt: null }),
+      )
+    const client = createClient(fetchImplementation)
+    const service = new RoutineService(client)
+
+    await service.archive('routine-1', '"7"')
+    await service.restore('routine-1', '"8"')
+
+    expect(fetchImplementation.mock.calls.map(([url]) => url)).toEqual([
+      'https://api.example.com/api/v1/routines/routine-1/',
+      'https://api.example.com/api/v1/routines/routine-1/restore/',
+    ])
+    expect(fetchImplementation.mock.calls[0]?.[1]).toMatchObject({
+      method: 'DELETE',
+    })
+    expect(fetchImplementation.mock.calls[1]?.[1]).toMatchObject({
+      method: 'POST',
+      body: '{}',
+    })
+    expect(
+      new Headers(fetchImplementation.mock.calls[0]?.[1]?.headers).get(
+        'If-Match',
+      ),
+    ).toBe('"7"')
+    expect(
+      new Headers(fetchImplementation.mock.calls[1]?.[1]?.headers).get(
+        'If-Match',
+      ),
+    ).toBe('"8"')
+  })
+
+  it('lista todas as rotinas, incluindo as arquivadas quando solicitado', async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          next: 'https://api.example.com/api/v1/routines/?page=2',
+          results: [{ id: 'routine-1' }],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ next: null, results: [{ id: 'routine-2' }] }),
+      )
+    const client = createClient(fetchImplementation)
+
+    await expect(new RoutineService(client).listAll(true)).resolves.toEqual([
+      { id: 'routine-1' },
+      { id: 'routine-2' },
+    ])
+    expect(fetchImplementation.mock.calls.map(([url]) => url)).toEqual([
+      'https://api.example.com/api/v1/routines/?includeArchived=true',
+      'https://api.example.com/api/v1/routines/?page=2',
+    ])
+  })
+
   it('usa occurrenceKey e ETag para transicionar uma ocorrência recorrente', async () => {
     const fetchImplementation = vi
       .fn<typeof fetch>()
@@ -173,7 +233,7 @@ describe('write services', () => {
     ).toBe('ad-hoc-competence-1-task-1')
   })
 
-  it('envia convite de funcionário pela rota de membership invitations', async () => {
+  it('envia convite de colaborador pela rota de membership invitations', async () => {
     const fetchImplementation = vi
       .fn<typeof fetch>()
       .mockResolvedValue(jsonResponse({ id: 'invitation-1' }, 201))
@@ -181,7 +241,7 @@ describe('write services', () => {
 
     await new OrganizationMemberService(client).invite({
       email: 'novo@example.com',
-      displayName: 'Novo membro',
+      displayName: 'Novo colaborador',
       role: 'member',
     })
 
@@ -192,7 +252,7 @@ describe('write services', () => {
       method: 'POST',
       body: JSON.stringify({
         email: 'novo@example.com',
-        displayName: 'Novo membro',
+        displayName: 'Novo colaborador',
         role: 'member',
       }),
     })

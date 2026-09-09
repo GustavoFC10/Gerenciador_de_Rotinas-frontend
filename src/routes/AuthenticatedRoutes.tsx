@@ -50,6 +50,7 @@ import type {
 } from '../services/organizationMemberService'
 import type { RoutineEditInput } from '../types/routine'
 import type { RoutineInput, RoutineResource } from '../services/routineService'
+import { getErrorPresentation } from '../utils/apiErrors'
 import { APP_PERMISSION } from '../utils/permissions'
 
 type TaskDetailsController = ReturnType<typeof useTaskDetailsController>
@@ -77,6 +78,8 @@ interface AuthenticatedRoutesProps {
     routineId: string,
     changes: RoutineEditInput,
   ) => Promise<RoutineResource>
+  onRoutineArchive: (routineId: string) => Promise<void>
+  onRoutineRestore: (routineId: string) => Promise<RoutineResource>
   onEmployeeInvite: (
     input: MembershipInvitationInput,
   ) => Promise<MembershipInvitationResource>
@@ -106,6 +109,8 @@ function AuthenticatedRoutes({
   onCompanyRestore,
   onRoutineCreate,
   onRoutineUpdate,
+  onRoutineArchive,
+  onRoutineRestore,
   onEmployeeInvite,
   onDepartmentCreate,
   onScreenCreate,
@@ -140,6 +145,8 @@ function AuthenticatedRoutes({
             onCompanyRestore,
             onRoutineCreate,
             onRoutineUpdate,
+            onRoutineArchive,
+            onRoutineRestore,
             onEmployeeInvite,
             onDepartmentCreate,
             onScreenCreate,
@@ -152,7 +159,7 @@ function AuthenticatedRoutes({
             element={
               <OperationalDataState
                 isLoading={isOperationalDataLoading}
-                hasError={Boolean(operationalDataError)}
+                error={operationalDataError}
                 onRetry={onRetryOperationalData}
               />
             }
@@ -189,6 +196,8 @@ function renderOperationalRoutes({
   onCompanyRestore,
   onRoutineCreate,
   onRoutineUpdate,
+  onRoutineArchive,
+  onRoutineRestore,
   onEmployeeInvite,
   onDepartmentCreate,
   onScreenCreate,
@@ -238,6 +247,11 @@ function renderOperationalRoutes({
     changes: RoutineEditInput,
   ): Promise<void> {
     await onRoutineUpdate(routineId, changes)
+  }
+
+  async function handleRoutineArchive(routineId: string): Promise<void> {
+    await onRoutineArchive(routineId)
+    navigate(ROUTES.ROUTINES, { replace: true })
   }
 
   async function handleAdHocTaskCreate(
@@ -317,6 +331,7 @@ function renderOperationalRoutes({
             screenName={spreadsheetContext.selectedScreen?.name}
             screenDepartmentId={spreadsheetContext.selectedDepartment?.id}
             onRoutineUpdate={handleRoutineUpdate}
+            onRoutineArchive={handleRoutineArchive}
             onItemOpen={(item) => taskDetails.openTask(item.task.id)}
             onItemStatusChange={(item, status) =>
               taskDetails.requestTaskTransition(item.task.id, status)
@@ -369,6 +384,7 @@ function renderOperationalRoutes({
             <SettingsRoutes
               data={data}
               onCompanyRestore={onCompanyRestore}
+              onRoutineRestore={onRoutineRestore}
               onDepartmentCreate={onDepartmentCreate}
               onScreenCreate={onScreenCreate}
               onScreenUpdate={onScreenUpdate}
@@ -471,6 +487,14 @@ function renderOperationalRoutes({
         }
       />
       <Route
+        path="/funcionarios"
+        element={<Navigate to={ROUTES.EMPLOYEES} replace />}
+      />
+      <Route
+        path="/funcionarios/novo"
+        element={<Navigate to={ROUTES.EMPLOYEE_CREATE} replace />}
+      />
+      <Route
         path={ROUTES.ROLES}
         element={
           <RequirePermission permission={APP_PERMISSION.VIEW_EMPLOYEES}>
@@ -488,24 +512,31 @@ function renderOperationalRoutes({
 
 function OperationalDataState({
   isLoading,
-  hasError,
+  error,
   onRetry,
 }: {
   isLoading: boolean
-  hasError: boolean
+  error: Error | null
   onRetry: () => void
 }) {
+  const presentation = error ? getErrorPresentation(error) : null
+
   return (
     <main
       className="grid min-h-[24rem] place-items-center px-4"
       aria-busy={isLoading || undefined}
     >
-      {hasError ? (
+      {presentation ? (
         <div
           role="alert"
           className="max-w-md rounded-[var(--radius-panel)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] p-5 text-center text-sm font-semibold text-[var(--status-error-text)]"
         >
-          <p>{'N\u00e3o foi poss\u00edvel carregar os dados operacionais.'}</p>
+          <p>{presentation.message}</p>
+          {presentation.supportReference && (
+            <p className="mt-2 text-xs font-semibold">
+              {presentation.supportReference}
+            </p>
+          )}
           <button
             type="button"
             onClick={onRetry}
