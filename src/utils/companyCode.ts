@@ -1,5 +1,5 @@
 /** Label used whenever a company does not have an internal code. */
-export const COMPANY_CODE_NOT_PROVIDED = 'Não informado'
+export const COMPANY_CODE_NOT_PROVIDED = '--'
 
 export function getCompanyCodeLabel(code?: string | null): string {
   return code?.trim() || COMPANY_CODE_NOT_PROVIDED

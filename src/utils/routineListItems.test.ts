@@ -70,7 +70,7 @@ describe('routine list items', () => {
       filter: { type: ROUTINE_LIST_MODE.GLOBAL },
     })
 
-    expect(result.items[0]?.companyCode).toBe('Não informado')
+    expect(result.items[0]?.companyCode).toBe('--')
   })
 })
 
