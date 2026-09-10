@@ -46,7 +46,7 @@ interface PaginatedResponse<T> {
 
 export interface ClientCompanyResource {
   id: string
-  code: string
+  code: string | null
   name: string
   legalName: string
   cnpj: string

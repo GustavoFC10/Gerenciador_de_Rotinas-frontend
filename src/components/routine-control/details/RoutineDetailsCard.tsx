@@ -13,6 +13,7 @@ import type {
   RoutineStatusConfig,
   Task,
 } from '../../../types/domain'
+import { getCompanyCodeLabel } from '../../../utils/companyCode'
 import {
   RoutineAttachmentsPanel,
   RoutineNotesPanel,
@@ -476,7 +477,7 @@ function buildDetailsModel({
     title,
     description,
     reference: `${referencePrefix} · ${shortenReference(task.id)}`,
-    breadcrumb: `${client?.code ?? 'AV'} · ${department?.name ?? 'Sem departamento'}`,
+    breadcrumb: `${client ? getCompanyCodeLabel(client.code) : 'AV'} · ${department?.name ?? 'Sem departamento'}`,
     clientLabel: client?.name ?? 'Tarefa avulsa',
     departmentLabel: department?.name ?? 'Sem departamento',
     periodLabel: formatPeriod(task.period),

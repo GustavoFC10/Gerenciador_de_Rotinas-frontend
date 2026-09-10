@@ -26,6 +26,7 @@ import type {
   Screen,
   ScreenType,
 } from '../types/domain'
+import { getCompanyCodeLabel } from '../utils/companyCode'
 
 interface CreateScreenPageProps {
   departments: Department[]
@@ -81,7 +82,9 @@ function CreateScreenPage({
         .filter((client) => client.active !== false)
         .filter((client) =>
           normalizeForSearch(
-            client.code + ' ' + client.name + ' ' + (client.legalName ?? ''),
+            [client.code, client.name, client.legalName]
+              .filter(Boolean)
+              .join(' '),
           ).includes(normalizeForSearch(companySearch)),
         )
         .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR')),
@@ -335,9 +338,12 @@ function CreateScreenPage({
                     items={visibleCompanies.map((client) => ({
                       id: client.id,
                       label: client.name,
-                      description:
-                        client.code +
-                        (client.legalName ? ' · ' + client.legalName : ''),
+                      description: [
+                        getCompanyCodeLabel(client.code),
+                        client.legalName,
+                      ]
+                        .filter(Boolean)
+                        .join(' · '),
                     }))}
                     selectedIds={companyIds}
                     onToggle={(id) => {

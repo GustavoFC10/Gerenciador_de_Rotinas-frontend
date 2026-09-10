@@ -12,6 +12,7 @@ import type {
   RoutineListViewData,
   Task,
 } from '../types/domain'
+import { getCompanyCodeLabel } from './companyCode'
 
 export const ROUTINE_LIST_MODE = {
   CLIENT: 'client',
@@ -136,7 +137,11 @@ function buildRoutineListItem(
     originType: filter.type,
     primaryLabel,
     title: primaryLabel,
-    companyCode: isAdHocTask ? (client?.code ?? 'AV') : (client?.code ?? '--'),
+    companyCode: client
+      ? getCompanyCodeLabel(client.code)
+      : isAdHocTask
+        ? 'AV'
+        : getCompanyCodeLabel(),
     companyName: primaryLabel,
     routineName: isAdHocTask ? looseContextLabel : routineName,
     departmentName: department?.name ?? 'Sem departamento',

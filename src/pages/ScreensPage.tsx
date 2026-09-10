@@ -25,6 +25,7 @@ import { ROUTES } from '../constants/routes'
 import { isApiError } from '../services/httpClient'
 import { screenService, type ScreenPatch } from '../services/screenService'
 import type { Client, Department, Routine, Screen } from '../types/domain'
+import { getCompanyCodeLabel } from '../utils/companyCode'
 import { normalizeSearch } from '../utils/normalizeSearch'
 
 const screenGrid =
@@ -440,8 +441,9 @@ export function ScreenEditDrawer({
       byId.set(company.id, {
         id: company.id,
         label: company.name,
-        description:
-          company.code + (company.legalName ? ' · ' + company.legalName : ''),
+        description: [getCompanyCodeLabel(company.code), company.legalName]
+          .filter(Boolean)
+          .join(' · '),
         selectable: false,
         warning: 'Empresa arquivada ou indisponível.',
       })
@@ -455,8 +457,9 @@ export function ScreenEditDrawer({
         byId.set(client.id, {
           id: client.id,
           label: client.name,
-          description:
-            client.code + (client.legalName ? ' · ' + client.legalName : ''),
+          description: [getCompanyCodeLabel(client.code), client.legalName]
+            .filter(Boolean)
+            .join(' · '),
           selectable,
           warning: selectable
             ? undefined

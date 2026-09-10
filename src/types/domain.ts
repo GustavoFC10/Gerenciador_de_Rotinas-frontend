@@ -24,7 +24,7 @@ export type ScreenType = 'spreadsheet' | 'agenda'
 
 export interface ScreenCompany {
   id: EntityId
-  code: string
+  code: string | null
   name: string
   legalName: string
   position: number
@@ -72,7 +72,7 @@ export interface ScheduledOccurrence {
   departmentId: EntityId
   departmentName: string
   clientCompanyId: EntityId
-  companyCode: string
+  companyCode: string | null
   companyName: string
   companyLegalName: string
   routineId: EntityId
@@ -111,7 +111,7 @@ export interface SpreadsheetProjection {
 
 export interface Client {
   id: EntityId
-  code: string
+  code?: string
   name: string
   legalName?: string
   document?: string

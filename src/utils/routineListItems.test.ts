@@ -52,6 +52,26 @@ describe('routine list items', () => {
 
     expect(result.items.map((item) => item.id)).toEqual(['scheduled-task'])
   })
+
+  it('uses a safe label when a task belongs to a company without a code', () => {
+    const task = createTask('scheduled-task', 'scheduled', null)
+    task.clientId = 'client-1'
+
+    const result = buildRoutineListViewData({
+      data: {
+        departments: [],
+        clients: [{ id: 'client-1', name: 'Empresa sem código' }],
+        routines: [],
+        employees: [],
+        screens: [],
+        spreadsheetProjections: [],
+        tasks: [task],
+      },
+      filter: { type: ROUTINE_LIST_MODE.GLOBAL },
+    })
+
+    expect(result.items[0]?.companyCode).toBe('Não informado')
+  })
 })
 
 function createTask(

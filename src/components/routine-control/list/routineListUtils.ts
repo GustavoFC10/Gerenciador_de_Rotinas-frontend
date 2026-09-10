@@ -1,4 +1,5 @@
 import { ROUTINE_STATUS } from '../../../constants/routineStatus'
+import { compareCompanyCodes } from '../../../utils/companyCode'
 import type {
   RoutineListGroup,
   RoutineListItem,
@@ -25,10 +26,9 @@ export function sortRoutineListItems(
   items: RoutineListItem[],
 ): RoutineListItem[] {
   return [...items].sort((first, second) => {
-    const codeCompare = first.companyCode.localeCompare(
+    const codeCompare = compareCompanyCodes(
+      first.companyCode,
       second.companyCode,
-      'pt-BR',
-      { numeric: true },
     )
 
     if (codeCompare !== 0) return codeCompare

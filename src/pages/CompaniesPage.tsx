@@ -15,6 +15,7 @@ import {
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
 import type { RoutineControlData } from '../types/domain'
+import { compareCompanyCodes, getCompanyCodeLabel } from '../utils/companyCode'
 import { normalizeSearch } from '../utils/normalizeSearch'
 import { isOrganizationAdmin } from '../utils/permissions'
 
@@ -52,7 +53,7 @@ function CompaniesPage({ data }: { data: RoutineControlData }) {
       )
       .sort(
         (left, right) =>
-          left.code.localeCompare(right.code, 'pt-BR', { numeric: true }) ||
+          compareCompanyCodes(left.code, right.code) ||
           left.name.localeCompare(right.name, 'pt-BR'),
       )
   }, [data.clients, search])
@@ -93,7 +94,7 @@ function CompaniesPage({ data }: { data: RoutineControlData }) {
                 label="Código"
                 className="font-extrabold text-[var(--color-text-strong)]"
               >
-                {client.code}
+                {getCompanyCodeLabel(client.code)}
               </CatalogDatum>
               <CatalogPrimary
                 title={client.name}
