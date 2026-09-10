@@ -48,7 +48,7 @@ describe('CompaniesPage', () => {
       </MemoryRouter>,
     )
 
-    expect(markup).toContain('Não informado')
+    expect(markup).toContain('--')
     expect(markup.indexOf('Empresa com código')).toBeLessThan(
       markup.indexOf('Empresa sem código'),
     )
