@@ -15,7 +15,7 @@ import type {
 export function toClientFromResource(resource: ClientCompanyResource): Client {
   return {
     id: resource.id,
-    code: resource.code,
+    code: resource.code ?? undefined,
     name: resource.name,
     legalName: resource.legalName || undefined,
     document: resource.cnpj || undefined,

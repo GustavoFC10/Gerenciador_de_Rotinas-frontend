@@ -6,6 +6,7 @@ import type {
   Task,
 } from '../types/domain'
 import type { SpreadsheetNavigationItem } from '../types/navigation'
+import { compareCompanyCodes } from './companyCode'
 import { canAccessDepartment } from './permissions'
 import { buildRoutineListViewData, ROUTINE_LIST_MODE } from './routineListItems'
 
@@ -202,7 +203,7 @@ function buildPriorities(
 
       return (
         left.dueDate.localeCompare(right.dueDate) ||
-        left.companyCode.localeCompare(right.companyCode, 'pt-BR') ||
+        compareCompanyCodes(left.companyCode, right.companyCode) ||
         left.routineName.localeCompare(right.routineName, 'pt-BR')
       )
     })

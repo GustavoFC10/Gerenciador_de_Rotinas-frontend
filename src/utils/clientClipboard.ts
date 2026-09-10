@@ -24,9 +24,11 @@ export function buildClientClipboardText(client: Client): string {
 }
 
 export function getClientCopyOptions(client: Client): ClientCopyOption[] {
-  const options: ClientCopyOption[] = [
-    { id: 'code', label: 'Copiar código', value: client.code },
-  ]
+  const options: ClientCopyOption[] = []
+
+  if (client.code) {
+    options.push({ id: 'code', label: 'Copiar código', value: client.code })
+  }
 
   if (client.document) {
     options.push({

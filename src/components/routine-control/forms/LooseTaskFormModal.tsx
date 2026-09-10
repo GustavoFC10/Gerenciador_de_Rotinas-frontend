@@ -6,6 +6,7 @@ import Textarea from '../../ui/Textarea'
 import TextField from '../../ui/TextField'
 import type { AdHocTaskInput } from '../../../services/taskService'
 import type { EntityId, RoutineControlData } from '../../../types/domain'
+import { getCompanyCodeLabel } from '../../../utils/companyCode'
 
 interface TaskFormValues {
   title: string
@@ -221,7 +222,7 @@ function LooseTaskFormModal({
                   <option value="">Sem empresa</option>
                   {data.clients.map((client) => (
                     <option key={client.id} value={client.id}>
-                      {client.code} — {client.name}
+                      {getCompanyCodeLabel(client.code)} — {client.name}
                     </option>
                   ))}
                 </Select>

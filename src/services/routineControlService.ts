@@ -37,7 +37,7 @@ interface ApiDepartment {
 
 interface ApiCompany {
   id: string
-  code: string
+  code: string | null
   name: string
   legalName: string
   cnpj: string
@@ -242,7 +242,7 @@ function buildRoutineControlResponse({
   }))
   const clients: Client[] = apiCompanies.map((company) => ({
     id: company.id,
-    code: company.code,
+    code: company.code ?? undefined,
     name: company.name,
     legalName: company.legalName || undefined,
     document: company.cnpj || undefined,

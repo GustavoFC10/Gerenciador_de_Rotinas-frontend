@@ -8,6 +8,7 @@ import {
 
 import CompanyContextMenu from '../../context-menu/CompanyContextMenu'
 import TaskContextMenu from '../../context-menu/TaskContextMenu'
+import { getCompanyCodeLabel } from '../../../utils/companyCode'
 import RoutineClosedCardCompact from './RoutineClosedCardCompact'
 import RoutineNotApplicableCard from './RoutineNotApplicableCard'
 import type {
@@ -109,7 +110,7 @@ function ClientRowButton({
       aria-keyshortcuts="Shift+F10"
     >
       <span className="text-xs font-bold text-[var(--color-table-client-code)]">
-        {client.code}
+        {getCompanyCodeLabel(client.code)}
       </span>
       <span className="min-w-0">
         <span className="block truncate text-sm font-bold text-[var(--color-text-strong)]">

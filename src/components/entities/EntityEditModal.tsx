@@ -11,6 +11,7 @@ import {
 import type { ClientCompanyPatch } from '../../services/companyService'
 import type { Client, Routine, RoutineRecurrence } from '../../types/domain'
 import type { RoutineEditInput } from '../../types/routine'
+import { getCompanyCodeLabel } from '../../utils/companyCode'
 import Button from '../ui/Button'
 import Select from '../ui/Select'
 import Textarea from '../ui/Textarea'
@@ -139,7 +140,7 @@ function ClientEditForm({
   period,
 }: Extract<EntityEditModalProps, { type: 'client' }>) {
   const [name, setName] = useState(entity.name)
-  const [code, setCode] = useState(entity.code)
+  const [code, setCode] = useState(entity.code ?? '')
   const [legalName, setLegalName] = useState(entity.legalName ?? '')
   const [cnpj, setCnpj] = useState(entity.document ?? '')
   const [email, setEmail] = useState(entity.email ?? '')
@@ -237,7 +238,7 @@ function ClientEditForm({
       <DrawerHeader
         eyebrow="Empresa"
         title="Configurações"
-        description={`${entity.name} · Código ${entity.code}`}
+        description={`${entity.name} · Código ${getCompanyCodeLabel(entity.code)}`}
         onClose={onClose}
       />
 

@@ -21,6 +21,7 @@ import type {
   RoutineListInteractionProps,
   Screen,
 } from '../types/domain'
+import { getCompanyCodeLabel } from '../utils/companyCode'
 import { isOrganizationAdmin } from '../utils/permissions'
 import {
   ROUTINE_LIST_MODE,
@@ -308,7 +309,10 @@ function EntitySummary({
       <dl className="grid sm:grid-cols-2 xl:grid-cols-4">
         {type === 'client' && client ? (
           <>
-            <SummaryField label="Código interno" value={client.code} />
+            <SummaryField
+              label="Código interno"
+              value={getCompanyCodeLabel(client.code)}
+            />
             <SummaryField
               label="Razão social"
               value={client.legalName || client.name}
