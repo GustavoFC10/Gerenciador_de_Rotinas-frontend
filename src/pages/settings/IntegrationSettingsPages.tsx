@@ -34,18 +34,18 @@ function IntegrationsSettingsPage() {
       />
 
       <section className="pt-6" aria-label="Integrações disponíveis">
-        <p className="mb-3 text-xs font-black uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+        <p className="mb-3 text-xs font-black uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
           Disponíveis em breve
         </p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 @min-[40rem]/settings:grid-cols-2">
           {integrations.map((integration) => (
             <Link
               key={integration.id}
               to={`${ROUTES.SETTINGS_INTEGRATIONS}/${integration.id}`}
-              className={`group rounded-[var(--radius-panel)] ${focusRing}`}
+              className={`group min-w-0 rounded-[var(--radius-panel)] ${focusRing}`}
             >
               <Card
-                className="h-full p-5 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)]"
+                className="h-full rounded-[var(--radius-panel)] p-4 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)] sm:p-5"
                 variant="flat"
               >
                 <span className="flex min-w-0 items-start gap-3">

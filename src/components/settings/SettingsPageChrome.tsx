@@ -35,9 +35,11 @@ export function SettingsPageHeader({
       {breadcrumbs && breadcrumbs.length > 0 && (
         <SettingsBreadcrumb items={breadcrumbs} />
       )}
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-black tracking-tight text-[var(--color-text-strong)] sm:text-2xl">
+      <div
+        className={`flex flex-wrap items-start justify-between gap-4 ${breadcrumbs?.length ? 'mt-3' : ''}`}
+      >
+        <div className="min-w-0 flex-1 basis-64">
+          <h1 className="wrap-anywhere text-xl font-black tracking-tight text-[var(--color-text-strong)] sm:text-2xl">
             {title}
           </h1>
           {description && (
@@ -47,7 +49,7 @@ export function SettingsPageHeader({
           )}
         </div>
         {actions && (
-          <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>
+          <div className="flex max-w-full flex-wrap gap-2">{actions}</div>
         )}
       </div>
       {children}
@@ -66,12 +68,12 @@ export function SettingsBreadcrumb({
         {items.map((item, index) => (
           <li
             key={`${item.label}-${index}`}
-            className="flex items-center gap-2"
+            className="flex min-w-0 max-w-full items-start gap-2 wrap-anywhere"
           >
             {index > 0 && (
               <span
                 aria-hidden="true"
-                className="text-[var(--color-text-subtle)]"
+                className="shrink-0 text-[var(--color-text-subtle)]"
               >
                 /
               </span>
@@ -188,10 +190,13 @@ export function SettingsContentSection({
   className?: string
 }) {
   return (
-    <Card className={`p-5 sm:p-6 ${className}`} variant="flat">
+    <Card
+      className={`min-w-0 rounded-[var(--radius-panel)] p-4 sm:p-5 ${className}`}
+      variant="flat"
+    >
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--color-divider)] pb-4">
-        <div>
-          <h2 className="text-base font-black text-[var(--color-text-strong)]">
+        <div className="min-w-0 flex-1 basis-64">
+          <h2 className="wrap-anywhere text-base font-black text-[var(--color-text-strong)]">
             {title}
           </h2>
           {description && (
@@ -200,7 +205,9 @@ export function SettingsContentSection({
             </p>
           )}
         </div>
-        {action}
+        {action && (
+          <div className="flex max-w-full flex-wrap gap-2">{action}</div>
+        )}
       </div>
       <div className="pt-5">{children}</div>
     </Card>

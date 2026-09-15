@@ -44,7 +44,7 @@ export function DepartmentGeneralSettingsPage({
           title="Informações gerais"
           description="Dados atualmente disponíveis para este departamento."
         >
-          <dl className="grid gap-5 sm:grid-cols-2">
+          <dl className="grid gap-5 @min-[32rem]/settings:grid-cols-2">
             <DepartmentDatum label="Nome" value={department.name} />
             <DepartmentDatum
               label="Descrição"
@@ -58,7 +58,7 @@ export function DepartmentGeneralSettingsPage({
         </SettingsContentSection>
 
         <Card
-          className="border-[var(--status-error-border)] p-5 sm:p-6"
+          className="rounded-[var(--radius-panel)] border-[var(--status-error-border)] p-4 sm:p-5"
           variant="flat"
         >
           <h2 className="text-base font-black text-[var(--status-error-text)]">
@@ -128,7 +128,7 @@ export function DepartmentScreensSettingsPage({
                     <span className="block truncate text-sm font-extrabold text-[var(--color-text-strong)]">
                       {screen.name}
                     </span>
-                    <span className="mt-1 block truncate text-sm text-[var(--color-text-muted)]">
+                    <span className="mt-1 block text-sm text-[var(--color-text-muted)]">
                       {screen.type === 'spreadsheet' ? 'Planilha' : 'Agenda'}
                       {screen.type === 'spreadsheet'
                         ? ` · ${screen.companies.length} ${screen.companies.length === 1 ? 'empresa' : 'empresas'} · ${screen.routines.length} ${screen.routines.length === 1 ? 'rotina' : 'rotinas'}`
@@ -253,7 +253,7 @@ function PermissionGroup({
         {rows.map((row) => (
           <li key={row.role} className="flex flex-wrap items-start gap-3 py-4">
             <Badge>{row.role}</Badge>
-            <p className="min-w-[14rem] flex-1 text-sm leading-6 text-[var(--color-text-muted)]">
+            <p className="min-w-0 flex-1 basis-56 text-sm leading-6 text-[var(--color-text-muted)]">
               {row.detail}
             </p>
           </li>
@@ -291,11 +291,11 @@ function DepartmentDevelopmentAction({
 
 function DepartmentDatum({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-l-2 border-[var(--color-divider)] pl-4">
-      <dt className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+    <div className="min-w-0 border-l-2 border-[var(--color-divider)] pl-4">
+      <dt className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
         {label}
       </dt>
-      <dd className="mt-1 text-sm font-extrabold text-[var(--color-text-strong)]">
+      <dd className="mt-1 wrap-anywhere text-sm font-extrabold text-[var(--color-text-strong)]">
         {value}
       </dd>
     </div>

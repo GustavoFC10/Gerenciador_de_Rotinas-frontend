@@ -218,7 +218,7 @@ function CreateScreenPage({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[90rem]">
+    <div className="@container/screen-create mx-auto w-full min-w-0 max-w-[90rem]">
       {header ?? (
         <WorkspaceBar
           context={{ label: 'Configurações', to: ROUTES.SETTINGS }}
@@ -228,7 +228,9 @@ function CreateScreenPage({
         />
       )}
 
-      <p className="-mt-1 mb-5 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
+      <p
+        className={`${header ? 'mt-6' : '-mt-1'} mb-5 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]`}
+      >
         Telas organizam a visualização dentro de um departamento. Em uma
         planilha, qualquer empresa ativa do tenant pode compor as linhas; as
         rotinas precisam pertencer ao departamento escolhido.
@@ -243,19 +245,19 @@ function CreateScreenPage({
 
         <div
           className={
-            'grid items-start gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)] ' +
+            'grid items-start gap-5 @min-[64rem]/screen-create:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)] ' +
             (Object.values(errors).some(Boolean) ? 'mt-4' : '')
           }
         >
-          <div className="space-y-5">
+          <div className="@container/screen-fields min-w-0 space-y-5">
             <Card>
               <SectionHeader
                 eyebrow="Estrutura"
                 title="Defina a tela"
                 description="Escolha o departamento e o formato que a equipe usará para acompanhar a operação."
               />
-              <div className="grid gap-4 px-5 py-5 sm:grid-cols-2 sm:px-6">
-                <div className="sm:col-span-2">
+              <div className="grid gap-4 px-4 py-5 sm:px-6">
+                <div>
                   <TextField
                     id="screen-name"
                     label="Nome da tela *"
@@ -298,11 +300,11 @@ function CreateScreenPage({
                   </Select>
                 </FieldContainer>
 
-                <fieldset>
+                <fieldset className="min-w-0">
                   <legend className="mb-1.5 text-sm font-medium text-[var(--color-text-muted)]">
                     Tipo *
                   </legend>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-2 @min-[24rem]/screen-fields:grid-cols-2">
                     <TypeOption
                       checked={type === 'spreadsheet'}
                       label="Planilha"
@@ -327,7 +329,7 @@ function CreateScreenPage({
                   title="Monte a visualização"
                   description="Estas escolhas definem as linhas e colunas exibidas. Empresas ativas do tenant podem compor a planilha; as rotinas são filtradas pelo departamento."
                 />
-                <div className="grid gap-5 px-5 py-5 lg:grid-cols-2 sm:px-6">
+                <div className="grid gap-5 px-4 py-5 sm:px-6 @min-[40rem]/screen-fields:grid-cols-2">
                   <SelectionPanel
                     id="screen-companies"
                     title="Empresas"
@@ -411,7 +413,7 @@ function CreateScreenPage({
           <p className="text-sm text-[var(--color-text-muted)]">
             Campos marcados com * são obrigatórios.
           </p>
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex flex-wrap justify-end gap-2">
             <Button
               type="button"
               tone="neutral"
@@ -422,6 +424,7 @@ function CreateScreenPage({
             </Button>
             <Button
               type="submit"
+              tone="primary"
               disabled={isSubmitting || departments.length === 0}
             >
               {isSubmitting ? 'Criando…' : 'Criar tela'}
@@ -443,7 +446,7 @@ function SectionHeader({
   description: string
 }) {
   return (
-    <header className="border-b border-[var(--color-divider)] px-5 py-4 sm:px-6">
+    <header className="border-b border-[var(--color-divider)] px-4 py-4 sm:px-6">
       <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
         {eyebrow}
       </p>
@@ -536,7 +539,7 @@ function SelectionPanel({
   emptyLabel: string
 }) {
   return (
-    <section aria-labelledby={id + '-title'}>
+    <section className="min-w-0" aria-labelledby={id + '-title'}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3
@@ -619,13 +622,13 @@ function ScreenPreview({
   routineCount: number
 }) {
   return (
-    <aside className="xl:sticky xl:top-5">
+    <aside className="min-w-0 @min-[64rem]/screen-create:sticky @min-[64rem]/screen-create:top-5">
       <Card>
         <header className="border-b border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-5 py-4">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
             Prévia
           </p>
-          <h2 className="mt-1 text-lg font-black text-[var(--color-text-strong)]">
+          <h2 className="mt-1 wrap-anywhere text-lg font-black text-[var(--color-text-strong)]">
             {name.trim() || 'Nova tela'}
           </h2>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
@@ -664,11 +667,11 @@ function ScreenPreview({
 
 function PreviewItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+    <div className="flex flex-wrap items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
       <dt className="text-xs font-semibold text-[var(--color-text-muted)]">
         {label}
       </dt>
-      <dd className="text-right text-xs font-extrabold text-[var(--color-text-strong)]">
+      <dd className="min-w-0 max-w-full wrap-anywhere text-xs font-extrabold text-[var(--color-text-strong)]">
         {value}
       </dd>
     </div>

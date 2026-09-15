@@ -246,13 +246,13 @@ function ArchivedCompaniesList({
           {companies.map((company) => (
             <li
               key={company.id}
-              className="flex flex-wrap items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
+              className="flex flex-col items-start gap-3 py-4 first:pt-0 last:pb-0 @min-[32rem]/settings:flex-row @min-[32rem]/settings:items-center @min-[32rem]/settings:justify-between"
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-extrabold text-[var(--color-text-strong)]">
+              <div className="min-w-0 max-w-full flex-1">
+                <p className="wrap-anywhere text-sm font-extrabold text-[var(--color-text-strong)]">
                   {company.name}
                 </p>
-                <p className="mt-1 text-xs font-medium text-[var(--color-text-muted)]">
+                <p className="mt-1 wrap-anywhere text-xs font-medium text-[var(--color-text-muted)]">
                   {company.code ? `Código ${company.code} · ` : ''}
                   Arquivada em {formatArchivedAt(company.archivedAt)}
                 </p>
@@ -315,13 +315,13 @@ function ArchivedRoutinesList({
           {routines.map((routine) => (
             <li
               key={routine.id}
-              className="flex flex-wrap items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
+              className="flex flex-col items-start gap-3 py-4 first:pt-0 last:pb-0 @min-[32rem]/settings:flex-row @min-[32rem]/settings:items-center @min-[32rem]/settings:justify-between"
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-extrabold text-[var(--color-text-strong)]">
+              <div className="min-w-0 max-w-full flex-1">
+                <p className="wrap-anywhere text-sm font-extrabold text-[var(--color-text-strong)]">
                   {routine.name}
                 </p>
-                <p className="mt-1 text-xs font-medium text-[var(--color-text-muted)]">
+                <p className="mt-1 wrap-anywhere text-xs font-medium text-[var(--color-text-muted)]">
                   {[routine.shotname, routine.departmentName]
                     .filter(Boolean)
                     .join(' · ')}
@@ -366,7 +366,12 @@ function RestoreButton({
   onClick: () => void
 }) {
   return (
-    <Button tone="neutral" disabled={disabled} onClick={onClick}>
+    <Button
+      tone="neutral"
+      className="shrink-0"
+      disabled={disabled}
+      onClick={onClick}
+    >
       {isRestoring ? 'Desarquivando...' : 'Desarquivar'}
     </Button>
   )

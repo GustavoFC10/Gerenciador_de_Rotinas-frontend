@@ -137,6 +137,7 @@ function DepartmentsSettingsPage({
         description="Organize as áreas do escritório e configure como cada uma trabalha."
         actions={
           <Button
+            tone="primary"
             onClick={() => {
               setDevelopmentNotice('')
               setIsFormOpen(true)
@@ -214,7 +215,7 @@ function DepartmentsSettingsPage({
 
                 return (
                   <li key={department.id} className="px-4 py-4 sm:px-5">
-                    <div className="flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap">
+                    <div className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-3 @min-[32rem]/settings:grid-cols-[2.5rem_minmax(0,1fr)_auto] @min-[32rem]/settings:items-center">
                       <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-sm font-black text-[var(--color-brand)]">
                         {department.name
                           .trim()
@@ -228,7 +229,7 @@ function DepartmentsSettingsPage({
                         >
                           {department.name}
                         </Link>
-                        <p className="mt-1 truncate text-sm text-[var(--color-text-muted)]">
+                        <p className="mt-1 wrap-anywhere text-sm text-[var(--color-text-muted)]">
                           {department.description || 'Sem descrição'}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -244,7 +245,7 @@ function DepartmentsSettingsPage({
                           </Badge>
                         </div>
                       </div>
-                      <div className="ml-auto flex shrink-0 items-center gap-2">
+                      <div className="col-span-2 flex items-center justify-end gap-2 @min-[32rem]/settings:col-span-1">
                         <Link
                           to={getSettingsDepartmentPath(department.id)}
                           className={`inline-flex min-h-9 items-center rounded-[var(--radius-control)] border border-[var(--color-button-neutral-border)] bg-[var(--color-button-neutral-bg)] px-3 text-sm font-bold text-[var(--color-button-neutral-text)] transition hover:bg-[var(--color-button-neutral-hover-bg)] ${focusRing}`}

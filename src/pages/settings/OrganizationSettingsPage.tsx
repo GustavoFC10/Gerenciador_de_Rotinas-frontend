@@ -36,7 +36,7 @@ function OrganizationSettingsPage() {
             </Button>
           }
         >
-          <dl className="grid gap-4 sm:grid-cols-2">
+          <dl className="grid gap-4 @min-[32rem]/settings:grid-cols-2">
             <OrganizationDatum label="Nome" value={organization?.name ?? '—'} />
             <OrganizationDatum
               label="Identificador"
@@ -58,13 +58,13 @@ function OrganizationSettingsPage() {
           title="Operação"
           description="Parâmetros globais atualmente disponíveis na sessão."
         >
-          <dl className="grid gap-4 sm:grid-cols-2">
+          <dl className="grid gap-4 @min-[32rem]/settings:grid-cols-2">
             <OrganizationDatum
               label="Fuso horário"
               value={organization?.timezone ?? 'Não informado'}
             />
             <div className="border-l-2 border-[var(--color-divider)] pl-4">
-              <dt className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+              <dt className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
                 Estado
               </dt>
               <dd className="mt-2">
@@ -91,11 +91,11 @@ function OrganizationSettingsPage() {
 
 function OrganizationDatum({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-l-2 border-[var(--color-divider)] pl-4">
-      <dt className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+    <div className="min-w-0 border-l-2 border-[var(--color-divider)] pl-4">
+      <dt className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
         {label}
       </dt>
-      <dd className="mt-1 break-words text-sm font-extrabold text-[var(--color-text-strong)]">
+      <dd className="mt-1 wrap-anywhere text-sm font-extrabold text-[var(--color-text-strong)]">
         {value}
       </dd>
     </div>

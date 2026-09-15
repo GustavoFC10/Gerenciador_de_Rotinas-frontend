@@ -752,12 +752,12 @@ export function ScreenEditDrawer({
         tabIndex={isDrawer ? -1 : undefined}
         className={
           isDrawer
-            ? 'flex h-full w-full max-w-5xl flex-col overflow-hidden border-l border-[var(--color-panel-border)] bg-[var(--color-app-bg)] shadow-[-12px_0_36px_rgb(15_23_42_/_0.22)]'
-            : 'flex min-h-[34rem] w-full flex-col overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-app-bg)]'
+            ? '@container/screen-editor flex h-full w-full max-w-5xl flex-col overflow-hidden border-l border-[var(--color-panel-border)] bg-[var(--color-app-bg)] shadow-[-12px_0_36px_rgb(15_23_42_/_0.22)]'
+            : '@container/screen-editor flex min-h-[34rem] w-full min-w-0 flex-col overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-app-bg)]'
         }
       >
-        <header className="flex flex-wrap items-start gap-4 border-b border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-5 py-5 sm:px-6">
-          <div className="min-w-0 flex-1">
+        <header className="flex flex-wrap items-start gap-4 border-b border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-4 py-5 sm:px-6">
+          <div className="min-w-0 flex-1 basis-64">
             <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
               Configuração visual
             </p>
@@ -773,7 +773,7 @@ export function ScreenEditDrawer({
               alterações concorrentes.
             </p>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex max-w-full flex-wrap items-center gap-2">
             <Link
               to={getScreenRoute(screenToOpen)}
               className={`inline-flex min-h-9 items-center justify-center rounded-[var(--radius-control)] border border-[var(--color-button-neutral-border)] bg-[var(--color-button-neutral-bg)] px-3 text-sm font-bold text-[var(--color-button-neutral-text)] transition hover:bg-[var(--color-button-neutral-hover-bg)] ${focusRing}`}
@@ -840,7 +840,7 @@ export function ScreenEditDrawer({
             onSubmit={(event) => void handleSubmit(event)}
             noValidate
           >
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
               <CreationErrorSummary
                 title="Revise a configuração da tela"
                 messages={[
@@ -876,7 +876,7 @@ export function ScreenEditDrawer({
                   title="Identidade e ordem"
                   description="O tipo é permanente. Ao trocar de departamento, as empresas selecionadas são preservadas e as rotinas incompatíveis são removidas."
                 />
-                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <div className="mt-5 grid gap-4 @min-[32rem]/screen-editor:grid-cols-2">
                   <div>
                     <TextField
                       data-dialog-autofocus
@@ -965,7 +965,7 @@ export function ScreenEditDrawer({
                     title="Linhas, colunas e sequência"
                     description="A ordem abaixo é enviada à API como a ordem das linhas e colunas. Empresas ativas do tenant podem compor a planilha; rotinas precisam pertencer ao departamento selecionado."
                   />
-                  <div className="mt-5 grid gap-5 xl:grid-cols-2">
+                  <div className="mt-5 grid gap-5 @min-[48rem]/screen-editor:grid-cols-2">
                     <OrderedSelection
                       id="edit-screen-companies"
                       title="Empresas"
@@ -1001,13 +1001,13 @@ export function ScreenEditDrawer({
               )}
             </div>
 
-            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-5 py-4 sm:px-6">
+            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-4 py-4 sm:px-6">
               <p className="text-sm text-[var(--color-text-muted)]">
                 {snapshot.type === 'spreadsheet'
                   ? 'Use as setas para definir a ordem das linhas e colunas.'
                   : 'A agenda não possui empresas ou rotinas na composição.'}
               </p>
-              <div className="ml-auto flex gap-2">
+              <div className="ml-auto flex flex-wrap justify-end gap-2">
                 <Button
                   type="button"
                   tone="neutral"
@@ -1016,7 +1016,11 @@ export function ScreenEditDrawer({
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSaving || Boolean(loadError)}>
+                <Button
+                  type="submit"
+                  tone="primary"
+                  disabled={isSaving || Boolean(loadError)}
+                >
                   {isSaving ? 'Salvando…' : 'Salvar tela'}
                 </Button>
               </div>
@@ -1074,7 +1078,7 @@ function OrderedSelection({
 
   return (
     <section
-      className="min-w-0 rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-4"
+      className="@container/selection min-w-0 rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-3 sm:p-4"
       aria-labelledby={id + '-title'}
     >
       <div className="flex items-start justify-between gap-3">
@@ -1153,7 +1157,7 @@ function OrderedSelection({
       </ul>
 
       <div className="mt-4 border-t border-[var(--color-divider)] pt-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h4 className="text-xs font-black uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
             Ordem exibida
           </h4>
@@ -1175,7 +1179,7 @@ function OrderedSelection({
               return (
                 <li
                   key={selectedId}
-                  className="flex items-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-2.5 py-2"
+                  className="grid grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-2.5 py-2 @min-[24rem]/selection:grid-cols-[1.5rem_minmax(0,1fr)_auto]"
                 >
                   <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-brand-soft)] text-xs font-black text-[var(--color-brand)]">
                     {index + 1}
@@ -1188,7 +1192,7 @@ function OrderedSelection({
                       {item.description}
                     </span>
                   </span>
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="col-span-2 flex flex-wrap items-center justify-end gap-1 @min-[24rem]/selection:col-span-1">
                     <Button
                       type="button"
                       tone="ghost"

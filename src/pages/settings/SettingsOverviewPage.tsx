@@ -46,7 +46,7 @@ function SettingsOverviewPage() {
       />
 
       <section
-        className="grid gap-3 pt-6 sm:grid-cols-2"
+        className="grid gap-3 pt-6 @min-[40rem]/settings:grid-cols-2"
         aria-label="Áreas de configuração"
       >
         {destinations.map((destination) => (
@@ -56,7 +56,7 @@ function SettingsOverviewPage() {
             className={`group min-w-0 rounded-[var(--radius-panel)] ${focusRing}`}
           >
             <Card
-              className="h-full p-5 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)]"
+              className="h-full rounded-[var(--radius-panel)] p-4 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)] sm:p-5"
               variant="flat"
             >
               <div className="flex items-start gap-4">

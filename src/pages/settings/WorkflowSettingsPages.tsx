@@ -47,7 +47,7 @@ function WorkflowsSettingsPage() {
             className={`group rounded-[var(--radius-panel)] ${focusRing}`}
           >
             <Card
-              className="p-5 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)]"
+              className="rounded-[var(--radius-panel)] p-4 transition group-hover:border-[var(--color-brand-border)] group-hover:bg-[var(--color-control-hover-bg)] sm:p-5"
               variant="flat"
             >
               <div className="flex min-w-0 items-center gap-4">
