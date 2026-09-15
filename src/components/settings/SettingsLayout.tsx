@@ -19,31 +19,31 @@ const navigationItems = [
  */
 function SettingsLayout() {
   return (
-    <div className="mx-auto flex w-full max-w-[90rem] flex-1 flex-col">
+    <div className="mx-auto flex w-full min-w-0 max-w-[90rem] flex-1 flex-col">
       <div className="rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-panel)] xl:grid xl:min-h-[42rem] xl:grid-cols-[12.5rem_minmax(0,1fr)]">
         <aside
           aria-label="Navegação de configurações"
-          className="border-b border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-3 py-4 xl:border-b-0 xl:border-r xl:px-4 xl:py-5"
+          className="rounded-t-[var(--radius-panel)] border-b border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] px-3 py-4 xl:rounded-l-[var(--radius-panel)] xl:rounded-tr-none xl:border-b-0 xl:border-r xl:px-4 xl:py-5"
         >
-          <p className="px-2 pb-2 text-[11px] font-black uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+          <p className="px-2 pb-2 text-[11px] font-black uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
             Configurações
           </p>
           <nav>
-            <ul className="grid gap-1 sm:grid-cols-2 xl:block xl:space-y-1">
+            <ul className="grid grid-cols-2 gap-1 sm:grid-cols-3 xl:grid-cols-1">
               {navigationItems.map((item) => (
                 <li key={item.to} className="min-w-0">
                   <NavLink
                     to={item.to}
                     end={item.end}
                     className={({ isActive }) =>
-                      `flex min-h-10 w-full min-w-0 items-center rounded-[var(--radius-control)] px-3 text-sm font-bold transition ${focusRing} ${
+                      `flex h-full min-h-10 w-full min-w-0 items-center rounded-[var(--radius-control)] px-3 py-2 text-sm font-bold leading-5 transition ${focusRing} ${
                         isActive
                           ? 'bg-[var(--color-panel-bg)] text-[var(--color-text-strong)] shadow-sm ring-1 ring-[var(--color-panel-border)]'
                           : 'text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)]'
                       }`
                     }
                   >
-                    <span className="truncate">{item.label}</span>
+                    <span>{item.label}</span>
                   </NavLink>
                 </li>
               ))}
@@ -51,7 +51,7 @@ function SettingsLayout() {
           </nav>
         </aside>
 
-        <div className="min-w-0 px-5 py-6 sm:px-7 sm:py-7">
+        <div className="@container/settings min-w-0 px-4 py-5 sm:px-6 sm:py-6">
           <Outlet />
         </div>
       </div>

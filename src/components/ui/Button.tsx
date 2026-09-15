@@ -24,7 +24,7 @@ function Button({
   return (
     <button
       type={type}
-      className={`inline-flex items-center justify-center rounded-[var(--radius-control)] font-bold transition ${controlSize[size]} ${buttonTone[tone]} ${focusRing} ${className}`}
+      className={`inline-flex items-center justify-center rounded-[var(--radius-control)] font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${controlSize[size]} ${buttonTone[tone]} ${focusRing} ${className}`}
       {...props}
     >
       {children}
