@@ -1,0 +1,51 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+pr: none
+
+variables:
+  - name: VITE_API_URL
+    value: http://localhost:3000
+
+stages:
+  - stage: __default
+    jobs:
+      - job: Job
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: 6d15af64-176c-496d-b583-fd2ae21d4df4@1
+            displayName: Checkout
+            inputs:
+              repository: self
+          - task: UseNode@1
+            displayName: Setup Node.js 22
+            inputs:
+              version: '22.x'
+          - task: CmdLine@2
+            displayName: Install dependencies
+            inputs:
+              script: npm ci
+          - task: CmdLine@2
+            displayName: Check formatting
+            inputs:
+              script: npm run format:check
+          - task: CmdLine@2
+            displayName: Typecheck
+            inputs:
+              script: npm run typecheck
+          - task: CmdLine@2
+            displayName: Lint
+            inputs:
+              script: npm run lint
+          - task: CmdLine@2
+            displayName: Tests
+            inputs:
+              script: npm run test
+          - task: CmdLine@2
+            displayName: Build
+            inputs:
+              script: npm run build
