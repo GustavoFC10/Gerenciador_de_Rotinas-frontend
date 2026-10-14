@@ -28,6 +28,7 @@ type TaskChangeHandler<Value> = (
 ) => void | Promise<void>
 
 export interface RoutineDetailsCardProps {
+  attachmentsPanel?: ReactNode
   task?: Task | null
   client?: Client
   routine?: Routine
@@ -57,6 +58,7 @@ interface DetailsModel {
 }
 
 function RoutineDetailsCard({
+  attachmentsPanel,
   task,
   client,
   routine,
@@ -112,12 +114,14 @@ function RoutineDetailsCard({
             aria-label="Execução da tarefa"
           >
             <div className="p-3">
-              <RoutineAttachmentsPanel
-                task={task}
-                onAttachmentAdd={onAttachmentAdd}
-                onAttachmentRemove={onAttachmentRemove}
-                variant="preview"
-              />
+              {attachmentsPanel ?? (
+                <RoutineAttachmentsPanel
+                  task={task}
+                  onAttachmentAdd={onAttachmentAdd}
+                  onAttachmentRemove={onAttachmentRemove}
+                  variant="preview"
+                />
+              )}
             </div>
             <div className="border-t border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-3">
               <RoutineNotesPanel

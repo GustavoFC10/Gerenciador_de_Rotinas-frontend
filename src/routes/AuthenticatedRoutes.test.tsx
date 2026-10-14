@@ -3,7 +3,8 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, useLocation } from 'react-router'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { adminUserMock } from '../constants/roles'
 import { ROUTES } from '../constants/routes'
@@ -14,6 +15,7 @@ import type { AuthContextValue } from '../contexts/authContextDefinition'
 import type { SpreadsheetContext } from '../hooks/useSpreadsheetContext'
 import type { RoutineControlData } from '../types/domain'
 import AuthenticatedRoutes from './AuthenticatedRoutes'
+import { httpClient } from '../services/httpClient'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -21,6 +23,13 @@ let host: HTMLDivElement
 let root: Root
 
 beforeEach(() => {
+  vi.spyOn(httpClient, 'get').mockResolvedValue({
+    data: { version: 1, file: null },
+    status: 200,
+    etag: '"1"',
+    requestId: null,
+    headers: new Headers(),
+  })
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
@@ -39,6 +48,7 @@ afterEach(async () => {
     root.unmount()
   })
   document.body.innerHTML = ''
+  vi.restoreAllMocks()
 })
 
 describe('AuthenticatedRoutes', () => {
@@ -62,37 +72,43 @@ async function renderRoutes(
 ) {
   await act(async () => {
     root.render(
-      <MemoryRouter initialEntries={[initialEntry]}>
-        <AuthContext.Provider value={authValue}>
-          <AppStateContext.Provider value={appStateValue}>
-            <AuthenticatedRoutes
-              data={data}
-              generatedAt="2026-08-01T00:00:00.000Z"
-              competence="2026-08"
-              competenceStatus="projected"
-              spreadsheetContext={spreadsheetContext}
-              taskDetails={{} as never}
-              isOperationalDataLoading={false}
-              operationalDataError={data ? null : new Error('Unavailable')}
-              onRetryOperationalData={() => undefined}
-              onCompetenceFinalize={unimplemented}
-              onCompanyCreate={unimplemented}
-              onCompanyUpdate={unimplemented}
-              onCompanyArchive={unimplemented}
-              onCompanyRestore={unimplemented}
-              onRoutineCreate={unimplemented}
-              onRoutineUpdate={unimplemented}
-              onRoutineArchive={unimplemented}
-              onRoutineRestore={unimplemented}
-              onEmployeeInvite={unimplemented}
-              onDepartmentCreate={unimplemented}
-              onScreenCreate={unimplemented}
-              onScreenUpdate={unimplemented}
-            />
-            <LocationProbe />
-          </AppStateContext.Provider>
-        </AuthContext.Provider>
-      </MemoryRouter>,
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <MemoryRouter initialEntries={[initialEntry]}>
+          <AuthContext.Provider value={authValue}>
+            <AppStateContext.Provider value={appStateValue}>
+              <AuthenticatedRoutes
+                data={data}
+                generatedAt="2026-08-01T00:00:00.000Z"
+                competence="2026-08"
+                competenceStatus="projected"
+                spreadsheetContext={spreadsheetContext}
+                taskDetails={{} as never}
+                isOperationalDataLoading={false}
+                operationalDataError={data ? null : new Error('Unavailable')}
+                onRetryOperationalData={() => undefined}
+                onCompetenceFinalize={unimplemented}
+                onCompanyCreate={unimplemented}
+                onCompanyUpdate={unimplemented}
+                onCompanyArchive={unimplemented}
+                onCompanyRestore={unimplemented}
+                onRoutineCreate={unimplemented}
+                onRoutineUpdate={unimplemented}
+                onRoutineArchive={unimplemented}
+                onRoutineRestore={unimplemented}
+                onEmployeeInvite={unimplemented}
+                onDepartmentCreate={unimplemented}
+                onScreenCreate={unimplemented}
+                onScreenUpdate={unimplemented}
+              />
+              <LocationProbe />
+            </AppStateContext.Provider>
+          </AuthContext.Provider>
+        </MemoryRouter>
+      </QueryClientProvider>,
     )
   })
 }

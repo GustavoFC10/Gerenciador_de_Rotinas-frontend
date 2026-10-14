@@ -101,6 +101,34 @@ export function canAssignTask(
   return isOrganizationAdmin(user) || isLead(user, task.departmentId)
 }
 
+export function canAddTaskAttachment(
+  user: AppUser,
+  task: Task,
+  competenceStatus?: string,
+): boolean {
+  if (competenceStatus !== 'projected' || task.archivedAt) return false
+  if (canAssignTask(user, task)) return true
+  return (
+    task.persistence !== 'virtual' &&
+    Boolean(task.taskId) &&
+    getDepartmentAccessRole(user, task.departmentId) === 'contributor' &&
+    task.assigneeId === user.membershipId &&
+    ['pending', 'in_progress'].includes(task.status)
+  )
+}
+
+export function canRemoveTaskAttachment(
+  user: AppUser,
+  task: Task,
+  createdByMemberId: string,
+  competenceStatus?: string,
+): boolean {
+  return (
+    canAddTaskAttachment(user, task, competenceStatus) &&
+    (canAssignTask(user, task) || createdByMemberId === user.membershipId)
+  )
+}
+
 const taskTransitionStatuses: RoutineStatus[] = [
   ROUTINE_STATUS.PENDING,
   ROUTINE_STATUS.IN_PROGRESS,

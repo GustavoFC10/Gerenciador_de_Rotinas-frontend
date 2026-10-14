@@ -1,4 +1,5 @@
 import { HttpClient, httpClient } from './httpClient'
+import type { ImageReference } from '../types/files'
 import type { ApiResponse } from './httpClient'
 import type { DepartmentAccessRole, OrganizationRole } from '../types/domain'
 
@@ -10,6 +11,7 @@ export interface DepartmentInput {
 }
 
 export interface DepartmentResource {
+  image?: ImageReference | null
   id: string
   name: string
   description: string

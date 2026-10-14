@@ -51,6 +51,7 @@ export function toDepartmentFromResource(
     id: resource.id,
     name: resource.name,
     description: resource.description || undefined,
+    image: resource.image,
   }
 }
 
@@ -61,6 +62,7 @@ export function toTaskFromScheduledOccurrence(
 ): Task {
   return {
     id: occurrence.occurrenceKey,
+    archivedAt: occurrence.archivedAt,
     occurrenceKey: occurrence.occurrenceKey,
     taskId: occurrence.taskId,
     competenceId,
@@ -97,6 +99,7 @@ export function toTaskFromResource(
 
   return {
     id: stableId,
+    archivedAt: resource.archivedAt,
     occurrenceKey: resource.occurrenceKey ?? undefined,
     taskId: resource.id,
     competenceId: resource.competenceId,

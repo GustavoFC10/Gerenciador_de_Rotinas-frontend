@@ -4,6 +4,7 @@ import { Link, NavLink, useLocation } from 'react-router'
 import { appThemeClass, focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
+import PrivateImage from '../components/files/PrivateImage'
 import type { EntityId } from '../types/domain'
 import type {
   ScreenNavigationItem,
@@ -322,7 +323,15 @@ function SidebarProfile({
           isCollapsed ? 'lg:justify-center lg:p-1' : ''
         } ${focusRing}`}
       >
-        <UserAvatar avatarUrl={user.avatarUrl} initials={initials} />
+        {user.avatar ? (
+          <PrivateImage
+            reference={user.avatar}
+            label={user.name}
+            className="size-9"
+          />
+        ) : (
+          <UserAvatar avatarUrl={user.avatarUrl} initials={initials} />
+        )}
         <span className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}>
           <span className="block truncate text-sm font-bold text-[var(--color-text-strong)]">
             {user.name}

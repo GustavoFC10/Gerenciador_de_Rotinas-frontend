@@ -30,6 +30,7 @@ interface ApiPage<T> {
 }
 
 interface ApiDepartment {
+  image?: Department['image']
   id: string
   name: string
   description?: string
@@ -239,6 +240,7 @@ function buildRoutineControlResponse({
     id: department.id,
     name: department.name,
     description: department.description,
+    image: department.image,
   }))
   const clients: Client[] = apiCompanies.map((company) => ({
     id: company.id,
@@ -379,6 +381,7 @@ function toScheduledTask(
 ): Task {
   return {
     id: occurrence.occurrenceKey,
+    archivedAt: occurrence.archivedAt,
     occurrenceKey: occurrence.occurrenceKey,
     taskId: occurrence.taskId,
     competenceId,
@@ -411,6 +414,7 @@ function toScheduledTask(
 
 function toAdHocTask(task: TaskResource): Task {
   return {
+    archivedAt: task.archivedAt,
     id: task.id,
     taskId: task.id,
     competenceId: task.competenceId,

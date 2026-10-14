@@ -154,7 +154,11 @@ Configuracao esperada:
 - Minhas tarefas com suporte a tarefas avulsas.
 - Perfil simples.
 - Detalhe de tarefa em overlay.
-- Atualizacao local de status, responsavel, prazo, observacao e anexos simulados.
+- Atualização de status, responsável, prazo e observação pela API.
+- Anexos reais de tarefas: upload direto, processamento, vínculo, listagem,
+  download autorizado e remoção, inclusive em ocorrências virtuais.
+- Foto do próprio colaborador e imagem de departamento; remoção de fotos de
+  outros colaboradores por owner/admin e exibição com URLs temporárias renovadas.
 - Componentes compartilhados de UI, formulario, loading, erro e vazio.
 - Testes unitarios para utilitarios criticos de competencia, filtros e montagem de listas.
 

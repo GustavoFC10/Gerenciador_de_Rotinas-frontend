@@ -3,6 +3,17 @@
 Este documento descreve as rotas expostas pelo backend no estado atual do código e
 mostra um exemplo de utilização de cada operação HTTP.
 
+Revisado em 14/10/2026 contra o texto fornecido do frontend, as rotas, serializers,
+policies e services atuais. A terminologia do produto é **colaborador**; na API,
+esse perfil continua sendo `OrganizationMember`, com rotas `organization-members/`
+e identificadores `memberId`/`membershipId`. Esses nomes técnicos não foram alterados.
+
+Arquivos foram validados localmente em 13/10/2026 com 229 testes aprovados; veja
+[RELATORIO_TESTES_ARQUIVOS.md](RELATORIO_TESTES_ARQUIVOS.md). As rotas dependem de
+`FILES_API_ENABLED=True`, bucket e worker configurados. No rollout interno, definir
+`FILES_REQUIRE_MALWARE_SCAN=False`; scanner é exigido somente quando essa flag é
+`True`. Consulte a seção 15 para o fluxo de frontend e as regras de ativação.
+
 ## 1. Convenções dos exemplos
 
 Os exemplos usam PowerShell e `curl.exe`:
@@ -71,7 +82,9 @@ executam quando:
 OPERATIONS_API_ENABLED=True
 ```
 
-Com a flag desligada, essas rotas retornam `404`.
+Com a flag desligada, essas rotas retornam `404`. Anexos também passam pelas flags
+de arquivos da seção 15: `FILES_API_ENABLED=False` retorna `501` antes da checagem
+operacional; com arquivos habilitados e operações desabilitadas, retorna `404`.
 
 ## 2. Infraestrutura e documentação
 
@@ -134,7 +147,7 @@ curl.exe -c cookies.txt "$BASE_URL/api/v1/auth/csrf/"
 Exemplo de resposta:
 
 ```json
-{ "csrfToken": "TOKEN_MASCARADO" }
+{"csrfToken":"TOKEN_MASCARADO"}
 ```
 
 ### `POST /api/v1/auth/login/`
@@ -237,6 +250,11 @@ autenticação.
 
 ## 4. Organização, convites e departamentos
 
+Colaborador é o perfil da pessoa em uma organização, identificado pelo UUID de
+`OrganizationMember`; ele não é o UUID global de `User`. O mesmo perfil é usado
+nos campos de responsável, acessos departamentais e foto. Papéis organizacionais:
+`owner`, `admin`, `member`; papéis departamentais: `lead`, `contributor`, `viewer`.
+
 ### `POST /api/v1/membership-invitations/`
 
 Emite ou reemite um convite no tenant ativo e envia o e-mail. Somente `owner` ou
@@ -252,7 +270,7 @@ Retorna `201` com ID, e-mail, nome, papel, expiração e criação do convite.
 
 ### `GET /api/v1/organization-members/`
 
-Lista integrantes da equipe do tenant com paginação comum. `owner/admin` recebe perfis de todos
+Lista colaboradores do tenant com paginação comum. `owner/admin` recebe perfis de todos
 os status. Um member com acesso `lead` recebe somente colaboradores ativos ligados a
 algum departamento que lidera; os `departmentAccesses` da resposta também ficam
 limitados a esses departamentos. Contributor/viewer recebe `403`.
@@ -344,8 +362,9 @@ curl.exe -X POST "$BASE_URL/api/v1/departments/" `
   -d '{"name":"Fiscal","description":"Obrigações e apurações fiscais"}'
 ```
 
-Retorna `201` com `id`, `name`, `description` e `accessRole` (`null` para um
-administrador).
+Retorna `201` com `id`, `name`, `description`, `accessRole` (`null` para um
+administrador) e `image` (`null` no departamento recém-criado). A imagem é
+configurada separadamente, pelo fluxo da seção 15.
 
 ### `GET /api/v1/departments/{id}/`
 
@@ -389,10 +408,12 @@ curl.exe "$BASE_URL/api/v1/client-companies/?search=exemplo&ordering=code&page=1
 
 ### `POST /api/v1/client-companies/`
 
-Cria uma empresa. O código interno é opcional e, quando informado, aceita de 1
-a 32 dígitos e preserva zeros à esquerda; `legalName` é a razão social e
-permanece separado do nome de exibição, CNPJ, e-mail e celular. A razão social
-é opcional nesta etapa.
+Cria uma empresa. O código interno é opcional e, quando informado, aceita de 1 a
+32 dígitos e preserva zeros à esquerda; `legalName` é a razão social e permanece
+separado do nome de exibição, CNPJ, e-mail e celular. A razão social é opcional.
+`code` pode ser omitido, `null` ou vazio; valores vazios são normalizados para
+`null`. Em um PATCH, omitir o campo mantém o valor atual; enviar `null` ou `""`
+remove o código. O frontend deve suportar `code=null` também nas projeções.
 
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/client-companies/" `
@@ -423,8 +444,10 @@ curl.exe -X PATCH "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/" `
 
 ### `DELETE /api/v1/client-companies/{id}/`
 
-Arquiva a empresa sem apagá-la. Vínculos departamentais e de rotina vigentes/futuros
-são encerrados ou cancelados conforme sua data. Retorna `204` e o novo ETag.
+Arquiva a empresa sem apagar seu cadastro e remove fisicamente seus vínculos
+empresa–rotina. Tarefas já materializadas mantêm os snapshots; ocorrências virtuais
+dependentes desses vínculos deixam de ser projetadas. Não existe vínculo público
+empresa–departamento na API atual. Retorna `204` e o novo ETag.
 
 ```powershell
 curl.exe -X DELETE "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/" `
@@ -433,8 +456,8 @@ curl.exe -X DELETE "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/" `
 
 ### `POST /api/v1/client-companies/{id}/restore/`
 
-Restaura uma empresa arquivada. Os vínculos antigos não são reabertos
-automaticamente.
+Restaura uma empresa arquivada, após conferir disponibilidade de código/CNPJ.
+Os vínculos de rotina removidos não são recriados automaticamente.
 
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/restore/" `
@@ -540,7 +563,7 @@ Se `defaultAssigneeMemberId` for informado, ele deve ser o UUID de um membro ati
 elegível retornado por `GET /api/v1/departments/{departmentId}/task-assignees/`.
 O campo, quando presente, é salvo na versão publicada e será usado nas ocorrências
 futuras. `defaultDueDays` continua sendo o prazo padrão, contado a partir do
-primeiro dia da competência.
+primeiro dia da competência. O UUID é do perfil de colaborador na organização.
 
 Cria a rotina e publica a primeira regra.
 
@@ -702,7 +725,9 @@ pertencem ao mesmo tenant e a vigência informada é válida.
 
 ### `GET /api/v1/client-companies/{companyId}/routine-assignments/`
 
-Lista o histórico de rotinas atribuídas à empresa.
+Lista os vínculos empresa–rotina ainda existentes, incluindo vigências encerradas
+quando presentes. Vínculos removidos por DELETE ou pelo arquivamento da empresa
+não aparecem: esta coleção não é um histórico append-only.
 
 ```powershell
 curl.exe "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/routine-assignments/?page=1" `
@@ -740,7 +765,10 @@ curl.exe -X POST "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/routine-as
 
 ### `DELETE /api/v1/client-companies/{companyId}/routine-assignments/{id}/`
 
-Cancela o vínculo sem apagar a linha.
+Remove fisicamente o vínculo e retorna `204`. As ocorrências que ainda eram
+virtuais deixam de ser projetadas; tarefas já materializadas mantêm seus snapshots
+e podem ficar com `sourceAssignmentId=null`. Para preservar a linha e apenas
+encerrar sua vigência, usar o endpoint `/end/`.
 
 ```powershell
 curl.exe -X DELETE "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/routine-assignments/<UUID_DO_VINCULO>/" `
@@ -885,8 +913,9 @@ possui linha em `Task`:
 - `description`, `observation` e `links` vazios.
 
 Qualquer diferença materializa o card: estado, responsável, prazo, título, descrição,
-observação ou links. Apenas consultar, filtrar, paginar ou abrir uma planilha nunca
-grava. Um PATCH idêntico ao baseline é no-op e continua virtual.
+observação, links ou vínculo do primeiro anexo aprovado. Apenas consultar, filtrar, paginar ou abrir uma planilha nunca
+grava. Solicitar ou confirmar upload também não materializa. Um PATCH idêntico ao
+baseline é no-op e continua virtual.
 
 O frontend deve usar `occurrenceKey` como chave estável do card. Antes da
 materialização, `taskId=null`, `persistence=virtual`, `version=null` e `etag` contém um
@@ -977,13 +1006,17 @@ curl.exe -X POST "$BASE_URL/api/v1/competences/by-period/2026-10/task-occurrence
 
 ### `POST /api/v1/competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/attachments/`
 
-Placeholder equivalente ao endpoint de anexos de uma tarefa real. Ele valida a
-visibilidade da ocorrência e retorna `501`. Chamar o placeholder em um card virtual
-não materializa a tarefa nem grava qualquer dado.
+Vincula um `fileId` aprovado e reservado para esta ocorrência. Exige `If-Match` do
+card e `Idempotency-Key`. O primeiro anexo materializa a ocorrência na mesma
+transação; solicitar ou confirmar o upload não materializa. Retorna `201` com
+`attachmentId`, `fileId`, `taskId`, `version`, `etag` e `materialized`.
+Consulte a seção 15. Enquanto a API de arquivos estiver desabilitada, retorna `501`.
 
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/competences/by-period/2026-10/task-occurrences/<OCCURRENCE_KEY>/attachments/" `
-  -b cookies.txt -H "X-CSRFToken: $CSRF"
+  -b cookies.txt -H "X-CSRFToken: $CSRF" `
+  -H 'If-Match: "virtual:HASH_RECEBIDO"' -H "Idempotency-Key: anexo-ocorrencia-001" `
+  -H "Content-Type: application/json" -d '{"fileId":"<UUID_DO_ARQUIVO_APROVADO>"}'
 ```
 
 Depois da materialização, as alterações futuras da rotina, empresa ou vínculo não
@@ -1073,14 +1106,17 @@ Use `"assigneeMemberId": null` para remover a atribuição.
 
 ### `POST /api/v1/competences/{competenceId}/tasks/{taskId}/attachments/`
 
-Placeholder para anexos. O endpoint valida autenticação, tenant e visibilidade da
-tarefa, mas ainda não recebe nem persiste arquivos. Enquanto um storage não estiver
-configurado, sempre retorna `501` com o código
-`task_attachments_not_implemented` para uma tarefa acessível.
+Vincula um `fileId` aprovado, reservado para esta tarefa e criado pelo membro da
+sessão. Exige `If-Match` da tarefa e `Idempotency-Key`; incrementa a versão da tarefa
+e registra evento. A API recebe JSON, não bytes/multipart. Retorna `201` com
+`attachmentId`, `fileId`, `taskId`, `version`, `etag` e `materialized=false`.
+Consulte a seção 15. Com `FILES_API_ENABLED=False`, retorna `501`.
 
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/competences/<UUID_DA_COMPETENCIA>/tasks/<UUID_DA_TAREFA>/attachments/" `
-  -b cookies.txt -H "X-CSRFToken: $CSRF"
+  -b cookies.txt -H "X-CSRFToken: $CSRF" `
+  -H 'If-Match: "1"' -H "Idempotency-Key: anexo-tarefa-001" `
+  -H "Content-Type: application/json" -d '{"fileId":"<UUID_DO_ARQUIVO_APROVADO>"}'
 ```
 
 ### `POST /api/v1/competences/{competenceId}/tasks/{taskId}/transition/`
@@ -1097,13 +1133,13 @@ curl.exe -X POST "$BASE_URL/api/v1/competences/<UUID_DA_COMPETENCIA>/tasks/<UUID
 Exemplo sem movimento:
 
 ```json
-{ "targetStatus": "no_movement" }
+{"targetStatus":"no_movement"}
 ```
 
 Exemplo de erro:
 
 ```json
-{ "targetStatus": "error" }
+{"targetStatus":"error"}
 ```
 
 Quando houver contexto sobre a transição, atualize `observation` pelo endpoint de
@@ -1250,39 +1286,20 @@ Exemplo resumido:
 ```json
 {
   "type": "spreadsheet",
-  "screen": { "id": "<UUID_DA_TELA>", "name": "MEI", "type": "spreadsheet" },
+  "screen": {"id": "<UUID_DA_TELA>", "name": "MEI", "type": "spreadsheet"},
   "competenceId": null,
   "period": "2026-10",
   "rows": [
-    {
-      "id": "<UUID_DA_EMPRESA>",
-      "code": "007",
-      "name": "Empresa X",
-      "legalName": "Empresa X Ltda.",
-      "position": 0
-    }
+    {"id": "<UUID_DA_EMPRESA>", "code": "007", "name": "Empresa X", "legalName": "Empresa X Ltda.", "position": 0}
   ],
   "columns": [
-    {
-      "id": "<UUID_DA_ROTINA>",
-      "shotname": "DAS",
-      "name": "Apuração mensal do DAS",
-      "departmentId": "<UUID_DO_DEPARTAMENTO>",
-      "position": 0
-    }
+    {"id": "<UUID_DA_ROTINA>", "shotname": "DAS", "name": "Apuração mensal do DAS", "departmentId": "<UUID_DO_DEPARTAMENTO>", "position": 0}
   ],
   "cells": [
     {
       "companyId": "<UUID_DA_EMPRESA>",
       "routineId": "<UUID_DA_ROTINA>",
-      "tasks": [
-        {
-          "occurrenceKey": "<UUID_ESTAVEL>",
-          "taskId": null,
-          "persistence": "virtual",
-          "status": "pending"
-        }
-      ]
+      "tasks": [{"occurrenceKey":"<UUID_ESTAVEL>","taskId":null,"persistence":"virtual","status":"pending"}]
     }
   ]
 }
@@ -1302,30 +1319,15 @@ Exemplo resumido:
 ```json
 {
   "type": "agenda",
-  "screen": {
-    "id": "<UUID_DA_TELA>",
-    "name": "Agenda Fiscal",
-    "type": "agenda"
-  },
+  "screen": {"id": "<UUID_DA_TELA>", "name": "Agenda Fiscal", "type": "agenda"},
   "competenceId": "<UUID_DA_COMPETENCIA_OU_NULL>",
   "period": "2026-10",
   "columns": [
-    {
-      "status": "pending",
-      "count": 1,
-      "tasks": [
-        {
-          "id": "<UUID_DA_TAREFA>",
-          "kind": "ad_hoc",
-          "title": "Revisar pendência"
-        }
-      ],
-      "hasMore": false
-    },
-    { "status": "in_progress", "count": 0, "tasks": [], "hasMore": false },
-    { "status": "completed", "count": 0, "tasks": [], "hasMore": false },
-    { "status": "no_movement", "count": 0, "tasks": [], "hasMore": false },
-    { "status": "error", "count": 0, "tasks": [], "hasMore": false }
+    {"status": "pending", "count": 1, "tasks": [{"id": "<UUID_DA_TAREFA>", "kind": "ad_hoc", "title": "Revisar pendência"}], "hasMore": false},
+    {"status": "in_progress", "count": 0, "tasks": [], "hasMore": false},
+    {"status": "completed", "count": 0, "tasks": [], "hasMore": false},
+    {"status": "no_movement", "count": 0, "tasks": [], "hasMore": false},
+    {"status": "error", "count": 0, "tasks": [], "hasMore": false}
   ]
 }
 ```
@@ -1341,7 +1343,8 @@ Um fluxo completo típico é:
 1. obter CSRF e fazer login;
 2. selecionar a associação ativa, se necessário;
 3. criar ou consultar o departamento;
-4. consultar/criar a empresa e, quando necessário, atribuí-la ao departamento;
+4. consultar/criar a empresa; o departamento pertence à rotina, tarefa ou tela,
+   sem uma etapa de atribuição pública empresa–departamento;
 5. criar uma rotina, ou consultar uma existente;
 6. configurar a planilha com as empresas/rotinas selecionadas e/ou criar a agenda;
 7. opcionalmente vincular rotinas recorrentes ou aplicar um preset;
@@ -1349,7 +1352,9 @@ Um fluxo completo típico é:
 9. criar uma tarefa avulsa com `Idempotency-Key` ou consultar ocorrências de rotina
    que já existam na competência;
 10. atribuir responsável e transicionar a tarefa;
-11. consultar a projeção da tela e os eventos da tarefa.
+11. consultar a projeção da tela e os eventos da tarefa;
+12. quando necessário, enviar arquivo, aguardar processamento e vincular o anexo
+    ou imagem pelo fluxo da seção 15.
 
 O contrato gerado automaticamente continua sendo a referência de tipos e respostas:
 
@@ -1390,9 +1395,286 @@ Retorna os dados da organizacao, seus owners e o convite mais recente de cada ow
 Adiciona ou reemite o convite de um owner pendente.
 
 ```json
-{ "name": "Maria Silva", "email": "maria@abc.com" }
+{"name":"Maria Silva","email":"maria@abc.com"}
 ```
 
 ### `POST /api/internal/v1/invitations/{invitationId}/resend/`
 
 Reemite o convite de um owner pendente ou expirado, invalidando o convite anterior.
+
+## 15. Arquivos privados, anexos e imagens — Bucketeer
+
+Implementação validada localmente em 13/10/2026 com storage e scanner simulados.
+Configuração e funcionamento do ambiente real ainda precisam de validação; este
+documento não declara deploy ou ativação no Heroku. Todas as rotas usam sessão e
+a organização ativa do servidor. Mutações exigem CSRF.
+
+`FILES_API_ENABLED=False` retorna `501` após autenticação e membership ativa.
+Rotas de anexos também dependem de `OPERATIONS_API_ENABLED=True`.
+`FILES_UPLOADS_ENABLED=False` suspende intenções, confirmações e vínculos,
+mantendo leitura, download e remoção. Placeholder de variável não é credencial válida.
+
+### Fluxo do frontend
+
+1. Solicitar intenção de upload com finalidade e destino concreto.
+2. Enviar os bytes ao S3 com todos os campos de `upload.fields`; adicionar `file`
+   por último. Não enviar cookie/CSRF da API ao S3 nem definir manualmente o boundary.
+3. Confirmar a intenção na API. O backend fixa a versão do objeto e agenda análise.
+4. Consultar `GET files/{fileId}/` com polling moderado até `available`, `rejected`
+   ou `deleted`. `pending`, `quarantined` e `scanning` não permitem vínculo/download.
+5. Ler o destino para obter o ETag atual; vincular `fileId` com `If-Match` e
+   `Idempotency-Key`. Em `412`, reler o destino antes de decidir repetir.
+6. Solicitar a URL curta ao endpoint de download. Renovar quando expirar; não
+   persistir URLs assinadas nem colocá-las em logs, analytics ou armazenamento durável.
+
+Arquivos não vinculados são visíveis apenas ao criador. Vínculo não permite arquivo
+de outro membro, outro tenant, outra finalidade ou outro destino. Upload rejeitado
+exige nova intenção. Troca de imagem mantém a anterior enquanto processa.
+
+### `POST /api/v1/files/upload-intents/`
+
+Headers: CSRF e `Idempotency-Key` obrigatório (1–200 caracteres ASCII sem espaços).
+Mesmo payload/chave/criador repete a intenção pendente; payload diferente retorna
+`409`. A chave é reservada permanentemente nesta implementação; usar uma nova
+chave para um novo upload ou depois de expirar. Não há expurgo automático de recibos.
+
+Anexo de tarefa real:
+
+```json
+{
+  "purpose": "task_attachment",
+  "originalName": "comprovante.pdf",
+  "sizeBytes": 123456,
+  "contentType": "application/pdf",
+  "target": {"competenceId": "<UUID>", "taskId": "<UUID>"}
+}
+```
+
+Alternativas de finalidade e destino (não misturar campos):
+
+| Finalidade | `target` |
+|---|---|
+| `task_attachment` recorrente | `{"referenceMonth":"2026-10","occurrenceKey":"<UUID>"}` |
+| `member_avatar` | `{"memberId":"<UUID_DA_MEMBERSHIP>"}` |
+| `department_image` | `{"departmentId":"<UUID>"}` |
+
+Resposta `201`:
+
+```json
+{
+  "intentId": "<UUID>",
+  "fileId": "<UUID>",
+  "expiresAt": "2026-10-08T18:30:00Z",
+  "upload": {
+    "url": "https://<BUCKET>.s3.<REGION>.amazonaws.com/",
+    "fields": {"key":"<KEY_ASSINADA>", "Content-Type":"application/pdf", "policy":"<POLICY>", "x-amz-signature":"<SIGNATURE>"}
+  }
+}
+```
+
+`fields` é opaco e contém outros campos obrigatórios de assinatura, tags e
+criptografia. Enviar exatamente todos os campos retornados. `expiresAt` é o prazo
+da intenção; a autorização S3 expira em até cinco minutos e nunca além desse prazo.
+
+Exemplo do envio direto no navegador, após obter a intenção:
+
+```javascript
+const form = new FormData();
+for (const [key, value] of Object.entries(intent.upload.fields)) {
+  form.append(key, value);
+}
+form.append("file", selectedFile);
+const upload = await fetch(intent.upload.url, {
+  method: "POST", body: form, credentials: "omit"
+});
+if (!upload.ok) throw new Error("Upload ao armazenamento falhou");
+// Confirmar somente após o S3 responder com sucesso.
+```
+
+Defaults: anexos PDF/TXT/CSV/JPEG/PNG/WebP até 20 MiB; avatar/imagem somente
+JPEG/PNG/WebP até 5 MiB e 16 MP. Nome/extensão, MIME detectado e tamanho
+são validados no servidor. Antimalware só é executado quando
+`FILES_REQUIRE_MALWARE_SCAN=True`; no rollout interno, a análise é dispensada por
+configuração e registrada na auditoria. SVG, animação, binários não permitidos e PDFs criptografados
+são rejeitados. TXT/CSV precisam de UTF-8 e são servidos como download.
+
+### `POST /api/v1/files/upload-intents/{intentId}/confirm/`
+
+Enviar `{}` com CSRF. Retorna `202` com o objeto de arquivo. Confirmação repetida
+não altera a versão S3 nem duplica job; intenção expirada retorna `410`.
+Essa operação não vincula, não materializa tarefa e não libera download.
+
+### `GET /api/v1/files/{fileId}/`
+
+Resposta `200`:
+
+```json
+{
+  "fileId": "<UUID>", "purpose": "member_avatar", "state": "available",
+  "originalName": "foto.jpg", "sizeBytes": 123456, "contentType": "image/jpeg",
+  "rejectionReason": "", "createdAt": "2026-10-08T18:00:00Z",
+  "expiresAt": "2026-10-08T18:31:00Z",
+  "variants": [
+    {"kind":"64","width":64,"height":64,"contentType":"image/webp"},
+    {"kind":"256","width":256,"height":256,"contentType":"image/webp"}
+  ]
+}
+```
+
+Estados: `pending`, `quarantined`, `scanning`, `available`, `rejected`, `deleted`.
+Antes de análise, `contentType` pode ser vazio e tamanho é o declarado.
+Para imagens, os metadados de tamanho/MIME descrevem a entrada; as variantes
+descrevem as imagens reescritas que podem ser exibidas. O original de foto/imagem
+nunca é disponibilizado. `expiresAt` controla o arquivo sem vínculo; não representa
+expiração do download e não remove arquivos já vinculados.
+
+### `DELETE /api/v1/files/upload-intents/{intentId}/`
+
+CSRF; `204`. Cancela arquivo ainda não vinculado, bloqueia sua disponibilidade e
+agenda limpeza. Para arquivo vinculado, remover pelo endpoint do proprietário;
+cancelamento retorna `409`.
+
+### Coleções e remoção de anexos
+
+| Método | Rota após `/api/v1/` |
+|---|---|
+| `GET/POST` | `competences/{competenceId}/tasks/{taskId}/attachments/` |
+| `DELETE` | `competences/{competenceId}/tasks/{taskId}/attachments/{attachmentId}/` |
+| `GET/POST` | `competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/attachments/` |
+| `DELETE` | `competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/attachments/{attachmentId}/` |
+
+GET usa `?page=`, retorna `count`, `next`, `previous`, `results`; cada resultado
+possui `attachmentId`, `createdByMemberId`, `createdAt` e `file` com o contrato acima.
+Uma ocorrência virtual possui lista vazia e não é materializada pela consulta.
+GET de tarefa materializada inclui seu ETag. Para ocorrência virtual, obter ETag
+no endpoint de detalhe do card.
+
+POST recebe `{"fileId":"<UUID_APROVADO>"}` com CSRF, `If-Match` e
+`Idempotency-Key`; retorna `201`:
+
+```json
+{
+  "attachmentId":"<UUID>", "fileId":"<UUID>", "taskId":"<UUID>",
+  "version":2, "etag":"\"2\"", "materialized":false
+}
+```
+
+Primeiro vínculo em virtual retorna `materialized=true`, versão inicial 1 e
+motivo `attachment`. Mantém `occurrenceKey`. Repetição da mesma operação retorna o
+recibo original; refazer com chave diferente sobre arquivo já vinculado retorna
+`409`. Releia o recurso para obter sua versão atual após replay.
+
+DELETE exige CSRF e `If-Match` da tarefa; retorna `204` com novo ETag.
+Remover não desmaterializa tarefa nem altera status/responsável. Inclusão e remoção
+produzem eventos `attachment_added`/`attachment_removed`.
+
+Quem pode ler a tarefa pode ler seus anexos. Owner/admin e líder podem adicionar
+e remover; contributor atribuído pode adicionar anexos e remover apenas os próprios
+enquanto a tarefa estiver `pending` ou `in_progress`. Leitor não altera. Para uma
+ocorrência ainda virtual, solicitar/vincular anexo exige owner/admin ou `lead`;
+contributor não materializa a ocorrência por esse fluxo.
+Tarefa arquivada, departamento inativo e competência finalizada bloqueiam mutações.
+Limite de 20 anexos ativos por tarefa, configurável.
+
+### Fotos e imagens de departamentos
+
+| Métodos | Rota |
+|---|---|
+| `GET/PUT/DELETE` | `/api/v1/organization-members/{memberId}/avatar/` |
+| `GET/PUT/DELETE` | `/api/v1/departments/{departmentId}/image/` |
+
+GET retorna `{"version":1,"file":null}` quando vazio e `ETag: "1"`, sem criar
+slot no banco. Quando houver imagem, `file` segue o contrato de metadados acima.
+PUT recebe `{"fileId":"<UUID_APROVADO>"}`, CSRF, ETag da imagem e
+`Idempotency-Key`; retorna `200` com `fileId`, `version` e `etag`. DELETE exige
+CSRF/ETag e retorna `204` com novo ETag. As versões são próprias da imagem,
+independentes das versões de tarefa, membership e sessão.
+
+O próprio membro lê e troca sua foto na organização ativa. Outros leitores seguem
+a visibilidade atual do roster. Owner/admin pode remover foto de outro membro,
+mas não substituí-la. Foto não é global de `User` e não revoga sessões.
+Quem vê o departamento vê a imagem; apenas owner/admin altera em departamento ativo.
+
+As respostas de sessão/membership incluem `avatar`; as respostas de membros incluem
+`avatar`; as de departamentos incluem `image`. A referência é nula ou:
+
+```json
+{"fileId":"<UUID>","version":2,"variants":["64","256"]}
+```
+
+Esses campos não contêm URL. O frontend deve solicitar a variante para exibição e
+manter iniciais/ícone como fallback. Imagens são quadradas, recortadas ao centro,
+WebP estático em 64/256 pixels, reencodadas sem EXIF/GPS. Falha no novo upload ou
+ETag obsoleto mantém a imagem anterior.
+
+### `POST /api/v1/files/{fileId}/download/`
+
+CSRF; enviar `{}` para anexo ou `{"variant":"64"}`/`{"variant":"256"}` para
+imagem. Imagem sem variante explícita usa `256`. Retorna `200`:
+
+```json
+{"url":"https://<URL_ASSINADA>","expiresIn":60}
+```
+
+Reautoriza pelo vínculo e recurso de negócio. Arquivo aprovado ainda não vinculado
+retorna `409`; tenant/recurso invisível retorna `404`. Anexos são download;
+somente variantes reescritas podem ser inline. A resposta da API usa `no-store`.
+URL emitida pode continuar válida por até 60 segundos após revogação de acesso;
+revogação impede novas emissões.
+
+### Erros e limites de operação
+
+| HTTP | Situação |
+|---|---|
+| `400` | Payload, destino ou parâmetros desconhecidos/inválidos |
+| `403` | Ação proibida em recurso visível |
+| `404` | Tenant, arquivo ou destino fora da visibilidade |
+| `409` | Arquivo não aprovado, destino errado, cota ou limite de anexos, idempotência incompatível |
+| `410` | Intenção/arquivo sem vínculo expirado |
+| `412` / `428` | ETag divergente / `If-Match` ausente |
+| `413` / `415` | Tamanho excessivo / formato declarado não permitido |
+| `429` | Throttle por usuário, default 120/minuto |
+| `501` | API de arquivos ou novos uploads desabilitados |
+| `503` | Bucket/configuração indisponível ou confirmação S3 falhou |
+
+Quando `FILES_REQUIRE_MALWARE_SCAN=True`, falhas de scanner ocorrem no worker: polling mantém o estado sem aprovação durante
+retries e, ao esgotar tentativas, o arquivo fica `deleted`. Conteúdo inválido recebe
+`rejected` com motivo técnico. Não exibir mensagens de SDK ou assinatura ao usuário.
+
+Cota default de 5 GiB por organização e dez uploads não vinculados por membro.
+Reserva cobre entrada e teto dos derivados. Arquivo removido deixa de emitir URLs
+imediatamente; sua cota é liberada após limpeza física confirmada.
+
+Configuração e operação: [CONFIGURACAO_ARQUIVOS_BUCKETEER.md](CONFIGURACAO_ARQUIVOS_BUCKETEER.md).
+
+## 16. Alinhamento com o documento do frontend
+
+Comparação realizada em 14/10/2026 com o texto fornecido pelo usuário. O código
+atual do backend define o contrato; mudanças de texto ou formatação no frontend
+não criam rotas, campos ou permissões adicionais.
+
+| Tema | Contrato atual para os dois projetos |
+|---|---|
+| Funcionários → colaboradores | Usar colaborador nos textos; preservar `organization-members/`, `memberId`, `membershipId`, `assigneeMemberId` e `defaultAssigneeMemberId` nos requests/responses |
+| Código da empresa | Opcional e anulável, conforme `ClientCompanyInputSerializer`/`ClientCompanyPatchSerializer`; frontend aceita ausência de código |
+| Anexos | Os placeholders do texto fornecido estão desatualizados; usar upload, confirmação, processamento e vínculo da seção 15 |
+| Fotos e imagens | `avatar`/`image` são referências nulas ou com `fileId`, `version` e variantes; URL temporária vem do endpoint de download |
+| Vínculos removidos | DELETE empresa–rotina apaga a linha; arquivar empresa também remove seus vínculos; tarefas materializadas preservam snapshots |
+| Empresa e departamento | Não existe endpoint público de atribuição empresa–departamento; selecionar departamento na rotina/tarefa/tela |
+| Preview de anexos | Ainda planejado; não existe `POST /api/v1/files/{fileId}/preview/` no código atual |
+
+As diferenças restantes no texto fornecido eram de apresentação dos exemplos JSON.
+Não foram identificadas outras rotas ou campos novos exclusivos daquele texto.
+Permissões e identificadores permanecem conforme o código, mesmo quando labels
+do produto mudam. Algumas mensagens de erro/descriptions internas ainda usam
+“funcionário”; essa redação não altera o contrato de colaboradores acima.
+
+Fontes conferidas: `apps/organizations/api/urls.py`, serializers, views e policies
+de organizações; `apps/clients/api/serializers.py`, validators e services;
+`apps/routines/api/serializers.py`, views e services; `apps/operations/api/urls.py`
+e projeções; `apps/files/api/urls.py`, views, serializers, policies e services.
+
+Conferência local desta revisão: 103 combinações de método/rota documentadas
+encontradas no schema gerado ou no resolvedor Django, 14 exemplos JSON válidos e
+16 seções numeradas sem repetição. Os serializers de empresa também foram
+exercitados sem banco para confirmar omissão, `null` e código vazio.

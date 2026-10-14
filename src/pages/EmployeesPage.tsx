@@ -8,6 +8,8 @@ import {
 } from 'react'
 
 import ErrorState from '../components/common/ErrorState'
+import ImageEditor from '../components/files/ImageEditor'
+import PrivateImage from '../components/files/PrivateImage'
 import LoadingState from '../components/common/LoadingState'
 import {
   CatalogAction,
@@ -139,12 +141,18 @@ function EmployeesPage({ departments }: { departments: Department[] }) {
                   ariaLabel={`Abrir perfil de ${member.displayName}`}
                   gridClass={employeeGrid}
                 >
-                  <CatalogPrimary
-                    title={member.displayName}
-                    description={
-                      departmentLabels.join(' · ') || 'Sem departamento'
-                    }
-                  />
+                  <div className="flex min-w-0 items-center gap-3">
+                    <PrivateImage
+                      reference={member.avatar}
+                      label={member.displayName}
+                    />
+                    <CatalogPrimary
+                      title={member.displayName}
+                      description={
+                        departmentLabels.join(' · ') || 'Sem departamento'
+                      }
+                    />
+                  </div>
                   <CatalogDatum label="E-mail">{member.email}</CatalogDatum>
                   <CatalogDatum label="Cargo">
                     {getRoleLabel(member.role)}
@@ -503,6 +511,13 @@ function EmployeeProfilePanel({
         </dl>
 
         <div className="flex-1 overflow-y-auto px-5 py-5">
+          <ImageEditor
+            destination={{
+              purpose: 'member_avatar',
+              target: { memberId: member.id },
+            }}
+            label={member.displayName}
+          />
           {(actionMessage || actionError) && (
             <p
               role={actionError ? 'alert' : 'status'}

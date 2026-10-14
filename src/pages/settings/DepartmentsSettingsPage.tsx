@@ -2,6 +2,7 @@ import { useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import EmptyState from '../../components/common/EmptyState'
+import PrivateImage from '../../components/files/PrivateImage'
 import {
   SettingsContentSection,
   SettingsPageHeader,
@@ -216,12 +217,10 @@ function DepartmentsSettingsPage({
                 return (
                   <li key={department.id} className="px-4 py-4 sm:px-5">
                     <div className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-3 @min-[32rem]/settings:grid-cols-[2.5rem_minmax(0,1fr)_auto] @min-[32rem]/settings:items-center">
-                      <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-sm font-black text-[var(--color-brand)]">
-                        {department.name
-                          .trim()
-                          .slice(0, 1)
-                          .toLocaleUpperCase('pt-BR') || 'D'}
-                      </span>
+                      <PrivateImage
+                        reference={department.image}
+                        label={department.name}
+                      />
                       <div className="min-w-0 flex-1">
                         <Link
                           to={getSettingsDepartmentPath(department.id)}
