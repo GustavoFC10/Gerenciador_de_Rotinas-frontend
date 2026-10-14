@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router'
 
 import EmptyState from '../../components/common/EmptyState'
+import ImageEditor from '../../components/files/ImageEditor'
 import {
   DepartmentSettingsHeader,
   SettingsChevron,
@@ -51,6 +52,13 @@ export function DepartmentGeneralSettingsPage({
               value={department.description || 'Sem descrição cadastrada'}
             />
           </dl>
+          <ImageEditor
+            destination={{
+              purpose: 'department_image',
+              target: { departmentId: department.id },
+            }}
+            label={department.name}
+          />
           <DepartmentDevelopmentAction
             label="Editar dados do departamento"
             message="A edição de departamentos está em desenvolvimento e ainda não possui suporte no backend."

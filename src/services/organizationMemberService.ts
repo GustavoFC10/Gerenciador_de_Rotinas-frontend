@@ -1,4 +1,5 @@
 import { HttpClient, httpClient } from './httpClient'
+import type { ImageReference } from '../types/files'
 import type { ApiResponse } from './httpClient'
 import type { DepartmentAccessRole, OrganizationRole } from '../types/domain'
 
@@ -18,6 +19,7 @@ export interface DepartmentAccessResource {
 }
 
 export interface OrganizationMemberResource {
+  avatar?: ImageReference | null
   id: string
   email: string
   displayName: string

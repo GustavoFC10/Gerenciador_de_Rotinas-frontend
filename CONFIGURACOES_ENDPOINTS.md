@@ -148,7 +148,37 @@ Esse recurso deve conter `id`, `name`, `description`, `permissions`, `isSystem`,
 roles de sistema e devem continuar separando o papel organizacional do acesso a
 departamentos. É uma extensão futura, não um contrato consumido pela tela atual.
 
-## Checklist para conectar um novo endpoint
+## Arquivos e novas integrações
+
+### Arquivos já integrados
+
+Os anexos de tarefas, fotos de colaboradores e imagens de departamentos seguem
+o contrato da seção 15 de `ENDPOINTS.md`. `fileService` solicita intenção, envia
+os bytes diretamente ao armazenamento sem credenciais da API, confirma,
+consulta o processamento e vincula apenas arquivos aprovados. Vínculos e remoções
+releem o ETag do destino; conflitos exigem revisão e nova tentativa explícita.
+
+O frontend não recebe credenciais do bucket. Além de `VITE_API_URL`, a integração
+depende de `FILES_API_ENABLED`, `FILES_UPLOADS_ENABLED`, configuração do bucket,
+worker e CORS no backend/armazenamento; anexos também exigem
+`OPERATIONS_API_ENABLED`. URLs assinadas de imagens são mantidas apenas em memória
+e renovadas antes da expiração. Downloads de anexos pedem nova URL a cada clique;
+o contrato não oferece prévia de anexos.
+
+Para validar em um ambiente integrado:
+
+1. Anexar um PDF a uma tarefa e a uma ocorrência virtual; conferir materialização
+   somente após aprovação/vínculo, mantendo status e responsável.
+2. Baixar e remover anexos; testar contributor atribuído, lead e viewer, além de
+   competência finalizada.
+3. Trocar/remover a própria foto e a imagem de departamento; confirmar que admin
+   pode remover, mas não substituir, a foto de outro colaborador.
+4. Forçar rejeição, indisponibilidade de uploads, conflito de ETag e expiração;
+   conferir mensagens, cancelamento e retomada sem duplicar envios.
+5. Aguardar mais de um minuto nas telas com imagens e alternar a organização;
+   conferir renovação de URLs, fallback e descarte da imagem anterior.
+
+### Novas integrações
 
 1. Adicionar a operação e os schemas ao `openapi.yml` do backend.
 2. Atualizar o exemplo correspondente em `ENDPOINTS.md`.

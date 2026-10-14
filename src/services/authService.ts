@@ -1,4 +1,5 @@
 import { ApiError, HttpClient, httpClient } from './httpClient'
+import type { ImageReference } from '../types/files'
 import type {
   AppUser,
   DepartmentAccessAssignment,
@@ -41,6 +42,7 @@ export interface OrganizationSummary {
 }
 
 export interface MembershipSummary {
+  avatar?: ImageReference | null
   id: string
   displayName: string
   role: OrganizationRole
@@ -211,6 +213,7 @@ export function createAppUser(authState: AuthState | null): AppUser | null {
     role: membership.role,
     departmentAccesses: authState.departmentAccesses,
     avatarUrl: '',
+    avatar: membership.avatar,
   }
 }
 

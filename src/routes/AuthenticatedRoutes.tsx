@@ -291,6 +291,7 @@ function renderOperationalRoutes({
               onClientOpen={(client) => handleClientListOpen(client.id)}
               onRoutineOpen={(routine) => handleRoutineListOpen(routine.id)}
               onTaskOpen={(task) => taskDetails.openTask(task.id)}
+              onTaskAttachmentAdd={(task) => taskDetails.openTask(task.id)}
               onTaskStatusChange={taskDetails.requestTaskTransition}
               getAllowedTaskStatusChanges={taskDetails.getAllowedStatusChanges}
             />

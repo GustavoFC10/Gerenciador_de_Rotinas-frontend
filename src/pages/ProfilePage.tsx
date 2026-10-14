@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import Card from '../components/ui/Card'
+import ImageEditor from '../components/files/ImageEditor'
 import Button from '../components/ui/Button'
 import Select from '../components/ui/Select'
 import TextField from '../components/ui/TextField'
@@ -43,6 +44,13 @@ function ProfilePage() {
         </h1>
       </header>
 
+      <ImageEditor
+        destination={{
+          purpose: 'member_avatar',
+          target: { memberId: user.membershipId },
+        }}
+        label={user.name}
+      />
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <TextField label="Nome" value={user.name} readOnly />
         <TextField label="Email" value={user.email} readOnly />

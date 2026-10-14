@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import LoadingState from './components/common/LoadingState'
+import TaskAttachmentsPanel from './components/files/TaskAttachmentsPanel'
 import TaskDetailsDialog from './components/routine-control/details/TaskDetailsDialog'
 import { isInternalRoute, ROUTES } from './constants/routes'
 import { useAppState } from './hooks/useAppState'
@@ -204,6 +205,15 @@ function AuthenticatedApp({
       {taskDetails.selectedTask && (
         <TaskDetailsDialog
           task={taskDetails.selectedTask}
+          attachmentsPanel={
+            <TaskAttachmentsPanel
+              key={`${scope.organizationId}:${scope.membershipId}:${taskDetails.selectedTask.period}:${taskDetails.selectedTask.id}`}
+              task={taskDetails.selectedTask}
+              scope={scope}
+              user={user}
+              competenceStatus={response?.meta.competenceStatus}
+            />
+          }
           {...taskDetails.selectedRelations}
           employees={taskDetails.selectedTaskEmployees}
           onStatusChange={taskDetails.requestTaskTransition}

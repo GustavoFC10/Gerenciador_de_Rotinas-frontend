@@ -1,3 +1,5 @@
+import type { ImageReference } from './files'
+
 export type EntityId = string
 
 export type OrganizationRole = 'owner' | 'admin' | 'member'
@@ -15,6 +17,7 @@ export type RoutineStatus =
 export type CompetenceStatus = 'projected' | 'finalized'
 
 export interface Department {
+  image?: ImageReference | null
   id: EntityId
   name: string
   description?: string
@@ -142,6 +145,7 @@ export type RoutineRecurrence =
   'on_demand' | 'monthly' | 'quarterly' | 'semiannual' | 'annual'
 
 export interface Employee {
+  avatar?: ImageReference | null
   id: EntityId
   name: string
   departmentAccesses?: DepartmentAccessAssignment[]
@@ -183,6 +187,7 @@ export interface TaskIndicators {
 }
 
 export interface Task {
+  archivedAt?: string | null
   id: EntityId
   occurrenceKey?: EntityId
   taskId?: EntityId | null
@@ -248,6 +253,7 @@ export interface NormalizedRoutineData {
 }
 
 export interface AppUser {
+  avatar?: ImageReference | null
   id: EntityId
   membershipId: EntityId
   name: string

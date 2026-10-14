@@ -247,7 +247,6 @@ function RoutineControlTable({
 
   function handleTaskAttachmentAdd(task: Task) {
     onTaskAttachmentAdd?.(task)
-    showActionFeedback('Arquivo anexado à tarefa.')
   }
 
   return (
