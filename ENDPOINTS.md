@@ -147,7 +147,7 @@ curl.exe -c cookies.txt "$BASE_URL/api/v1/auth/csrf/"
 Exemplo de resposta:
 
 ```json
-{"csrfToken":"TOKEN_MASCARADO"}
+{ "csrfToken": "TOKEN_MASCARADO" }
 ```
 
 ### `POST /api/v1/auth/login/`
@@ -1133,13 +1133,13 @@ curl.exe -X POST "$BASE_URL/api/v1/competences/<UUID_DA_COMPETENCIA>/tasks/<UUID
 Exemplo sem movimento:
 
 ```json
-{"targetStatus":"no_movement"}
+{ "targetStatus": "no_movement" }
 ```
 
 Exemplo de erro:
 
 ```json
-{"targetStatus":"error"}
+{ "targetStatus": "error" }
 ```
 
 Quando houver contexto sobre a transição, atualize `observation` pelo endpoint de
@@ -1286,20 +1286,39 @@ Exemplo resumido:
 ```json
 {
   "type": "spreadsheet",
-  "screen": {"id": "<UUID_DA_TELA>", "name": "MEI", "type": "spreadsheet"},
+  "screen": { "id": "<UUID_DA_TELA>", "name": "MEI", "type": "spreadsheet" },
   "competenceId": null,
   "period": "2026-10",
   "rows": [
-    {"id": "<UUID_DA_EMPRESA>", "code": "007", "name": "Empresa X", "legalName": "Empresa X Ltda.", "position": 0}
+    {
+      "id": "<UUID_DA_EMPRESA>",
+      "code": "007",
+      "name": "Empresa X",
+      "legalName": "Empresa X Ltda.",
+      "position": 0
+    }
   ],
   "columns": [
-    {"id": "<UUID_DA_ROTINA>", "shotname": "DAS", "name": "Apuração mensal do DAS", "departmentId": "<UUID_DO_DEPARTAMENTO>", "position": 0}
+    {
+      "id": "<UUID_DA_ROTINA>",
+      "shotname": "DAS",
+      "name": "Apuração mensal do DAS",
+      "departmentId": "<UUID_DO_DEPARTAMENTO>",
+      "position": 0
+    }
   ],
   "cells": [
     {
       "companyId": "<UUID_DA_EMPRESA>",
       "routineId": "<UUID_DA_ROTINA>",
-      "tasks": [{"occurrenceKey":"<UUID_ESTAVEL>","taskId":null,"persistence":"virtual","status":"pending"}]
+      "tasks": [
+        {
+          "occurrenceKey": "<UUID_ESTAVEL>",
+          "taskId": null,
+          "persistence": "virtual",
+          "status": "pending"
+        }
+      ]
     }
   ]
 }
@@ -1319,15 +1338,30 @@ Exemplo resumido:
 ```json
 {
   "type": "agenda",
-  "screen": {"id": "<UUID_DA_TELA>", "name": "Agenda Fiscal", "type": "agenda"},
+  "screen": {
+    "id": "<UUID_DA_TELA>",
+    "name": "Agenda Fiscal",
+    "type": "agenda"
+  },
   "competenceId": "<UUID_DA_COMPETENCIA_OU_NULL>",
   "period": "2026-10",
   "columns": [
-    {"status": "pending", "count": 1, "tasks": [{"id": "<UUID_DA_TAREFA>", "kind": "ad_hoc", "title": "Revisar pendência"}], "hasMore": false},
-    {"status": "in_progress", "count": 0, "tasks": [], "hasMore": false},
-    {"status": "completed", "count": 0, "tasks": [], "hasMore": false},
-    {"status": "no_movement", "count": 0, "tasks": [], "hasMore": false},
-    {"status": "error", "count": 0, "tasks": [], "hasMore": false}
+    {
+      "status": "pending",
+      "count": 1,
+      "tasks": [
+        {
+          "id": "<UUID_DA_TAREFA>",
+          "kind": "ad_hoc",
+          "title": "Revisar pendência"
+        }
+      ],
+      "hasMore": false
+    },
+    { "status": "in_progress", "count": 0, "tasks": [], "hasMore": false },
+    { "status": "completed", "count": 0, "tasks": [], "hasMore": false },
+    { "status": "no_movement", "count": 0, "tasks": [], "hasMore": false },
+    { "status": "error", "count": 0, "tasks": [], "hasMore": false }
   ]
 }
 ```
@@ -1395,7 +1429,7 @@ Retorna os dados da organizacao, seus owners e o convite mais recente de cada ow
 Adiciona ou reemite o convite de um owner pendente.
 
 ```json
-{"name":"Maria Silva","email":"maria@abc.com"}
+{ "name": "Maria Silva", "email": "maria@abc.com" }
 ```
 
 ### `POST /api/internal/v1/invitations/{invitationId}/resend/`
@@ -1446,17 +1480,17 @@ Anexo de tarefa real:
   "originalName": "comprovante.pdf",
   "sizeBytes": 123456,
   "contentType": "application/pdf",
-  "target": {"competenceId": "<UUID>", "taskId": "<UUID>"}
+  "target": { "competenceId": "<UUID>", "taskId": "<UUID>" }
 }
 ```
 
 Alternativas de finalidade e destino (não misturar campos):
 
-| Finalidade | `target` |
-|---|---|
+| Finalidade                   | `target`                                                |
+| ---------------------------- | ------------------------------------------------------- |
 | `task_attachment` recorrente | `{"referenceMonth":"2026-10","occurrenceKey":"<UUID>"}` |
-| `member_avatar` | `{"memberId":"<UUID_DA_MEMBERSHIP>"}` |
-| `department_image` | `{"departmentId":"<UUID>"}` |
+| `member_avatar`              | `{"memberId":"<UUID_DA_MEMBERSHIP>"}`                   |
+| `department_image`           | `{"departmentId":"<UUID>"}`                             |
 
 Resposta `201`:
 
@@ -1467,7 +1501,12 @@ Resposta `201`:
   "expiresAt": "2026-10-08T18:30:00Z",
   "upload": {
     "url": "https://<BUCKET>.s3.<REGION>.amazonaws.com/",
-    "fields": {"key":"<KEY_ASSINADA>", "Content-Type":"application/pdf", "policy":"<POLICY>", "x-amz-signature":"<SIGNATURE>"}
+    "fields": {
+      "key": "<KEY_ASSINADA>",
+      "Content-Type": "application/pdf",
+      "policy": "<POLICY>",
+      "x-amz-signature": "<SIGNATURE>"
+    }
   }
 }
 ```
@@ -1479,15 +1518,17 @@ da intenção; a autorização S3 expira em até cinco minutos e nunca além des
 Exemplo do envio direto no navegador, após obter a intenção:
 
 ```javascript
-const form = new FormData();
+const form = new FormData()
 for (const [key, value] of Object.entries(intent.upload.fields)) {
-  form.append(key, value);
+  form.append(key, value)
 }
-form.append("file", selectedFile);
+form.append('file', selectedFile)
 const upload = await fetch(intent.upload.url, {
-  method: "POST", body: form, credentials: "omit"
-});
-if (!upload.ok) throw new Error("Upload ao armazenamento falhou");
+  method: 'POST',
+  body: form,
+  credentials: 'omit',
+})
+if (!upload.ok) throw new Error('Upload ao armazenamento falhou')
 // Confirmar somente após o S3 responder com sucesso.
 ```
 
@@ -1510,13 +1551,18 @@ Resposta `200`:
 
 ```json
 {
-  "fileId": "<UUID>", "purpose": "member_avatar", "state": "available",
-  "originalName": "foto.jpg", "sizeBytes": 123456, "contentType": "image/jpeg",
-  "rejectionReason": "", "createdAt": "2026-10-08T18:00:00Z",
+  "fileId": "<UUID>",
+  "purpose": "member_avatar",
+  "state": "available",
+  "originalName": "foto.jpg",
+  "sizeBytes": 123456,
+  "contentType": "image/jpeg",
+  "rejectionReason": "",
+  "createdAt": "2026-10-08T18:00:00Z",
   "expiresAt": "2026-10-08T18:31:00Z",
   "variants": [
-    {"kind":"64","width":64,"height":64,"contentType":"image/webp"},
-    {"kind":"256","width":256,"height":256,"contentType":"image/webp"}
+    { "kind": "64", "width": 64, "height": 64, "contentType": "image/webp" },
+    { "kind": "256", "width": 256, "height": 256, "contentType": "image/webp" }
   ]
 }
 ```
@@ -1536,12 +1582,12 @@ cancelamento retorna `409`.
 
 ### Coleções e remoção de anexos
 
-| Método | Rota após `/api/v1/` |
-|---|---|
-| `GET/POST` | `competences/{competenceId}/tasks/{taskId}/attachments/` |
-| `DELETE` | `competences/{competenceId}/tasks/{taskId}/attachments/{attachmentId}/` |
-| `GET/POST` | `competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/attachments/` |
-| `DELETE` | `competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/attachments/{attachmentId}/` |
+| Método     | Rota após `/api/v1/`                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------- |
+| `GET/POST` | `competences/{competenceId}/tasks/{taskId}/attachments/`                                       |
+| `DELETE`   | `competences/{competenceId}/tasks/{taskId}/attachments/{attachmentId}/`                        |
+| `GET/POST` | `competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/attachments/`                |
+| `DELETE`   | `competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/attachments/{attachmentId}/` |
 
 GET usa `?page=`, retorna `count`, `next`, `previous`, `results`; cada resultado
 possui `attachmentId`, `createdByMemberId`, `createdAt` e `file` com o contrato acima.
@@ -1554,8 +1600,12 @@ POST recebe `{"fileId":"<UUID_APROVADO>"}` com CSRF, `If-Match` e
 
 ```json
 {
-  "attachmentId":"<UUID>", "fileId":"<UUID>", "taskId":"<UUID>",
-  "version":2, "etag":"\"2\"", "materialized":false
+  "attachmentId": "<UUID>",
+  "fileId": "<UUID>",
+  "taskId": "<UUID>",
+  "version": 2,
+  "etag": "\"2\"",
+  "materialized": false
 }
 ```
 
@@ -1578,10 +1628,10 @@ Limite de 20 anexos ativos por tarefa, configurável.
 
 ### Fotos e imagens de departamentos
 
-| Métodos | Rota |
-|---|---|
+| Métodos          | Rota                                              |
+| ---------------- | ------------------------------------------------- |
 | `GET/PUT/DELETE` | `/api/v1/organization-members/{memberId}/avatar/` |
-| `GET/PUT/DELETE` | `/api/v1/departments/{departmentId}/image/` |
+| `GET/PUT/DELETE` | `/api/v1/departments/{departmentId}/image/`       |
 
 GET retorna `{"version":1,"file":null}` quando vazio e `ETag: "1"`, sem criar
 slot no banco. Quando houver imagem, `file` segue o contrato de metadados acima.
@@ -1599,7 +1649,7 @@ As respostas de sessão/membership incluem `avatar`; as respostas de membros inc
 `avatar`; as de departamentos incluem `image`. A referência é nula ou:
 
 ```json
-{"fileId":"<UUID>","version":2,"variants":["64","256"]}
+{ "fileId": "<UUID>", "version": 2, "variants": ["64", "256"] }
 ```
 
 Esses campos não contêm URL. O frontend deve solicitar a variante para exibição e
@@ -1613,7 +1663,7 @@ CSRF; enviar `{}` para anexo ou `{"variant":"64"}`/`{"variant":"256"}` para
 imagem. Imagem sem variante explícita usa `256`. Retorna `200`:
 
 ```json
-{"url":"https://<URL_ASSINADA>","expiresIn":60}
+{ "url": "https://<URL_ASSINADA>", "expiresIn": 60 }
 ```
 
 Reautoriza pelo vínculo e recurso de negócio. Arquivo aprovado ainda não vinculado
@@ -1624,18 +1674,18 @@ revogação impede novas emissões.
 
 ### Erros e limites de operação
 
-| HTTP | Situação |
-|---|---|
-| `400` | Payload, destino ou parâmetros desconhecidos/inválidos |
-| `403` | Ação proibida em recurso visível |
-| `404` | Tenant, arquivo ou destino fora da visibilidade |
-| `409` | Arquivo não aprovado, destino errado, cota ou limite de anexos, idempotência incompatível |
-| `410` | Intenção/arquivo sem vínculo expirado |
-| `412` / `428` | ETag divergente / `If-Match` ausente |
-| `413` / `415` | Tamanho excessivo / formato declarado não permitido |
-| `429` | Throttle por usuário, default 120/minuto |
-| `501` | API de arquivos ou novos uploads desabilitados |
-| `503` | Bucket/configuração indisponível ou confirmação S3 falhou |
+| HTTP          | Situação                                                                                  |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| `400`         | Payload, destino ou parâmetros desconhecidos/inválidos                                    |
+| `403`         | Ação proibida em recurso visível                                                          |
+| `404`         | Tenant, arquivo ou destino fora da visibilidade                                           |
+| `409`         | Arquivo não aprovado, destino errado, cota ou limite de anexos, idempotência incompatível |
+| `410`         | Intenção/arquivo sem vínculo expirado                                                     |
+| `412` / `428` | ETag divergente / `If-Match` ausente                                                      |
+| `413` / `415` | Tamanho excessivo / formato declarado não permitido                                       |
+| `429`         | Throttle por usuário, default 120/minuto                                                  |
+| `501`         | API de arquivos ou novos uploads desabilitados                                            |
+| `503`         | Bucket/configuração indisponível ou confirmação S3 falhou                                 |
 
 Quando `FILES_REQUIRE_MALWARE_SCAN=True`, falhas de scanner ocorrem no worker: polling mantém o estado sem aprovação durante
 retries e, ao esgotar tentativas, o arquivo fica `deleted`. Conteúdo inválido recebe
@@ -1653,15 +1703,15 @@ Comparação realizada em 14/10/2026 com o texto fornecido pelo usuário. O cód
 atual do backend define o contrato; mudanças de texto ou formatação no frontend
 não criam rotas, campos ou permissões adicionais.
 
-| Tema | Contrato atual para os dois projetos |
-|---|---|
+| Tema                         | Contrato atual para os dois projetos                                                                                                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Funcionários → colaboradores | Usar colaborador nos textos; preservar `organization-members/`, `memberId`, `membershipId`, `assigneeMemberId` e `defaultAssigneeMemberId` nos requests/responses |
-| Código da empresa | Opcional e anulável, conforme `ClientCompanyInputSerializer`/`ClientCompanyPatchSerializer`; frontend aceita ausência de código |
-| Anexos | Os placeholders do texto fornecido estão desatualizados; usar upload, confirmação, processamento e vínculo da seção 15 |
-| Fotos e imagens | `avatar`/`image` são referências nulas ou com `fileId`, `version` e variantes; URL temporária vem do endpoint de download |
-| Vínculos removidos | DELETE empresa–rotina apaga a linha; arquivar empresa também remove seus vínculos; tarefas materializadas preservam snapshots |
-| Empresa e departamento | Não existe endpoint público de atribuição empresa–departamento; selecionar departamento na rotina/tarefa/tela |
-| Preview de anexos | Ainda planejado; não existe `POST /api/v1/files/{fileId}/preview/` no código atual |
+| Código da empresa            | Opcional e anulável, conforme `ClientCompanyInputSerializer`/`ClientCompanyPatchSerializer`; frontend aceita ausência de código                                   |
+| Anexos                       | Os placeholders do texto fornecido estão desatualizados; usar upload, confirmação, processamento e vínculo da seção 15                                            |
+| Fotos e imagens              | `avatar`/`image` são referências nulas ou com `fileId`, `version` e variantes; URL temporária vem do endpoint de download                                         |
+| Vínculos removidos           | DELETE empresa–rotina apaga a linha; arquivar empresa também remove seus vínculos; tarefas materializadas preservam snapshots                                     |
+| Empresa e departamento       | Não existe endpoint público de atribuição empresa–departamento; selecionar departamento na rotina/tarefa/tela                                                     |
+| Preview de anexos            | Ainda planejado; não existe `POST /api/v1/files/{fileId}/preview/` no código atual                                                                                |
 
 As diferenças restantes no texto fornecido eram de apresentação dos exemplos JSON.
 Não foram identificadas outras rotas ou campos novos exclusivos daquele texto.
