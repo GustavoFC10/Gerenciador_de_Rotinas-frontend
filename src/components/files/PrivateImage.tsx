@@ -8,11 +8,13 @@ export default function PrivateImage({
   label,
   variant = '64',
   className = 'size-10',
+  shape = 'avatar',
 }: {
   reference?: ImageReference | null
   label: string
   variant?: '64' | '256'
   className?: string
+  shape?: 'avatar' | 'department'
 }) {
   const auth = useContext(AuthContext)
   const scope = auth?.activeMembership
@@ -59,19 +61,24 @@ export default function PrivateImage({
       .map((part) => part[0])
       .join('')
       .toLocaleUpperCase('pt-BR') || '?'
+  const appearance =
+    shape === 'avatar'
+      ? 'rounded-full bg-[var(--color-sidebar-icon-bg)] text-[var(--color-sidebar-icon-text)]'
+      : 'rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+  const frame = `shrink-0 ring-1 ring-[var(--color-control-border)] ${appearance} ${className}`
   return image?.identity === identity ? (
     <img
       src={image.url}
       alt={label}
       referrerPolicy="no-referrer"
       onError={() => setImage(null)}
-      className={`shrink-0 rounded-[var(--radius-control)] object-cover ${className}`}
+      className={`object-cover ${frame}`}
     />
   ) : (
     <span
       role="img"
       aria-label={label}
-      className={`inline-grid shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-sm font-bold text-[var(--color-brand)] ${className}`}
+      className={`inline-grid place-items-center text-xs font-extrabold ${frame}`}
     >
       {initials}
     </span>

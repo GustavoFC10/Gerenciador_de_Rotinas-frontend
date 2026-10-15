@@ -12,6 +12,10 @@ export const queryKeys = {
   internalOrganization: (organizationId: string) =>
     ['internal', 'organizations', organizationId] as const,
   scope: scopeKey,
+  taskAttachments: (scope: OrganizationQueryScope, path: string) =>
+    [...scopeKey(scope), 'attachments', path] as const,
+  imageSlot: (scope: OrganizationQueryScope, path: string) =>
+    [...scopeKey(scope), 'image-slot', path] as const,
   routineControlRoot: (scope: OrganizationQueryScope) =>
     [...scopeKey(scope), 'routine-control'] as const,
   routineControl: (scope: OrganizationQueryScope, period: string) =>

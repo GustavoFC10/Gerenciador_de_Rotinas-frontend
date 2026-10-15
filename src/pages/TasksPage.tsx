@@ -14,6 +14,8 @@ function TasksPage({
   screenId,
   screenName,
   onItemOpen,
+  onItemQuickAction,
+  canTaskAttach,
   onItemStatusChange,
   getAllowedStatusChanges,
 }: RoutineListInteractionProps & {
@@ -46,6 +48,8 @@ function TasksPage({
         <RoutineListComparison
           items={listViewData.items}
           onItemOpen={onItemOpen}
+          onItemQuickAction={onItemQuickAction}
+          canTaskAttach={canTaskAttach}
           onItemStatusChange={onItemStatusChange}
           getAllowedStatusChanges={getAllowedStatusChanges}
           showHeader={false}

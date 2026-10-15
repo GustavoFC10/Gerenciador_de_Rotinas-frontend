@@ -220,6 +220,7 @@ function DepartmentsSettingsPage({
                       <PrivateImage
                         reference={department.image}
                         label={department.name}
+                        shape="department"
                       />
                       <div className="min-w-0 flex-1">
                         <Link

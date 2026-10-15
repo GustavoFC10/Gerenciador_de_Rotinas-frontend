@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../hooks/useAuth'
-import { queryKeys } from '../../query/queryKeys'
-import { httpClient } from '../../services/httpClient'
+import { useImageSlot } from '../../hooks/useFileQueries'
+import { queryKeys, type OrganizationQueryScope } from '../../query/queryKeys'
+import { isApiError } from '../../services/httpClient'
 import {
   fileErrorMessage,
   fileOwnerPath,
   fileService,
 } from '../../services/fileService'
-import type { FileTarget, ImageSlot } from '../../types/files'
+import type { FileTarget } from '../../types/files'
+import type { AppUser } from '../../types/domain'
 import { isOrganizationAdmin } from '../../utils/permissions'
 import Button from '../ui/Button'
+import IconButton from '../ui/IconButton'
+import FileIcon from './FileIcon'
 import FileUploadControl from './FileUploadControl'
 import PrivateImage from './PrivateImage'
 
@@ -23,7 +27,7 @@ export default function ImageEditor({
   destination: ImageDestination
   label: string
 }) {
-  const { activeMembership, user } = useAuth()
+  const { activeMembership, user, refreshSession } = useAuth()
   if (!activeMembership || !user) return null
   const identity = `${activeMembership.organization.id}:${activeMembership.id}:${fileOwnerPath(destination)}`
   return (
@@ -31,6 +35,12 @@ export default function ImageEditor({
       key={identity}
       destination={destination}
       label={label}
+      scope={{
+        organizationId: activeMembership.organization.id,
+        membershipId: activeMembership.id,
+      }}
+      user={user}
+      refreshSession={refreshSession}
     />
   )
 }
@@ -38,34 +48,26 @@ export default function ImageEditor({
 function ImageEditorContent({
   destination,
   label,
+  scope,
+  user,
+  refreshSession,
 }: {
   destination: ImageDestination
   label: string
+  scope: OrganizationQueryScope
+  user: AppUser
+  refreshSession: () => Promise<void>
 }) {
-  const { activeMembership, user, refreshSession } = useAuth()
   const client = useQueryClient()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
   const controller = useRef<AbortController | null>(null)
   useEffect(() => () => controller.current?.abort(), [])
-  const scope = {
-    organizationId: activeMembership!.organization.id,
-    membershipId: activeMembership!.id,
-  }
-  const key = [
-    ...queryKeys.scope(scope),
-    'image-slot',
-    fileOwnerPath(destination),
-  ]
-  const query = useQuery({
-    queryKey: key,
-    queryFn: async ({ signal }) =>
-      (await httpClient.get<ImageSlot>(fileOwnerPath(destination), { signal }))
-        .data,
-  })
+  const query = useImageSlot(scope, destination)
   const ownAvatar =
     destination.purpose === 'member_avatar' &&
-    destination.target.memberId === user!.membershipId
+    destination.target.memberId === user.membershipId
   const canReplace =
     destination.purpose === 'department_image'
       ? isOrganizationAdmin(user)
@@ -78,6 +80,7 @@ function ImageEditorContent({
     if (ownAvatar) await refreshSession()
   }
   async function remove() {
+    if (busy || isUploading) return
     const active = new AbortController()
     controller.current = active
     setBusy(true)
@@ -101,6 +104,16 @@ function ImageEditorContent({
         variants: query.data.file.variants.map((variant) => variant.kind),
       }
     : null
+
+  // A flag desabilitada não é um erro da pessoa nem um estado de edição.
+  if (
+    query.isPending ||
+    (isApiError(query.error) && query.error.status === 501)
+  )
+    return null
+  if (!reference && !canReplace && !query.error) return null
+  const isAvatar = destination.purpose === 'member_avatar'
+  const uploadLabel = `${reference ? 'Trocar' : 'Adicionar'} ${isAvatar ? 'foto' : 'imagem'}`
   return (
     <section
       aria-label={
@@ -108,40 +121,69 @@ function ImageEditorContent({
           ? 'Foto do colaborador'
           : 'Imagem do departamento'
       }
-      className="my-4 space-y-3"
+      className="flex max-w-full flex-wrap items-center gap-3"
     >
-      <PrivateImage
-        reference={reference}
-        label={label}
-        variant="256"
-        className="size-24"
-      />
-      {query.isPending && <p role="status">Carregando imagem…</p>}
+      {reference && (
+        <PrivateImage
+          reference={reference}
+          label={label}
+          variant="256"
+          className="size-12"
+          shape={isAvatar ? 'avatar' : 'department'}
+        />
+      )}
       {query.error && (
-        <div role="alert">
-          <p>{fileErrorMessage(query.error)}</p>
-          <Button tone="neutral" onClick={() => void query.refetch()}>
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)]"
+        >
+          <p>{isAvatar ? 'Foto indisponível.' : 'Imagem indisponível.'}</p>
+          <Button
+            size="sm"
+            tone="neutral"
+            className="gap-1.5"
+            onClick={() => void query.refetch()}
+          >
+            <FileIcon name="retry" />
             Tentar novamente
           </Button>
         </div>
       )}
-      {canReplace && (
-        <FileUploadControl
-          destination={destination}
-          disabled={busy || query.isPending || Boolean(query.error)}
-          onChanged={refresh}
-        />
-      )}
-      {canRemove && query.data?.file && (
-        <Button tone="neutral" disabled={busy} onClick={() => void remove()}>
-          Remover imagem
-        </Button>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-[var(--status-error-text)]">
-          {error}
-        </p>
-      )}
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex flex-wrap items-start gap-2">
+          {canReplace && !query.error && (
+            <FileUploadControl
+              destination={destination}
+              label={uploadLabel}
+              disabled={busy}
+              onChanged={refresh}
+              onBusyChange={setIsUploading}
+            />
+          )}
+          {canRemove && query.data?.file && !query.error && (
+            <IconButton
+              label={isAvatar ? 'Remover foto' : 'Remover imagem'}
+              tone="ghost"
+              disabled={busy || isUploading}
+              onClick={() => void remove()}
+              className="shrink-0 hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error-text)]"
+            >
+              <FileIcon
+                name={busy ? 'progress' : 'remove'}
+                className={`size-4 ${busy ? 'animate-spin motion-reduce:animate-none' : ''}`}
+              />
+            </IconButton>
+          )}
+        </div>
+        {error && (
+          <p
+            role="alert"
+            className="max-w-sm rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3 py-2 text-xs font-semibold text-[var(--status-error-text)]"
+          >
+            {error}
+          </p>
+        )}
+      </div>
     </section>
   )
 }

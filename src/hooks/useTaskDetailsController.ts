@@ -16,6 +16,7 @@ import type {
   TaskRelations,
 } from '../types/domain'
 import {
+  canAddTaskAttachment,
   canAssignTask,
   canTransitionTask,
   getAllowedTaskTransitionStatuses,
@@ -63,6 +64,12 @@ export function useTaskDetailsController({
     selectedTask &&
     canOperateTask(selectedTask) &&
     canAssignTask(user, selectedTask),
+  )
+  const canAttachTask = useCallback(
+    (task: Task): boolean =>
+      canAddTaskAttachment(user, task, competenceStatus) &&
+      Boolean(task.occurrenceKey || (task.taskId && task.competenceId)),
+    [competenceStatus, user],
   )
   const getAllowedStatusChanges = useCallback(
     (task: Task): readonly RoutineStatus[] =>
@@ -280,6 +287,7 @@ export function useTaskDetailsController({
     selectedTaskStatusChanges,
     canEditSelectedTask,
     canOperateTask,
+    canAttachTask,
     getAllowedStatusChanges,
     openTask,
     closeTask,

@@ -38,19 +38,18 @@ function ProfilePage() {
 
   return (
     <Card className="max-w-2xl p-5">
-      <header className="border-b border-[var(--color-divider)] pb-4">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-divider)] pb-4">
         <h1 className="text-xl font-extrabold text-[var(--color-text-strong)] sm:text-2xl">
           Perfil e preferências
         </h1>
+        <ImageEditor
+          destination={{
+            purpose: 'member_avatar',
+            target: { memberId: user.membershipId },
+          }}
+          label={user.name}
+        />
       </header>
-
-      <ImageEditor
-        destination={{
-          purpose: 'member_avatar',
-          target: { memberId: user.membershipId },
-        }}
-        label={user.name}
-      />
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <TextField label="Nome" value={user.name} readOnly />
         <TextField label="Email" value={user.email} readOnly />

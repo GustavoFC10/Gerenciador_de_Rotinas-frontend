@@ -38,6 +38,15 @@ export function DepartmentGeneralSettingsPage({
         departmentId={department.id}
         departmentName={department.name}
         description="Configurações e funcionamento do departamento."
+        actions={
+          <ImageEditor
+            destination={{
+              purpose: 'department_image',
+              target: { departmentId: department.id },
+            }}
+            label={department.name}
+          />
+        }
       />
 
       <div className="space-y-5 pt-6">
@@ -52,13 +61,6 @@ export function DepartmentGeneralSettingsPage({
               value={department.description || 'Sem descrição cadastrada'}
             />
           </dl>
-          <ImageEditor
-            destination={{
-              purpose: 'department_image',
-              target: { departmentId: department.id },
-            }}
-            label={department.name}
-          />
           <DepartmentDevelopmentAction
             label="Editar dados do departamento"
             message="A edição de departamentos está em desenvolvimento e ainda não possui suporte no backend."
