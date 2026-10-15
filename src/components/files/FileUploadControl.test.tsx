@@ -76,6 +76,17 @@ async function click(text: string) {
   await act(async () => button.click())
 }
 describe('FileUploadControl', () => {
+  it('mantém o seletor nativo oculto e o abre somente pela ação de upload', async () => {
+    await render()
+    const input = host.querySelector('input')!
+    const open = vi.spyOn(input, 'click').mockImplementation(() => undefined)
+    expect(input.hidden).toBe(true)
+    expect(host.textContent).toBe('Selecionar imagem')
+    expect(fileService.createIntent).not.toHaveBeenCalled()
+    await click('Selecionar imagem')
+    expect(open).toHaveBeenCalledOnce()
+    expect(fileService.createIntent).not.toHaveBeenCalled()
+  })
   it('executa intenção, bytes, confirmação, processamento e vínculo nesta ordem', async () => {
     await render()
     await selectFile()
@@ -176,5 +187,27 @@ describe('FileUploadControl', () => {
     await click('Retomar')
     expect(fileService.link).toHaveBeenCalledOnce()
     expect(host.textContent).toContain('Arquivo salvo')
+  })
+
+  it('não oferece confirmação de bytes interrompidos se o cancelamento na API falhar', async () => {
+    let finishUpload: (() => void) | undefined
+    vi.mocked(fileService.upload).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishUpload = resolve
+        }),
+    )
+    vi.mocked(fileService.cancel).mockRejectedValue(
+      new Error('API indisponível'),
+    )
+    await render()
+    await selectFile()
+    await click('Cancelar envio')
+    expect(host.textContent).toContain('Selecione o arquivo novamente')
+    expect(host.textContent).not.toContain('Retomar')
+    expect(host.querySelector('input')!.disabled).toBe(false)
+    await act(async () => finishUpload?.())
+    expect(fileService.confirm).not.toHaveBeenCalled()
+    expect(fileService.link).not.toHaveBeenCalled()
   })
 })

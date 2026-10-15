@@ -63,6 +63,8 @@ function EntityDetailPage({
   onClientArchive,
   onRoutineArchive,
   onItemOpen,
+  onItemQuickAction,
+  canTaskAttach,
   onItemStatusChange,
   getAllowedStatusChanges,
 }: EntityDetailPageProps) {
@@ -241,6 +243,8 @@ function EntityDetailPage({
           key={type + ':' + entityId}
           items={listViewData.items}
           onItemOpen={onItemOpen}
+          onItemQuickAction={onItemQuickAction}
+          canTaskAttach={canTaskAttach}
           onItemStatusChange={onItemStatusChange}
           getAllowedStatusChanges={getAllowedStatusChanges}
           showHeader={false}

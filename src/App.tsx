@@ -1,9 +1,12 @@
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import LoadingState from './components/common/LoadingState'
 import TaskAttachmentsPanel from './components/files/TaskAttachmentsPanel'
+import TaskAttachmentUpload, {
+  type TaskAttachmentUploadHandle,
+} from './components/files/TaskAttachmentUpload'
 import TaskDetailsDialog from './components/routine-control/details/TaskDetailsDialog'
 import { isInternalRoute, ROUTES } from './constants/routes'
 import { useAppState } from './hooks/useAppState'
@@ -96,6 +99,8 @@ function AuthenticatedApp({
 }) {
   const queryClient = useQueryClient()
   const { competence, user } = useAppState()
+  const attachmentUploadRef = useRef<TaskAttachmentUploadHandle | null>(null)
+  const [canStartAttachmentUpload, setCanStartAttachmentUpload] = useState(true)
   const scope = useMemo(
     () => ({
       organizationId: activeMembership.organization.id,
@@ -184,6 +189,10 @@ function AuthenticatedApp({
         competenceStatus={response?.meta.competenceStatus}
         spreadsheetContext={spreadsheetContext}
         taskDetails={taskDetails}
+        onTaskAttachmentAdd={(task) => attachmentUploadRef.current?.open(task)}
+        canTaskAttach={(task) =>
+          canStartAttachmentUpload && taskDetails.canAttachTask(task)
+        }
         isOperationalDataLoading={isInitialLoading}
         operationalDataError={error}
         onRetryOperationalData={() => void refetch()}
@@ -200,6 +209,15 @@ function AuthenticatedApp({
         onDepartmentCreate={createDepartment}
         onScreenCreate={createScreen}
         onScreenUpdate={updateScreen}
+      />
+
+      <TaskAttachmentUpload
+        key={`${scope.organizationId}:${scope.membershipId}:${competence}`}
+        ref={attachmentUploadRef}
+        scope={scope}
+        user={user}
+        competenceStatus={response?.meta.competenceStatus}
+        onAvailabilityChange={setCanStartAttachmentUpload}
       />
 
       {taskDetails.selectedTask && (

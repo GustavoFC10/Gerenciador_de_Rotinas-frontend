@@ -478,7 +478,7 @@ function EmployeeProfilePanel({
         tabIndex={-1}
       >
         <header className="flex items-start justify-between gap-4 border-b border-[var(--color-divider)] px-5 py-4">
-          <div className="min-w-0">
+          <div className="min-w-0 space-y-2">
             <p className="text-xs font-bold text-[var(--color-text-muted)]">
               Perfil do colaborador
             </p>
@@ -488,6 +488,13 @@ function EmployeeProfilePanel({
             >
               {member.displayName}
             </h2>
+            <ImageEditor
+              destination={{
+                purpose: 'member_avatar',
+                target: { memberId: member.id },
+              }}
+              label={member.displayName}
+            />
           </div>
           <button
             type="button"
@@ -511,13 +518,6 @@ function EmployeeProfilePanel({
         </dl>
 
         <div className="flex-1 overflow-y-auto px-5 py-5">
-          <ImageEditor
-            destination={{
-              purpose: 'member_avatar',
-              target: { memberId: member.id },
-            }}
-            label={member.displayName}
-          />
           {(actionMessage || actionError) && (
             <p
               role={actionError ? 'alert' : 'status'}

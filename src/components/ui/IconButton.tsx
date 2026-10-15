@@ -26,7 +26,7 @@ const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         type={type}
         aria-label={label}
         title={label}
-        className={`grid size-8 place-items-center rounded-[var(--radius-control)] transition ${buttonTone[tone]} ${focusRing} ${className}`}
+        className={`grid size-8 place-items-center rounded-[var(--radius-control)] transition disabled:cursor-not-allowed disabled:opacity-60 ${buttonTone[tone]} ${focusRing} ${className}`}
         {...props}
       >
         {children}

@@ -137,6 +137,7 @@ function RoutineControlTable({
   onTaskStatusChange,
   getAllowedTaskStatusChanges,
   onTaskAttachmentAdd,
+  canTaskAttach,
 }: {
   title?: string
   description?: string
@@ -153,6 +154,7 @@ function RoutineControlTable({
   onTaskStatusChange?: (taskId: EntityId, status: RoutineStatus) => void
   getAllowedTaskStatusChanges?: (task: Task) => readonly RoutineStatus[]
   onTaskAttachmentAdd?: (task: Task) => void
+  canTaskAttach?: (task: Task) => boolean
 }) {
   const [contextMenu, setContextMenu] =
     useState<RoutineControlContextMenu | null>(null)
@@ -392,7 +394,9 @@ function RoutineControlTable({
           }
           allowedStatusChanges={getAllowedTaskStatusChanges?.(contextMenu.task)}
           onAttachmentAdd={
-            onTaskAttachmentAdd ? handleTaskAttachmentAdd : undefined
+            onTaskAttachmentAdd && (canTaskAttach?.(contextMenu.task) ?? true)
+              ? handleTaskAttachmentAdd
+              : undefined
           }
         />
       )}

@@ -60,6 +60,8 @@ function PanelActions({
   item: RoutineListItem
   onQuickAction?: (item: RoutineListItem, action: 'attach') => void
 }) {
+  if (!onQuickAction) return null
+
   return (
     <div className="flex shrink-0 items-center justify-end gap-1.5">
       <RoutineListQuickActions

@@ -1,5 +1,12 @@
 import { HttpClient, httpClient, isApiError } from './httpClient'
-import type { FileTarget, PrivateFile, UploadIntent } from '../types/files'
+import type { ApiResponse } from './httpClient'
+import type {
+  AttachmentResource,
+  FileTarget,
+  ImageSlot,
+  PrivateFile,
+  UploadIntent,
+} from '../types/files'
 import type { Task } from '../types/domain'
 
 const fileTypes: Record<string, string> = {
@@ -86,6 +93,27 @@ export class FileService {
     private readonly storageFetch: typeof fetch = (...args) =>
       globalThis.fetch(...args),
   ) {}
+
+  async listAttachments(
+    destination: FileTarget,
+    signal?: AbortSignal,
+  ): Promise<AttachmentResource[]> {
+    const results: AttachmentResource[] = []
+    let next: string | null = `${fileOwnerPath(destination)}attachments/`
+    while (next) {
+      const response: ApiResponse<{
+        results: AttachmentResource[]
+        next: string | null
+      }> = await this.client.get(next, { signal })
+      results.push(...response.data.results)
+      next = response.data.next
+    }
+    return results
+  }
+
+  getImageSlot(destination: FileTarget, signal?: AbortSignal) {
+    return this.client.get<ImageSlot>(fileOwnerPath(destination), { signal })
+  }
 
   createIntent(
     file: File,

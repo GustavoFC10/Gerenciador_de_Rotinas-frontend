@@ -338,6 +338,7 @@ export interface RoutineListInteractionProps {
   data: RoutineControlData
   onItemOpen?: (item: RoutineListItem) => void
   onItemQuickAction?: (item: RoutineListItem, action: 'attach') => void
+  canTaskAttach?: (task: Task) => boolean
   onItemNoteChange?: (item: RoutineListItem, notes: string) => void
   onItemStatusChange?: (item: RoutineListItem, status: RoutineStatus) => void
   getAllowedStatusChanges?: (item: RoutineListItem) => readonly RoutineStatus[]

@@ -17,6 +17,7 @@ function MyTasksPage({
   data,
   onItemOpen,
   onItemQuickAction,
+  canTaskAttach,
   onItemNoteChange,
   onItemStatusChange,
   getAllowedStatusChanges,
@@ -80,6 +81,7 @@ function MyTasksPage({
           items={listViewData.items}
           onItemOpen={onItemOpen}
           onItemQuickAction={onItemQuickAction}
+          canTaskAttach={canTaskAttach}
           onItemNoteChange={onItemNoteChange}
           onItemStatusChange={onItemStatusChange}
           getAllowedStatusChanges={getAllowedStatusChanges}

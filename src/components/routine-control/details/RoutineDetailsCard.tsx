@@ -113,16 +113,16 @@ function RoutineDetailsCard({
             data-execution-context="combined"
             aria-label="Execução da tarefa"
           >
-            <div className="p-3">
-              {attachmentsPanel ?? (
+            {attachmentsPanel ?? (
+              <div className="p-3">
                 <RoutineAttachmentsPanel
                   task={task}
                   onAttachmentAdd={onAttachmentAdd}
                   onAttachmentRemove={onAttachmentRemove}
                   variant="preview"
                 />
-              )}
-            </div>
+              </div>
+            )}
             <div className="border-t border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-3">
               <RoutineNotesPanel
                 task={task}

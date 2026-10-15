@@ -43,6 +43,7 @@ import type {
   Department,
   RoutineControlData,
   Screen,
+  Task,
 } from '../types/domain'
 import type {
   MembershipInvitationInput,
@@ -62,6 +63,8 @@ interface AuthenticatedRoutesProps {
   competenceStatus?: CompetenceStatus
   spreadsheetContext: SpreadsheetContext
   taskDetails: TaskDetailsController
+  onTaskAttachmentAdd: (task: Task) => void
+  canTaskAttach: (task: Task) => boolean
   isOperationalDataLoading: boolean
   operationalDataError: Error | null
   onRetryOperationalData: () => void
@@ -99,6 +102,8 @@ function AuthenticatedRoutes({
   competenceStatus,
   spreadsheetContext,
   taskDetails,
+  onTaskAttachmentAdd,
+  canTaskAttach,
   isOperationalDataLoading,
   operationalDataError,
   onRetryOperationalData,
@@ -138,6 +143,8 @@ function AuthenticatedRoutes({
             competenceStatus,
             spreadsheetContext,
             taskDetails,
+            onTaskAttachmentAdd,
+            canTaskAttach,
             onCompetenceFinalize,
             onCompanyCreate,
             onCompanyUpdate,
@@ -189,6 +196,8 @@ function renderOperationalRoutes({
   competenceStatus,
   spreadsheetContext,
   taskDetails,
+  onTaskAttachmentAdd,
+  canTaskAttach,
   onCompetenceFinalize,
   onCompanyCreate,
   onCompanyUpdate,
@@ -291,7 +300,8 @@ function renderOperationalRoutes({
               onClientOpen={(client) => handleClientListOpen(client.id)}
               onRoutineOpen={(routine) => handleRoutineListOpen(routine.id)}
               onTaskOpen={(task) => taskDetails.openTask(task.id)}
-              onTaskAttachmentAdd={(task) => taskDetails.openTask(task.id)}
+              onTaskAttachmentAdd={onTaskAttachmentAdd}
+              canTaskAttach={canTaskAttach}
               onTaskStatusChange={taskDetails.requestTaskTransition}
               getAllowedTaskStatusChanges={taskDetails.getAllowedStatusChanges}
             />
@@ -313,6 +323,8 @@ function renderOperationalRoutes({
             onClientUpdate={handleCompanyUpdate}
             onClientArchive={handleCompanyArchive}
             onItemOpen={(item) => taskDetails.openTask(item.task.id)}
+            onItemQuickAction={(item) => onTaskAttachmentAdd(item.task)}
+            canTaskAttach={canTaskAttach}
             onItemStatusChange={(item, status) =>
               taskDetails.requestTaskTransition(item.task.id, status)
             }
@@ -334,6 +346,8 @@ function renderOperationalRoutes({
             onRoutineUpdate={handleRoutineUpdate}
             onRoutineArchive={handleRoutineArchive}
             onItemOpen={(item) => taskDetails.openTask(item.task.id)}
+            onItemQuickAction={(item) => onTaskAttachmentAdd(item.task)}
+            canTaskAttach={canTaskAttach}
             onItemStatusChange={(item, status) =>
               taskDetails.requestTaskTransition(item.task.id, status)
             }
@@ -351,6 +365,8 @@ function renderOperationalRoutes({
             screenId={spreadsheetContext.selectedScreen?.id}
             screenName={spreadsheetContext.selectedScreen?.name}
             onItemOpen={(item) => taskDetails.openTask(item.task.id)}
+            onItemQuickAction={(item) => onTaskAttachmentAdd(item.task)}
+            canTaskAttach={canTaskAttach}
             onItemStatusChange={(item, status) =>
               taskDetails.requestTaskTransition(item.task.id, status)
             }
@@ -366,6 +382,8 @@ function renderOperationalRoutes({
           <MyTasksPage
             data={data}
             onItemOpen={(item) => taskDetails.openTask(item.task.id)}
+            onItemQuickAction={(item) => onTaskAttachmentAdd(item.task)}
+            canTaskAttach={canTaskAttach}
             onItemStatusChange={(item, status) =>
               taskDetails.requestTaskTransition(item.task.id, status)
             }

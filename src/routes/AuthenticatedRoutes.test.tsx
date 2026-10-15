@@ -87,6 +87,8 @@ async function renderRoutes(
                 competenceStatus="projected"
                 spreadsheetContext={spreadsheetContext}
                 taskDetails={{} as never}
+                onTaskAttachmentAdd={() => undefined}
+                canTaskAttach={() => false}
                 isOperationalDataLoading={false}
                 operationalDataError={data ? null : new Error('Unavailable')}
                 onRetryOperationalData={() => undefined}

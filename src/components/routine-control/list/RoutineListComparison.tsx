@@ -5,7 +5,11 @@ import { ROUTINE_STATUS } from '../../../constants/routineStatus'
 import RoutineListCardOptionThree from './RoutineListCardOptionThree'
 import RoutineListSection from './RoutineListSection'
 import { groupRoutineListItemsByStatus } from './routineListUtils'
-import type { RoutineListItem, RoutineStatus } from '../../../types/domain'
+import type {
+  RoutineListItem,
+  RoutineStatus,
+  Task,
+} from '../../../types/domain'
 
 type RoutineListQuickAction = 'attach'
 
@@ -41,6 +45,7 @@ function RoutineListComparison({
   items,
   onItemOpen,
   onItemQuickAction,
+  canTaskAttach,
   onItemNoteChange,
   onItemStatusChange,
   getAllowedStatusChanges,
@@ -54,6 +59,7 @@ function RoutineListComparison({
     item: RoutineListItem,
     action: RoutineListQuickAction,
   ) => void
+  canTaskAttach?: (task: Task) => boolean
   onItemNoteChange?: (item: RoutineListItem, notes: string) => void
   onItemStatusChange?: (item: RoutineListItem, status: RoutineStatus) => void
   getAllowedStatusChanges?: (item: RoutineListItem) => readonly RoutineStatus[]
@@ -188,7 +194,11 @@ function RoutineListComparison({
                       key={item.id}
                       item={item}
                       onOpen={onItemOpen}
-                      onQuickAction={onItemQuickAction}
+                      onQuickAction={
+                        (canTaskAttach?.(item.task) ?? true)
+                          ? onItemQuickAction
+                          : undefined
+                      }
                       onNoteChange={onItemNoteChange}
                       onStatusChange={
                         canChangeStatus ? handleStatusChange : undefined
@@ -229,7 +239,10 @@ function RoutineListComparison({
           }
           allowedStatusChanges={getAllowedStatusChanges?.(contextMenu.item)}
           onAttachmentAdd={
-            onItemQuickAction ? handleContextAttachmentAdd : undefined
+            onItemQuickAction &&
+            (canTaskAttach?.(contextMenu.item.task) ?? true)
+              ? handleContextAttachmentAdd
+              : undefined
           }
         />
       )}

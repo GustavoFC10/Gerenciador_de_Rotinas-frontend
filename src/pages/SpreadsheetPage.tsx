@@ -29,6 +29,7 @@ interface SpreadsheetPageProps {
   onTaskStatusChange?: (taskId: EntityId, status: RoutineStatus) => void
   getAllowedTaskStatusChanges?: (task: Task) => readonly RoutineStatus[]
   onTaskAttachmentAdd?: (task: Task) => void
+  canTaskAttach?: (task: Task) => boolean
 }
 
 function SpreadsheetPage({
@@ -44,6 +45,7 @@ function SpreadsheetPage({
   onTaskStatusChange,
   getAllowedTaskStatusChanges,
   onTaskAttachmentAdd,
+  canTaskAttach,
 }: SpreadsheetPageProps) {
   const title = departmentName ?? screen.departmentName
 
@@ -85,6 +87,7 @@ function SpreadsheetPage({
           onTaskStatusChange={onTaskStatusChange}
           getAllowedTaskStatusChanges={getAllowedTaskStatusChanges}
           onTaskAttachmentAdd={onTaskAttachmentAdd}
+          canTaskAttach={canTaskAttach}
         />
       </div>
     </div>
