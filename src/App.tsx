@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -8,6 +8,7 @@ import TaskAttachmentUpload, {
   type TaskAttachmentUploadHandle,
 } from './components/files/TaskAttachmentUpload'
 import TaskDetailsDialog from './components/routine-control/details/TaskDetailsDialog'
+import { FileUploadsProvider } from './contexts/FileUploadsContext'
 import { isInternalRoute, ROUTES } from './constants/routes'
 import { useAppState } from './hooks/useAppState'
 import { useAuth } from './hooks/useAuth'
@@ -17,6 +18,7 @@ import { useDepartmentMutations } from './hooks/mutations/useDepartmentMutations
 import { useRoutineMutations } from './hooks/mutations/useRoutineMutations'
 import { useScreenMutations } from './hooks/mutations/useScreenMutations'
 import { useNavigationScreens } from './hooks/useNavigationScreens'
+import { useNotifications } from './hooks/useNotifications'
 import { useRoutineControl } from './hooks/useRoutineControl'
 import { useSpreadsheetContext } from './hooks/useSpreadsheetContext'
 import { useTaskDetailsController } from './hooks/useTaskDetailsController'
@@ -89,7 +91,17 @@ function App() {
     return <LoginPage />
   }
 
-  return <AuthenticatedApp activeMembership={activeMembership} />
+  return (
+    <FileUploadsProvider
+      key={`${activeMembership.organization.id}:${activeMembership.id}`}
+      scope={{
+        organizationId: activeMembership.organization.id,
+        membershipId: activeMembership.id,
+      }}
+    >
+      <AuthenticatedApp activeMembership={activeMembership} />
+    </FileUploadsProvider>
+  )
 }
 
 function AuthenticatedApp({
@@ -98,6 +110,7 @@ function AuthenticatedApp({
   activeMembership: MembershipSummary
 }) {
   const queryClient = useQueryClient()
+  const { notify, setActivity } = useNotifications()
   const { competence, user } = useAppState()
   const attachmentUploadRef = useRef<TaskAttachmentUploadHandle | null>(null)
   const [canStartAttachmentUpload, setCanStartAttachmentUpload] = useState(true)
@@ -169,19 +182,32 @@ function AuthenticatedApp({
     await finalizeCompetence()
   }
 
+  useEffect(() => {
+    setActivity(
+      'operational-data',
+      isFinalizingCompetence
+        ? 'Finalizando competência…'
+        : isRefreshing
+          ? 'Atualizando dados operacionais…'
+          : null,
+    )
+    return () => setActivity('operational-data', null)
+  }, [isFinalizingCompetence, isRefreshing, setActivity])
+
+  const { transitionError, dismissTransitionError } = taskDetails
+  useEffect(() => {
+    if (!transitionError) return
+    notify({
+      title: 'Não foi possível alterar a tarefa',
+      message: transitionError,
+      tone: 'error',
+      dedupeKey: 'task-transition-error',
+    })
+    dismissTransitionError()
+  }, [notify, transitionError, dismissTransitionError])
+
   return (
     <>
-      {(isRefreshing || isFinalizingCompetence) && (
-        <p
-          role="status"
-          className="fixed bottom-4 right-4 z-40 rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-3 py-2 text-sm font-semibold text-[var(--color-text-muted)] shadow-[var(--shadow-floating)]"
-        >
-          {isFinalizingCompetence
-            ? 'Finalizando compet\u00eancia\u2026'
-            : 'Atualizando dados operacionais\u2026'}
-        </p>
-      )}
-
       <AuthenticatedRoutes
         data={data}
         generatedAt={response?.meta.generatedAt}
@@ -212,7 +238,7 @@ function AuthenticatedApp({
       />
 
       <TaskAttachmentUpload
-        key={`${scope.organizationId}:${scope.membershipId}:${competence}`}
+        key={`${scope.organizationId}:${scope.membershipId}`}
         ref={attachmentUploadRef}
         scope={scope}
         user={user}
@@ -258,23 +284,6 @@ function AuthenticatedApp({
           }
           onClose={taskDetails.closeTask}
         />
-      )}
-
-      {taskDetails.transitionError && (
-        <div
-          role="alert"
-          className="fixed right-4 bottom-4 z-[110] flex max-w-md items-center gap-3 rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3 py-2 text-sm font-semibold text-[var(--status-error-text)] shadow-[var(--shadow-floating)]"
-        >
-          <span>{taskDetails.transitionError}</span>
-          <button
-            type="button"
-            onClick={taskDetails.dismissTransitionError}
-            className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-control)] hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
-            aria-label="Fechar alerta"
-          >
-            {'\u00d7'}
-          </button>
-        </div>
       )}
     </>
   )

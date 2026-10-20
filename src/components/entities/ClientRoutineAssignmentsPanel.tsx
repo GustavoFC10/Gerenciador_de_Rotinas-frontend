@@ -8,6 +8,8 @@ import {
 import type { Client, Routine } from '../../types/domain'
 import { queryKeys } from '../../query/queryKeys'
 import { useAuth } from '../../hooks/useAuth'
+import { useNotifications } from '../../hooks/useNotifications'
+import { FieldError } from '../forms/CreationFeedback'
 import Button from '../ui/Button'
 import Select from '../ui/Select'
 import TextField from '../ui/TextField'
@@ -34,8 +36,11 @@ function ClientRoutineAssignmentsPanel({
     membershipId: activeMembership!.id,
   }
   const referenceDate = `${period}-01`
-  const [actionError, setActionError] = useState('')
-  const [actionMessage, setActionMessage] = useState('')
+  const { notify } = useNotifications()
+  const [validationErrors, setValidationErrors] = useState<
+    Partial<Record<'routineId' | 'startsOn' | 'endsOn', string>>
+  >({})
+  const [endErrors, setEndErrors] = useState<Record<string, string>>({})
   const [routineId, setRoutineId] = useState('')
   const [startsOn, setStartsOn] = useState(referenceDate)
   const [endsOn, setEndsOn] = useState('')
@@ -84,39 +89,41 @@ function ClientRoutineAssignmentsPanel({
     })
 
   async function withAction(action: () => Promise<void>) {
-    setActionError('')
-    setActionMessage('')
-
     try {
       await assignmentMutation.mutateAsync(action)
     } catch (caughtError) {
-      setActionError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'Não foi possível alterar as rotinas vinculadas.',
-      )
-    } finally {
-      // O estado pending pertence à mutation e bloqueia novas ações duplicadas.
+      notify({
+        title: 'Não foi possível alterar o vínculo',
+        tone: 'error',
+        dedupeKey: `routine-assignment:${client.id}`,
+        message:
+          caughtError instanceof Error
+            ? caughtError.message
+            : 'Não foi possível alterar as rotinas vinculadas.',
+      })
     }
   }
 
   function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setValidationErrors({})
 
     if (!routineId) {
-      setActionError('Selecione a rotina que será vinculada.')
+      setValidationErrors({
+        routineId: 'Selecione a rotina que será vinculada.',
+      })
       return
     }
 
     if (!isValidDate(startsOn)) {
-      setActionError('Informe uma data de início válida.')
+      setValidationErrors({ startsOn: 'Informe uma data de início válida.' })
       return
     }
 
     if (!isValidRange(startsOn, endsOn)) {
-      setActionError(
-        'A data final deve ser igual ou posterior à data de início.',
-      )
+      setValidationErrors({
+        endsOn: 'A data final deve ser igual ou posterior à data de início.',
+      })
       return
     }
 
@@ -133,7 +140,9 @@ function ClientRoutineAssignmentsPanel({
           ),
       )
     ) {
-      setActionError('Já existe um vínculo dessa rotina no período informado.')
+      setValidationErrors({
+        routineId: 'Já existe um vínculo dessa rotina no período informado.',
+      })
       return
     }
 
@@ -150,7 +159,7 @@ function ClientRoutineAssignmentsPanel({
       setRoutineId('')
       setEndsOn('')
       void invalidateAffectedOperationalContexts()
-      setActionMessage('Rotina vinculada à empresa.')
+      notify({ title: 'Rotina vinculada à empresa.', tone: 'success' })
     })
   }
 
@@ -166,7 +175,10 @@ function ClientRoutineAssignmentsPanel({
     const nextEndsOn = endDates[assignment.id] ?? ''
 
     if (!isValidEndDate(assignment.startsOn, nextEndsOn)) {
-      setActionError('Informe uma data final igual ou posterior ao início.')
+      setEndErrors((current) => ({
+        ...current,
+        [assignment.id]: 'Informe uma data final igual ou posterior ao início.',
+      }))
       return
     }
 
@@ -197,7 +209,7 @@ function ClientRoutineAssignmentsPanel({
       )
       setEndingId(null)
       void invalidateAffectedOperationalContexts()
-      setActionMessage('Vínculo de rotina encerrado.')
+      notify({ title: 'Vínculo de rotina encerrado.', tone: 'success' })
     })
   }
 
@@ -232,7 +244,7 @@ function ClientRoutineAssignmentsPanel({
         exact: true,
       })
       void invalidateAffectedOperationalContexts()
-      setActionMessage('Vínculo de rotina removido.')
+      notify({ title: 'Vínculo de rotina removido.', tone: 'success' })
     })
   }
 
@@ -254,17 +266,22 @@ function ClientRoutineAssignmentsPanel({
         </p>
       </header>
 
-      {(loadError || actionError || actionMessage) && (
+      {loadError && (
         <p
-          role={loadError || actionError ? 'alert' : 'status'}
+          role="alert"
           className={
             'mt-5 rounded-[var(--radius-control)] border px-3 py-2 text-sm font-semibold ' +
-            (loadError || actionError
-              ? 'border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error-text)]'
-              : 'border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]')
+            'border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error-text)]'
           }
         >
-          {loadError || actionError || actionMessage}
+          {loadError}
+          <Button
+            size="sm"
+            className="ml-2"
+            onClick={() => void assignmentsQuery.refetch()}
+          >
+            Tentar novamente
+          </Button>
         </p>
       )}
 
@@ -318,21 +335,42 @@ function ClientRoutineAssignmentsPanel({
                         </Button>
                       ) : isEnding ? (
                         <>
-                          <TextField
-                            id={'routine-assignment-end-' + assignment.id}
-                            label={<span className="sr-only">Data final</span>}
-                            type="date"
-                            min={assignment.startsOn}
-                            value={endDates[assignment.id] ?? ''}
-                            onChange={(event) =>
-                              setEndDates((current) => ({
-                                ...current,
-                                [assignment.id]: event.target.value,
-                              }))
-                            }
-                            disabled={isChanging}
-                            className="w-36"
-                          />
+                          <div className="w-40">
+                            <TextField
+                              id={'routine-assignment-end-' + assignment.id}
+                              label={
+                                <span className="sr-only">Data final</span>
+                              }
+                              type="date"
+                              min={assignment.startsOn}
+                              value={endDates[assignment.id] ?? ''}
+                              onChange={(event) => {
+                                setEndErrors((current) => ({
+                                  ...current,
+                                  [assignment.id]: '',
+                                }))
+                                setEndDates((current) => ({
+                                  ...current,
+                                  [assignment.id]: event.target.value,
+                                }))
+                              }}
+                              aria-invalid={Boolean(endErrors[assignment.id])}
+                              aria-describedby={
+                                endErrors[assignment.id]
+                                  ? `routine-assignment-end-error-${assignment.id}`
+                                  : undefined
+                              }
+                              disabled={isChanging}
+                              className="w-36"
+                            />
+                            <div className="min-h-5">
+                              <FieldError
+                                id={`routine-assignment-end-error-${assignment.id}`}
+                              >
+                                {endErrors[assignment.id]}
+                              </FieldError>
+                            </div>
+                          </div>
                           <Button
                             size="sm"
                             onClick={() => handleEnd(assignment)}
@@ -386,6 +424,7 @@ function ClientRoutineAssignmentsPanel({
       {canManage && !isLoading && (
         <form
           onSubmit={handleCreate}
+          noValidate
           className="mt-7 border-t border-[var(--color-divider)] pt-6"
         >
           <div>
@@ -402,7 +441,19 @@ function ClientRoutineAssignmentsPanel({
                 id="company-routine-assignment"
                 label="Rotina"
                 value={routineId}
-                onChange={(event) => setRoutineId(event.target.value)}
+                onChange={(event) => {
+                  setRoutineId(event.target.value)
+                  setValidationErrors((current) => ({
+                    ...current,
+                    routineId: undefined,
+                  }))
+                }}
+                aria-invalid={Boolean(validationErrors.routineId)}
+                aria-describedby={
+                  validationErrors.routineId
+                    ? 'assignment-routine-error'
+                    : undefined
+                }
                 disabled={isChanging}
               >
                 <option value="">Selecione</option>
@@ -412,24 +463,65 @@ function ClientRoutineAssignmentsPanel({
                   </option>
                 ))}
               </Select>
+              <div className="min-h-5">
+                <FieldError id="assignment-routine-error">
+                  {validationErrors.routineId}
+                </FieldError>
+              </div>
             </div>
-            <TextField
-              id="company-routine-assignment-starts-on"
-              label="Início"
-              type="date"
-              value={startsOn}
-              onChange={(event) => setStartsOn(event.target.value)}
-              disabled={isChanging}
-            />
-            <TextField
-              id="company-routine-assignment-ends-on"
-              label="Fim (opcional)"
-              type="date"
-              min={startsOn}
-              value={endsOn}
-              onChange={(event) => setEndsOn(event.target.value)}
-              disabled={isChanging}
-            />
+            <div>
+              <TextField
+                id="company-routine-assignment-starts-on"
+                label="Início"
+                type="date"
+                value={startsOn}
+                onChange={(event) => {
+                  setStartsOn(event.target.value)
+                  setValidationErrors((current) => ({
+                    ...current,
+                    startsOn: undefined,
+                  }))
+                }}
+                aria-invalid={Boolean(validationErrors.startsOn)}
+                aria-describedby={
+                  validationErrors.startsOn
+                    ? 'assignment-start-error'
+                    : undefined
+                }
+                disabled={isChanging}
+              />
+              <div className="min-h-5">
+                <FieldError id="assignment-start-error">
+                  {validationErrors.startsOn}
+                </FieldError>
+              </div>
+            </div>
+            <div>
+              <TextField
+                id="company-routine-assignment-ends-on"
+                label="Fim (opcional)"
+                type="date"
+                min={startsOn}
+                value={endsOn}
+                onChange={(event) => {
+                  setEndsOn(event.target.value)
+                  setValidationErrors((current) => ({
+                    ...current,
+                    endsOn: undefined,
+                  }))
+                }}
+                aria-invalid={Boolean(validationErrors.endsOn)}
+                aria-describedby={
+                  validationErrors.endsOn ? 'assignment-end-error' : undefined
+                }
+                disabled={isChanging}
+              />
+              <div className="min-h-5">
+                <FieldError id="assignment-end-error">
+                  {validationErrors.endsOn}
+                </FieldError>
+              </div>
+            </div>
           </div>
           {availableRoutines.length === 0 && (
             <p className="mt-3 text-xs leading-5 text-[var(--color-text-muted)]">

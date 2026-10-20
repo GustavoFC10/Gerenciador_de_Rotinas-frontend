@@ -75,6 +75,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
   const { user } = useAppState()
   const [draft, setDraft] = useState<InvitationDraft>(initialDraft)
   const [errors, setErrors] = useState<InvitationErrors>({})
+  const [submitAttempt, setSubmitAttempt] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [invitation, setInvitation] =
     useState<MembershipInvitationResource | null>(null)
@@ -154,6 +155,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setSubmitAttempt((current) => current + 1)
     const nextErrors = validate()
     setErrors(nextErrors)
 
@@ -192,6 +194,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
 
       <form onSubmit={(event) => void handleSubmit(event)} noValidate>
         <CreationErrorSummary
+          focusKey={submitAttempt}
           messages={Object.values(errors).filter((message): message is string =>
             Boolean(message),
           )}

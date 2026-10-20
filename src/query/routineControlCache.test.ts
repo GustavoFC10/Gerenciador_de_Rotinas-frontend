@@ -5,9 +5,16 @@ import {
   markRoutineInactiveInOperationalContexts,
   replaceTaskInOperationalContext,
   upsertClientInOperationalContexts,
+  updateTaskAttachmentCount,
 } from './routineControlCache'
 import { queryKeys } from './queryKeys'
-import type { RoutineControlResponse, Task } from '../types/domain'
+import type {
+  RoutineControlResponse,
+  ScheduledOccurrence,
+  Task,
+} from '../types/domain'
+import type { AgendaProjection } from '../services/screenService'
+import type { TaskResource } from '../services/taskService'
 
 const scope = { organizationId: 'organization-1', membershipId: 'member-1' }
 
@@ -52,7 +59,11 @@ describe('routineControlCache', () => {
       queryClient,
       scope,
       period: '2026-08',
-      task: { ...createTask('2026-08'), status: 'completed' },
+      task: {
+        ...createTask('2026-08'),
+        status: 'completed',
+        indicators: { attachments: 4 },
+      },
     })
 
     expect(getResponse(queryClient, '2026-08').data.tasks[0]?.status).toBe(
@@ -61,6 +72,147 @@ describe('routineControlCache', () => {
     expect(getResponse(queryClient, '2026-09').data.tasks[0]?.status).toBe(
       'pending',
     )
+    expect(
+      getResponse(queryClient, '2026-08').data.tasks[0]?.indicators.attachments,
+    ).toBe(4)
+  })
+
+  it('aplica uma contagem recém-lida somente ao destino e à organização correspondentes', () => {
+    const client = new QueryClient()
+    const response = createResponse('2026-08')
+    response.data.tasks[0].etag = '"8"'
+    client.setQueryData(queryKeys.routineControl(scope, '2026-08'), response)
+    const otherScope = {
+      organizationId: 'another-organization',
+      membershipId: scope.membershipId,
+    }
+    client.setQueryData(
+      queryKeys.routineControl(otherScope, '2026-08'),
+      response,
+    )
+    updateTaskAttachmentCount(
+      client,
+      scope,
+      {
+        purpose: 'task_attachment',
+        target: { competenceId: 'competence-1', taskId: 'task-1' },
+      },
+      5,
+    )
+    expect(getResponse(client, '2026-08').data.tasks[0]).toMatchObject({
+      etag: '"8"',
+      indicators: { attachments: 5 },
+    })
+    expect(
+      client.getQueryData<RoutineControlResponse>(
+        queryKeys.routineControl(otherScope, '2026-08'),
+      )?.data.tasks[0].indicators.attachments,
+    ).toBe(0)
+    client.clear()
+  })
+
+  it('mantém as projeções da planilha e agenda alinhadas ao contador do destino', () => {
+    const client = new QueryClient()
+    const response = createResponse('2026-08')
+    const screen = {
+      id: 'screen-1',
+      name: 'Fiscal',
+      type: 'spreadsheet' as const,
+      departmentId: 'department-1',
+      departmentName: 'Fiscal',
+      position: 1,
+      version: 1,
+      archivedAt: null,
+      createdAt: '',
+      updatedAt: '',
+    }
+    const occurrence = {
+      occurrenceKey: 'occurrence-1',
+      taskId: 'scheduled-task',
+      referenceMonth: '2026-08-01',
+      attachmentCount: 0,
+    } as ScheduledOccurrence
+    response.data.tasks.push({
+      ...createTask('2026-08'),
+      id: 'occurrence-1',
+      occurrenceKey: 'occurrence-1',
+      taskId: 'scheduled-task',
+      kind: 'scheduled',
+    })
+    response.data.spreadsheetProjections = [
+      {
+        screen,
+        type: 'spreadsheet',
+        competenceId: 'competence-1',
+        period: '2026-08',
+        rows: [],
+        columns: [],
+        cells: [
+          {
+            companyId: 'client-1',
+            routineId: 'routine-1',
+            tasks: [occurrence],
+          },
+        ],
+      },
+    ]
+    const agenda: AgendaProjection = {
+      type: 'agenda',
+      screen: { ...screen, type: 'agenda' },
+      competenceId: 'competence-1',
+      period: '2026-08',
+      columns: [
+        {
+          status: 'pending',
+          count: 1,
+          hasMore: false,
+          tasks: [
+            {
+              id: 'task-1',
+              competenceId: 'competence-1',
+              attachmentCount: 0,
+            } as TaskResource,
+          ],
+        },
+      ],
+    }
+    client.setQueryData(queryKeys.routineControl(scope, '2026-08'), response)
+    client.setQueryData(
+      queryKeys.agendaProjection(scope, screen.id, '2026-08'),
+      agenda,
+    )
+    updateTaskAttachmentCount(
+      client,
+      scope,
+      {
+        purpose: 'task_attachment',
+        target: { referenceMonth: '2026-08', occurrenceKey: 'occurrence-1' },
+      },
+      2,
+    )
+    const updated = getResponse(client, '2026-08').data
+    expect(
+      updated.tasks.find((task) => task.id === 'occurrence-1')?.indicators
+        .attachments,
+    ).toBe(2)
+    expect(
+      updated.spreadsheetProjections[0].cells[0].tasks[0].attachmentCount,
+    ).toBe(2)
+    updateTaskAttachmentCount(
+      client,
+      scope,
+      {
+        purpose: 'task_attachment',
+        target: { competenceId: 'competence-1', taskId: 'task-1' },
+      },
+      4,
+    )
+    expect(
+      client.getQueryData<AgendaProjection>(
+        queryKeys.agendaProjection(scope, screen.id, '2026-08'),
+      )?.columns[0].tasks[0].attachmentCount,
+    ).toBe(4)
+    client.clear()
   })
 
   it('remove a rotina arquivada das telas e projeções em cache', () => {

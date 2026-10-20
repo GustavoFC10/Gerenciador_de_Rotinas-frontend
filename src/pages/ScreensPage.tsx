@@ -22,6 +22,7 @@ import Select from '../components/ui/Select'
 import TextField from '../components/ui/TextField'
 import { focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
+import { useNotifications } from '../hooks/useNotifications'
 import { isApiError } from '../services/httpClient'
 import { screenService, type ScreenPatch } from '../services/screenService'
 import type { Client, Department, Routine, Screen } from '../types/domain'
@@ -265,8 +266,9 @@ export function ScreenEditDrawer({
   const [companySearch, setCompanySearch] = useState('')
   const [routineSearch, setRoutineSearch] = useState('')
   const [errors, setErrors] = useState<ScreenEditErrors>({})
+  const [submitAttempt, setSubmitAttempt] = useState(0)
   const [submitError, setSubmitError] = useState('')
-  const [statusMessage, setStatusMessage] = useState('')
+  const { notify } = useNotifications()
   const [isSaving, setIsSaving] = useState(false)
 
   closeRef.current = onClose
@@ -359,7 +361,6 @@ export function ScreenEditDrawer({
     setIsLoadingSnapshot(true)
     setLoadError('')
     setSubmitError('')
-    setStatusMessage('')
 
     void screenService
       .get(screen.id)
@@ -527,7 +528,6 @@ export function ScreenEditDrawer({
 
   function clearSubmitFeedback() {
     setSubmitError('')
-    setStatusMessage('')
   }
 
   function updateName(nextName: string) {
@@ -612,6 +612,7 @@ export function ScreenEditDrawer({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setSubmitAttempt((current) => current + 1)
 
     if (!snapshot || !etag) {
       setSubmitError(
@@ -685,13 +686,12 @@ export function ScreenEditDrawer({
       !isRoutineCompositionChanged
     ) {
       setSubmitError('')
-      setStatusMessage('Nenhuma alteração para salvar.')
+      notify({ title: 'Nenhuma alteração para salvar.', tone: 'info' })
       return
     }
 
     setIsSaving(true)
     setSubmitError('')
-    setStatusMessage('')
 
     try {
       const updatedScreen = await onSave(
@@ -709,6 +709,7 @@ export function ScreenEditDrawer({
         },
         etag,
       )
+      notify({ title: 'Configuração da tela atualizada.', tone: 'success' })
       if (onSavedNavigate) {
         onSavedNavigate(updatedScreen.departmentId)
       } else {
@@ -842,6 +843,7 @@ export function ScreenEditDrawer({
           >
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
               <CreationErrorSummary
+                focusKey={submitAttempt}
                 title="Revise a configuração da tela"
                 messages={[
                   ...Object.values(errors).filter(
@@ -857,15 +859,6 @@ export function ScreenEditDrawer({
                   className="mb-5 rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3 py-2 text-sm font-semibold text-[var(--status-error-text)]"
                 >
                   {loadError}
-                </p>
-              )}
-
-              {statusMessage && (
-                <p
-                  role="status"
-                  className="mb-5 rounded-[var(--radius-control)] border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-3 py-2 text-sm font-semibold text-[var(--status-completed-text)]"
-                >
-                  {statusMessage}
                 </p>
               )}
 

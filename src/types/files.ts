@@ -28,6 +28,8 @@ export interface PrivateFile {
   rejectionReason: string
   createdAt: string
   expiresAt: string | null
+  uploadExpiresAt?: string | null
+  updatedAt?: string
   variants: {
     kind: string
     width: number
@@ -40,7 +42,13 @@ export interface UploadIntent {
   intentId: string
   fileId: string
   expiresAt: string
-  upload: { url: string; fields: Record<string, string> }
+  uploadExpiresAt?: string
+  upload: {
+    url: string
+    method?: 'POST'
+    enctype?: 'multipart/form-data'
+    fields: Record<string, string>
+  }
 }
 
 export interface AttachmentResource {
@@ -53,4 +61,17 @@ export interface AttachmentResource {
 export interface ImageSlot {
   version: number
   file: PrivateFile | null
+}
+
+// Recibos antigos podem não conter todos os campos da representação atual.
+// Sempre reconciliar a coleção; um replay pode devolver uma versão anterior.
+export interface FileLinkReceipt {
+  fileId: string
+  attachmentId?: string
+  taskId?: string
+  occurrenceKey?: string
+  attachmentCount?: number
+  version?: number
+  etag?: string
+  materialized?: boolean
 }

@@ -64,6 +64,7 @@ function CreateScreenPage({
   const [companySearch, setCompanySearch] = useState('')
   const [routineSearch, setRoutineSearch] = useState('')
   const [errors, setErrors] = useState<ScreenErrors>({})
+  const [submitAttempt, setSubmitAttempt] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdScreen, setCreatedScreen] = useState<Screen | null>(null)
 
@@ -186,6 +187,7 @@ function CreateScreenPage({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setSubmitAttempt((current) => current + 1)
     const nextErrors: ScreenErrors = {}
 
     if (!name.trim()) nextErrors.name = 'Informe o nome da tela.'
@@ -238,6 +240,7 @@ function CreateScreenPage({
 
       <form onSubmit={(event) => void handleSubmit(event)} noValidate>
         <CreationErrorSummary
+          focusKey={submitAttempt}
           messages={Object.values(errors).filter((message): message is string =>
             Boolean(message),
           )}

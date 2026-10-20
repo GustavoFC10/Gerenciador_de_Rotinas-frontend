@@ -3,6 +3,7 @@ import type { ApiResponse } from './httpClient'
 import type {
   AttachmentResource,
   FileTarget,
+  FileLinkReceipt,
   ImageSlot,
   PrivateFile,
   UploadIntent,
@@ -20,6 +21,17 @@ const fileTypes: Record<string, string> = {
 }
 export const attachmentAccept = '.pdf,.txt,.csv,.jpg,.jpeg,.png,.webp'
 export const imageAccept = '.jpg,.jpeg,.png,.webp'
+
+export class FileProcessingError extends Error {
+  constructor(readonly state: 'rejected' | 'deleted') {
+    super(
+      state === 'rejected'
+        ? 'O arquivo foi rejeitado na análise. Selecione outro arquivo.'
+        : 'O arquivo foi removido durante o processamento. Selecione outro arquivo.',
+    )
+    this.name = 'FileProcessingError'
+  }
+}
 
 export function validateUpload(
   file: File,
@@ -88,10 +100,14 @@ export function fileOwnerPath(destination: FileTarget): string {
 }
 
 export class FileService {
+  private readonly destinationWrites = new Map<string, Promise<unknown>>()
+
   constructor(
     private readonly client: HttpClient,
     private readonly storageFetch: typeof fetch = (...args) =>
       globalThis.fetch(...args),
+    private readonly createStorageRequest: () => XMLHttpRequest = () =>
+      new XMLHttpRequest(),
   ) {}
 
   async listAttachments(
@@ -138,14 +154,32 @@ export class FileService {
     intent: UploadIntent,
     file: File,
     signal?: AbortSignal,
+    onProgress?: (percentage: number | null) => void,
   ): Promise<void> {
+    signal?.throwIfAborted()
     const url = new URL(intent.upload.url)
     if (!['https:', 'http:'].includes(url.protocol))
       throw new Error('Endereço de envio inválido.')
+    if (
+      (intent.upload.method && intent.upload.method !== 'POST') ||
+      (intent.upload.enctype && intent.upload.enctype !== 'multipart/form-data')
+    )
+      throw new Error('O armazenamento informou um formato de envio inválido.')
+    if (
+      intent.uploadExpiresAt &&
+      Date.parse(intent.uploadExpiresAt) <= Date.now()
+    )
+      throw new Error(
+        'A autorização de envio expirou. Selecione o arquivo novamente.',
+      )
     const form = new FormData()
     for (const [key, value] of Object.entries(intent.upload.fields))
       form.append(key, value)
     form.append('file', file)
+    if (onProgress) {
+      await this.uploadWithProgress(url.toString(), form, onProgress, signal)
+      return
+    }
     let response: Response
     try {
       response = await this.storageFetch(url.toString(), {
@@ -167,6 +201,77 @@ export class FileService {
       )
   }
 
+  private uploadWithProgress(
+    url: string,
+    form: FormData,
+    onProgress: (percentage: number | null) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const request = this.createStorageRequest()
+      const cleanup = () => {
+        signal?.removeEventListener('abort', abort)
+        request.upload.removeEventListener('progress', progress)
+        request.removeEventListener('load', load)
+        request.removeEventListener('error', error)
+        request.removeEventListener('timeout', error)
+        request.removeEventListener('abort', aborted)
+      }
+      const finish = (failure?: unknown) => {
+        cleanup()
+        if (failure) reject(failure)
+        else resolve()
+      }
+      const progress = (event: ProgressEvent) => {
+        onProgress(
+          event.lengthComputable && event.total > 0
+            ? Math.min(
+                100,
+                Math.max(0, Math.round((event.loaded / event.total) * 100)),
+              )
+            : null,
+        )
+      }
+      const load = () =>
+        finish(
+          request.status >= 200 && request.status < 300
+            ? undefined
+            : new Error(
+                'O armazenamento recusou o envio. Selecione o arquivo novamente.',
+              ),
+        )
+      const error = () =>
+        finish(new Error('Não foi possível enviar o arquivo ao armazenamento.'))
+      const aborted = () =>
+        finish(
+          signal?.reason ?? new DOMException('Envio cancelado.', 'AbortError'),
+        )
+      const abort = () => {
+        request.abort()
+        aborted()
+      }
+      // Registrar antes de open/send também cobre os navegadores que exigem
+      // o listener antecipadamente para habilitar progresso entre origens.
+      request.upload.addEventListener('progress', progress)
+      request.addEventListener('load', load)
+      request.addEventListener('error', error)
+      request.addEventListener('timeout', error)
+      request.addEventListener('abort', aborted)
+      signal?.addEventListener('abort', abort, { once: true })
+      try {
+        signal?.throwIfAborted()
+        request.open('POST', url)
+        request.withCredentials = false
+        // O navegador define o Content-Type com seu boundary. Nunca reutilizar
+        // headers, cookies ou CSRF do cliente da API neste request ao storage.
+        request.send(form)
+      } catch (caught) {
+        cleanup()
+        reject(caught)
+      }
+    })
+  }
+
   confirm(intentId: string, signal?: AbortSignal) {
     return this.client.post<PrivateFile>(
       `/api/v1/files/upload-intents/${encodeURIComponent(intentId)}/confirm/`,
@@ -182,30 +287,55 @@ export class FileService {
     )
   }
 
-  cancel(intentId: string) {
+  cancel(intentId: string, signal?: AbortSignal) {
     return this.client.delete<void>(
       `/api/v1/files/upload-intents/${encodeURIComponent(intentId)}/`,
+      { signal },
     )
   }
 
   async waitUntilAvailable(
     fileId: string,
     signal: AbortSignal,
+    initial?: ApiResponse<PrivateFile>,
+    onThrottled?: (retryAfter: string | null) => void,
   ): Promise<PrivateFile> {
-    // Dois minutos por tentativa; o usuário pode retomar o mesmo processamento.
-    for (let attempt = 0; attempt < 40; attempt++) {
+    const deadline = Date.now() + 120_000
+    let interval = 3000
+    let response = initial
+    while (Date.now() < deadline) {
       signal.throwIfAborted()
-      const { data } = await this.get(fileId, signal)
+      try {
+        response ??= await this.get(fileId, signal)
+      } catch (caught) {
+        if (!isApiError(caught) || caught.status !== 429) throw caught
+        onThrottled?.(caught.retryAfter)
+        await abortableDelay(
+          Math.min(
+            Math.max(interval, retryAfterMs(caught.retryAfter)),
+            Math.max(0, deadline - Date.now()),
+          ),
+          signal,
+        )
+        interval = Math.min(15_000, interval * 1.5)
+        continue
+      }
+      const { data } = response
       if (data.state === 'available') return data
-      if (data.state === 'rejected')
-        throw new Error(
-          'O arquivo foi rejeitado na análise. Selecione outro arquivo.',
-        )
-      if (data.state === 'deleted')
-        throw new Error(
-          'O arquivo foi removido durante o processamento. Selecione outro arquivo.',
-        )
-      await abortableDelay(3000, signal)
+      if (data.state === 'rejected') throw new FileProcessingError('rejected')
+      if (data.state === 'deleted') throw new FileProcessingError('deleted')
+      await abortableDelay(
+        Math.min(
+          Math.max(
+            interval,
+            retryAfterMs(response.headers?.get('Retry-After')),
+          ),
+          Math.max(0, deadline - Date.now()),
+        ),
+        signal,
+      )
+      interval = Math.min(15_000, interval * 1.5)
+      response = undefined
     }
     throw new Error(
       'O arquivo continua em processamento. Use Retomar para consultar novamente.',
@@ -218,15 +348,17 @@ export class FileService {
     idempotencyKey: string,
     signal?: AbortSignal,
   ) {
-    const path = fileOwnerPath(destination)
-    const current = await this.client.get<{ etag?: string }>(path, { signal })
-    const etag = current.etag ?? current.data.etag
-    if (!etag) throw new Error('A API não informou a versão atual do destino.')
-    signal?.throwIfAborted()
-    const options = { ifMatch: etag, idempotencyKey, signal }
-    return destination.purpose === 'task_attachment'
-      ? this.client.post(`${path}attachments/`, { fileId }, options)
-      : this.client.put(path, { fileId }, options)
+    return this.serializeDestination(destination, signal, async (path) => {
+      const etag = await this.currentVersion(path, signal)
+      const options = { ifMatch: etag, idempotencyKey, signal }
+      return destination.purpose === 'task_attachment'
+        ? this.client.post<FileLinkReceipt>(
+            `${path}attachments/`,
+            { fileId },
+            options,
+          )
+        : this.client.put<FileLinkReceipt>(path, { fileId }, options)
+    })
   }
 
   async remove(
@@ -234,16 +366,53 @@ export class FileService {
     attachmentId?: string,
     signal?: AbortSignal,
   ) {
-    const path = fileOwnerPath(destination)
+    return this.serializeDestination(destination, signal, async (path) => {
+      const etag = await this.currentVersion(path, signal)
+      return this.client.delete<void>(
+        attachmentId
+          ? `${path}attachments/${encodeURIComponent(attachmentId)}/`
+          : path,
+        { ifMatch: etag, signal },
+      )
+    })
+  }
+
+  private async currentVersion(path: string, signal?: AbortSignal) {
     const current = await this.client.get<{ etag?: string }>(path, { signal })
     const etag = current.etag ?? current.data.etag
     if (!etag) throw new Error('A API não informou a versão atual do destino.')
-    return this.client.delete<void>(
-      attachmentId
-        ? `${path}attachments/${encodeURIComponent(attachmentId)}/`
-        : path,
-      { ifMatch: etag, signal },
-    )
+    signal?.throwIfAborted()
+    return etag
+  }
+
+  private serializeDestination<T>(
+    destination: FileTarget,
+    signal: AbortSignal | undefined,
+    operation: (path: string) => Promise<T>,
+  ): Promise<T> {
+    const path = fileOwnerPath(destination)
+    const previous = this.destinationWrites.get(path) ?? Promise.resolve()
+    const current = previous
+      .catch(() => undefined)
+      .then(async () => {
+        signal?.throwIfAborted()
+        try {
+          return await operation(path)
+        } catch (caught) {
+          if (isApiError(caught) && caught.status === 412)
+            await this.client.get(path, { signal }).catch(() => undefined)
+          // Uma alteração concorrente exige retomada explícita. Não repetir a escrita.
+          throw caught
+        }
+      })
+    this.destinationWrites.set(path, current)
+    void current
+      .finally(() => {
+        if (this.destinationWrites.get(path) === current)
+          this.destinationWrites.delete(path)
+      })
+      .catch(() => undefined)
+    return current
   }
 
   async download(fileId: string, variant?: '64' | '256', signal?: AbortSignal) {
@@ -257,6 +426,14 @@ export class FileService {
       throw new Error('Endereço de download inválido.')
     return data
   }
+}
+
+function retryAfterMs(value: string | null | undefined): number {
+  if (!value) return 0
+  const seconds = Number(value)
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000)
+  const date = Date.parse(value)
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : 0
 }
 
 function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {

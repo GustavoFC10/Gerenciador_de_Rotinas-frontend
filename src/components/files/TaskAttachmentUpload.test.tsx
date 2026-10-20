@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { adminUserMock } from '../../constants/roles'
 import { ROUTES } from '../../constants/routes'
+import { FileUploadsProvider } from '../../contexts/FileUploadsContext'
+import { NotificationsProvider } from '../../contexts/NotificationsContext'
 import {
   AppStateContext,
   type AppStateContextValue,
@@ -22,6 +24,7 @@ import {
   taskFileTarget,
 } from '../../services/fileService'
 import type { ApiResponse } from '../../services/httpClient'
+import { taskService } from '../../services/taskService'
 import type {
   CompetenceStatus,
   RoutineControlData,
@@ -33,6 +36,7 @@ import type { PrivateFile, UploadIntent } from '../../types/files'
 import TaskAttachmentUpload, {
   type TaskAttachmentUploadHandle,
 } from './TaskAttachmentUpload'
+import UploadsTrigger from './UploadsTrigger'
 
 vi.mock('../../layouts/AppLayout', () => ({ default: () => <Outlet /> }))
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -99,6 +103,7 @@ const screen: Screen = {
   ],
 }
 const occurrence: ScheduledOccurrence = {
+  attachmentCount: 0,
   occurrenceKey: task.id,
   taskId: task.taskId!,
   etag: '"1"',
@@ -257,6 +262,7 @@ function Harness({
         competenceStatus={competenceStatus}
         onAvailabilityChange={setIsAvailable}
       />
+      <UploadsTrigger />
     </>
   )
 }
@@ -275,6 +281,13 @@ beforeEach(() => {
     response({ fileId: 'file-1' }),
   )
   vi.spyOn(fileService, 'cancel').mockResolvedValue(response(undefined))
+  vi.spyOn(fileService, 'listAttachments').mockResolvedValue([])
+  vi.spyOn(taskService, 'getOccurrence').mockRejectedValue(
+    new Error('Leitura indisponível'),
+  )
+  vi.spyOn(taskService, 'get').mockRejectedValue(
+    new Error('Leitura indisponível'),
+  )
 })
 
 afterEach(async () => {
@@ -293,7 +306,11 @@ async function render(
       <QueryClientProvider client={client}>
         <AppStateContext.Provider value={state}>
           <MemoryRouter initialEntries={[path]}>
-            <Harness competenceStatus={competenceStatus} />
+            <NotificationsProvider>
+              <FileUploadsProvider scope={scope} paceMs={0}>
+                <Harness competenceStatus={competenceStatus} />
+              </FileUploadsProvider>
+            </NotificationsProvider>
           </MemoryRouter>
         </AppStateContext.Provider>
       </QueryClientProvider>,
@@ -385,7 +402,7 @@ describe('TaskAttachmentUpload', () => {
       expect(invalidate).toHaveBeenCalledWith({
         queryKey: queryKeys.routineControlRoot(scope),
       })
-      expect(host.textContent).toContain('Arquivo salvo')
+      expect(document.body.textContent).toContain('1 anexo adicionado')
       expect(onTaskOpen).not.toHaveBeenCalled()
     },
   )
@@ -415,12 +432,17 @@ describe('TaskAttachmentUpload', () => {
     await act(async () =>
       input.dispatchEvent(new Event('change', { bubbles: true })),
     )
-    expect(input.disabled).toBe(true)
-    expect(host.textContent).toContain('Conflito de versão')
+    expect(input.disabled).toBe(false)
     await openContextMenu()
-    expect(attachAction()).toBeUndefined()
-    const resume = [...host.querySelectorAll('button')].find((button) =>
-      button.textContent?.includes('Retomar'),
+    expect(attachAction()).toBeDefined()
+    await act(async () => {
+      host
+        .querySelector<HTMLButtonElement>('button[aria-label^="Envios:"]')!
+        .click()
+    })
+    expect(document.body.textContent).toContain('Conflito de versão')
+    const resume = [...document.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Tentar novamente'),
     )!
     await act(async () => resume.click())
     expect(fileService.createIntent).toHaveBeenCalledOnce()

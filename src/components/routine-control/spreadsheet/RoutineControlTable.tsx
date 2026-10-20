@@ -1,13 +1,8 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type MouseEvent,
-} from 'react'
+import { useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react'
 
 import CompanyContextMenu from '../../context-menu/CompanyContextMenu'
 import TaskContextMenu from '../../context-menu/TaskContextMenu'
+import { useNotifications } from '../../../hooks/useNotifications'
 import { getCompanyCodeLabel } from '../../../utils/companyCode'
 import RoutineClosedCardCompact from './RoutineClosedCardCompact'
 import RoutineNotApplicableCard from './RoutineNotApplicableCard'
@@ -158,11 +153,7 @@ function RoutineControlTable({
 }) {
   const [contextMenu, setContextMenu] =
     useState<RoutineControlContextMenu | null>(null)
-  const [actionFeedback, setActionFeedback] = useState<{
-    message: string
-    isError: boolean
-  } | null>(null)
-  const feedbackTimerRef = useRef<number | null>(null)
+  const { notify } = useNotifications()
   const clientsById = new Map(clients.map((client) => [client.id, client]))
   const routinesById = new Map(routines.map((routine) => [routine.id, routine]))
   const screenClients = screen.companies.flatMap((company) => {
@@ -193,14 +184,6 @@ function RoutineControlTable({
     onTaskAttachmentAdd ||
     tableTasks.some((task) => (task.links?.length ?? 0) > 0),
   )
-
-  useEffect(() => {
-    return () => {
-      if (feedbackTimerRef.current !== null) {
-        window.clearTimeout(feedbackTimerRef.current)
-      }
-    }
-  }, [])
 
   useEffect(() => {
     setContextMenu(null)
@@ -235,16 +218,12 @@ function RoutineControlTable({
   }
 
   function showActionFeedback(message: string, isError = false) {
-    setActionFeedback({ message, isError })
-
-    if (feedbackTimerRef.current !== null) {
-      window.clearTimeout(feedbackTimerRef.current)
-    }
-
-    feedbackTimerRef.current = window.setTimeout(() => {
-      setActionFeedback(null)
-      feedbackTimerRef.current = null
-    }, 2200)
+    notify({
+      title: message,
+      tone: isError ? 'error' : 'success',
+      duration: isError ? 8000 : 3000,
+      dedupeKey: 'spreadsheet-copy',
+    })
   }
 
   function handleTaskAttachmentAdd(task: Task) {
@@ -399,20 +378,6 @@ function RoutineControlTable({
               : undefined
           }
         />
-      )}
-
-      {actionFeedback && (
-        <p
-          className={`fixed bottom-4 right-4 z-[110] rounded-[var(--radius-control)] border px-3 py-2 text-sm font-bold shadow-[var(--shadow-floating)] ${
-            actionFeedback.isError
-              ? 'border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error-text)]'
-              : 'border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] text-[var(--color-text-strong)]'
-          }`}
-          role={actionFeedback.isError ? 'alert' : 'status'}
-          data-action-feedback
-        >
-          {actionFeedback.message}
-        </p>
       )}
     </>
   )

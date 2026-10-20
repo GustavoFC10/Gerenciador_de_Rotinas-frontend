@@ -13,6 +13,8 @@ import type {
 import { getRoutineAttachments } from '../details/routineDetailsUtils'
 import FloatingMenu from '../../ui/FloatingMenu'
 import RoutineStatusIcon from './RoutineStatusIcon'
+import DocumentPreview from '../../files/DocumentPreview'
+import { useNotifications } from '../../../hooks/useNotifications'
 
 type AttachmentVariant = 'list' | 'gallery' | 'preview' | 'embedded'
 type NotesVariant = 'panel' | 'embedded' | 'callout'
@@ -235,12 +237,21 @@ export function RoutineNotesPanel({
   const [draftNotes, setDraftNotes] = useState(task.notes ?? '')
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+  const { notify } = useNotifications()
 
   useEffect(() => {
     setDraftNotes(task.notes ?? '')
     setIsSaving(false)
     setError('')
+    setSaved(false)
   }, [task.id, task.notes])
+
+  useEffect(() => {
+    if (!saved) return
+    const timer = window.setTimeout(() => setSaved(false), 2500)
+    return () => window.clearTimeout(timer)
+  }, [saved])
 
   async function saveNotes() {
     if (!onNotesChange || isSaving || draftNotes === (task.notes ?? '')) {
@@ -248,16 +259,24 @@ export function RoutineNotesPanel({
     }
 
     setError('')
+    setSaved(false)
     setIsSaving(true)
 
     try {
       await onNotesChange(task.id, draftNotes)
+      setSaved(true)
     } catch (caughtError) {
-      setError(
+      const message =
         caughtError instanceof Error
           ? caughtError.message
-          : 'Não foi possível salvar a observação.',
-      )
+          : 'Não foi possível salvar a observação.'
+      setError(message)
+      notify({
+        title: 'Não foi possível salvar a observação',
+        message,
+        tone: 'error',
+        dedupeKey: `task-notes:${task.id}`,
+      })
     } finally {
       setIsSaving(false)
     }
@@ -299,27 +318,49 @@ export function RoutineNotesPanel({
         disabled={isSaving}
         maxLength={5000}
         aria-readonly={!onNotesChange || undefined}
+        aria-invalid={Boolean(error)}
+        aria-describedby={
+          onNotesChange ? `notes-feedback-${task.id}` : undefined
+        }
         onChange={(event) => {
           setDraftNotes(event.target.value)
           setError('')
+          setSaved(false)
         }}
         onBlur={() => void saveNotes()}
         aria-label="Observações da rotina"
         placeholder="Adicione contexto apenas quando necessário..."
-        className="w-full resize-none rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2 text-sm leading-5 text-[var(--color-control-text)] outline-none transition placeholder:text-[var(--color-control-placeholder)] focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)]"
+        className="w-full resize-none rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2 text-sm leading-5 text-[var(--color-control-text)] outline-none transition placeholder:text-[var(--color-control-placeholder)] focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)] aria-invalid:border-[var(--status-error-border)]"
       />
-      {error && (
-        <p
-          role="alert"
-          className="mt-1.5 text-xs font-semibold text-[var(--status-error-text)]"
+      {onNotesChange && (
+        <div
+          id={`notes-feedback-${task.id}`}
+          className="mt-1.5 flex h-5 items-center gap-2 text-xs font-semibold"
+          role="status"
+          aria-live="polite"
         >
-          {error}
-        </p>
-      )}
-      {!error && isSaving && (
-        <p className="mt-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
-          Salvando…
-        </p>
+          {error ? (
+            <>
+              <span
+                className="min-w-0 truncate text-[var(--status-error-text)]"
+                title={error}
+              >
+                Não foi possível salvar.
+              </span>
+              <button
+                type="button"
+                className="shrink-0 text-[var(--color-brand)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--color-control-focus)]"
+                onClick={() => void saveNotes()}
+              >
+                Tentar novamente
+              </button>
+            </>
+          ) : (
+            <span className="text-[var(--color-text-muted)]">
+              {isSaving ? 'Salvando…' : saved ? 'Salvo' : ''}
+            </span>
+          )}
+        </div>
       )}
     </section>
   )
@@ -574,14 +615,14 @@ function AttachmentTile({
   const isGallery = variant === 'gallery'
   const isPreview = variant === 'preview'
   const showsPreview = isGallery || isPreview
-  const previewKind = getAttachmentPreviewKind(attachment, name)
+  const previewKind = 'document'
   const extension = getAttachmentExtension(name)
 
   if (showsPreview) {
     return (
       <article
         className={`group relative min-w-0 overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] transition hover:border-[var(--color-control-focus)] hover:shadow-[var(--shadow-panel)] ${
-          isPreview ? 'w-72 shrink-0' : 'w-full'
+          isPreview ? 'h-44 w-40 shrink-0' : 'w-full'
         }`}
         title={name}
         data-attachment-kind={previewKind}
@@ -600,7 +641,7 @@ function AttachmentTile({
             {extension}
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-xs font-bold text-[var(--color-text-strong)]">
+            <span className="line-clamp-2 h-8 break-words text-xs leading-4 font-bold text-[var(--color-text-strong)]">
               {name}
             </span>
             <span className="mt-0.5 block truncate text-[10px] text-[var(--color-text-muted)]">
@@ -677,218 +718,9 @@ interface AttachmentPreviewProps {
   compact?: boolean
 }
 
-function AttachmentPreview({
-  attachment,
-  name,
-  previewKind,
-  compact = false,
-}: AttachmentPreviewProps) {
-  const previewTitle = attachment.previewTitle ?? 'Documento da execução'
-  const previewClass = `${
-    compact ? 'h-24' : 'h-28 sm:h-32'
-  } overflow-hidden border-b border-[var(--color-divider)]`
-
-  if (previewKind === 'pdf') {
-    return (
-      <div
-        className={`${previewClass} flex items-center justify-center bg-[var(--status-error-soft-bg)] p-3`}
-        role="img"
-        aria-label={`Prévia de PDF: ${name}`}
-      >
-        <div className="relative h-full w-3/4 max-w-44 rounded-sm bg-white px-3 pt-7 shadow-[var(--shadow-panel)] ring-1 ring-[var(--color-panel-border)]">
-          <span className="absolute top-2 left-3 rounded bg-[var(--status-error-strong-bg)] px-1.5 py-0.5 text-[8px] font-black text-white">
-            PDF
-          </span>
-          <span className="block truncate text-[9px] font-extrabold text-[var(--color-text-strong)]">
-            {previewTitle}
-          </span>
-          <span className="mt-2 block h-1 rounded-full bg-[var(--color-divider)]" />
-          <span className="mt-1.5 block h-1 w-4/5 rounded-full bg-[var(--color-divider)]" />
-          <span className="mt-1.5 block h-1 w-3/5 rounded-full bg-[var(--color-divider)]" />
-        </div>
-      </div>
-    )
-  }
-
-  if (previewKind === 'spreadsheet') {
-    const cells = [
-      'Data',
-      'Doc.',
-      'Valor',
-      'Sit.',
-      '18/06',
-      '1542',
-      '4.820',
-      'OK',
-      '19/06',
-      '1548',
-      '2.390',
-      'OK',
-    ]
-
-    return (
-      <div
-        className={`${previewClass} bg-[var(--status-completed-soft-bg)] p-3`}
-        role="img"
-        aria-label={`Prévia de planilha: ${name}`}
-      >
-        <div className="grid h-full grid-cols-4 gap-px overflow-hidden rounded border border-[var(--status-completed-border)] bg-[var(--status-completed-border)] shadow-[var(--shadow-panel)]">
-          {cells.map((cell, cellIndex) => (
-            <span
-              key={`${cell}-${cellIndex}`}
-              className={`flex items-center justify-center truncate px-1 text-[8px] ${
-                cellIndex < 4
-                  ? 'bg-[var(--status-completed-strong-bg)] font-extrabold text-white'
-                  : 'bg-[var(--color-panel-bg)] font-semibold text-[var(--color-text-muted)]'
-              }`}
-            >
-              {cell}
-            </span>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  if (previewKind === 'xml') {
-    return (
-      <div
-        className={`${previewClass} bg-[var(--color-list-muted-bg)] p-3 font-mono text-[9px] leading-4 text-[var(--color-text-muted)]`}
-        role="img"
-        aria-label={`Prévia de XML: ${name}`}
-      >
-        <span className="block text-[var(--color-brand)]">&lt;evento&gt;</span>
-        <span className="block pl-3">
-          &lt;periodo&gt;2026-06&lt;/periodo&gt;
-        </span>
-        <span className="block pl-3">
-          &lt;status&gt;processado&lt;/status&gt;
-        </span>
-        <span className="block text-[var(--color-brand)]">&lt;/evento&gt;</span>
-      </div>
-    )
-  }
-
-  if (previewKind === 'image') {
-    return (
-      <div
-        className={`${previewClass} relative bg-[var(--color-brand-soft)]`}
-        role="img"
-        aria-label={`Prévia de imagem: ${name}`}
-      >
-        <svg
-          viewBox="0 0 320 160"
-          className="h-full w-full text-[var(--color-brand)]"
-          fill="none"
-          aria-hidden="true"
-        >
-          <rect x="42" y="18" width="236" height="124" rx="9" fill="white" />
-          <rect
-            x="60"
-            y="36"
-            width="92"
-            height="8"
-            rx="4"
-            fill="currentColor"
-            opacity=".22"
-          />
-          <rect
-            x="60"
-            y="54"
-            width="168"
-            height="6"
-            rx="3"
-            fill="currentColor"
-            opacity=".12"
-          />
-          <path
-            d="m62 119 43-38 29 24 32-31 58 45H62Z"
-            fill="currentColor"
-            opacity=".2"
-          />
-          <circle cx="221" cy="77" r="13" fill="currentColor" opacity=".35" />
-        </svg>
-        <span className="absolute right-2 bottom-2 rounded bg-white/90 px-2 py-1 text-[9px] font-bold text-[var(--color-brand)] shadow-sm">
-          Comprovante
-        </span>
-      </div>
-    )
-  }
-
-  if (previewKind === 'document') {
-    return (
-      <div
-        className={`${previewClass} flex items-center justify-center bg-[var(--color-brand-soft)] p-3`}
-        role="img"
-        aria-label={`Prévia de documento: ${name}`}
-      >
-        <div className="h-full w-3/4 max-w-44 rounded-sm bg-white p-3 shadow-[var(--shadow-panel)] ring-1 ring-[var(--color-panel-border)]">
-          <span className="block truncate text-[9px] font-extrabold text-[var(--color-brand)]">
-            {previewTitle}
-          </span>
-          {[100, 84, 92, 68].map((width) => (
-            <span
-              key={width}
-              className="mt-2 block h-1 rounded-full bg-[var(--color-divider)]"
-              style={{ width: `${width}%` }}
-            />
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className={`${previewClass} grid place-items-center bg-[var(--color-panel-soft-bg)] text-[var(--color-text-subtle)]`}
-      role="img"
-      aria-label={`Prévia indisponível: ${name}`}
-    >
-      <span className="grid size-12 place-items-center rounded-[var(--radius-control)] bg-[var(--color-panel-bg)] ring-1 ring-[var(--color-panel-border)]">
-        <FileIcon />
-      </span>
-    </div>
-  )
+function AttachmentPreview({ name }: AttachmentPreviewProps) {
+  return <DocumentPreview name={name} />
 }
-
-function getAttachmentPreviewKind(
-  attachment: TaskAttachment,
-  name: string,
-): string {
-  if (attachment.previewType) return attachment.previewType
-
-  const mimeType = String(
-    attachment.mimeType ?? attachment.type ?? '',
-  ).toLowerCase()
-  const extension = getAttachmentExtension(name).toLowerCase()
-
-  if (mimeType.includes('pdf') || extension === 'pdf') return 'pdf'
-  if (
-    mimeType.startsWith('image/') ||
-    ['png', 'jpg', 'jpeg'].includes(extension)
-  ) {
-    return 'image'
-  }
-  if (
-    mimeType.includes('spreadsheet') ||
-    mimeType.includes('excel') ||
-    mimeType.includes('csv') ||
-    ['xls', 'xlsx', 'csv'].includes(extension)
-  ) {
-    return 'spreadsheet'
-  }
-  if (mimeType.includes('xml') || extension === 'xml') return 'xml'
-  if (
-    mimeType.includes('word') ||
-    mimeType.includes('document') ||
-    ['doc', 'docx', 'txt'].includes(extension)
-  ) {
-    return 'document'
-  }
-
-  return 'file'
-}
-
 function getAttachmentExtension(name: string): string {
   const extension = name.includes('.') ? name.split('.').pop() : ''
   return extension?.slice(0, 5).toUpperCase() || 'ARQ'

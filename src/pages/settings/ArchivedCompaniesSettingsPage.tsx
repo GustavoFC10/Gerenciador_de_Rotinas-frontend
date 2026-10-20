@@ -9,6 +9,7 @@ import Button from '../../components/ui/Button'
 import { ROUTES } from '../../constants/routes'
 import { useArchivedCompanies } from '../../hooks/useArchivedCompanies'
 import { useArchivedRoutines } from '../../hooks/useArchivedRoutines'
+import { useNotifications } from '../../hooks/useNotifications'
 import { getErrorMessage, getErrorPresentation } from '../../utils/apiErrors'
 
 type ArchivedTab = 'companies' | 'routines'
@@ -29,7 +30,7 @@ function ArchivedEntitiesSettingsPage({
 }: ArchivedEntitiesSettingsPageProps) {
   const [activeTab, setActiveTab] = useState<ArchivedTab>('companies')
   const [restoringId, setRestoringId] = useState<string | null>(null)
-  const [actionError, setActionError] = useState('')
+  const { notify } = useNotifications()
   const companiesQuery = useArchivedCompanies()
   const routinesQuery = useArchivedRoutines()
   const isCompaniesTab = activeTab === 'companies'
@@ -53,14 +54,17 @@ function ArchivedEntitiesSettingsPage({
     }
 
     setRestoringId(companyId)
-    setActionError('')
     try {
       await onCompanyRestore(companyId)
       await companiesQuery.reload()
+      notify({ title: 'Empresa desarquivada.', tone: 'success' })
     } catch (caughtError) {
-      setActionError(
-        getErrorMessage(caughtError, 'Não foi possível desarquivar a empresa.'),
-      )
+      notify({
+        title: 'Não foi possível desarquivar a empresa',
+        message: getErrorMessage(caughtError, 'Tente novamente.'),
+        tone: 'error',
+        dedupeKey: `restore-company:${companyId}`,
+      })
     } finally {
       setRestoringId(null)
     }
@@ -76,14 +80,17 @@ function ArchivedEntitiesSettingsPage({
     }
 
     setRestoringId(routineId)
-    setActionError('')
     try {
       await onRoutineRestore(routineId)
       await routinesQuery.reload()
+      notify({ title: 'Rotina desarquivada.', tone: 'success' })
     } catch (caughtError) {
-      setActionError(
-        getErrorMessage(caughtError, 'Não foi possível desarquivar a rotina.'),
-      )
+      notify({
+        title: 'Não foi possível desarquivar a rotina',
+        message: getErrorMessage(caughtError, 'Tente novamente.'),
+        tone: 'error',
+        dedupeKey: `restore-routine:${routineId}`,
+      })
     } finally {
       setRestoringId(null)
     }
@@ -101,15 +108,6 @@ function ArchivedEntitiesSettingsPage({
       />
 
       <div className="space-y-5 pt-6">
-        {actionError && (
-          <p
-            role="alert"
-            className="rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3 py-2 text-sm font-semibold text-[var(--status-error-text)]"
-          >
-            {actionError}
-          </p>
-        )}
-
         <div
           role="tablist"
           aria-label="Recursos arquivados"

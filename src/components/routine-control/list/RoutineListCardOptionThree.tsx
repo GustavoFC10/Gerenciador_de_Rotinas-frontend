@@ -1,6 +1,7 @@
 import { useRef, type KeyboardEvent, type MouseEvent } from 'react'
 
 import RoutineListExecutionPanel from './RoutineListExecutionPanel'
+import TaskAttachmentCount from '../../files/TaskAttachmentCount'
 import { formatShortDate, routineListStatusTone } from './routineListUtils'
 import type { RoutineListItem, RoutineStatus } from '../../../types/domain'
 
@@ -97,7 +98,7 @@ function RoutineListCardOptionThree({
           onClick={() => onOpen?.(item)}
           onKeyDown={handleKeyboardContextMenu}
           className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
-          aria-label={`Abrir detalhes de ${item.primaryLabel ?? item.companyName}`}
+          aria-label={`Abrir detalhes de ${item.primaryLabel ?? item.companyName}${item.indicators.attachments > 0 ? `. ${item.indicators.attachments} ${item.indicators.attachments === 1 ? 'anexo' : 'anexos'}` : ''}`}
           aria-haspopup={hasContextMenu ? 'menu' : undefined}
           aria-expanded={hasContextMenu ? isContextMenuOpen : undefined}
           aria-controls={isContextMenuOpen ? 'task-context-menu' : undefined}
@@ -118,6 +119,10 @@ function RoutineListCardOptionThree({
               {item.primaryLabel ?? item.companyName}
             </span>
           </span>
+          <TaskAttachmentCount
+            count={item.indicators.attachments}
+            className="text-[var(--color-text-muted)]"
+          />
         </button>
 
         {hasContextMenu && (

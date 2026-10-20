@@ -7,6 +7,7 @@ import { Analytics } from '@vercel/analytics/react'
 import App from './App'
 import { AppStateProvider } from './contexts/AppStateContext'
 import { AuthProvider } from './contexts/AuthContext'
+import { NotificationsProvider } from './contexts/NotificationsContext'
 import { queryClient } from './query/queryClient'
 import './styles/index.css'
 
@@ -22,7 +23,9 @@ createRoot(rootElement).render(
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <AppStateProvider>
-            <App />
+            <NotificationsProvider>
+              <App />
+            </NotificationsProvider>
           </AppStateProvider>
         </AuthProvider>
       </QueryClientProvider>

@@ -8,6 +8,12 @@ policies e services atuais. A terminologia do produto é **colaborador**; na API
 esse perfil continua sendo `OrganizationMember`, com rotas `organization-members/`
 e identificadores `memberId`/`membershipId`. Esses nomes técnicos não foram alterados.
 
+Atualização de 19/10/2026: contrato de anexos revisado com `attachmentCount`,
+`uploadExpiresAt`, `updatedAt`, `upload.method`, `upload.enctype` e `Retry-After`
+exposto pelo CORS. As seções de tarefas e arquivos abaixo descrevem esses campos
+e a integração de progresso/fila; os exemplos completos de transporte estão no
+[guia de feedbacks e anexos](CONTRATO_FEEDBACKS_ANEXOS.md).
+
 Arquivos foram validados localmente em 13/10/2026 com 229 testes aprovados; veja
 [RELATORIO_TESTES_ARQUIVOS.md](RELATORIO_TESTES_ARQUIVOS.md). As rotas dependem de
 `FILES_API_ENABLED=True`, bucket e worker configurados. No rollout interno, definir
@@ -72,6 +78,10 @@ Todas as respostas recebem `X-Request-ID`. O cliente pode enviar um valor própr
 1 a 64 caracteres usando esse mesmo header. São aceitos apenas letras ASCII, números,
 ponto, sublinhado, dois-pontos e hífen (`A-Z`, `a-z`, `0-9`, `.`, `_`, `:` e `-`). Um
 valor fora desse padrão é substituído por um UUID gerado pelo servidor.
+
+Para origens autorizadas, o CORS da API expõe `ETag`, `X-Request-ID` e
+`Retry-After` ao JavaScript. O CORS do bucket S3 é configurado separadamente:
+o navegador envia os bytes diretamente ao armazenamento.
 
 ### Feature flag da Fase 4
 
@@ -956,6 +966,7 @@ Exemplo de item virtual:
   },
   "observation": "",
   "links": [],
+  "attachmentCount": 0,
   "sourceRevision": 41,
   "version": null,
   "materializationReason": null
@@ -970,6 +981,8 @@ célula vazia.
 ### `GET /api/v1/competences/by-period/{YYYY-MM}/task-occurrences/{occurrenceKey}/`
 
 Obtém um card virtual ou real e devolve o ETag também no header.
+Inclui `attachmentCount`: `0` para virtual e o total de vínculos ativos para
+materializada. As respostas de PATCH e transição preservam esse campo.
 
 ```powershell
 curl.exe -i "$BASE_URL/api/v1/competences/by-period/2026-10/task-occurrences/<OCCURRENCE_KEY>/" `
@@ -1025,6 +1038,12 @@ são virtuais. Competências `finalized` leem somente snapshots
 persistidos.
 
 ### `GET /api/v1/competences/{competenceId}/tasks/`
+
+As respostas de tarefas e ocorrências incluem `attachmentCount`, inteiro não
+negativo com a quantidade de vínculos ativos de anexos. O campo também aparece
+nos detalhes, respostas de criação/alteração/transição e projeções de planilha e
+agenda. Ocorrências virtuais retornam `0`, sem materializar tarefa; uploads ainda
+sem vínculo não contam. Leitores autorizados também recebem o contador.
 
 Lista tarefas já persistidas com cursor keyset. Use esta rota principalmente para
 `ad_hoc`, dashboards históricos e acesso direto por UUID; ela não sintetiza virtuais.
@@ -1448,6 +1467,40 @@ Rotas de anexos também dependem de `OPERATIONS_API_ENABLED=True`.
 `FILES_UPLOADS_ENABLED=False` suspende intenções, confirmações e vínculos,
 mantendo leitura, download e remoção. Placeholder de variável não é credencial válida.
 
+### Fila e progresso no frontend
+
+A fila usa os endpoints individuais abaixo; não há endpoint de upload em lote.
+Cada arquivo possui sua própria intenção, chaves de idempotência e resultado.
+Um arquivo que falhar não desfaz os anexos já vinculados.
+
+- Capturar organização/membership, competência e destino no início de cada item.
+  Fechar o card ou navegar entre telas/competências não deve mudar esse destino
+  nem cancelar a fila. Trocar organização/membership ou sair interrompe o contexto
+  anterior. Retomar a fila após recarregar a página fica fora deste contrato.
+- Iniciar com até dois fluxos concorrentes e criar intenções somente quando
+  houver vaga. Serializar vínculo e remoção da mesma tarefa, relendo seu ETag.
+  Em `412`, reler o recurso e aguardar retomada explícita; recuperar respostas
+  perdidas com a mesma chave de idempotência, sem reenviar bytes já aprovados.
+- Respeitar `Retry-After`, usar polling progressivo e considerar o limite padrão
+  de 120 solicitações por minuto, 10 uploads não vinculados por membro e 20 anexos
+  ativos por tarefa. O servidor aplica os limites efetivos do ambiente.
+- Medir os bytes com `XMLHttpRequest.upload.progress`: usar `loaded / total`
+  somente quando `lengthComputable` for verdadeiro e `total > 0`. O total mede
+  a transferência multipart, não apenas o tamanho do arquivo. Caso contrário,
+  exibir barra indeterminada. O exemplo com `fetch` abaixo envia os mesmos dados,
+  mas não fornece esse progresso de bytes.
+- Registrar os listeners antes de enviar. O listener de upload entre origens
+  exige preflight CORS no S3; o bucket deve permitir a origem do frontend,
+  `POST` e os headers necessários. Não definir manualmente o boundary multipart
+  nem enviar cookies/CSRF da API ao S3.
+- Atingir 100% dos bytes não significa sucesso do anexo: esperar a resposta
+  `2xx` do S3, confirmar, aguardar `available` e vincular. Não ler JSON do
+  `204` do S3. Atualizar galeria e contador somente após o vínculo confirmado.
+
+O guia complementar contém uma função completa de transporte com progresso,
+cancelamento e tratamento de falhas. Os campos e respostas da API estão
+documentados neste arquivo.
+
 ### Fluxo do frontend
 
 1. Solicitar intenção de upload com finalidade e destino concreto.
@@ -1499,8 +1552,11 @@ Resposta `201`:
   "intentId": "<UUID>",
   "fileId": "<UUID>",
   "expiresAt": "2026-10-08T18:30:00Z",
+  "uploadExpiresAt": "2026-10-08T18:05:00Z",
   "upload": {
     "url": "https://<BUCKET>.s3.<REGION>.amazonaws.com/",
+    "method": "POST",
+    "enctype": "multipart/form-data",
     "fields": {
       "key": "<KEY_ASSINADA>",
       "Content-Type": "application/pdf",
@@ -1514,6 +1570,12 @@ Resposta `201`:
 `fields` é opaco e contém outros campos obrigatórios de assinatura, tags e
 criptografia. Enviar exatamente todos os campos retornados. `expiresAt` é o prazo
 da intenção; a autorização S3 expira em até cinco minutos e nunca além desse prazo.
+
+`uploadExpiresAt` informa esse prazo menor do envio ao S3. Para uma barra real de
+bytes, o frontend pode usar `XMLHttpRequest.upload.progress` com o mesmo POST e
+os mesmos campos, sem cookies nem headers da API. O backend não recebe os bytes
+e não informa um percentual desse envio. Veja o
+[contrato de progresso e fila](CONTRATO_FEEDBACKS_ANEXOS.md).
 
 Exemplo do envio direto no navegador, após obter a intenção:
 
@@ -1532,6 +1594,12 @@ if (!upload.ok) throw new Error('Upload ao armazenamento falhou')
 // Confirmar somente após o S3 responder com sucesso.
 ```
 
+O S3 normalmente retorna `204` sem corpo nesse POST; não tentar ler JSON.
+Mesmo com `204` no painel de rede, `fetch` pode rejeitar se o bucket não tiver
+CORS para a origem do frontend. Nesse caso, configurar CORS no S3 conforme
+[o diagnóstico e procedimento Bucketeer](CONFIGURACAO_ARQUIVOS_BUCKETEER.md#upload-retorna-204-mas-o-navegador-exibe-erro)
+e criar uma nova intenção se a anterior tiver sido cancelada.
+
 Defaults: anexos PDF/TXT/CSV/JPEG/PNG/WebP até 20 MiB; avatar/imagem somente
 JPEG/PNG/WebP até 5 MiB e 16 MP. Nome/extensão, MIME detectado e tamanho
 são validados no servidor. Antimalware só é executado quando
@@ -1545,7 +1613,16 @@ Enviar `{}` com CSRF. Retorna `202` com o objeto de arquivo. Confirmação repet
 não altera a versão S3 nem duplica job; intenção expirada retorna `410`.
 Essa operação não vincula, não materializa tarefa e não libera download.
 
+Confirmação e consulta de arquivo em `quarantined` ou `scanning` retornam
+`Retry-After: 3`, exposto pelo CORS. Usar esse intervalo mínimo para polling;
+o header não é uma estimativa de duração do processamento. `429` continua
+informando seu próprio `Retry-After`.
+
 ### `GET /api/v1/files/{fileId}/`
+
+Os metadados também incluem `uploadExpiresAt` e `updatedAt`. Os estados de
+verificação não possuem percentual calculado pelo servidor: mostrar progresso
+indeterminado até `available` e concluir a operação somente depois do vínculo.
 
 Resposta `200`:
 
@@ -1560,6 +1637,8 @@ Resposta `200`:
   "rejectionReason": "",
   "createdAt": "2026-10-08T18:00:00Z",
   "expiresAt": "2026-10-08T18:31:00Z",
+  "uploadExpiresAt": "2026-10-08T18:05:00Z",
+  "updatedAt": "2026-10-08T18:01:00Z",
   "variants": [
     { "kind": "64", "width": 64, "height": 64, "contentType": "image/webp" },
     { "kind": "256", "width": 256, "height": 256, "contentType": "image/webp" }
@@ -1568,6 +1647,21 @@ Resposta `200`:
 ```
 
 Estados: `pending`, `quarantined`, `scanning`, `available`, `rejected`, `deleted`.
+
+| Estado        | Progresso e próxima ação                                               |
+| ------------- | ---------------------------------------------------------------------- |
+| `pending`     | Aguardando/enviando; progresso de bytes vem do navegador               |
+| `quarantined` | Verificando, barra indeterminada; consultar após `Retry-After`         |
+| `scanning`    | Verificando, barra indeterminada; consultar após `Retry-After`         |
+| `available`   | Arquivo aprovado; iniciar vínculo, sem incrementar contador ainda      |
+| `rejected`    | Encerrar polling; novo envio exige nova intenção                       |
+| `deleted`     | Encerrar polling; arquivo removido/cancelado/expirado exige novo envio |
+
+`Retry-After` de polling não é enviado em `pending` ou nos estados terminais.
+O servidor não informa percentual da análise. `updatedAt` é o instante da última
+alteração dos metadados; `uploadExpiresAt` é a validade da autorização de envio,
+distinta de `expiresAt`.
+
 Antes de análise, `contentType` pode ser vazio e tamanho é o declarado.
 Para imagens, os metadados de tamanho/MIME descrevem a entrada; as variantes
 descrevem as imagens reescritas que podem ser exibidas. O original de foto/imagem
@@ -1605,7 +1699,8 @@ POST recebe `{"fileId":"<UUID_APROVADO>"}` com CSRF, `If-Match` e
   "taskId": "<UUID>",
   "version": 2,
   "etag": "\"2\"",
-  "materialized": false
+  "materialized": false,
+  "attachmentCount": 1
 }
 ```
 
@@ -1614,7 +1709,14 @@ motivo `attachment`. Mantém `occurrenceKey`. Repetição da mesma operação re
 recibo original; refazer com chave diferente sobre arquivo já vinculado retorna
 `409`. Releia o recurso para obter sua versão atual após replay.
 
+`attachmentCount` é o total de vínculos ativos no momento dessa escrita. Não
+substituir um contador/ETag mais recente com um recibo antigo recuperado por
+idempotência. Recibos anteriores à inclusão do campo são completados na releitura.
+
 DELETE exige CSRF e `If-Match` da tarefa; retorna `204` com novo ETag.
+Não há corpo JSON nesse DELETE. Após confirmação, atualizar a contagem conhecida
+e reconciliar com uma releitura agrupada do destino. Manter `attachmentCount`
+ao substituir tarefas/ocorrências no cache após outras alterações.
 Remover não desmaterializa tarefa nem altera status/responsável. Inclusão e remoção
 produzem eventos `attachment_added`/`attachment_removed`.
 

@@ -20,6 +20,8 @@ const intent: UploadIntent = {
   expiresAt: '2026-10-15T00:00:00Z',
   upload: {
     url: 'https://storage.example.com/',
+    method: 'POST',
+    enctype: 'multipart/form-data',
     fields: {
       key: 'private-key',
       policy: 'opaque-policy',
@@ -49,12 +51,32 @@ function setup() {
   })
   client.setCsrfToken('csrf-token')
   return {
+    client,
     service: new FileService(client, fetchStorage),
     fetchApi,
     fetchStorage,
   }
 }
 afterEach(() => vi.useRealTimers())
+
+class StorageRequest extends EventTarget {
+  upload = new EventTarget()
+  status = 204
+  withCredentials = true
+  open = vi.fn()
+  send = vi.fn()
+  setRequestHeader = vi.fn()
+  abort = vi.fn(() => this.dispatchEvent(new Event('abort')))
+  progress(loaded: number, total: number, lengthComputable = true) {
+    this.upload.dispatchEvent(
+      Object.assign(new Event('progress'), {
+        loaded,
+        total,
+        lengthComputable,
+      }),
+    )
+  }
+}
 
 describe('FileService', () => {
   it('envia intenção JSON com destino, tamanho, MIME, CSRF e idempotência', async () => {
@@ -105,6 +127,90 @@ describe('FileService', () => {
     ).rejects.toThrow('O armazenamento recusou')
   })
 
+  it('mede o total multipart via XHR sem credenciais e aguarda o 2xx após 100%', async () => {
+    const { client, fetchApi } = setup()
+    const storage = new StorageRequest()
+    const service = new FileService(
+      client,
+      vi.fn(),
+      () => storage as unknown as XMLHttpRequest,
+    )
+    const progress = vi.fn()
+    let completed = false
+    const upload = service
+      .upload(intent, new File(['pdf'], 'a.pdf'), undefined, progress)
+      .then(() => {
+        completed = true
+      })
+    expect(storage.open).toHaveBeenCalledWith('POST', intent.upload.url)
+    expect(storage.withCredentials).toBe(false)
+    expect(storage.setRequestHeader).not.toHaveBeenCalled()
+    expect([...(storage.send.mock.calls[0]![0] as FormData).keys()]).toEqual([
+      ...Object.keys(intent.upload.fields),
+      'file',
+    ])
+    storage.progress(10, 40)
+    expect(progress).toHaveBeenLastCalledWith(25)
+    storage.progress(20, 40, false)
+    expect(progress).toHaveBeenLastCalledWith(null)
+    storage.progress(20, 0)
+    expect(progress).toHaveBeenLastCalledWith(null)
+    storage.progress(40, 40)
+    await Promise.resolve()
+    expect(progress).toHaveBeenLastCalledWith(100)
+    expect(completed).toBe(false)
+    storage.dispatchEvent(new Event('load'))
+    await upload
+    expect(completed).toBe(true)
+    expect(fetchApi).not.toHaveBeenCalled()
+  })
+
+  it('registra listeners antes de send e interrompe o XHR ao cancelar', async () => {
+    const { client } = setup()
+    const storage = new StorageRequest()
+    const progress = vi.fn()
+    storage.send.mockImplementation(() => storage.progress(1, 4))
+    const service = new FileService(
+      client,
+      vi.fn(),
+      () => storage as unknown as XMLHttpRequest,
+    )
+    const controller = new AbortController()
+    const upload = service.upload(
+      intent,
+      new File(['pdf'], 'a.pdf'),
+      controller.signal,
+      progress,
+    )
+    const assertion = expect(upload).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    expect(progress).toHaveBeenCalledWith(25)
+    controller.abort()
+    await assertion
+    expect(storage.abort).toHaveBeenCalledOnce()
+    storage.progress(4, 4)
+    expect(progress).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejeita contrato de transporte ou autorização expirada antes de enviar', async () => {
+    const { service, fetchStorage } = setup()
+    const file = new File(['pdf'], 'a.pdf')
+    await expect(
+      service.upload(
+        { ...intent, uploadExpiresAt: '2000-01-01T00:00:00Z' },
+        file,
+      ),
+    ).rejects.toThrow('expirou')
+    await expect(
+      service.upload(
+        { ...intent, upload: { ...intent.upload, method: 'PUT' as 'POST' } },
+        file,
+      ),
+    ).rejects.toThrow('formato de envio inválido')
+    expect(fetchStorage).not.toHaveBeenCalled()
+  })
+
   it('confirma com JSON vazio e consulta até available', async () => {
     vi.useFakeTimers()
     const { service, fetchApi } = setup()
@@ -145,6 +251,54 @@ describe('FileService', () => {
       service.waitUntilAvailable('file-1', controller.signal),
     ).rejects.toMatchObject({ name: 'AbortError' })
     expect(fetchApi).not.toHaveBeenCalled()
+  })
+
+  it('respeita Retry-After da confirmação e do 429 com polling progressivo', async () => {
+    vi.useFakeTimers()
+    const { service, fetchApi } = setup()
+    fetchApi
+      .mockResolvedValueOnce(
+        json({ fileId: 'file-1', state: 'scanning' }, 202, {
+          'Retry-After': '5',
+        }),
+      )
+      .mockResolvedValueOnce(
+        json({ title: 'Limite', status: 429 }, 429, { 'Retry-After': '8' }),
+      )
+      .mockResolvedValueOnce(json({ fileId: 'file-1', state: 'available' }))
+    const confirmation = await service.confirm('intent-1')
+    const result = service.waitUntilAvailable(
+      'file-1',
+      new AbortController().signal,
+      confirmation,
+    )
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(fetchApi).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(fetchApi).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(7999)
+    expect(fetchApi).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect((await result).state).toBe('available')
+    expect(fetchApi).toHaveBeenCalledTimes(3)
+  })
+
+  it('cancelar durante Retry-After interrompe a espera sem fazer outra consulta', async () => {
+    vi.useFakeTimers()
+    const { service, fetchApi } = setup()
+    fetchApi.mockResolvedValue(
+      json({ state: 'scanning' }, 200, { 'Retry-After': '10' }),
+    )
+    const controller = new AbortController()
+    const result = service.waitUntilAvailable('file-1', controller.signal)
+    const assertion = expect(result).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    await vi.advanceTimersByTimeAsync(1000)
+    controller.abort()
+    await assertion
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(fetchApi).toHaveBeenCalledOnce()
   })
 
   it.each([
@@ -191,13 +345,15 @@ describe('FileService', () => {
     fetchApi
       .mockResolvedValueOnce(json({}, 200, { ETag: '"7"' }))
       .mockResolvedValueOnce(json({ title: 'Conflict', status: 412 }, 412))
+      .mockResolvedValueOnce(json({}, 200, { ETag: '"8"' }))
     const error = await service
       .link(destination, 'file-1', 'link-key')
       .catch((caught: unknown) => caught)
     expect(fileErrorMessage(error)).toContain(
       'revise antes de tentar novamente',
     )
-    expect(fetchApi).toHaveBeenCalledTimes(2)
+    expect(fetchApi).toHaveBeenCalledTimes(3)
+    expect(fetchApi.mock.calls[2]![1]!.method).toBe('GET')
   })
 
   it('remove com ETag recente e emite download com variante explícita', async () => {
@@ -217,6 +373,45 @@ describe('FileService', () => {
     ).toBe('"8"')
     await service.download('image-1', '64')
     expect(fetchApi.mock.calls[2]![1]!.body).toBe('{"variant":"64"}')
+  })
+
+  it('serializa vínculo e remoção do mesmo destino e relê o ETag após cada escrita', async () => {
+    const { service, fetchApi } = setup()
+    let release: (() => void) | undefined
+    const firstWrite = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let version = 1
+    let writes = 0
+    fetchApi.mockImplementation(async (_url, options) => {
+      if (options?.method === 'GET')
+        return json({}, 200, { ETag: `"${version}"` })
+      if (++writes === 1) await firstWrite
+      version++
+      return options?.method === 'DELETE'
+        ? new Response(null, { status: 204 })
+        : json({ fileId: 'file-1' }, 201)
+    })
+    const first = service.link(destination, 'file-1', 'link-1')
+    const removal = service.remove(destination, 'attachment-1')
+    const second = service.link(destination, 'file-2', 'link-2')
+    await vi.waitFor(() => expect(fetchApi).toHaveBeenCalledTimes(2))
+    expect(writes).toBe(1)
+    release?.()
+    await Promise.all([first, removal, second])
+    expect(fetchApi.mock.calls.map(([, options]) => options?.method)).toEqual([
+      'GET',
+      'POST',
+      'GET',
+      'DELETE',
+      'GET',
+      'POST',
+    ])
+    expect(
+      [1, 3, 5].map((index) =>
+        new Headers(fetchApi.mock.calls[index]![1]!.headers).get('If-Match'),
+      ),
+    ).toEqual(['"1"', '"2"', '"3"'])
   })
 
   it('valida extensão, MIME, arquivo vazio e tamanho antes de solicitar intenção', () => {

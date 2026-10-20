@@ -408,7 +408,7 @@ function toScheduledTask(
     ),
     createdAt: occurrence.createdAt ?? undefined,
     updatedAt: occurrence.updatedAt,
-    indicators: { attachments: 0 },
+    indicators: { attachments: occurrence.attachmentCount ?? 0 },
   }
 }
 
@@ -434,7 +434,7 @@ function toAdHocTask(task: TaskResource): Task {
     links: task.links.map((link, index) => toTaskLink(task.id, link, index)),
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
-    indicators: { attachments: 0 },
+    indicators: { attachments: task.attachmentCount ?? 0 },
   }
 }
 

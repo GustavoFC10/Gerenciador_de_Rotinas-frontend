@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router'
 
 import ErrorState from '../components/common/ErrorState'
 import LoadingState from '../components/common/LoadingState'
+import TaskAttachmentCount from '../components/files/TaskAttachmentCount'
 import { routineStatusConfig } from '../constants/routineStatus'
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
@@ -177,9 +178,15 @@ function AgendaColumn({
 function AgendaTaskCard({ task }: { task: TaskResource }) {
   return (
     <article className="rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-3 shadow-[var(--shadow-panel)]">
-      <p className="break-words text-sm font-black text-[var(--color-text-strong)]">
-        {task.title || 'Tarefa avulsa'}
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 break-words text-sm font-black text-[var(--color-text-strong)]">
+          {task.title || 'Tarefa avulsa'}
+        </p>
+        <TaskAttachmentCount
+          count={task.attachmentCount}
+          className="pt-0.5 text-[var(--color-text-muted)]"
+        />
+      </div>
       {task.description && (
         <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--color-text-muted)]">
           {task.description}

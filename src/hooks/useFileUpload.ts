@@ -2,6 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 
 import { fileErrorMessage, fileService } from '../services/fileService'
 import type { FileTarget, UploadIntent } from '../types/files'
+import type { ApiResponse } from '../services/httpClient'
+import type { PrivateFile } from '../types/files'
+import { useNotifications } from './useNotifications'
+
+export type FileUploadPhase =
+  | 'idle'
+  | 'preparing'
+  | 'uploading'
+  | 'verifying'
+  | 'linking'
+  | 'completed'
+  | 'error'
+  | 'cancelling'
+  | 'cancelled'
 
 interface UseFileUploadOptions {
   destination: FileTarget | null
@@ -16,6 +30,7 @@ interface PendingUpload {
   uploaded: boolean
   confirmed: boolean
   linked: boolean
+  confirmation?: ApiResponse<PrivateFile>
 }
 
 export function useFileUpload({
@@ -23,6 +38,9 @@ export function useFileUpload({
   disabled,
   onChanged,
 }: UseFileUploadOptions) {
+  const { notify } = useNotifications()
+  const [phase, setPhase] = useState<FileUploadPhase>('idle')
+  const [progress, setProgress] = useState<number | null>(null)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -52,14 +70,28 @@ export function useFileUpload({
     if (!current) return
     if (!current.linked) {
       if (!current.confirmed) {
-        setStatus('Confirmando envio…')
-        await fileService.confirm(current.intent.intentId, signal)
+        setPhase('verifying')
+        setProgress(null)
+        setStatus('Verificando…')
+        current.confirmation = await fileService.confirm(
+          current.intent.intentId,
+          signal,
+        )
         current.confirmed = true
       }
       signal.throwIfAborted()
-      setStatus('Processando arquivo…')
-      await fileService.waitUntilAvailable(current.intent.fileId, signal)
+      setPhase('verifying')
+      setProgress(null)
+      setStatus('Verificando…')
+      const initial = current.confirmation
+      current.confirmation = undefined
+      await fileService.waitUntilAvailable(
+        current.intent.fileId,
+        signal,
+        initial,
+      )
       signal.throwIfAborted()
+      setPhase('linking')
       setStatus('Vinculando arquivo…')
       await fileService.link(
         current.destination,
@@ -74,7 +106,13 @@ export function useFileUpload({
     signal.throwIfAborted()
     pending.current = null
     setHasPending(false)
+    setPhase('completed')
     setStatus('Arquivo salvo.')
+    notify({
+      title: 'Arquivo salvo',
+      tone: 'success',
+      dedupeKey: 'image-upload-success',
+    })
   }
 
   async function run(file?: File, destinationOverride?: FileTarget) {
@@ -95,6 +133,8 @@ export function useFileUpload({
     try {
       if (file && target) {
         setFileName(file.name)
+        setPhase('preparing')
+        setProgress(null)
         setStatus('Preparando envio…')
         const { data: intent } = await fileService.createIntent(
           file,
@@ -115,9 +155,18 @@ export function useFileUpload({
           linked: false,
         }
         setHasPending(true)
+        setPhase('uploading')
         setStatus('Enviando arquivo…')
         try {
-          await fileService.upload(intent, file, active.signal)
+          await fileService.upload(
+            intent,
+            file,
+            active.signal,
+            (percentage) => {
+              if (!active.signal.aborted && mounted.current)
+                setProgress(percentage)
+            },
+          )
           if (pending.current?.intent.intentId === intent.intentId)
             pending.current.uploaded = true
           active.signal.throwIfAborted()
@@ -135,8 +184,16 @@ export function useFileUpload({
       await finish(active.signal)
     } catch (caught) {
       if (!active.signal.aborted && mounted.current) {
+        setPhase('error')
         setStatus('')
-        setError(fileErrorMessage(caught))
+        const message = fileErrorMessage(caught)
+        setError(message)
+        notify({
+          title: 'Não foi possível salvar o arquivo',
+          message,
+          tone: 'error',
+          dedupeKey: 'image-upload-error',
+        })
         await onChanged().catch(() => undefined)
       }
     } finally {
@@ -151,6 +208,7 @@ export function useFileUpload({
     if (cancelInProgress.current) return
     cancelInProgress.current = true
     setCancelling(true)
+    setPhase('cancelling')
     controller.current?.abort()
     setBusy(true)
     setError('')
@@ -161,20 +219,29 @@ export function useFileUpload({
       if (!mounted.current) return
       pending.current = null
       setHasPending(false)
+      setPhase('cancelled')
       setStatus('Envio encerrado.')
       await onChanged()
     } catch (caught) {
       if (mounted.current) {
+        setPhase('error')
+        let message: string
         if (pending.current && !pending.current.uploaded) {
           // Bytes interrompidos não podem ser confirmados numa retomada.
           pending.current = null
           setHasPending(false)
-          setError(
-            'O envio foi interrompido. Selecione o arquivo novamente para tentar de novo.',
-          )
+          message =
+            'O envio foi interrompido. Selecione o arquivo novamente para tentar de novo.'
         } else {
-          setError(fileErrorMessage(caught))
+          message = fileErrorMessage(caught)
         }
+        setError(message)
+        notify({
+          title: 'O envio precisa de atenção',
+          message,
+          tone: 'error',
+          dedupeKey: 'image-upload-error',
+        })
         await onChanged().catch(() => undefined)
       }
     } finally {
@@ -192,10 +259,14 @@ export function useFileUpload({
     setStatus('')
     setError('')
     setFileName('')
+    setPhase('idle')
+    setProgress(null)
   }
 
   return {
     status,
+    phase,
+    progress,
     error,
     busy,
     hasPending,

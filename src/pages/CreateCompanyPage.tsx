@@ -77,6 +77,7 @@ function CreateCompanyPage({
     getInitialDraft(period),
   )
   const [errors, setErrors] = useState<CompanyErrors>({})
+  const [submitAttempt, setSubmitAttempt] = useState(0)
   const [routineSearch, setRoutineSearch] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [result, setResult] = useState<CreateCompanyResult | null>(null)
@@ -272,6 +273,7 @@ function CreateCompanyPage({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setSubmitAttempt((current) => current + 1)
 
     if (step === 0) {
       const nextErrors = validateCompanyData()
@@ -361,6 +363,7 @@ function CreateCompanyPage({
 
       <form onSubmit={(event) => void handleSubmit(event)} noValidate>
         <CreationErrorSummary
+          focusKey={submitAttempt}
           messages={Object.values(errors).filter((message): message is string =>
             Boolean(message),
           )}
