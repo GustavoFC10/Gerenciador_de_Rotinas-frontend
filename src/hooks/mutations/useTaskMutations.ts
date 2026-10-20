@@ -28,7 +28,7 @@ interface TaskMutationScope extends OrganizationQueryScope {
   period: string
 }
 
-interface TaskTransitionVariables {
+export interface TaskTransitionVariables {
   taskId: string
   status: RoutineStatus
 }
@@ -125,6 +125,7 @@ export function useTaskMutations({
   })
 
   const transitionMutation = useMutation({
+    mutationKey: queryKeys.taskTransitions(scope, period),
     mutationFn: async ({ taskId, status }: TaskTransitionVariables) => {
       const task = getTask(queryClient, scope, period, taskId)
       const input = {

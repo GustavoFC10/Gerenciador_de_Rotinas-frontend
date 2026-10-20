@@ -33,6 +33,26 @@ body {
   }
 }
 
+.file-upload-indeterminate {
+  animation: file-upload-indeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes file-upload-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .file-upload-indeterminate {
+    animation: none;
+  }
+}
+
 .spreadsheet-screen-navigation {
   width: 100%;
 }

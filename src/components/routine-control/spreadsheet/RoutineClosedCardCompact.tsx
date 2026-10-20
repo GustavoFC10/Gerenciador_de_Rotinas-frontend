@@ -4,7 +4,9 @@ import {
 } from '../../../constants/routineStatus'
 import RoutineStatusIcon from '../shared/RoutineStatusIcon'
 import TaskAttachmentCount from '../../files/TaskAttachmentCount'
+import { useFileUploads } from '../../../hooks/useFileUploads'
 import type { RoutineStatus, Task } from '../../../types/domain'
+import { isUploadActive } from '../../../types/fileUploads'
 import type { KeyboardEvent, MouseEvent } from 'react'
 
 const roundCellClass: Record<RoutineStatus, string> = {
@@ -39,6 +41,21 @@ function RoutineClosedCardCompact({
   ) => void
   isContextMenuOpen?: boolean
 }) {
+  const { jobs } = useFileUploads()
+  const uploadingCount = jobs.filter((job) => {
+    if (!isUploadActive(job) || job.destination.purpose !== 'task_attachment')
+      return false
+    const target = job.destination.target
+    return 'occurrenceKey' in target
+      ? target.occurrenceKey === task.occurrenceKey &&
+          target.referenceMonth.slice(0, 7) === task.period
+      : target.taskId === task.taskId &&
+          target.competenceId === task.competenceId
+  }).length
+  const uploadLabel =
+    uploadingCount > 0
+      ? `${uploadingCount} ${uploadingCount === 1 ? 'anexo' : 'anexos'} em envio`
+      : ''
   const status =
     routineStatusConfig[task.status] ??
     routineStatusConfig[ROUTINE_STATUS.PENDING]
@@ -93,16 +110,17 @@ function RoutineClosedCardCompact({
             ? 'z-10 ring-2 ring-[var(--color-control-focus)] ring-offset-2 ring-offset-[var(--color-table-cell-bg)]'
             : ''
         } ${colorClass}`}
-        aria-label={`Abrir ${label}. Status: ${status.label}${task.indicators.attachments > 0 ? `. ${task.indicators.attachments} ${task.indicators.attachments === 1 ? 'anexo' : 'anexos'}` : ''}`}
+        aria-label={`Abrir ${label}. Status: ${status.label}${task.indicators.attachments > 0 ? `. ${task.indicators.attachments} ${task.indicators.attachments === 1 ? 'anexo' : 'anexos'}` : ''}${uploadLabel ? `. ${uploadLabel}` : ''}`}
         aria-haspopup={hasContextMenu ? 'menu' : undefined}
         aria-expanded={hasContextMenu ? isContextMenuOpen : undefined}
         aria-controls={isContextMenuOpen ? 'task-context-menu' : undefined}
         aria-keyshortcuts={hasContextMenu ? 'Shift+F10' : undefined}
-        title={`${label} — ${status.label}${hasContextMenu ? '. Botão direito ou Shift+F10 para ações' : ''}`}
+        title={`${label} — ${status.label}${uploadLabel ? `. ${uploadLabel}` : ''}${hasContextMenu ? '. Botão direito ou Shift+F10 para ações' : ''}`}
       >
         <RoutineStatusIcon status={task.status} />
         <TaskAttachmentCount
           count={task.indicators.attachments}
+          uploadingCount={uploadingCount}
           className="absolute -right-3 -bottom-1 rounded-full border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-1 py-0.5 text-[var(--color-text-muted)] shadow-[var(--shadow-panel)]"
         />
       </button>

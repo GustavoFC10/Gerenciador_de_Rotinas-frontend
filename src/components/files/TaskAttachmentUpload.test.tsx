@@ -343,6 +343,38 @@ function attachAction() {
 }
 
 describe('TaskAttachmentUpload', () => {
+  it('mostra o primeiro anexo no card durante o envio e remove a pendência em erro', async () => {
+    let rejectUpload!: (reason: Error) => void
+    vi.mocked(fileService.upload).mockReturnValue(
+      new Promise<void>((_resolve, reject) => {
+        rejectUpload = reject
+      }),
+    )
+    await render(`${ROUTES.SPREADSHEET}?screenId=${screen.id}`)
+    await openContextMenu()
+    await act(async () => attachAction()!.click())
+    const input = host.querySelector<HTMLInputElement>('input[type="file"]')!
+    Object.defineProperty(input, 'files', {
+      configurable: true,
+      value: [
+        new File(['document'], 'comprovante.pdf', { type: 'application/pdf' }),
+      ],
+    })
+    await act(async () =>
+      input.dispatchEvent(new Event('change', { bubbles: true })),
+    )
+    const card = host.querySelector<HTMLButtonElement>(
+      'button[aria-label*="Status:"]',
+    )!
+    expect(card.getAttribute('aria-label')).toContain('1 anexo em envio')
+    expect(card.querySelector('[aria-busy="true"]')).not.toBeNull()
+    expect(fileService.link).not.toHaveBeenCalled()
+
+    await act(async () => rejectUpload(new Error('Falha na transferência')))
+    expect(card.getAttribute('aria-label')).not.toContain('em envio')
+    expect(card.querySelector('[aria-busy="true"]')).toBeNull()
+  })
+
   it.each([
     `${ROUTES.SPREADSHEET}?screenId=${screen.id}`,
     ROUTES.TASKS,
