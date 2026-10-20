@@ -20,6 +20,8 @@ export const queryKeys = {
     [...scopeKey(scope), 'routine-control'] as const,
   routineControl: (scope: OrganizationQueryScope, period: string) =>
     [...scopeKey(scope), 'routine-control', period] as const,
+  taskTransitions: (scope: OrganizationQueryScope, period: string) =>
+    [...scopeKey(scope), 'task-transitions', period] as const,
   navigationScreens: (scope: OrganizationQueryScope) =>
     [...scopeKey(scope), 'navigation-screens'] as const,
   members: (scope: OrganizationQueryScope) =>

@@ -9,7 +9,10 @@ export default function FileUploadProgress({
   const determinate =
     state === 'completed' || (state === 'uploading' && progress !== null)
   const waiting =
-    state === 'queued' || state === 'error' || state === 'cancelled'
+    state === 'queued' ||
+    state === 'preparing' ||
+    state === 'error' ||
+    state === 'cancelled'
   const value =
     state === 'completed'
       ? 100
@@ -27,7 +30,7 @@ export default function FileUploadProgress({
       className="h-1 shrink-0 overflow-hidden rounded-full bg-[var(--color-divider)]"
     >
       <div
-        className={`h-full rounded-full ${state === 'error' ? 'bg-[var(--status-error-text)]' : 'bg-[var(--color-brand)]'} ${!determinate && !waiting ? 'animate-pulse motion-reduce:animate-none' : ''}`}
+        className={`h-full rounded-full ${state === 'error' ? 'bg-[var(--status-error-text)]' : 'bg-[var(--color-brand)]'} ${!determinate && !waiting ? 'file-upload-indeterminate' : ''}`}
         style={{
           width: waiting
             ? state === 'error'
