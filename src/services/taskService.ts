@@ -27,6 +27,7 @@ export interface AdHocTaskInput extends TaskPatchInput {
 }
 
 export interface TaskResource {
+  attachmentCount: number
   id: string
   occurrenceKey: string | null
   competenceId: string
@@ -74,9 +75,11 @@ export class TaskService {
   getOccurrence(
     period: string,
     occurrenceKey: string,
+    signal?: AbortSignal,
   ): Promise<ApiResponse<ScheduledOccurrence>> {
     return this.client.get<ScheduledOccurrence>(
       occurrencePath(period, occurrenceKey),
+      { signal },
     )
   }
 
@@ -117,8 +120,11 @@ export class TaskService {
   get(
     competenceId: string,
     taskId: string,
+    signal?: AbortSignal,
   ): Promise<ApiResponse<TaskResource>> {
-    return this.client.get<TaskResource>(taskPath(competenceId, taskId))
+    return this.client.get<TaskResource>(taskPath(competenceId, taskId), {
+      signal,
+    })
   }
 
   update(

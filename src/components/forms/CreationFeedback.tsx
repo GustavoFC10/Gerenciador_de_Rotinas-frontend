@@ -7,25 +7,29 @@ import Card from '../ui/Card'
 export function CreationErrorSummary({
   title = 'Revise os campos destacados',
   messages,
+  focusKey = 0,
 }: {
   title?: string
   messages: string[]
+  focusKey?: number
 }) {
   const summaryRef = useRef<HTMLDivElement>(null)
   const uniqueMessages = [
     ...new Set(messages.filter((message) => Boolean(message))),
   ]
-  const messageSignature = uniqueMessages.join('\u0000')
+  const hasErrors = uniqueMessages.length > 0
+  const lastFocusedKey = useRef(0)
 
   useEffect(() => {
-    if (!messageSignature) return
-
-    const frame = window.requestAnimationFrame(() =>
-      summaryRef.current?.focus(),
-    )
+    if (!hasErrors || focusKey === 0 || lastFocusedKey.current === focusKey)
+      return
+    const frame = window.requestAnimationFrame(() => {
+      summaryRef.current?.focus()
+      lastFocusedKey.current = focusKey
+    })
 
     return () => window.cancelAnimationFrame(frame)
-  }, [messageSignature])
+  }, [focusKey, hasErrors])
 
   if (uniqueMessages.length === 0) return null
 

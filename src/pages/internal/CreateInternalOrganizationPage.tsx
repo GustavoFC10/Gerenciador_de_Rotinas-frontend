@@ -40,6 +40,7 @@ function CreateInternalOrganizationPage() {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState<OrganizationProvisionDraft>(initialDraft)
   const [errors, setErrors] = useState<ProvisionErrors>({})
+  const [submitAttempt, setSubmitAttempt] = useState(0)
   const [submissionError, setSubmissionError] = useState('')
   const [provisionResult, setProvisionResult] =
     useState<ProvisionOrganizationResponse | null>(null)
@@ -90,6 +91,7 @@ function CreateInternalOrganizationPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setSubmitAttempt((current) => current + 1)
     const nextErrors = validate()
     setErrors(nextErrors)
 
@@ -152,7 +154,10 @@ function CreateInternalOrganizationPage() {
         onSubmit={(event) => void handleSubmit(event)}
         noValidate
       >
-        <CreationErrorSummary messages={errorMessages} />
+        <CreationErrorSummary
+          messages={errorMessages}
+          focusKey={submitAttempt}
+        />
 
         {submissionError && (
           <p

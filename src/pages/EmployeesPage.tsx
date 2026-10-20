@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -32,6 +33,8 @@ import { DEPARTMENT_ACCESS_ROLE, ORGANIZATION_ROLE } from '../constants/roles'
 import { ROUTES } from '../constants/routes'
 import { useOrganizationMembers } from '../hooks/useOrganizationMembers'
 import { useAuth } from '../hooks/useAuth'
+import { useNotifications } from '../hooks/useNotifications'
+import { FieldError } from '../components/forms/CreationFeedback'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../query/queryKeys'
 import type {
@@ -232,8 +235,26 @@ function EmployeeProfilePanel({
     Record<string, DepartmentAccessRole | ''>
   >(() => getDepartmentAccessDraft(member))
   const accessCompletedChangesRef = useRef(0)
-  const [actionMessage, setActionMessage] = useState('')
-  const [actionError, setActionError] = useState('')
+  const { notify } = useNotifications()
+  const [nameError, setNameError] = useState('')
+  const notifySuccess = useCallback(
+    (title: string) => {
+      if (title) notify({ title, tone: 'success' })
+    },
+    [notify],
+  )
+  const reportActionError = useCallback(
+    (message: string) => {
+      if (message)
+        notify({
+          title: 'Não foi possível concluir a ação',
+          message,
+          tone: 'error',
+          dedupeKey: `member-action:${member.id}`,
+        })
+    },
+    [notify, member.id],
+  )
   const profileMutation = useMutation({
     mutationFn: ({
       memberId,
@@ -329,8 +350,7 @@ function EmployeeProfilePanel({
     setDisplayName(member.displayName)
     setRole(member.role)
     setDepartmentRoles(getDepartmentAccessDraft(member))
-    setActionMessage('')
-    setActionError('')
+    setNameError('')
   }, [member])
 
   async function handleProfileSave(event: FormEvent<HTMLFormElement>) {
@@ -338,7 +358,7 @@ function EmployeeProfilePanel({
     const nextDisplayName = displayName.trim()
 
     if (!nextDisplayName) {
-      setActionError('Informe o nome do colaborador.')
+      setNameError('Informe o nome do colaborador.')
       return
     }
 
@@ -348,18 +368,16 @@ function EmployeeProfilePanel({
         role !== member.role &&
         !canAssignOwner)
     ) {
-      setActionError('Somente um proprietário pode atribuir esse cargo.')
+      reportActionError('Somente um proprietário pode atribuir esse cargo.')
       return
     }
 
     if (nextDisplayName === member.displayName && role === member.role) {
-      setActionMessage('Nenhuma alteração de perfil para salvar.')
-      setActionError('')
+      notifySuccess('Nenhuma alteração de perfil para salvar.')
       return
     }
 
-    setActionError('')
-    setActionMessage('')
+    setNameError('')
 
     try {
       const response = await profileMutation.mutateAsync({
@@ -368,9 +386,9 @@ function EmployeeProfilePanel({
         ...(role !== member.role ? { role } : {}),
       })
       await onMemberChange(response.data)
-      setActionMessage('Perfil atualizado.')
+      notifySuccess('Perfil atualizado.')
     } catch (caughtError) {
-      setActionError(
+      reportActionError(
         caughtError instanceof Error
           ? caughtError.message
           : 'Não foi possível atualizar o perfil.',
@@ -395,13 +413,9 @@ function EmployeeProfilePanel({
       .filter((change) => change.previousRole !== change.nextRole)
 
     if (changes.length === 0) {
-      setActionMessage('Nenhuma alteração de acesso para salvar.')
-      setActionError('')
+      notifySuccess('Nenhuma alteração de acesso para salvar.')
       return
     }
-
-    setActionMessage('')
-    setActionError('')
 
     try {
       const response = await accessMutation.mutateAsync({
@@ -412,7 +426,7 @@ function EmployeeProfilePanel({
         })),
       })
       await onMemberChange(response.data)
-      setActionMessage('Acessos por departamento atualizados.')
+      notifySuccess('Acessos por departamento atualizados.')
     } catch (caughtError) {
       try {
         const response = await organizationMemberService.get(member.id)
@@ -427,7 +441,7 @@ function EmployeeProfilePanel({
         caughtError instanceof Error
           ? caughtError.message
           : 'Não foi possível salvar os acessos.'
-      setActionError(
+      reportActionError(
         completedChanges > 0
           ? `${completedChanges} alteração(ões) foram aplicadas antes da falha. ${detail}`
           : detail,
@@ -445,15 +459,12 @@ function EmployeeProfilePanel({
       return
     }
 
-    setActionError('')
-    setActionMessage('')
-
     try {
       const response = await offboardMutation.mutateAsync(member.id)
       await onMemberChange(response.data)
-      setActionMessage('Acesso do colaborador desativado.')
+      notifySuccess('Acesso do colaborador desativado.')
     } catch (caughtError) {
-      setActionError(
+      reportActionError(
         caughtError instanceof Error
           ? caughtError.message
           : 'Não foi possível desativar o acesso do colaborador.',
@@ -518,20 +529,6 @@ function EmployeeProfilePanel({
         </dl>
 
         <div className="flex-1 overflow-y-auto px-5 py-5">
-          {(actionMessage || actionError) && (
-            <p
-              role={actionError ? 'alert' : 'status'}
-              className={
-                'mb-4 rounded-[var(--radius-control)] border px-3 py-2 text-sm font-semibold ' +
-                (actionError
-                  ? 'border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error-text)]'
-                  : 'border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]')
-              }
-            >
-              {actionError || actionMessage}
-            </p>
-          )}
-
           {canEditProfile && (
             <form
               className="border-b border-[var(--color-divider)] pb-5"
@@ -541,13 +538,27 @@ function EmployeeProfilePanel({
                 Dados organizacionais
               </h3>
               <div className="mt-3 grid gap-3">
-                <TextField
-                  id="employee-profile-name"
-                  label="Nome"
-                  value={displayName}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                  disabled={isSavingProfile}
-                />
+                <div>
+                  <TextField
+                    id="employee-profile-name"
+                    label="Nome"
+                    value={displayName}
+                    onChange={(event) => {
+                      setDisplayName(event.target.value)
+                      setNameError('')
+                    }}
+                    aria-invalid={Boolean(nameError)}
+                    aria-describedby={
+                      nameError ? 'employee-profile-name-error' : undefined
+                    }
+                    disabled={isSavingProfile}
+                  />
+                  <div className="min-h-5">
+                    <FieldError id="employee-profile-name-error">
+                      {nameError}
+                    </FieldError>
+                  </div>
+                </div>
                 <Select
                   id="employee-profile-role"
                   label="Cargo organizacional"

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
 
@@ -18,6 +18,7 @@ import TextField from '../../components/ui/TextField'
 import { ROUTES } from '../../constants/routes'
 import { focusRing } from '../../constants/designTokens'
 import { useInternalOrganization } from '../../hooks/useInternalOrganizations'
+import { useNotifications } from '../../hooks/useNotifications'
 import { queryKeys } from '../../query/queryKeys'
 import { isApiError } from '../../services/httpClient'
 import {
@@ -25,11 +26,6 @@ import {
   type InternalOrganizationDetailResource,
   type InternalOwnerResource,
 } from '../../services/internalOrganizationService'
-
-type SupportNotice =
-  | { tone: 'success'; message: string }
-  | { tone: 'error'; message: string }
-  | null
 
 function InternalOrganizationDetailPage() {
   const { organizationId } = useParams()
@@ -45,7 +41,14 @@ function InternalOrganizationDetailPage() {
   const [ownerName, setOwnerName] = useState('')
   const [ownerEmail, setOwnerEmail] = useState('')
   const [ownerFormError, setOwnerFormError] = useState('')
-  const [notice, setNotice] = useState<SupportNotice>(null)
+  const { notify, setActivity } = useNotifications()
+  useEffect(() => {
+    setActivity(
+      'internal-organization-refresh',
+      isFetching && !isPending ? 'Atualizando organização…' : null,
+    )
+    return () => setActivity('internal-organization-refresh', null)
+  }, [isFetching, isPending, setActivity])
   const addOwnerMutation = useMutation({
     mutationFn: ({ name, email }: { name: string; email: string }) => {
       if (!organizationId) {
@@ -122,7 +125,6 @@ function InternalOrganizationDetailPage() {
     }
 
     setOwnerFormError('')
-    setNotice(null)
 
     try {
       const response = await addOwnerMutation.mutateAsync({ name, email })
@@ -130,8 +132,9 @@ function InternalOrganizationDetailPage() {
       setOwnerName('')
       setOwnerEmail('')
       setIsAddingOwner(false)
-      setNotice({
+      notify({
         tone: 'success',
+        title: 'Convite criado',
         message: `Convite para ${response.data.email} criado com sucesso.`,
       })
     } catch (caughtError) {
@@ -144,18 +147,18 @@ function InternalOrganizationDetailPage() {
   }
 
   async function handleResendInvitation(invitationId: string, email: string) {
-    setNotice(null)
-
     try {
       const response = await resendInvitationMutation.mutateAsync(invitationId)
       await refreshOrganization(currentOrganizationId)
-      setNotice({
+      notify({
         tone: 'success',
+        title: 'Convite reenviado',
         message: `Convite para ${response.data.email || email} reenviado.`,
       })
     } catch (caughtError) {
-      setNotice({
+      notify({
         tone: 'error',
+        title: 'Não foi possível reenviar o convite',
         message:
           caughtError instanceof Error
             ? caughtError.message
@@ -167,7 +170,6 @@ function InternalOrganizationDetailPage() {
   return (
     <OrganizationDetail
       organization={organization}
-      isRefreshing={isFetching}
       isAddingOwner={isAddingOwner}
       ownerName={ownerName}
       ownerEmail={ownerEmail}
@@ -178,11 +180,9 @@ function InternalOrganizationDetailPage() {
           ? resendInvitationMutation.variables
           : null
       }
-      notice={notice}
       onAddOwnerOpen={() => {
         setIsAddingOwner(true)
         setOwnerFormError('')
-        setNotice(null)
       }}
       onAddOwnerCancel={() => {
         setIsAddingOwner(false)
@@ -200,14 +200,12 @@ function InternalOrganizationDetailPage() {
 
 function OrganizationDetail({
   organization,
-  isRefreshing,
   isAddingOwner,
   ownerName,
   ownerEmail,
   ownerFormError,
   isAddingOwnerPending,
   isResendingInvitationId,
-  notice,
   onAddOwnerOpen,
   onAddOwnerCancel,
   onOwnerNameChange,
@@ -216,14 +214,12 @@ function OrganizationDetail({
   onResendInvitation,
 }: {
   organization: InternalOrganizationDetailResource
-  isRefreshing: boolean
   isAddingOwner: boolean
   ownerName: string
   ownerEmail: string
   ownerFormError: string
   isAddingOwnerPending: boolean
   isResendingInvitationId: string | null
-  notice: SupportNotice
   onAddOwnerOpen: () => void
   onAddOwnerCancel: () => void
   onOwnerNameChange: (value: string) => void
@@ -252,15 +248,6 @@ function OrganizationDetail({
       />
 
       <div className="space-y-5 pt-6">
-        {isRefreshing && (
-          <p
-            className="text-sm font-semibold text-[var(--color-text-muted)]"
-            role="status"
-          >
-            Atualizando organizacao...
-          </p>
-        )}
-
         <Card className="p-5 sm:p-6" variant="flat">
           <InternalSection
             title="Visao geral"
@@ -350,19 +337,6 @@ function OrganizationDetail({
                 title="Nenhum owner encontrado"
                 description="Adicione um owner para iniciar o acesso a esta organizacao."
               />
-            )}
-
-            {notice && (
-              <p
-                role={notice.tone === 'error' ? 'alert' : 'status'}
-                className={`mt-4 rounded-[var(--radius-control)] border px-4 py-3 text-sm font-semibold ${
-                  notice.tone === 'error'
-                    ? 'border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error-text)]'
-                    : 'border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]'
-                }`}
-              >
-                {notice.message}
-              </p>
             )}
           </InternalSection>
         </Card>

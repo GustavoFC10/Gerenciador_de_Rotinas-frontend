@@ -141,6 +141,7 @@ describe('RoutineControlService', () => {
                 tasks: [
                   {
                     occurrenceKey: 'occurrence-1',
+                    attachmentCount: 0,
                     taskId: null,
                     etag: 'virtual:occurrence-1',
                     persistence: 'virtual',
@@ -176,6 +177,7 @@ describe('RoutineControlService', () => {
             results: [
               {
                 id: 'task-1',
+                attachmentCount: 3,
                 occurrenceKey: null,
                 competenceId: 'competence-1',
                 competence: '2026-08',
@@ -261,6 +263,7 @@ describe('RoutineControlService', () => {
           assigneeId: 'member-1',
           period: '2026-08',
           status: 'pending',
+          indicators: { attachments: 0 },
         }),
         expect.objectContaining({
           id: 'task-1',
@@ -268,6 +271,7 @@ describe('RoutineControlService', () => {
           competenceId: 'competence-1',
           kind: 'ad_hoc',
           status: 'in_progress',
+          indicators: { attachments: 3 },
         }),
       ]),
     )

@@ -1,6 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query'
 
 import { queryKeys, type OrganizationQueryScope } from './queryKeys'
+import type { AgendaProjection } from '../services/screenService'
+import type { FileTarget } from '../types/files'
 import type {
   Client,
   Department,
@@ -14,6 +16,73 @@ import type {
 type ResponseUpdater = (
   response: RoutineControlResponse,
 ) => RoutineControlResponse
+
+/** Apply a fresh collection count without changing the task's version or ETag. */
+export function updateTaskAttachmentCount(
+  queryClient: QueryClient,
+  scope: OrganizationQueryScope,
+  destination: FileTarget,
+  count: number,
+): void {
+  if (destination.purpose !== 'task_attachment') return
+  const target = destination.target
+  const attachmentCount = Math.max(0, Math.trunc(count))
+  const matches = (task: Task) =>
+    'occurrenceKey' in target
+      ? task.occurrenceKey === target.occurrenceKey &&
+        task.period === target.referenceMonth.slice(0, 7)
+      : task.taskId === target.taskId &&
+        task.competenceId === target.competenceId
+
+  updateOperationalContexts(queryClient, scope, (current) => ({
+    ...current,
+    data: {
+      ...current.data,
+      tasks: current.data.tasks.map((task) =>
+        matches(task)
+          ? {
+              ...task,
+              indicators: { ...task.indicators, attachments: attachmentCount },
+            }
+          : task,
+      ),
+      spreadsheetProjections: current.data.spreadsheetProjections.map(
+        (projection) => ({
+          ...projection,
+          cells: projection.cells.map((cell) => ({
+            ...cell,
+            tasks: cell.tasks.map((task) =>
+              'occurrenceKey' in target &&
+              task.occurrenceKey === target.occurrenceKey &&
+              task.referenceMonth.slice(0, 7) ===
+                target.referenceMonth.slice(0, 7)
+                ? { ...task, attachmentCount }
+                : task,
+            ),
+          })),
+        }),
+      ),
+    },
+  }))
+  queryClient.setQueriesData<AgendaProjection>(
+    { queryKey: [...queryKeys.scope(scope), 'agenda-projection'] },
+    (current) =>
+      current && 'taskId' in target
+        ? {
+            ...current,
+            columns: current.columns.map((column) => ({
+              ...column,
+              tasks: column.tasks.map((task) =>
+                task.id === target.taskId &&
+                task.competenceId === target.competenceId
+                  ? { ...task, attachmentCount }
+                  : task,
+              ),
+            })),
+          }
+        : current,
+  )
+}
 
 export function updateOperationalContexts(
   queryClient: QueryClient,

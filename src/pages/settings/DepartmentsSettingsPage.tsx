@@ -46,7 +46,6 @@ function DepartmentsSettingsPage({
   const [description, setDescription] = useState('')
   const [formError, setFormError] = useState('')
   const [isCreating, setIsCreating] = useState(false)
-  const [developmentNotice, setDevelopmentNotice] = useState('')
 
   const visibleDepartments = useMemo(() => {
     const query = normalizeSearch(search)
@@ -140,7 +139,6 @@ function DepartmentsSettingsPage({
           <Button
             tone="primary"
             onClick={() => {
-              setDevelopmentNotice('')
               setIsFormOpen(true)
             }}
           >
@@ -198,15 +196,6 @@ function DepartmentsSettingsPage({
             />
           </label>
 
-          {developmentNotice && (
-            <p
-              role="status"
-              className="mt-4 rounded-[var(--radius-control)] border border-[var(--color-brand-border)] bg-[var(--color-brand-soft)] px-3 py-2 text-sm font-semibold text-[var(--color-brand-strong)]"
-            >
-              {developmentNotice}
-            </p>
-          )}
-
           {visibleDepartments.length > 0 ? (
             <ul className="mt-5 divide-y divide-[var(--color-list-border)] overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-list-border)] bg-[var(--color-panel-bg)]">
               {visibleDepartments.map((department) => {
@@ -254,7 +243,6 @@ function DepartmentsSettingsPage({
                         </Link>
                         <DepartmentActionMenu
                           departmentName={department.name}
-                          onDevelopmentNotice={setDevelopmentNotice}
                         />
                       </div>
                     </div>
@@ -284,23 +272,10 @@ function DepartmentsSettingsPage({
   )
 }
 
-function DepartmentActionMenu({
-  departmentName,
-  onDevelopmentNotice,
-}: {
-  departmentName: string
-  onDevelopmentNotice: (message: string) => void
-}) {
+function DepartmentActionMenu({ departmentName }: { departmentName: string }) {
   const [isOpen, setIsOpen] = useState(false)
   const menuId = useId()
   const triggerRef = useRef<HTMLButtonElement | null>(null)
-
-  function notify(action: 'edição' | 'exclusão') {
-    onDevelopmentNotice(
-      `A ${action} de “${departmentName}” está em desenvolvimento e ainda não possui suporte no backend.`,
-    )
-    setIsOpen(false)
-  }
 
   return (
     <div className="relative">
@@ -323,19 +298,24 @@ function DepartmentActionMenu({
         className="w-44 overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-1 shadow-[var(--shadow-floating)]"
         ariaLabel={`Ações para ${departmentName}`}
       >
+        <p className="px-2.5 py-2 text-xs text-[var(--color-text-muted)]">
+          Em desenvolvimento
+        </p>
         <button
           type="button"
           role="menuitem"
-          onClick={() => notify('edição')}
-          className={`flex min-h-9 w-full items-center rounded-[var(--radius-control)] px-2.5 text-left text-sm font-semibold text-[var(--color-text-main)] hover:bg-[var(--color-control-hover-bg)] ${focusRing}`}
+          disabled
+          title="Edição de dados ainda indisponível"
+          className="flex min-h-9 w-full cursor-not-allowed items-center rounded-[var(--radius-control)] px-2.5 text-left text-sm font-semibold text-[var(--color-text-muted)] opacity-60"
         >
           Editar dados
         </button>
         <button
           type="button"
           role="menuitem"
-          onClick={() => notify('exclusão')}
-          className={`flex min-h-9 w-full items-center rounded-[var(--radius-control)] px-2.5 text-left text-sm font-semibold text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)] ${focusRing}`}
+          disabled
+          title="Exclusão de departamentos ainda indisponível"
+          className="flex min-h-9 w-full cursor-not-allowed items-center rounded-[var(--radius-control)] px-2.5 text-left text-sm font-semibold text-[var(--color-text-muted)] opacity-60"
         >
           Excluir departamento
         </button>

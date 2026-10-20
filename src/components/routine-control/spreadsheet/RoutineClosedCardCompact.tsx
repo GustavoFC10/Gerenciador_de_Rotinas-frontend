@@ -3,6 +3,7 @@ import {
   routineStatusConfig,
 } from '../../../constants/routineStatus'
 import RoutineStatusIcon from '../shared/RoutineStatusIcon'
+import TaskAttachmentCount from '../../files/TaskAttachmentCount'
 import type { RoutineStatus, Task } from '../../../types/domain'
 import type { KeyboardEvent, MouseEvent } from 'react'
 
@@ -92,7 +93,7 @@ function RoutineClosedCardCompact({
             ? 'z-10 ring-2 ring-[var(--color-control-focus)] ring-offset-2 ring-offset-[var(--color-table-cell-bg)]'
             : ''
         } ${colorClass}`}
-        aria-label={`Abrir ${label}. Status: ${status.label}`}
+        aria-label={`Abrir ${label}. Status: ${status.label}${task.indicators.attachments > 0 ? `. ${task.indicators.attachments} ${task.indicators.attachments === 1 ? 'anexo' : 'anexos'}` : ''}`}
         aria-haspopup={hasContextMenu ? 'menu' : undefined}
         aria-expanded={hasContextMenu ? isContextMenuOpen : undefined}
         aria-controls={isContextMenuOpen ? 'task-context-menu' : undefined}
@@ -100,6 +101,10 @@ function RoutineClosedCardCompact({
         title={`${label} — ${status.label}${hasContextMenu ? '. Botão direito ou Shift+F10 para ações' : ''}`}
       >
         <RoutineStatusIcon status={task.status} />
+        <TaskAttachmentCount
+          count={task.indicators.attachments}
+          className="absolute -right-3 -bottom-1 rounded-full border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] px-1 py-0.5 text-[var(--color-text-muted)] shadow-[var(--shadow-panel)]"
+        />
       </button>
     </div>
   )

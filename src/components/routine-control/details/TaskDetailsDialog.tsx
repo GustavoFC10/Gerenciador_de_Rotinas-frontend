@@ -60,6 +60,7 @@ function TaskDetailsDialog({
     }
 
     function handleDialogKeyDown(event: KeyboardEvent) {
+      if (document.querySelector('[data-overlay-dialog]')) return
       if (event.key === 'Escape') {
         event.preventDefault()
         onCloseRef.current()

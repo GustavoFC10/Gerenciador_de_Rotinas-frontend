@@ -11,6 +11,7 @@ import {
 } from '../constants/entityOptions'
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
+import { useNotifications } from '../hooks/useNotifications'
 import WorkspaceBar from '../layouts/WorkspaceBar'
 import type { ClientCompanyPatch } from '../services/companyService'
 import type {
@@ -73,7 +74,7 @@ function EntityDetailPage({
   const navigate = useNavigate()
   const { competence, formattedCompetence, user } = useAppState()
   const [isEditing, setIsEditing] = useState(false)
-  const [savedMessage, setSavedMessage] = useState('')
+  const { notify } = useNotifications()
   const entityId =
     type === 'client' ? (params.clientId ?? '') : (params.routineId ?? '')
   const client =
@@ -124,7 +125,6 @@ function EntityDetailPage({
 
   useEffect(() => {
     setIsEditing(false)
-    setSavedMessage('')
   }, [entityId, type])
 
   if (!entity) {
@@ -158,13 +158,16 @@ function EntityDetailPage({
   async function handleClientSave(changes: ClientCompanyPatch) {
     if (!client || !onClientUpdate) return
     await onClientUpdate(client.id, changes)
-    setSavedMessage('Dados da empresa atualizados.')
+    notify({ title: 'Dados da empresa atualizados.', tone: 'success' })
   }
 
   async function handleRoutineSave(changes: RoutineEditInput) {
     if (!routine || !onRoutineUpdate) return
     await onRoutineUpdate(routine.id, changes)
-    setSavedMessage('Identidade e nova versão da rotina foram publicadas.')
+    notify({
+      title: 'Identidade e nova versão da rotina foram publicadas.',
+      tone: 'success',
+    })
   }
 
   return (
@@ -198,15 +201,6 @@ function EntityDetailPage({
           ) : undefined
         }
       />
-
-      {savedMessage && (
-        <p
-          className="mb-3 rounded-[var(--radius-control)] border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-3 py-2 text-sm font-semibold text-[var(--status-completed-text)]"
-          role="status"
-        >
-          {savedMessage}
-        </p>
-      )}
 
       <EntitySummary
         type={type}

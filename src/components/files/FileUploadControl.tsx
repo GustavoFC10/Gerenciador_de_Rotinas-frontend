@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react'
 
 import { useFileUpload } from '../../hooks/useFileUpload'
-import { attachmentAccept, imageAccept } from '../../services/fileService'
+import { useFileUploads } from '../../hooks/useFileUploads'
+import {
+  attachmentAccept,
+  fileOwnerPath,
+  imageAccept,
+} from '../../services/fileService'
 import type { FileTarget } from '../../types/files'
 import Button from '../ui/Button'
 import FileIcon from './FileIcon'
@@ -23,11 +28,22 @@ export default function FileUploadControl({
   onBusyChange,
 }: FileUploadControlProps) {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const queue = useFileUploads()
   const upload = useFileUpload({ destination, disabled, onChanged })
+  const ownJobs = queue.jobs.filter(
+    (job) => fileOwnerPath(job.destination) === fileOwnerPath(destination),
+  )
+  const activeJobs = ownJobs.filter(
+    (job) => !['completed', 'cancelled', 'error'].includes(job.state),
+  )
+  const pendingJobs = ownJobs.filter(
+    (job) => !['completed', 'cancelled'].includes(job.state),
+  )
+  const busy = queue.isAvailable ? activeJobs.length > 0 : upload.busy
   useEffect(() => {
-    onBusyChange?.(upload.busy)
+    onBusyChange?.(busy)
     return () => onBusyChange?.(false)
-  }, [onBusyChange, upload.busy])
+  }, [onBusyChange, busy])
   const isAttachment = destination.purpose === 'task_attachment'
   const uploadLabel =
     label ?? (isAttachment ? 'Anexar arquivo' : 'Selecionar imagem')
@@ -36,25 +52,30 @@ export default function FileUploadControl({
     : 'JPEG, PNG ou WebP, até 5 MiB e 16 megapixels. Recorte quadrado central.'
 
   return (
-    <div className="min-w-0 max-w-sm space-y-2" aria-busy={upload.busy}>
+    <div
+      className="flex min-h-8 min-w-0 max-w-sm items-center gap-2"
+      aria-busy={busy}
+    >
       <input
         ref={inputRef}
         type="file"
         hidden
         aria-label={uploadLabel}
         accept={isAttachment ? attachmentAccept : imageAccept}
-        disabled={disabled || upload.busy || upload.hasPending}
+        disabled={disabled || busy || (!queue.isAvailable && upload.hasPending)}
         onChange={(event) => {
           const file = event.target.files?.[0]
           event.target.value = ''
-          if (file) void upload.run(file)
+          if (!file) return
+          if (queue.isAvailable) queue.enqueue([file], destination, uploadLabel)
+          else void upload.run(file)
         }}
       />
-      {!upload.hasPending && !upload.busy && (
+      {(queue.isAvailable || (!upload.hasPending && !upload.busy)) && (
         <Button
           size="sm"
           tone="neutral"
-          disabled={disabled}
+          disabled={disabled || busy}
           title={formats}
           onClick={() => inputRef.current?.click()}
           className="gap-1.5"
@@ -63,7 +84,24 @@ export default function FileUploadControl({
           {uploadLabel}
         </Button>
       )}
-      <FileUploadFeedback upload={upload} />
+      {queue.isAvailable ? (
+        pendingJobs.length > 0 && (
+          <Button
+            size="sm"
+            tone="ghost"
+            className="shrink-0 gap-1.5"
+            onClick={queue.openPanel}
+          >
+            <FileIcon
+              name={busy ? 'progress' : 'retry'}
+              className={`size-4 ${busy ? 'animate-spin motion-reduce:animate-none' : ''}`}
+            />
+            Envios
+          </Button>
+        )
+      ) : (
+        <FileUploadFeedback upload={upload} />
+      )}
     </div>
   )
 }

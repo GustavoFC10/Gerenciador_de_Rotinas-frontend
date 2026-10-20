@@ -87,7 +87,7 @@ export function toTaskFromScheduledOccurrence(
     links: toTaskLinks(occurrence.occurrenceKey, occurrence.links),
     createdAt: occurrence.createdAt ?? undefined,
     updatedAt: occurrence.updatedAt,
-    indicators: { attachments: 0 },
+    indicators: { attachments: occurrence.attachmentCount ?? 0 },
   }
 }
 
@@ -121,7 +121,7 @@ export function toTaskFromResource(
     links: toTaskLinks(stableId, resource.links),
     createdAt: resource.createdAt,
     updatedAt: resource.updatedAt,
-    indicators: { attachments: 0 },
+    indicators: { attachments: resource.attachmentCount ?? 0 },
   }
 }
 

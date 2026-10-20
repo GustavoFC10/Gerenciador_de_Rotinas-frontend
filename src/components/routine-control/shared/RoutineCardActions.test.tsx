@@ -6,14 +6,14 @@ import type { Task } from '../../../types/domain'
 
 const previewTypes: Array<[string, string]> = [
   ['pdf', 'guia.pdf'],
-  ['spreadsheet', 'calculo.xlsx'],
-  ['xml', 'retorno.xml'],
+  ['spreadsheet', 'calculo.csv'],
+  ['text', 'retorno.txt'],
   ['image', 'comprovante.png'],
-  ['document', 'relatorio.docx'],
+  ['document', 'relatorio.txt'],
 ]
 
 describe('RoutineAttachmentsPanel previews', () => {
-  it('renders a representative preview for each saved file type', () => {
+  it('renders the same generic document preview for every saved file type', () => {
     const task: Task = {
       id: 'task-preview',
       kind: 'scheduled',
@@ -42,16 +42,14 @@ describe('RoutineAttachmentsPanel previews', () => {
       />,
     )
 
-    previewTypes.forEach(([previewType, name]) => {
-      expect(markup).toContain(`data-attachment-kind="${previewType}"`)
+    previewTypes.forEach(([, name]) => {
+      expect(markup).toContain('data-attachment-kind="document"')
+      expect(markup).toContain(`Documento: ${name}`)
       expect(markup).toContain(name)
     })
 
-    expect(markup).toContain('Prévia de PDF')
-    expect(markup).toContain('Prévia de planilha')
-    expect(markup).toContain('Prévia de XML')
-    expect(markup).toContain('Prévia de imagem')
-    expect(markup).toContain('Prévia de documento')
+    expect(markup).not.toContain('Prévia de PDF')
+    expect(markup).not.toContain('4.820')
     expect(markup).toContain('data-attachment-layout="single-row"')
     expect(markup).toContain('aria-label="Excluir guia.pdf"')
     expect(markup).toContain('overflow-y-hidden')

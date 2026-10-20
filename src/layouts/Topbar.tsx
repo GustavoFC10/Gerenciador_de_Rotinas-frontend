@@ -1,5 +1,7 @@
 import type { RefObject } from 'react'
 
+import NotificationCenterTrigger from '../components/feedback/NotificationCenterTrigger'
+import UploadsTrigger from '../components/files/UploadsTrigger'
 import { appThemeClass, focusRing } from '../constants/designTokens'
 import { useAppState } from '../hooks/useAppState'
 import { formatCompetenceLong } from '../utils/competence'
@@ -41,27 +43,33 @@ function Topbar({
         <button
           type="button"
           onClick={goToPreviousCompetence}
-          className={`group ml-14 flex min-w-0 items-center justify-self-start px-4 text-sm font-bold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] sm:px-6 lg:ml-0 lg:px-8 ${focusRing}`}
+          className={`group ml-14 flex min-w-0 items-center justify-self-start px-2 text-sm font-bold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] sm:px-4 lg:ml-0 lg:px-8 ${focusRing}`}
           aria-label="Competência anterior"
         >
           <ChevronIcon direction="left" />
           <span className="ml-2 hidden sm:inline">Anterior</span>
         </button>
         <span
-          className="inline-flex items-center justify-center px-4 text-center text-base font-extrabold tracking-tight text-[var(--color-text-strong)] sm:text-lg"
+          className="inline-flex items-center justify-center px-1 text-center text-sm font-extrabold tracking-tight text-[var(--color-text-strong)] max-[479px]:max-w-22 sm:px-4 sm:text-lg"
           aria-label={`Competência atual: ${competenceLabel || formattedCompetence}`}
         >
           {competenceLabel || formattedCompetence}
         </span>
-        <button
-          type="button"
-          onClick={goToNextCompetence}
-          className={`group flex min-w-0 items-center justify-self-end px-4 text-sm font-bold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] sm:px-6 lg:px-8 ${focusRing}`}
-          aria-label="Próxima competência"
-        >
-          <span className="mr-2 hidden sm:inline">Próxima</span>
-          <ChevronIcon direction="right" />
-        </button>
+        <div className="flex min-w-0 items-stretch justify-self-end gap-1 pr-2 sm:pr-4 lg:pr-6">
+          <button
+            type="button"
+            onClick={goToNextCompetence}
+            className={`group flex min-w-0 items-center px-2 text-sm font-bold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] sm:px-4 ${focusRing}`}
+            aria-label="Próxima competência"
+          >
+            <span className="mr-2 hidden sm:inline">Próxima</span>
+            <ChevronIcon direction="right" />
+          </button>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <UploadsTrigger />
+            <NotificationCenterTrigger />
+          </div>
+        </div>
       </div>
     </header>
   )

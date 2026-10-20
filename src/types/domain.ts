@@ -66,6 +66,7 @@ export interface SpreadsheetProjectionCell {
 }
 
 export interface ScheduledOccurrence {
+  attachmentCount: number
   occurrenceKey: EntityId
   taskId: EntityId | null
   etag: string

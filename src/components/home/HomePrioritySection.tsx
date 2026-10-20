@@ -5,6 +5,7 @@ import type {
   HomePriorityKind,
 } from '../../utils/homeOverview'
 import { HomeIcon } from './HomePrimitives'
+import TaskAttachmentCount from '../files/TaskAttachmentCount'
 
 const priorityPresentation: Record<
   HomePriorityKind,
@@ -113,7 +114,7 @@ export function HomePriorityList({
               type="button"
               onClick={() => onTaskOpen(priority.task)}
               className={`group flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-[var(--color-panel-soft-bg)] ${focusRing}`}
-              aria-label={`Abrir ${priority.title}`}
+              aria-label={`Abrir ${priority.title}${priority.task.indicators.attachments > 0 ? `. ${priority.task.indicators.attachments} ${priority.task.indicators.attachments === 1 ? 'anexo' : 'anexos'}` : ''}`}
             >
               <span
                 className={`hidden min-w-[7.25rem] shrink-0 items-center justify-center rounded-full border px-2.5 py-1 text-xs font-bold sm:inline-flex ${presentation.className}`}
@@ -147,6 +148,10 @@ export function HomePriorityList({
                 {formatDueLabel(priority.item.dueDate, referenceDate)}
               </span>
 
+              <TaskAttachmentCount
+                count={priority.task.indicators.attachments}
+                className="text-[var(--color-text-muted)]"
+              />
               <HomeIcon
                 name="arrow"
                 className="size-4 shrink-0 text-[var(--color-text-subtle)] transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"

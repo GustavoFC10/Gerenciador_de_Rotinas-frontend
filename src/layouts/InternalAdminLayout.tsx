@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router'
 
+import NotificationCenterTrigger from '../components/feedback/NotificationCenterTrigger'
 import Badge from '../components/ui/Badge'
 import { appThemeClass, focusRing } from '../constants/designTokens'
 import { useAuth } from '../hooks/useAuth'
@@ -55,6 +56,7 @@ function InternalAdminLayout() {
         </Link>
 
         <div className="flex shrink-0 items-center gap-3">
+          <NotificationCenterTrigger />
           <Badge variant="brand">INTERNO</Badge>
           <button
             type="button"

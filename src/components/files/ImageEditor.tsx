@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../hooks/useAuth'
 import { useImageSlot } from '../../hooks/useFileQueries'
+import { useNotifications } from '../../hooks/useNotifications'
 import { queryKeys, type OrganizationQueryScope } from '../../query/queryKeys'
 import { isApiError } from '../../services/httpClient'
 import {
@@ -59,12 +60,39 @@ function ImageEditorContent({
   refreshSession: () => Promise<void>
 }) {
   const client = useQueryClient()
+  const { notify } = useNotifications()
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const controller = useRef<AbortController | null>(null)
   useEffect(() => () => controller.current?.abort(), [])
   const query = useImageSlot(scope, destination)
+  const { error: queryError, refetch: refetchImage } = query
+  const isAvatar = destination.purpose === 'member_avatar'
+  const reportedQueryError = useRef<unknown>(null)
+  useEffect(() => {
+    if (!queryError) {
+      reportedQueryError.current = null
+      return
+    }
+    if (
+      reportedQueryError.current === queryError ||
+      (isApiError(queryError) && queryError.status === 501)
+    )
+      return
+    reportedQueryError.current = queryError
+    notify({
+      title: isAvatar ? 'Foto indisponível' : 'Imagem indisponível',
+      message: fileErrorMessage(queryError),
+      tone: 'error',
+      dedupeKey: 'image-slot-load',
+      action: {
+        label: 'Tentar novamente',
+        onClick: () => {
+          void refetchImage()
+        },
+      },
+    })
+  }, [isAvatar, notify, queryError, refetchImage])
   const ownAvatar =
     destination.purpose === 'member_avatar' &&
     destination.target.memberId === user.membershipId
@@ -84,13 +112,24 @@ function ImageEditorContent({
     const active = new AbortController()
     controller.current = active
     setBusy(true)
-    setError('')
     try {
       await fileService.remove(destination, undefined, active.signal)
       await refresh()
+      notify({
+        title: isAvatar ? 'Foto removida' : 'Imagem removida',
+        tone: 'success',
+        dedupeKey: 'image-remove',
+      })
     } catch (caught) {
       if (!active.signal.aborted) {
-        setError(fileErrorMessage(caught))
+        notify({
+          title: isAvatar
+            ? 'Não foi possível remover a foto'
+            : 'Não foi possível remover a imagem',
+          message: fileErrorMessage(caught),
+          tone: 'error',
+          dedupeKey: 'image-remove',
+        })
         await refresh().catch(() => undefined)
       }
     } finally {
@@ -112,7 +151,6 @@ function ImageEditorContent({
   )
     return null
   if (!reference && !canReplace && !query.error) return null
-  const isAvatar = destination.purpose === 'member_avatar'
   const uploadLabel = `${reference ? 'Trocar' : 'Adicionar'} ${isAvatar ? 'foto' : 'imagem'}`
   return (
     <section
@@ -133,21 +171,16 @@ function ImageEditorContent({
         />
       )}
       {query.error && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)]"
+        <Button
+          size="sm"
+          tone="neutral"
+          className="gap-1.5"
+          title={isAvatar ? 'Foto indisponível' : 'Imagem indisponível'}
+          onClick={() => void query.refetch()}
         >
-          <p>{isAvatar ? 'Foto indisponível.' : 'Imagem indisponível.'}</p>
-          <Button
-            size="sm"
-            tone="neutral"
-            className="gap-1.5"
-            onClick={() => void query.refetch()}
-          >
-            <FileIcon name="retry" />
-            Tentar novamente
-          </Button>
-        </div>
+          <FileIcon name="retry" />
+          Tentar novamente
+        </Button>
       )}
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-start gap-2">
@@ -175,14 +208,6 @@ function ImageEditorContent({
             </IconButton>
           )}
         </div>
-        {error && (
-          <p
-            role="alert"
-            className="max-w-sm rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3 py-2 text-xs font-semibold text-[var(--status-error-text)]"
-          >
-            {error}
-          </p>
-        )}
       </div>
     </section>
   )

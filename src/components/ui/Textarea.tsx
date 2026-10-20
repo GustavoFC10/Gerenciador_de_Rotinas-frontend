@@ -12,7 +12,7 @@ function Textarea({ label, className = '', ...props }: TextareaProps) {
     >
       {label && <span className="mb-1.5 block">{label}</span>}
       <textarea
-        className={`w-full resize-y rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2 text-sm text-[var(--color-control-text)] outline-none transition placeholder:text-[var(--color-control-placeholder)] focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)] ${focusRing}`}
+        className={`w-full resize-y rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2 text-sm text-[var(--color-control-text)] outline-none transition placeholder:text-[var(--color-control-placeholder)] focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)] aria-invalid:border-[var(--status-error-border)] aria-invalid:focus:border-[var(--status-error-dot)] aria-invalid:focus:ring-[var(--status-error-soft-bg)] ${focusRing}`}
         {...props}
       />
     </label>
