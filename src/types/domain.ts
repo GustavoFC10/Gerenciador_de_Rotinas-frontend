@@ -264,7 +264,7 @@ export interface AppUser {
   avatarUrl: string
 }
 
-export type AppTheme = 'light' | 'dark' | 'jaral'
+export type AppTheme = 'light' | 'dark'
 export type AppDensity = 'compact' | 'comfortable'
 export type AppDefaultView = 'spreadsheet' | 'list'
 

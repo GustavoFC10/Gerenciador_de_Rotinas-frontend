@@ -252,7 +252,7 @@ Os servicos aceitam um cliente injetavel para facilitar testes, e a aplicacao ta
 ## 10. Estilos e design system
 
 - `src/styles/index.css` importa Tailwind e temas, define o reset base e contem estilos especificos de navegacao, foco, responsividade e reduced motion.
-- `src/styles/themes.css` define variaveis CSS para os temas `light`, `dark` e `jaral`, incluindo cores de superficie, controles, tabelas, listas, estados e sombras.
+- `src/styles/themes.css` define variaveis CSS para os temas `light` e `dark`, incluindo cores de superficie, controles, tabelas, listas, estados e sombras.
 - `src/constants/designTokens.ts` centraliza classes semanticas para shell, paineis, textos, controles, botoes, foco e status.
 
 A densidade (`compact` ou `comfortable`) e o tema sao aplicados em runtime por atributos no elemento raiz. A interface tambem possui comportamento responsivo para sidebar, navegacao de telas e controles operacionais.

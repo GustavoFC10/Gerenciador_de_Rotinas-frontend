@@ -3,13 +3,11 @@ import type { AppTheme, RoutineStatus } from '../types/domain'
 export const APP_THEME = {
   LIGHT: 'light',
   DARK: 'dark',
-  JARAL: 'jaral',
 } as const satisfies Record<string, AppTheme>
 
 export const appThemeOptions: Array<{ value: AppTheme; label: string }> = [
   { value: APP_THEME.LIGHT, label: 'Claro' },
   { value: APP_THEME.DARK, label: 'Escuro' },
-  { value: APP_THEME.JARAL, label: 'Jaral' },
 ]
 
 export const appThemeClass = {
