@@ -32,6 +32,14 @@ export function isOrganizationAdmin(user?: AppUser | null): boolean {
   return isOwner(user) || isAdmin(user)
 }
 
+export function isRoutinesAdmin(user?: AppUser | null): boolean {
+  if (user?.modules !== undefined)
+    return user.modules.some(
+      (module) => module.module === 'routines' && module.globalAccess,
+    )
+  return isOrganizationAdmin(user)
+}
+
 export function getDepartmentAccessRole(
   user: AppUser | null | undefined,
   departmentId: EntityId,
@@ -61,7 +69,7 @@ export function canAccessDepartment(
   departmentId: EntityId,
 ): boolean {
   return (
-    isOrganizationAdmin(user) ||
+    isRoutinesAdmin(user) ||
     getDepartmentAccessRole(user, departmentId) !== null
   )
 }
@@ -91,14 +99,14 @@ export function canEditRoutine(
   departmentId: EntityId,
 ): boolean {
   void departmentId
-  return isOrganizationAdmin(user)
+  return isRoutinesAdmin(user)
 }
 
 export function canAssignTask(
   user: AppUser | null | undefined,
   task: Task,
 ): boolean {
-  return isOrganizationAdmin(user) || isLead(user, task.departmentId)
+  return isRoutinesAdmin(user) || isLead(user, task.departmentId)
 }
 
 export function canAddTaskAttachment(
@@ -148,7 +156,7 @@ export function getAllowedTaskTransitionStatuses(
 ): RoutineStatus[] {
   const departmentRole = getDepartmentAccessRole(user, task.departmentId)
   const canChangeStatus =
-    isOrganizationAdmin(user) ||
+    isRoutinesAdmin(user) ||
     departmentRole === DEPARTMENT_ACCESS_ROLE.LEAD ||
     (departmentRole === DEPARTMENT_ACCESS_ROLE.CONTRIBUTOR &&
       task.assigneeId === user?.membershipId)
@@ -170,15 +178,15 @@ export function canCreateTask(
   user: AppUser | null | undefined,
   departmentId: EntityId,
 ): boolean {
-  return isOrganizationAdmin(user) || isLead(user, departmentId)
+  return isRoutinesAdmin(user) || isLead(user, departmentId)
 }
 
 export function canManageEmployees(user?: AppUser | null): boolean {
-  return isOrganizationAdmin(user)
+  return isOwner(user)
 }
 
 export function canViewEmployees(user?: AppUser | null): boolean {
-  return isOrganizationAdmin(user) || isLead(user)
+  return isOwner(user)
 }
 
 export function canCreateRoutine(
@@ -186,7 +194,7 @@ export function canCreateRoutine(
   departmentId?: EntityId | null,
 ): boolean {
   void departmentId
-  return isOrganizationAdmin(user)
+  return isRoutinesAdmin(user)
 }
 
 export function canCreateCompany(
@@ -219,7 +227,7 @@ export function hasAppPermission(
   }
 
   if (permission === APP_PERMISSION.MANAGE_SCREENS) {
-    return isOrganizationAdmin(user)
+    return isRoutinesAdmin(user)
   }
 
   if (permission === APP_PERMISSION.MANAGE_ORGANIZATION) {

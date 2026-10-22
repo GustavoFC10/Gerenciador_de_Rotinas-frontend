@@ -17,7 +17,7 @@ import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
 import type { RoutineControlData } from '../types/domain'
 import { normalizeSearch } from '../utils/normalizeSearch'
-import { isOrganizationAdmin } from '../utils/permissions'
+import { isRoutinesAdmin } from '../utils/permissions'
 import { formatRoutineSchedule } from '../utils/routineSchedule'
 
 const routineGrid =
@@ -66,7 +66,7 @@ function RoutinesPage({ data }: { data: RoutineControlData }) {
       searchValue={search}
       onSearchChange={setSearch}
       action={
-        isOrganizationAdmin(user) ? (
+        isRoutinesAdmin(user) ? (
           <CatalogAction to={ROUTES.ROUTINE_CREATE}>Nova rotina</CatalogAction>
         ) : undefined
       }

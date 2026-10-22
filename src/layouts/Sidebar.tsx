@@ -10,11 +10,7 @@ import type {
   ScreenNavigationItem,
   SpreadsheetNavigationItem,
 } from '../types/navigation'
-import {
-  canViewEmployees,
-  isLead,
-  isOrganizationAdmin,
-} from '../utils/permissions'
+import { isLead, isOrganizationAdmin } from '../utils/permissions'
 
 interface SidebarProps {
   spreadsheets: SpreadsheetNavigationItem[]
@@ -156,6 +152,14 @@ function Sidebar({
           aria-label="Acesso global"
         >
           <NavigationLink
+            to={ROUTES.HUB}
+            label="Trocar módulo"
+            icon="building"
+            isCollapsed={isCollapsed}
+            end
+            onNavigate={onMobileClose}
+          />
+          <NavigationLink
             to={ROUTES.HOME}
             label="Início"
             icon="home"
@@ -248,16 +252,6 @@ function Sidebar({
             isCollapsed={isCollapsed}
             onNavigate={onMobileClose}
           />
-          {canViewEmployees(user) && (
-            <NavigationLink
-              to={ROUTES.EMPLOYEES}
-              label="Equipe"
-              icon="people"
-              end
-              isCollapsed={isCollapsed}
-              onNavigate={onMobileClose}
-            />
-          )}
         </NavigationSection>
 
         {(isOrganizationAdmin(user) || isLead(user)) && (

@@ -43,7 +43,9 @@ flowchart TD
     H -- Sim: visitante --> J[LoginPage]
     H -- Sim: sem membership ativa --> K[MembershipSelectionPage]
     H -- Sim: autenticado --> L[AuthenticatedApp]
-    L --> M[AppLayout + rotas protegidas]
+    L --> M[HUB + seleção de módulo]
+    M --> N[Rotinas: AppLayout + rotas protegidas]
+    M --> O[Processos: navegação e dados próprios]
 ```
 
 ### Entry points
@@ -79,6 +81,10 @@ As constantes de rota ficam em `src/constants/routes.ts`. As rotas autenticadas 
 | Rota                        | Tela                           | Situacao               |
 | --------------------------- | ------------------------------ | ---------------------- |
 | `/login`                    | `LoginPage`                    | Publica                |
+| `/hub`                      | `HubPage`                      | Seleção de módulo      |
+| `/hub/perfil`               | `ProfilePage`                  | Perfil compartilhado   |
+| `/processos/*`              | `ProcessesPage`                | Módulo Processos       |
+| `/configuracoes/modulos`    | `ModuleAccessSettingsPage`     | Admin de acessos       |
 | `/`                         | `HomePage`                     | Operacional            |
 | `/planilha`                 | `SpreadsheetPage`              | Operacional            |
 | `/agenda`                   | `AgendaPage`                   | Operacional            |
@@ -252,7 +258,7 @@ Os servicos aceitam um cliente injetavel para facilitar testes, e a aplicacao ta
 ## 10. Estilos e design system
 
 - `src/styles/index.css` importa Tailwind e temas, define o reset base e contem estilos especificos de navegacao, foco, responsividade e reduced motion.
-- `src/styles/themes.css` define variaveis CSS para os temas `light`, `dark` e `jaral`, incluindo cores de superficie, controles, tabelas, listas, estados e sombras.
+- `src/styles/themes.css` define variaveis CSS para os temas `light` e `dark`, incluindo cores de superficie, controles, tabelas, listas, estados e sombras.
 - `src/constants/designTokens.ts` centraliza classes semanticas para shell, paineis, textos, controles, botoes, foco e status.
 
 A densidade (`compact` ou `comfortable`) e o tema sao aplicados em runtime por atributos no elemento raiz. A interface tambem possui comportamento responsivo para sidebar, navegacao de telas e controles operacionais.
@@ -283,7 +289,7 @@ Scripts principais definidos em `package.json`:
 | `npm run test`         | Execucao dos testes Vitest         |
 | `npm run format:check` | Validacao de formatacao            |
 
-`vite.config.ts` registra os plugins React e Tailwind. O projeto nao configura aliases, lazy loading ou divisao manual de chunks.
+`vite.config.ts` registra os plugins React e Tailwind. O módulo Processos usa carregamento lazy; o projeto não configura aliases nem divisão manual de chunks.
 
 Para ambiente de build, `VITE_API_URL` precisa estar definida antes da criacao das instancias de servico. O Docker usa um build multi-stage: Vite/Node no desenvolvimento e arquivos estaticos servidos por Nginx em producao. O deploy na Vercel usa `dist/` e rewrite para `index.html`, necessario para as rotas client-side.
 
@@ -293,11 +299,47 @@ Para ambiente de build, `VITE_API_URL` precisa estar definida antes da criacao d
 - Algumas paginas importam servicos diretamente, enquanto outras recebem dados e callbacks de `App.tsx`; a fronteira entre pagina, hook e orquestrador ainda nao e uniforme.
 - Dashboards e cargos possuem estrutura de rota, mas ainda sao placeholders.
 - A competencia inicial em `AppStateContext.tsx` e fixa em `2026-06`; isso deve ser confirmado como regra ou fixture.
-- Nao existe roteamento lazy nem evidencia de testes end-to-end, acessibilidade automatizada ou validacao visual.
+- O módulo Processos usa carregamento lazy e recebeu validação visual em navegador. Não há uma suíte permanente de testes end-to-end ou acessibilidade automatizada.
 
 Uma evolucao natural seria extrair do `App.tsx` os fluxos de mutacao e selecao contextual em hooks ou controladores menores, preservando a separacao entre servicos, estado e apresentacao.
 
+### HUB, acessos e Processos
+
+- O login comum abre `/hub`; links diretos autenticados continuam disponíveis.
+- `ModuleRouter` escolhe o módulo antes de carregar a operação de Rotinas.
+  `useModuleAccess` consulta permissões efetivas, isoladas por organização e membro.
+- `moduleService` administra vínculos por módulo. A tela de cargos permite a
+  o proprietário conceder e revogar setores e cargos pelo módulo Equipe,
+  respeitando os limites da API.
+  Processos nunca herda acesso de um papel organizacional ou de Rotinas.
+- `processService` centraliza o catálogo, processos, tarefas, notas, indicadores,
+  relatórios e tentativas de notificações. As consultas usam chaves próprias em
+  `processQueryKeys`; alterações usam a versão recebida, e a abertura reutiliza a
+  mesma chave de idempotência quando a resposta não pode ser confirmada.
+- `pages/processes` e `components/processes` adaptam a referência
+  `processos-jaralcon.html` para React/TypeScript. Etapas, permissões e liberação
+  após espera são fornecidas pelo servidor. O CSS é isolado em `.processes-module`
+  e usa os tokens dos temas Claro e Escuro da aplicação.
+- O backend envia os e-mails na abertura. A interface mostra os estados reais e
+  permite à Diretoria tentar novamente apenas os envios elegíveis.
+- `processReportPdf` exporta o relatório mensal com a identidade visual original,
+  usando uma cópia local do jsPDF e sua licença em `public/vendor`.
+
 ## 14. Estrutura resumida
+
+O cadastro geral tem módulo próprio, **Equipe**, selecionável no HUB apenas por
+contas `owner`. As rotas `/equipe`, `/equipe/novo` e `/equipe/acessos` carregam
+somente colaboradores e departamentos, sem depender de acesso a Rotinas ou
+Processos nem de competências e tarefas. O acesso é determinado pelo cargo
+organizacional; não é um vínculo adicional enviado em `moduleAccesses`.
+Convites e edição de perfil
+compartilham `MemberModuleFields`: nome, cargo organizacional e `moduleAccesses`
+são enviados juntos pelos endpoints de convite e PATCH do colaborador. A lista
+inclui também contas sem acesso a Rotinas. Cada módulo pode ser desabilitado
+independentemente; Rotinas admite administração global ou papéis departamentais,
+enquanto Processos usa setores e cargos próprios. As permissões operacionais de
+Rotinas consideram o `globalAccess` da sessão; administrar contas continua sendo
+uma permissão do cargo organizacional.
 
 ```text
 src/

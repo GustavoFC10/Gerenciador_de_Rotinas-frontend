@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import LoadingState from './components/common/LoadingState'
 import TaskAttachmentsPanel from './components/files/TaskAttachmentsPanel'
@@ -12,6 +11,7 @@ import { FileUploadsProvider } from './contexts/FileUploadsContext'
 import { isInternalRoute, ROUTES } from './constants/routes'
 import { useAppState } from './hooks/useAppState'
 import { useAuth } from './hooks/useAuth'
+import { useModuleAccess } from './hooks/useModuleAccess'
 import { useCompanyMutations } from './hooks/mutations/useCompanyMutations'
 import { useCompetenceMutations } from './hooks/mutations/useCompetenceMutations'
 import { useDepartmentMutations } from './hooks/mutations/useDepartmentMutations'
@@ -24,15 +24,18 @@ import { useSpreadsheetContext } from './hooks/useSpreadsheetContext'
 import { useTaskDetailsController } from './hooks/useTaskDetailsController'
 import AcceptInvitationPage from './pages/AcceptInvitationPage'
 import LoginPage from './pages/LoginPage'
+import HubPage from './pages/HubPage'
+import ProfilePage from './pages/ProfilePage'
+import ModuleWorkspaceLayout from './layouts/ModuleWorkspaceLayout'
 import MembershipSelectionPage from './pages/MembershipSelectionPage'
 import InternalAccessDeniedPage from './pages/internal/InternalAccessDeniedPage'
-import { queryKeys } from './query/queryKeys'
 import AuthenticatedRoutes from './routes/AuthenticatedRoutes'
 import InternalAdminRoutes from './routes/InternalAdminRoutes'
 import type { MembershipSummary } from './services/authService'
-import { organizationMemberService } from './services/organizationMemberService'
-import type { MembershipInvitationResource } from './services/organizationMemberService'
-import { isOrganizationAdmin } from './utils/permissions'
+import { isRoutinesAdmin } from './utils/permissions'
+
+const TeamModulePage = lazy(() => import('./pages/TeamModulePage'))
+const ProcessesPage = lazy(() => import('./pages/processes/ProcessesPage'))
 
 function App() {
   const { activeMembership, isAuthenticated, isInitializing, session } =
@@ -92,6 +95,81 @@ function App() {
   }
 
   return (
+    <ModuleRouter
+      key={`${activeMembership.organization.id}:${activeMembership.id}`}
+      activeMembership={activeMembership}
+    />
+  )
+}
+
+function ModuleRouter({
+  activeMembership,
+}: {
+  activeMembership: MembershipSummary
+}) {
+  const location = useLocation()
+  const { canAccessModule, isLoading, error } = useModuleAccess()
+
+  if (location.pathname === ROUTES.HUB) return <HubPage />
+  if (location.pathname === ROUTES.HUB_PROFILE)
+    return (
+      <ModuleWorkspaceLayout>
+        <ProfilePage />
+      </ModuleWorkspaceLayout>
+    )
+
+  if (
+    location.pathname === ROUTES.EMPLOYEES ||
+    location.pathname.startsWith(ROUTES.EMPLOYEES + '/')
+  ) {
+    return activeMembership.role === 'owner' ? (
+      <Suspense fallback={<LoadingState message="Carregando Equipe…" />}>
+        <TeamModulePage />
+      </Suspense>
+    ) : (
+      <Navigate to={ROUTES.HUB} replace />
+    )
+  }
+  const legacyTeamPath =
+    location.pathname === ROUTES.SETTINGS_MODULES ||
+    location.pathname === ROUTES.ROLES
+      ? ROUTES.TEAM_ACCESS
+      : location.pathname === '/funcionarios'
+        ? ROUTES.EMPLOYEES
+        : location.pathname === '/funcionarios/novo'
+          ? ROUTES.EMPLOYEE_CREATE
+          : null
+  if (legacyTeamPath)
+    return (
+      <Navigate
+        to={
+          activeMembership.role === 'owner'
+            ? legacyTeamPath + location.search
+            : ROUTES.HUB
+        }
+        replace
+      />
+    )
+
+  if (isLoading) return <LoadingState message="Carregando seus acessos…" />
+  if (error) return <Navigate to={ROUTES.HUB} replace />
+
+  if (
+    location.pathname === ROUTES.PROCESSES ||
+    location.pathname.startsWith(`${ROUTES.PROCESSES}/`)
+  ) {
+    return canAccessModule('processes') ? (
+      <Suspense fallback={<LoadingState message="Carregando Processos…" />}>
+        <ProcessesPage />
+      </Suspense>
+    ) : (
+      <Navigate to={ROUTES.HUB} replace />
+    )
+  }
+
+  if (!canAccessModule('routines')) return <Navigate to={ROUTES.HUB} replace />
+
+  return (
     <FileUploadsProvider
       key={`${activeMembership.organization.id}:${activeMembership.id}`}
       scope={{
@@ -109,7 +187,6 @@ function AuthenticatedApp({
 }: {
   activeMembership: MembershipSummary
 }) {
-  const queryClient = useQueryClient()
   const { notify, setActivity } = useNotifications()
   const { competence, user } = useAppState()
   const attachmentUploadRef = useRef<TaskAttachmentUploadHandle | null>(null)
@@ -154,26 +231,8 @@ function AuthenticatedApp({
       period: competence,
     },
   )
-  const inviteEmployeeMutation = useMutation({
-    mutationFn: (
-      input: Parameters<typeof organizationMemberService.invite>[0],
-    ) => organizationMemberService.invite(input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.members(scope),
-        exact: true,
-      }),
-  })
-
-  async function handleEmployeeInvite(
-    input: Parameters<typeof organizationMemberService.invite>[0],
-  ): Promise<MembershipInvitationResource> {
-    const { data: invitation } = await inviteEmployeeMutation.mutateAsync(input)
-    return invitation
-  }
-
   async function handleCompetenceFinalize(): Promise<void> {
-    if (!isOrganizationAdmin(user)) {
+    if (!isRoutinesAdmin(user)) {
       throw new Error(
         'Somente propriet\u00e1rio ou administrador pode finalizar a compet\u00eancia.',
       )
@@ -231,7 +290,6 @@ function AuthenticatedApp({
         onRoutineUpdate={updateRoutine}
         onRoutineArchive={archiveRoutine}
         onRoutineRestore={restoreRoutine}
-        onEmployeeInvite={handleEmployeeInvite}
         onDepartmentCreate={createDepartment}
         onScreenCreate={createScreen}
         onScreenUpdate={updateScreen}

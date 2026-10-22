@@ -187,14 +187,14 @@ export function DepartmentPermissionsSettingsPage({
           description="Regras aplicadas às tarefas deste departamento."
           rows={[
             {
-              role: 'Owner e admin',
+              role: 'Administrador de Rotinas',
               detail:
                 'Podem atribuir responsáveis e executar as transições permitidas.',
             },
             {
               role: 'Lead',
               detail:
-                'Pode atribuir responsáveis e avançar tarefas, sem marcar erro ou reabrir tarefas.',
+                'Pode atribuir responsáveis e alterar os estados das tarefas deste departamento.',
             },
             {
               role: 'Contributor',
@@ -215,7 +215,7 @@ export function DepartmentPermissionsSettingsPage({
             {
               role: 'Owner e admin',
               detail:
-                'Podem administrar a organização, criar telas e configurar sua composição.',
+                'Pode criar telas e configurar sua composição. A administração da organização depende do cargo organizacional.',
             },
             {
               role: 'Equipe do departamento',
@@ -227,20 +227,13 @@ export function DepartmentPermissionsSettingsPage({
 
         <SettingsContentSection
           title="Acessos da equipe"
-          description="A associação entre pessoas e departamentos é gerenciada no cadastro da equipe."
-          action={
-            <Link
-              to={ROUTES.EMPLOYEES}
-              className={`inline-flex min-h-10 items-center rounded-[var(--radius-control)] border border-[var(--color-button-neutral-border)] bg-[var(--color-button-neutral-bg)] px-3 text-sm font-bold text-[var(--color-button-neutral-text)] transition hover:bg-[var(--color-button-neutral-hover-bg)] ${focusRing}`}
-            >
-              Gerenciar equipe
-            </Link>
-          }
+          description="A associação entre pessoas e departamentos é gerenciada pelo proprietário no módulo Equipe."
         >
           <p className="text-sm leading-6 text-[var(--color-text-muted)]">
-            Owners e admins têm acesso administrativo global. Para
-            colaboradores, configure os papéis lead, contributor ou viewer no
-            departamento correspondente.
+            O nível de administrador de Rotinas concede acesso global ao módulo.
+            No nível departamental, configure os papéis líder, colaborador ou
+            leitor. O cargo organizacional e os acessos a Processos são
+            independentes.
           </p>
         </SettingsContentSection>
       </div>

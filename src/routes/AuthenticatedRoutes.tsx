@@ -14,10 +14,8 @@ import AppLayout from '../layouts/AppLayout'
 import AgendaPage from '../pages/AgendaPage'
 import CompaniesPage from '../pages/CompaniesPage'
 import CreateCompanyPage from '../pages/CreateCompanyPage'
-import CreateEmployeePage from '../pages/CreateEmployeePage'
 import CreateRoutinePage from '../pages/CreateRoutinePage'
 import CreateScreenPage from '../pages/CreateScreenPage'
-import EmployeesPage from '../pages/EmployeesPage'
 import EntityDetailPage from '../pages/EntityDetailPage'
 import HomePage from '../pages/HomePage'
 import ListPage from '../pages/ListPage'
@@ -45,10 +43,6 @@ import type {
   Screen,
   Task,
 } from '../types/domain'
-import type {
-  MembershipInvitationInput,
-  MembershipInvitationResource,
-} from '../services/organizationMemberService'
 import type { RoutineEditInput } from '../types/routine'
 import type { RoutineInput, RoutineResource } from '../services/routineService'
 import { getErrorPresentation } from '../utils/apiErrors'
@@ -83,9 +77,6 @@ interface AuthenticatedRoutesProps {
   ) => Promise<RoutineResource>
   onRoutineArchive: (routineId: string) => Promise<void>
   onRoutineRestore: (routineId: string) => Promise<RoutineResource>
-  onEmployeeInvite: (
-    input: MembershipInvitationInput,
-  ) => Promise<MembershipInvitationResource>
   onDepartmentCreate: (input: DepartmentInput) => Promise<Department>
   onScreenCreate: (input: ScreenInput) => Promise<Screen>
   onScreenUpdate: (
@@ -116,7 +107,7 @@ function AuthenticatedRoutes({
   onRoutineUpdate,
   onRoutineArchive,
   onRoutineRestore,
-  onEmployeeInvite,
+
   onDepartmentCreate,
   onScreenCreate,
   onScreenUpdate,
@@ -154,7 +145,7 @@ function AuthenticatedRoutes({
             onRoutineUpdate,
             onRoutineArchive,
             onRoutineRestore,
-            onEmployeeInvite,
+
             onDepartmentCreate,
             onScreenCreate,
             onScreenUpdate,
@@ -207,7 +198,7 @@ function renderOperationalRoutes({
   onRoutineUpdate,
   onRoutineArchive,
   onRoutineRestore,
-  onEmployeeInvite,
+
   onDepartmentCreate,
   onScreenCreate,
   onScreenUpdate,
@@ -439,17 +430,6 @@ function renderOperationalRoutes({
         }
       />
       <Route
-        path={ROUTES.EMPLOYEE_CREATE}
-        element={
-          <RequirePermission permission={APP_PERMISSION.CREATE_EMPLOYEE}>
-            <CreateEmployeePage
-              onInvite={onEmployeeInvite}
-              onCancel={() => navigate(ROUTES.EMPLOYEES)}
-            />
-          </RequirePermission>
-        }
-      />
-      <Route
         path={ROUTES.SCREEN_CREATE}
         element={
           <RequirePermission permission={APP_PERMISSION.MANAGE_SCREENS}>
@@ -497,33 +477,6 @@ function renderOperationalRoutes({
       />
       <Route path={ROUTES.ROUTINES} element={<RoutinesPage data={data} />} />
       <Route path={ROUTES.COMPANIES} element={<CompaniesPage data={data} />} />
-      <Route
-        path={ROUTES.EMPLOYEES}
-        element={
-          <RequirePermission permission={APP_PERMISSION.VIEW_EMPLOYEES}>
-            <EmployeesPage departments={data.departments} />
-          </RequirePermission>
-        }
-      />
-      <Route
-        path="/funcionarios"
-        element={<Navigate to={ROUTES.EMPLOYEES} replace />}
-      />
-      <Route
-        path="/funcionarios/novo"
-        element={<Navigate to={ROUTES.EMPLOYEE_CREATE} replace />}
-      />
-      <Route
-        path={ROUTES.ROLES}
-        element={
-          <RequirePermission permission={APP_PERMISSION.VIEW_EMPLOYEES}>
-            <PlaceholderPage
-              title="Cargos"
-              description="Gerenciamento de permissoes e responsabilidades."
-            />
-          </RequirePermission>
-        }
-      />
       <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
     </>
   )

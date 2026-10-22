@@ -28,6 +28,20 @@ export interface TaskAssigneeResource {
 export class DepartmentService {
   constructor(private readonly client: HttpClient) {}
 
+  async listAll(): Promise<DepartmentResource[]> {
+    const departments: DepartmentResource[] = []
+    let next: string | null = DEPARTMENTS_ENDPOINT
+    while (next) {
+      const response: ApiResponse<{
+        results: DepartmentResource[]
+        next: string | null
+      }> = await this.client.get(next)
+      departments.push(...response.data.results)
+      next = response.data.next
+    }
+    return departments
+  }
+
   create(input: DepartmentInput): Promise<ApiResponse<DepartmentResource>> {
     return this.client.post<DepartmentResource>(DEPARTMENTS_ENDPOINT, input)
   }

@@ -33,7 +33,7 @@ export function useOverlayDialog(
     const focusable = () =>
       [
         ...dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]),[href],input:not([disabled]),[tabindex]:not([tabindex="-1"])',
+          'button:not([disabled]),[href],input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
         ),
       ].filter(
         (element) =>

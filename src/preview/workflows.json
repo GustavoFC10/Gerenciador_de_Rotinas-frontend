@@ -1,0 +1,808 @@
+[
+  {
+    "id": "abertura",
+    "sigla": "ABE",
+    "icon": "building",
+    "nome": "Abertura de empresa",
+    "desc": "Constituição de novo CNPJ",
+    "etapas": [
+      {
+        "t": "Definições da Diretoria",
+        "tasks": [
+          {
+            "id": "abc",
+            "d": "com",
+            "txt": "Definir o custo do processo e quem vai pagar",
+            "campo": "custo"
+          },
+          {
+            "id": "abh",
+            "d": "com",
+            "txt": "Definir o novo honorário mensal",
+            "campo": "honorario"
+          },
+          {
+            "id": "ab1",
+            "d": "com",
+            "txt": "Definir estrutura tributária e detalhes contábeis",
+            "campo": "regime"
+          }
+        ]
+      },
+      {
+        "t": "Dados do cliente e registro",
+        "note": "A próxima etapa só começa após a conclusão pela Leggacy.",
+        "tasks": [
+          {
+            "id": "ab3",
+            "d": "fin",
+            "txt": "Contatar o cliente, apresentar-se como responsável pelo financeiro e solicitar os dados"
+          },
+          {
+            "id": "ab4",
+            "d": "fin",
+            "txt": "Repassar as informações à Leggacy para abertura do CNPJ"
+          },
+          {
+            "id": "abg",
+            "d": "fin",
+            "txt": "Enviar a guia de pagamento",
+            "guia": true
+          },
+          {
+            "id": "ab5",
+            "d": "fin",
+            "txt": "CNPJ liberado pela Leggacy",
+            "marco": true
+          }
+        ]
+      },
+      {
+        "t": "Formalização e cadastro",
+        "tasks": [
+          {
+            "id": "ab6",
+            "d": "fin",
+            "txt": "Informar o cliente sobre a liberação"
+          },
+          {
+            "id": "ab7",
+            "d": "fin",
+            "txt": "Assinar o contrato de prestação de serviços contábeis"
+          },
+          {
+            "id": "ab8",
+            "d": "reg",
+            "txt": "Cadastrar a empresa nos sistemas de gestão e contábil"
+          }
+        ]
+      },
+      {
+        "t": "Planilha geral e 1ª visita",
+        "tSem": "Planilha geral",
+        "tasks": [
+          {
+            "id": "ab11",
+            "d": "reg",
+            "txt": "Cadastrar o cliente na planilha geral de clientes"
+          },
+          {
+            "id": "ab9",
+            "d": "fin",
+            "txt": "Agendar a reunião de 1ª visita (dias fixos)",
+            "reuniao": "alinhamento"
+          }
+        ]
+      },
+      {
+        "t": "2ª visita",
+        "espera": 4,
+        "tasks": [
+          {
+            "id": "ab13",
+            "d": "fin",
+            "txt": "Agendar a reunião de 2ª visita para feedback",
+            "reuniao": "acompanhamento"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mei",
+    "sigla": "MEI",
+    "icon": "up",
+    "nome": "Transformação MEI → ME",
+    "desc": "Conversão de MEI para ME",
+    "etapas": [
+      {
+        "t": "Definições da Diretoria",
+        "tasks": [
+          {
+            "id": "mec",
+            "d": "com",
+            "txt": "Definir o custo do processo e quem vai pagar",
+            "campo": "custo"
+          },
+          {
+            "id": "meh",
+            "d": "com",
+            "txt": "Definir o novo honorário mensal",
+            "campo": "honorario"
+          },
+          {
+            "id": "me1",
+            "d": "com",
+            "txt": "Definir estrutura tributária e detalhes contábeis",
+            "campo": "regime"
+          }
+        ]
+      },
+      {
+        "t": "Dados do cliente e registro",
+        "note": "A próxima etapa só começa após a conclusão pela Leggacy.",
+        "tasks": [
+          {
+            "id": "me3",
+            "d": "fin",
+            "txt": "Contatar o cliente, apresentar-se como responsável pelo financeiro e solicitar os dados"
+          },
+          {
+            "id": "me4",
+            "d": "fin",
+            "txt": "Repassar as informações à Leggacy para conversão do MEI para ME"
+          },
+          {
+            "id": "meg",
+            "d": "fin",
+            "txt": "Enviar a guia de pagamento",
+            "guia": true
+          },
+          {
+            "id": "me5",
+            "d": "fin",
+            "txt": "Transformação concluída pela Leggacy",
+            "marco": true
+          }
+        ]
+      },
+      {
+        "t": "Formalização e cadastro",
+        "tasks": [
+          {
+            "id": "me6",
+            "d": "fin",
+            "txt": "Informar o cliente sobre a liberação"
+          },
+          {
+            "id": "me7",
+            "d": "fin",
+            "txt": "Assinar o contrato de prestação de serviços contábeis"
+          },
+          {
+            "id": "me8",
+            "d": "reg",
+            "txt": "Cadastrar a empresa nos sistemas de gestão e contábil"
+          }
+        ]
+      },
+      {
+        "t": "Planilha geral e 1ª visita",
+        "tSem": "Planilha geral",
+        "tasks": [
+          {
+            "id": "me11",
+            "d": "reg",
+            "txt": "Cadastrar o cliente na planilha geral de clientes"
+          },
+          {
+            "id": "me9",
+            "d": "fin",
+            "txt": "Agendar a reunião de 1ª visita (dias fixos)",
+            "reuniao": "alinhamento"
+          }
+        ]
+      },
+      {
+        "t": "2ª visita",
+        "espera": 4,
+        "tasks": [
+          {
+            "id": "me13",
+            "d": "fin",
+            "txt": "Agendar a reunião de 2ª visita para feedback",
+            "reuniao": "acompanhamento"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "outro",
+    "sigla": "OUT",
+    "icon": "swap",
+    "nome": "Cliente de outro escritório",
+    "desc": "Vindo de outra contabilidade",
+    "etapas": [
+      {
+        "t": "Definições da Diretoria",
+        "tasks": [
+          {
+            "id": "ouh",
+            "d": "com",
+            "txt": "Definir o novo honorário mensal",
+            "campo": "honorario"
+          },
+          {
+            "id": "ou1",
+            "d": "com",
+            "txt": "Definir estrutura tributária e detalhes contábeis",
+            "campo": "regime"
+          }
+        ]
+      },
+      {
+        "t": "Formalização e documentos",
+        "tasks": [
+          {
+            "id": "ou3",
+            "d": "fin",
+            "txt": "Contatar o cliente e apresentar-se como responsável pelo financeiro"
+          },
+          {
+            "id": "ou4",
+            "d": "fin",
+            "txt": "Assinar o contrato de prestação de serviços contábeis"
+          },
+          {
+            "id": "ou5",
+            "d": "reg",
+            "txt": "Solicitar os documentos ao antigo contador"
+          },
+          {
+            "id": "ou6",
+            "d": "reg",
+            "txt": "Acompanhar o envio até receber todos os dados"
+          }
+        ]
+      },
+      {
+        "t": "Cadastro e 1ª visita",
+        "tSem": "Cadastro nos sistemas",
+        "tasks": [
+          {
+            "id": "ou8",
+            "d": "reg",
+            "txt": "Cadastrar a empresa nos sistemas de gestão e contábil"
+          },
+          {
+            "id": "ou7",
+            "d": "fin",
+            "txt": "Agendar a reunião de 1ª visita (dias fixos)",
+            "reuniao": "alinhamento"
+          }
+        ]
+      },
+      {
+        "t": "Visita de feedback",
+        "espera": 4,
+        "tasks": [
+          {
+            "id": "ou10",
+            "d": "fin",
+            "txt": "Agendar a reunião de 4ª visita para feedback",
+            "reuniao": "acompanhamento"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alteracao",
+    "sigla": "ALT",
+    "icon": "pen",
+    "nome": "Alteração contratual",
+    "desc": "Sócios, endereço, CNAE, capital",
+    "etapas": [
+      {
+        "t": "Definições da alteração contratual",
+        "tasks": [
+          {
+            "id": "ald",
+            "d": "com",
+            "txt": "Definições da alteração contratual",
+            "auto": true
+          }
+        ]
+      },
+      {
+        "t": "Envio à Leggacy",
+        "tasks": [
+          {
+            "id": "al3",
+            "d": "fin",
+            "txt": "Repassar os dados da alteração contratual para a Leggacy"
+          }
+        ]
+      },
+      {
+        "t": "Envio da guia",
+        "tasks": [
+          {
+            "id": "al2",
+            "d": "fin",
+            "txt": "Enviar a guia de pagamento",
+            "guia": true
+          }
+        ]
+      },
+      {
+        "t": "Registro e entrega ao cliente",
+        "tasks": [
+          {
+            "id": "al4",
+            "d": "fin",
+            "txt": "Alteração registrada na Junta pela Leggacy",
+            "marco": true
+          },
+          {
+            "id": "al7",
+            "d": "fin",
+            "txt": "Enviar o contrato alterado registrado ao cliente"
+          }
+        ]
+      },
+      {
+        "t": "Arquivo e comunicação interna",
+        "tasks": [
+          {
+            "id": "al8",
+            "d": "reg",
+            "txt": "Informar os departamentos sobre a alteração, quando necessário",
+            "opt": true
+          },
+          {
+            "id": "al5",
+            "d": "reg",
+            "txt": "Salvar os documentos da alteração no servidor"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "inatividade",
+    "sigla": "PAR",
+    "icon": "pause",
+    "nome": "Paralisação de empresa",
+    "desc": "Empresa deixa de operar e encerra o contrato",
+    "etapas": [
+      {
+        "t": "Definições da paralisação",
+        "tasks": [
+          {
+            "id": "ina",
+            "d": "com",
+            "txt": "Definições da paralisação",
+            "auto": true
+          }
+        ]
+      },
+      {
+        "t": "Distrato",
+        "tasks": [
+          {
+            "id": "in2",
+            "d": "fin",
+            "txt": "Realizar o distrato do cliente"
+          },
+          {
+            "id": "in3",
+            "d": "fin",
+            "txt": "Retirar o cliente do sistema de cobrança"
+          }
+        ]
+      },
+      {
+        "t": "Paralisação na Leggacy",
+        "tasks": [
+          {
+            "id": "in4",
+            "d": "fin",
+            "txt": "Acionar a Leggacy para solicitar a paralisação"
+          },
+          {
+            "id": "in5",
+            "d": "fin",
+            "txt": "Encaminhar a guia de pagamento ao cliente"
+          }
+        ]
+      },
+      {
+        "t": "Encerramento interno",
+        "tasks": [
+          {
+            "id": "in9",
+            "d": "reg",
+            "txt": "Retirar a empresa da planilha geral de clientes"
+          },
+          {
+            "id": "in10",
+            "d": "reg",
+            "txt": "Desativar os sistemas internos"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "inativa",
+    "sigla": "INA",
+    "icon": "moon",
+    "nome": "Inatividade de empresa",
+    "desc": "Empresa inativa com honorário reduzido",
+    "etapas": [
+      {
+        "t": "Definições de inatividade",
+        "tasks": [
+          {
+            "id": "iah",
+            "d": "com",
+            "txt": "Definições de inatividade",
+            "campo": "honorario"
+          }
+        ]
+      },
+      {
+        "t": "Atualização do honorário",
+        "tasks": [
+          {
+            "id": "ia2",
+            "d": "fin",
+            "txt": "Atualizar o novo honorário no sistema de cobrança"
+          }
+        ]
+      },
+      {
+        "t": "Comunicação e atualizações internas",
+        "tasks": [
+          {
+            "id": "ia3",
+            "d": "reg",
+            "txt": "Comunicar os departamentos sobre a inatividade"
+          },
+          {
+            "id": "ia4",
+            "d": "reg",
+            "txt": "Atualizar os sistemas internos"
+          },
+          {
+            "id": "ia5",
+            "d": "reg",
+            "txt": "Atualizar a planilha geral de clientes"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "reativacao",
+    "sigla": "REA",
+    "icon": "refresh",
+    "nome": "Reativação de empresa",
+    "desc": "Retomada de empresa inativa",
+    "etapas": [
+      {
+        "t": "Condições de reativação",
+        "tasks": [
+          {
+            "id": "reh",
+            "d": "com",
+            "txt": "Definir as condições de reativação",
+            "campo": "honorario"
+          }
+        ]
+      },
+      {
+        "t": "Contrato e cobrança",
+        "tasks": [
+          {
+            "id": "re3",
+            "d": "fin",
+            "txt": "Assinar o novo contrato de prestação de serviços"
+          },
+          {
+            "id": "re4",
+            "d": "fin",
+            "txt": "Incluir o cliente no sistema de cobrança"
+          }
+        ]
+      },
+      {
+        "t": "Reativação na Leggacy",
+        "opcional": "reatJunta",
+        "tasks": [
+          {
+            "id": "re6",
+            "d": "fin",
+            "txt": "Acionar a Leggacy para a reativação nos órgãos"
+          },
+          {
+            "id": "re7",
+            "d": "fin",
+            "txt": "Reativação concluída pela Leggacy"
+          }
+        ]
+      },
+      {
+        "t": "Retorno aos controles",
+        "tasks": [
+          {
+            "id": "re8",
+            "d": "reg",
+            "txt": "Reativar os sistemas internos"
+          },
+          {
+            "id": "re9",
+            "d": "reg",
+            "txt": "Incluir o cliente na planilha geral de clientes"
+          },
+          {
+            "id": "re10",
+            "d": "reg",
+            "txt": "Comunicar os departamentos sobre a reativação"
+          }
+        ]
+      },
+      {
+        "t": "Visita de retomada",
+        "tasks": [
+          {
+            "id": "re11",
+            "d": "fin",
+            "txt": "Agendar reunião com o cliente para explicar a operação",
+            "reuniao": "alinhamento"
+          }
+        ]
+      },
+      {
+        "t": "Reunião de acompanhamento",
+        "espera": 4,
+        "tasks": [
+          {
+            "id": "re12",
+            "d": "fin",
+            "txt": "Agendar a reunião de acompanhamento do 4º mês",
+            "reuniao": "acompanhamento"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "baixa",
+    "sigla": "BAI",
+    "icon": "box",
+    "nome": "Baixa de empresa",
+    "desc": "Encerramento definitivo do CNPJ",
+    "etapas": [
+      {
+        "t": "Alinhamento com o cliente",
+        "tasks": [
+          {
+            "id": "bac",
+            "d": "com",
+            "txt": "Alinhar o encerramento com o cliente",
+            "campo": "custo"
+          }
+        ]
+      },
+      {
+        "t": "Distrato e débitos",
+        "tasks": [
+          {
+            "id": "ba2",
+            "d": "fin",
+            "txt": "Efetuar o distrato e cobrar possíveis débitos"
+          },
+          {
+            "id": "ba3",
+            "d": "fin",
+            "txt": "Retirar a cobrança do cliente no sistema de cobrança"
+          }
+        ]
+      },
+      {
+        "t": "Regularidade fiscal",
+        "tasks": [
+          {
+            "id": "ba4",
+            "d": "reg",
+            "txt": "Levantar pendências federais, estaduais e municipais"
+          },
+          {
+            "id": "ba5",
+            "d": "reg",
+            "txt": "Regularizar as pendências encontradas",
+            "opt": true
+          }
+        ]
+      },
+      {
+        "t": "Baixa empresarial na Leggacy",
+        "tasks": [
+          {
+            "id": "ba6",
+            "d": "fin",
+            "txt": "Acionar a Leggacy para a baixa do CNPJ"
+          },
+          {
+            "id": "bag",
+            "d": "fin",
+            "txt": "Enviar a guia de pagamento",
+            "guia": true
+          },
+          {
+            "id": "ba7",
+            "d": "fin",
+            "txt": "Baixa concluída pela Leggacy",
+            "marco": true
+          },
+          {
+            "id": "ba8",
+            "d": "fin",
+            "txt": "Enviar a certidão de baixa ao cliente"
+          }
+        ]
+      },
+      {
+        "t": "Encerramento interno",
+        "tasks": [
+          {
+            "id": "ba9",
+            "d": "reg",
+            "txt": "Avisar os departamentos para retirada dos controles"
+          },
+          {
+            "id": "ba11",
+            "d": "reg",
+            "txt": "Retirar da planilha geral e desativar os sistemas"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "saida",
+    "sigla": "SAI",
+    "icon": "out",
+    "nome": "Saída de cliente",
+    "desc": "Transferência para outra contabilidade",
+    "etapas": [
+      {
+        "t": "Definições da saída",
+        "tasks": [
+          {
+            "id": "sad",
+            "d": "com",
+            "txt": "Definições da saída do cliente",
+            "auto": true
+          }
+        ]
+      },
+      {
+        "t": "Distrato e débitos",
+        "tasks": [
+          {
+            "id": "sa3",
+            "d": "fin",
+            "txt": "Efetuar o distrato e cobrar possíveis débitos"
+          },
+          {
+            "id": "sa8",
+            "d": "fin",
+            "txt": "Retirar a cobrança do cliente no sistema de cobrança"
+          },
+          {
+            "id": "sa4",
+            "d": "fin",
+            "txt": "Elaborar carta de confissão de dívida",
+            "opt": true
+          }
+        ]
+      },
+      {
+        "t": "Desativação",
+        "tasks": [
+          {
+            "id": "sa6",
+            "d": "reg",
+            "txt": "Desativar os sistemas internos e excluir da planilha geral"
+          }
+        ]
+      },
+      {
+        "t": "Dados do novo contador",
+        "seNao": "novoContador",
+        "tasks": [
+          {
+            "id": "sa9",
+            "d": "reg",
+            "txt": "Solicitar ao cliente os dados do novo contador"
+          }
+        ]
+      },
+      {
+        "t": "Contato com a nova contabilidade",
+        "tasks": [
+          {
+            "id": "sa7",
+            "d": "reg",
+            "txt": "Entrar em contato com a nova contabilidade e enviar os dados e documentos do cliente"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "exclusao",
+    "sigla": "EXC",
+    "icon": "userx",
+    "nome": "Exclusão de cliente",
+    "desc": "Encerramento do contrato pelo escritório",
+    "etapas": [
+      {
+        "t": "Comunicação ao cliente",
+        "tasks": [
+          {
+            "id": "ex1",
+            "d": "fin",
+            "txt": "Comunicar formalmente o cliente sobre o encerramento do contrato"
+          }
+        ]
+      },
+      {
+        "t": "Distrato e débitos",
+        "tasks": [
+          {
+            "id": "ex2",
+            "d": "fin",
+            "txt": "Efetuar o distrato e cobrar possíveis débitos"
+          },
+          {
+            "id": "ex3",
+            "d": "fin",
+            "txt": "Retirar a cobrança do cliente no sistema de cobrança"
+          },
+          {
+            "id": "ex4",
+            "d": "fin",
+            "txt": "Elaborar carta de confissão de dívida",
+            "opt": true
+          }
+        ]
+      },
+      {
+        "t": "Encerramento interno",
+        "tasks": [
+          {
+            "id": "ex7",
+            "d": "reg",
+            "txt": "Informar os departamentos sobre a exclusão do cliente"
+          },
+          {
+            "id": "ex5",
+            "d": "reg",
+            "txt": "Desativar os sistemas internos e excluir da planilha geral"
+          },
+          {
+            "id": "ex6",
+            "d": "reg",
+            "txt": "Entregar a documentação ao cliente ou à nova contabilidade",
+            "opt": true
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -35,8 +35,11 @@ afterEach(async () => {
 })
 
 describe('RequirePermission', () => {
-  it('renders protected content for an authorized admin', async () => {
-    await renderGuard(adminUserMock, APP_PERMISSION.CREATE_EMPLOYEE)
+  it('renders team administration for an authorized owner', async () => {
+    await renderGuard(
+      { ...adminUserMock, role: 'owner' },
+      APP_PERMISSION.CREATE_EMPLOYEE,
+    )
 
     expect(host.querySelector('[data-protected]')?.textContent).toBe(
       'Conteúdo protegido',

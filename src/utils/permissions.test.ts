@@ -16,7 +16,46 @@ import {
 } from './permissions'
 import type { Task } from '../types/domain'
 
-describe('backend-aligned permissions', () => {
+describe('module and organization permissions', () => {
+  it('reserves Equipe administration for organization owners', () => {
+    expect(canCreateEmployee({ ...adminUserMock, role: 'owner' })).toBe(true)
+    expect(
+      hasAppPermission(
+        { ...adminUserMock, role: 'owner' },
+        APP_PERMISSION.VIEW_EMPLOYEES,
+      ),
+    ).toBe(true)
+    expect(hasAppPermission(adminUserMock, APP_PERMISSION.VIEW_EMPLOYEES)).toBe(
+      false,
+    )
+  })
+
+  it('separates module administration from organization administration', () => {
+    const moduleAdmin = {
+      ...memberUserMock,
+      modules: [
+        {
+          module: 'routines' as const,
+          globalAccess: true,
+          actions: [],
+          sectors: [],
+        },
+      ],
+    }
+    expect(canCreateRoutine(moduleAdmin)).toBe(true)
+    expect(canAccessDepartment(moduleAdmin, 'any-department')).toBe(true)
+    expect(canCreateEmployee(moduleAdmin)).toBe(false)
+    expect(canCreateCompany(moduleAdmin)).toBe(false)
+    const restrictedAdmin = {
+      ...adminUserMock,
+      modules: [],
+      departmentAccesses: [],
+    }
+    expect(canCreateRoutine(restrictedAdmin)).toBe(false)
+    expect(canAccessDepartment(restrictedAdmin, 'any-department')).toBe(false)
+    expect(canCreateEmployee(restrictedAdmin)).toBe(false)
+  })
+
   it('applies contributor access only to its configured department', () => {
     expect(isOrganizationAdmin(memberUserMock)).toBe(false)
     expect(isLead(memberUserMock)).toBe(false)
@@ -38,7 +77,7 @@ describe('backend-aligned permissions', () => {
     expect(canCreateCompany(leadUserMock, ['dept-fiscal'])).toBe(false)
     expect(canCreateEmployee(leadUserMock)).toBe(false)
     expect(hasAppPermission(leadUserMock, APP_PERMISSION.VIEW_EMPLOYEES)).toBe(
-      true,
+      false,
     )
     expect(canAssignTask(leadUserMock, buildTask('dept-fiscal'))).toBe(true)
     expect(canAssignTask(leadUserMock, buildTask('dept-contabil'))).toBe(false)
@@ -51,10 +90,10 @@ describe('backend-aligned permissions', () => {
     expect(
       canCreateCompany(adminUserMock, ['dept-fiscal', 'dept-contabil']),
     ).toBe(true)
-    expect(canCreateEmployee(adminUserMock)).toBe(true)
+    expect(canCreateEmployee(adminUserMock)).toBe(false)
     expect(
       hasAppPermission(adminUserMock, APP_PERMISSION.CREATE_EMPLOYEE),
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it('allows every other status for members authorized to operate a task', () => {

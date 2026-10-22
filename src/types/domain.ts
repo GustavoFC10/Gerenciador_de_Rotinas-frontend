@@ -1,3 +1,4 @@
+import type { ModuleSummary } from './modules'
 import type { ImageReference } from './files'
 
 export type EntityId = string
@@ -254,6 +255,7 @@ export interface NormalizedRoutineData {
 }
 
 export interface AppUser {
+  modules?: ModuleSummary[]
   avatar?: ImageReference | null
   id: EntityId
   membershipId: EntityId
@@ -264,7 +266,7 @@ export interface AppUser {
   avatarUrl: string
 }
 
-export type AppTheme = 'light' | 'dark' | 'jaral'
+export type AppTheme = 'light' | 'dark'
 export type AppDensity = 'compact' | 'comfortable'
 export type AppDefaultView = 'spreadsheet' | 'list'
 

@@ -62,8 +62,8 @@ describe('Sidebar', () => {
     expect(renderSidebar(true)).toContain('lg:sr-only')
   })
 
-  it('labels the organization-member list as Equipe', () => {
-    expect(renderSidebar(false, adminUserMock)).toContain('>Equipe<')
+  it('keeps Equipe outside the Rotinas sidebar', () => {
+    expect(renderSidebar(false, adminUserMock)).not.toContain('href="/equipe"')
   })
 
   it('places Minhas tarefas immediately after Início in global navigation', () => {
