@@ -153,7 +153,7 @@ function NotificationToast({
       role={notification.tone === 'error' ? 'alert' : 'status'}
       aria-atomic="true"
       aria-hidden={suppressed || undefined}
-      className={`pointer-events-auto ${suppressed ? 'hidden' : 'flex'} items-start gap-2.5 rounded-[var(--radius-panel)] border border-l-[3px] border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-3 shadow-[var(--shadow-floating)] ${tones[notification.tone]}`}
+      className={`${interactive ? 'pointer-events-auto' : 'pointer-events-none'} ${suppressed ? 'hidden' : 'flex'} items-start gap-2.5 rounded-[var(--radius-panel)] border border-l-[3px] border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-3 shadow-[var(--shadow-floating)] ${tones[notification.tone]}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}

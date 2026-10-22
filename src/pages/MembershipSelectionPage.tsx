@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router'
 
 import Button from '../components/ui/Button'
+import { ROUTES } from '../constants/routes'
 import { useAuth } from '../hooks/useAuth'
 
 function MembershipSelectionPage() {
+  const navigate = useNavigate()
   const { memberships, logout, selectActiveMembership } = useAuth()
   const [pendingMembershipId, setPendingMembershipId] = useState<string | null>(
     null,
@@ -16,6 +19,7 @@ function MembershipSelectionPage() {
 
     try {
       await selectActiveMembership(membershipId)
+      navigate(ROUTES.HUB, { replace: true })
     } catch (currentError) {
       setError(
         currentError instanceof Error

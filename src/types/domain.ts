@@ -1,3 +1,4 @@
+import type { ModuleSummary } from './modules'
 import type { ImageReference } from './files'
 
 export type EntityId = string
@@ -254,6 +255,7 @@ export interface NormalizedRoutineData {
 }
 
 export interface AppUser {
+  modules?: ModuleSummary[]
   avatar?: ImageReference | null
   id: EntityId
   membershipId: EntityId

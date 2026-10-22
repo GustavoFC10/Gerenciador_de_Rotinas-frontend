@@ -101,7 +101,6 @@ async function renderRoutes(
                 onRoutineUpdate={unimplemented}
                 onRoutineArchive={unimplemented}
                 onRoutineRestore={unimplemented}
-                onEmployeeInvite={unimplemented}
                 onDepartmentCreate={unimplemented}
                 onScreenCreate={unimplemented}
                 onScreenUpdate={unimplemented}

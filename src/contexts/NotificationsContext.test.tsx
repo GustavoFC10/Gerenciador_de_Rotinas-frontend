@@ -262,6 +262,11 @@ describe('NotificationsProvider', () => {
       'Um envio falhou',
     )
     expect(document.querySelector('[role="alert"] button')).toBeNull()
+    expect(
+      document
+        .querySelector('[role="alert"]')
+        ?.classList.contains('pointer-events-none'),
+    ).toBe(true)
     await act(async () => dialog.remove())
     expect(
       document.querySelector('[role="alert"] button')?.textContent,

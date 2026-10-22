@@ -191,7 +191,6 @@ const actions = {
   onRoutineUpdate: vi.fn(),
   onRoutineArchive: vi.fn(),
   onRoutineRestore: vi.fn(),
-  onEmployeeInvite: vi.fn(),
   onDepartmentCreate: vi.fn(),
   onScreenCreate: vi.fn(),
   onScreenUpdate: vi.fn(),

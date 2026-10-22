@@ -79,11 +79,20 @@ function DepartmentsSettingsPage({
         const count = members.filter(
           (member) =>
             member.status === 'active' &&
-            (member.role === 'owner' ||
-              member.role === 'admin' ||
-              member.departmentAccesses.some(
-                (access) => access.departmentId === department.id,
-              )),
+            ((member.moduleAccesses === undefined &&
+              member.role !== 'member') ||
+              member.moduleAccesses?.some(
+                (access) =>
+                  access.module === 'routines' &&
+                  access.enabled &&
+                  access.role === 'admin',
+              ) ||
+              (!member.moduleAccesses?.some(
+                (access) => access.module === 'routines' && !access.enabled,
+              ) &&
+                member.departmentAccesses.some(
+                  (access) => access.departmentId === department.id,
+                ))),
         ).length
         counts.set(department.id, count)
         return counts

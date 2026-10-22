@@ -23,7 +23,7 @@ import type {
   Screen,
 } from '../types/domain'
 import { getCompanyCodeLabel } from '../utils/companyCode'
-import { isOrganizationAdmin } from '../utils/permissions'
+import { isOrganizationAdmin, isRoutinesAdmin } from '../utils/permissions'
 import {
   ROUTINE_LIST_MODE,
   buildRoutineListViewData,
@@ -152,7 +152,7 @@ function EntityDetailPage({
   }
 
   const canEdit =
-    isOrganizationAdmin(user) &&
+    (type === 'client' ? isOrganizationAdmin(user) : isRoutinesAdmin(user)) &&
     (type === 'client' ? Boolean(onClientUpdate) : Boolean(onRoutineUpdate))
 
   async function handleClientSave(changes: ClientCompanyPatch) {

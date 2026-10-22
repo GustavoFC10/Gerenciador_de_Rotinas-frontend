@@ -27,6 +27,86 @@ const sessionFixture: AuthSession = {
 }
 
 describe('AuthService', () => {
+  it.each(['member', 'admin', 'owner'] as const)(
+    'hydrates scoped routine roles for %s directly from modules without extra department requests',
+    async (role) => {
+      const membership = {
+        ...sessionFixture.memberships[0]!,
+        role,
+        modules: [
+          {
+            module: 'routines' as const,
+            globalAccess: false,
+            actions: ['read'],
+            sectors: [
+              {
+                id: 'dept-fiscal',
+                name: 'Fiscal',
+                role: 'lead',
+                actions: ['read'],
+              },
+            ],
+          },
+        ],
+      }
+      const session = {
+        ...sessionFixture,
+        memberships: [membership],
+        activeMembership: membership,
+      }
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(jsonResponse({ csrfToken: 'csrf' }))
+        .mockResolvedValueOnce(jsonResponse(session))
+      const { service } = createService(fetchMock)
+      await expect(service.initialize()).resolves.toEqual({
+        session,
+        departmentAccesses: [{ departmentId: 'dept-fiscal', role: 'lead' }],
+      })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it.each([
+    { modules: [] },
+    {
+      modules: [
+        {
+          module: 'processes' as const,
+          globalAccess: false,
+          actions: ['read'],
+          sectors: [
+            { id: 'reg', name: 'Regularidade', role: 'reg', actions: ['read'] },
+          ],
+        },
+      ],
+    },
+  ])(
+    'does not request routines for a membership with authoritative modules %j',
+    async ({ modules }) => {
+      const membership = {
+        ...sessionFixture.memberships[0]!,
+        role: 'member' as const,
+        modules,
+      }
+      const session = {
+        ...sessionFixture,
+        memberships: [membership],
+        activeMembership: membership,
+      }
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(jsonResponse({ csrfToken: 'csrf' }))
+        .mockResolvedValueOnce(jsonResponse(session))
+      const { service } = createService(fetchMock)
+      await expect(service.initialize()).resolves.toEqual({
+        session,
+        departmentAccesses: [],
+      })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    },
+  )
+
   it('emite o CSRF e restaura a sessão usando cookies', async () => {
     const fetchMock = vi
       .fn<typeof fetch>()

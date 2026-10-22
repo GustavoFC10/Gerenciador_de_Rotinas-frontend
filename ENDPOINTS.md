@@ -22,6 +22,17 @@ Arquivos foram validados localmente em 13/10/2026 com 229 testes aprovados; veja
 
 ## 1. Convenções dos exemplos
 
+Atualização de 22/10/2026: o módulo **Processos**, o HUB da sessão e os vínculos por
+módulo estão documentados na seção 17. As rotas de Rotinas e seus vínculos existentes
+permanecem válidos. Processos usa `version` no corpo das mutações e conflito `409`,
+conforme seu contrato abaixo; as operações anteriores continuam usando `If-Match`.
+
+O cadastro geral agora aceita `moduleAccesses` no convite e na edição do
+colaborador. Nas rotas operacionais, o nível administrativo de Rotinas pode ser
+configurado separadamente do cargo organizacional. As referências anteriores a
+owner/admin nessas rotas seguem esse nível do módulo; a administração de contas,
+organização e recursos compartilhados continua seguindo o cargo organizacional.
+
 Os exemplos usam PowerShell e `curl.exe`:
 
 ```powershell
@@ -276,7 +287,11 @@ curl.exe -X POST "$BASE_URL/api/v1/membership-invitations/" `
   -d '{"email":"novo.membro@example.com","displayName":"Novo Membro","role":"member"}'
 ```
 
-Retorna `201` com ID, e-mail, nome, papel, expiração e criação do convite.
+Retorna `201` com ID do convite, `memberId`, e-mail, nome, papel, `moduleAccesses`,
+expiração e criação do convite. O cadastro é geral: uma única identidade serve
+todos os módulos. Inclua `moduleAccesses` para conceder os acessos já no convite,
+conforme a seção 17.1. Novos convites sem esse campo começam sem acesso aos módulos,
+mesmo com `role: "admin"`; na reemissão, sua ausência preserva os acessos atuais.
 
 ### `GET /api/v1/organization-members/`
 
@@ -300,7 +315,8 @@ curl.exe "$BASE_URL/api/v1/organization-members/<UUID_DO_COLABORADOR>/" -b cooki
 
 ### `PATCH /api/v1/organization-members/{id}/`
 
-Altera `displayName` e/ou o cargo organizacional `role` (`owner`, `admin` ou `member`).
+Altera `displayName`, o cargo organizacional `role` (`owner`, `admin` ou `member`)
+e/ou `moduleAccesses` (seção 17.1), em uma única transação.
 Somente `owner/admin`; um admin não pode promover nem alterar owner, e o último
 owner/admin ativo não pode ser rebaixado.
 
@@ -1830,3 +1846,412 @@ Conferência local desta revisão: 103 combinações de método/rota documentada
 encontradas no schema gerado ou no resolvedor Django, 14 exemplos JSON válidos e
 16 seções numeradas sem repetição. Os serializers de empresa também foram
 exercitados sem banco para confirmar omissão, `null` e código vazio.
+
+## 17. Processos e acessos por módulo
+
+Contrato de 22/10/2026. Todas as rotas abaixo começam com `/api/v1/`, usam sessão,
+organização ativa e CSRF nas escritas. Nenhuma aceita `organizationId`, autor,
+histórico, tarefas ou status enviados livremente pelo cliente. Campos desconhecidos
+são rejeitados. O `openapi.yml` contém os schemas de entrada e saída gerados dos
+mesmos serializers executados pela API.
+
+### 17.1 HUB e administração de acessos
+
+`POST auth/login/`, `GET auth/session/`, `GET auth/memberships/` e
+`PUT auth/active-membership/` acrescentam `modules` a cada resumo de associação,
+inclusive `activeMembership`. A lista contém somente os módulos disponíveis naquela
+organização. `GET module-permissions/` retorna `{ "modules": [...] }` para a
+organização ativa. Consulte novamente após trocar de organização ou alterar vínculos.
+
+Cada módulo informa `module` (`routines` ou `processes`), `globalAccess`, `actions` e
+`sectors`. Cada setor informa `id`, `name`, `role`, `actions` e, em Processos,
+`jobTitle`. Processos também informa `executeSectors`, a lista de setores em que o
+usuário pode executar tarefas. As permissões são cumulativas quando existem vários
+vínculos. A interface deve oferecer somente os setores permitidos; enviar outro
+setor ao filtro da fila retorna `403`. As permissões de cada recurso continuam
+sendo validadas na execução, inclusive atribuição de tarefas em Rotinas.
+
+Regras globais explícitas:
+
+- Rotinas conserva `DepartmentAccess` e seus cargos `lead`, `contributor`, `viewer`.
+  Contas anteriores sem configuração explícita conservam o acesso existente:
+  `owner`/`admin` continuam administradores de Rotinas. A configuração por módulo
+  pode substituir esse comportamento por acesso departamental ou nenhum acesso.
+- Processos exige vínculo próprio `com`, `fin` ou `reg`. `owner`, `admin`, staff e
+  superuser **não recebem acesso implícito** a Processos. Não há migração de cargos
+  de Rotinas para Processos. Owner/admin pode cadastrar explicitamente os vínculos.
+- Somente owner/admin administra vínculos. Um admin não pode alterar os vínculos de
+  um owner. Concessões são permitidas para membros `pending` ou `active`; acesso
+  efetivo exige membro, usuário e organização ativos.
+
+| Método e rota | Entrada | Resposta |
+| --- | --- | --- |
+| `GET module-permissions/` | — | `200` com módulos efetivos do solicitante |
+| `GET organization-members/{memberId}/module-accesses/` | — | `200` com todos os vínculos do membro no tenant |
+| `PUT organization-members/{memberId}/module-accesses/` | `module`, `sector`, `role`, `jobTitle?` | `200` com a lista atualizada; cria ou substitui um vínculo |
+| `DELETE organization-members/{memberId}/module-accesses/` | `module`, `sector` no corpo JSON | `204`; revoga somente o vínculo indicado |
+
+Exemplo de concessão em Processos:
+
+```json
+{"module":"processes","sector":"reg","role":"reg","jobTitle":"Analista de regularidade"}
+```
+
+`role` deve ser igual a `sector` em Processos: `com` = Diretoria, `fin` = Financeiro,
+`reg` = Regularidade. Em Rotinas, `sector` é o UUID de um departamento da organização
+e `role` é `lead`, `contributor` ou `viewer`; `jobTitle` deve estar ausente ou vazio.
+O vínculo de Rotinas é o mesmo administrado pelas rotas `department-accesses/` já
+existentes; não há segunda fonte de permissões. Alterações e revogações são
+consultadas nas próximas requisições, sem exigir novo login.
+
+O cadastro e a edição geral do colaborador recebem `moduleAccesses`, tanto em
+`POST membership-invitations/` quanto em `PATCH organization-members/{id}/`.
+O cargo organizacional controla a administração de usuários; ele é separado dos
+níveis dos módulos. Apenas owner/admin da organização configura esses acessos.
+O mesmo `memberId`, e-mail, senha e sessão atendem Rotinas e Processos.
+
+Exemplo de novo colaborador: leitor do departamento indicado em Rotinas e
+Financeiro em Processos (substitua o UUID pelo departamento ativo do tenant):
+
+```json
+{
+  "email": "colaborador@example.com",
+  "displayName": "Maria Silva",
+  "role": "member",
+  "moduleAccesses": [
+    {
+      "module": "routines",
+      "enabled": true,
+      "role": "departments",
+      "sectors": [{"sector": "00000000-0000-0000-0000-000000000001", "role": "viewer"}]
+    },
+    {
+      "module": "processes",
+      "enabled": true,
+      "sectors": [{"sector": "fin", "role": "fin", "jobTitle": "Analista financeiro"}]
+    }
+  ]
+}
+```
+
+Em Rotinas, `role: "admin"` concede administração global do módulo, mesmo a um
+`member` da organização, sem permitir que ele administre usuários. Nesse nível,
+omita `sectors`. `role: "departments"` exige setores com cargos departamentais,
+mesmo se o cargo organizacional for `owner`/`admin`. Em Processos, o nível é definido
+por setor: `com`, `fin`, `reg`; não envie `role` no objeto do módulo.
+
+Para retirar o acesso de uma conta existente a Rotinas e manter apenas Regularidade
+em Processos, envie no PATCH do colaborador:
+
+```json
+{
+  "moduleAccesses": [
+    {"module": "routines", "enabled": false},
+    {"module": "processes", "enabled": true, "sectors": [{"sector": "reg", "role": "reg"}]}
+  ]
+}
+```
+
+Cada módulo informado substitui integralmente seus vínculos anteriores; passar de
+Diretoria para Regularidade remove o vínculo `com`, inclusive acesso financeiro.
+`enabled: false` remove os vínculos do módulo e bloqueia suas APIs. Nas edições,
+módulos omitidos permanecem como estavam; `moduleAccesses: []` não altera acessos.
+Na criação, módulos omitidos começam desabilitados. Reemitir um convite sem
+`moduleAccesses` preserva a configuração do perfil pendente.
+
+Os endpoints de vínculo individual continuam cumulativos e não reabilitam um módulo
+explicitamente desabilitado. Use o PATCH geral para reabilitá-lo e definir seus
+vínculos completos. Nome, cargo e módulos são validados e gravados atomicamente;
+um departamento inválido ou de outro tenant desfaz toda a alteração.
+
+Owner/admin recebe `moduleAccesses` no roster e no detalhe do colaborador, incluindo
+módulos sem acesso. Líderes de departamento recebem essa lista vazia, preservando o
+escopo do roster. O HUB e a sessão mostram apenas módulos com acesso efetivo.
+Recursos compartilhados, como gestão da organização, perfis, fotos e cadastro de
+empresas, continuam seguindo suas políticas próprias. Desabilitar Rotinas bloqueia
+rotinas, presets, vínculos recorrentes, competências, tarefas, telas e seus anexos;
+não remove o cargo organizacional nem o histórico.
+
+### 17.2 Matriz de Processos e confidencialidade
+
+| Ação | Diretoria `com` | Financeiro `fin` | Regularidade `reg` |
+| --- | --- | --- | --- |
+| Consultar processos, catálogo e indicadores | Sim | Sim | Sim |
+| Criar, editar dados, excluir, cancelar e reabrir processo | Sim | Não | Não |
+| Executar/reabrir tarefas | Qualquer setor | Próprio setor | Próprio setor |
+| Adicionar notas | Sim | Sim | Sim |
+| Valores, relatórios de movimentações/honorários | Sim | Sim | Não |
+| Consultar estados e tentar novamente notificações pendentes | Sim | Não | Não |
+
+`permissions` na resposta de cada processo e no catálogo informa `read`, `create`,
+`edit`, `delete`, `cancel`, `reopen`, `note`, `viewFinancial`, `viewMovements`,
+`sectors` cadastrados e `executeSectors`. Todos os setores com acesso podem consultar
+os processos do tenant; o filtro `setor` significa pendências atuais daquele setor.
+
+Para quem não tem `viewFinancial`, a API **omite as propriedades** `custo`, `pagador`,
+`parcelas`, `honorario`, `honCobranca`, `trab`, `trabQtd`, `trabValor`, `honAnterior`
+e `honPerdido`, em listagens e detalhes. Não use a ausência como valor zero.
+Textos livres `obs`, `altDesc`, `regimeObs`, `motivoObs`, `contato` e
+`contadorContato` também são confidenciais: podem conter valores escritos sem
+símbolo monetário. A indicação do pagador no texto da tarefa de guia é omitida.
+
+Notas de autores que possuem acesso financeiro são sempre confidenciais. Só
+Diretoria/Financeiro as recebem. Notas de autores sem esse acesso são operacionais
+e compartilhadas. Essa classificação fica registrada na criação e não muda ao
+revogar o vínculo. Não há parâmetro para contornar a classificação. Histórico
+público usa eventos estruturados produzidos pelo servidor e não inclui valores ou
+textos enviados pelo usuário. Não é utilizada máscara baseada em expressão regular.
+
+### 17.3 Operações e filtros
+
+| Método e rota | Entrada | Resposta |
+| --- | --- | --- |
+| `GET processes/catalog/` | — | `200`: `workflowVersion`, `types`, `sectors`, `permissions` |
+| `GET processes/` | filtros abaixo | `200` paginado: `count`, `next`, `previous`, `results` |
+| `GET processes/{id}/` | — | `200` com processo, etapas efetivas, tarefas, notas e histórico |
+| `POST processes/` | dados de abertura + header `Idempotency-Key` | `201` criado; `200` para replay idêntico |
+| `PATCH processes/{id}/` | `version` + campos editáveis | `200` com nova versão |
+| `DELETE processes/{id}/` | `{"version":N}` | `204`; exclusão lógica, histórico preservado |
+| `POST processes/{id}/tasks/{taskId}/transition/` | `version`, `state` | `200` com processo atualizado |
+| `POST processes/{id}/notes/` | `version`, `text` (1–5000 caracteres) | `200` com processo atualizado |
+| `POST processes/{id}/cancel/` | `{"version":N}` | `200` com processo cancelado |
+| `POST processes/{id}/reopen/` | `{"version":N}` | `200` com processo reaberto |
+| `GET processes/indicators/` | mesmos filtros da lista | `200` com contagens |
+| `GET processes/reports/monthly/?month=YYYY-MM` | mês obrigatório, sem outros parâmetros | `200` com movimentações e honorários |
+| `POST processes/{id}/notifications/retry/` | `{"version":N}` | `200`; tenta apenas notificações ainda elegíveis |
+| `GET processes/{id}/notifications/` | — | `200`; Diretoria consulta cada destinatário e estado da entrega |
+
+Filtros de lista/indicadores: `page` (inteiro positivo), `tipo`, `status`
+(`andamento`, `concluido`, `cancelado`), `setor` (`com`, `fin`, `reg`), `q`
+(empresa, CNPJ, protocolo ou código), `late` e `waiting` (booleanos), `month`
+(`YYYY-MM`, mês de abertura no fuso da organização). Parâmetros desconhecidos ou
+inválidos retornam `400`. `setor` exige autorização de execução naquele setor.
+Processos em espera não entram na fila nem nos atrasados. Consulte
+`?waiting=true` para os agendados e `?late=true` para os atrasados.
+
+Indicadores retornam `total`, `active`, `completed`, `cancelled`, `late`, `waiting`,
+`bySector` (pendências atuais) e `byType`, sem valores financeiros.
+
+### 17.4 Campos e tipos
+
+Os nomes do HTML foram mantidos nos dados do processo. Valores monetários são
+strings decimais em BRL com duas casas, até 14 dígitos no total e sem valores
+negativos. Datas usam `YYYY-MM-DD`; timestamps usam ISO 8601 com fuso.
+
+| Grupo | Campos aceitos |
+| --- | --- |
+| Identificação | `tipo` (obrigatório e imutável), `empresa` (obrigatório, até 200), `companyId` (UUID opcional de empresa ativa do mesmo tenant), `cnpj` (opcional, valida dígitos verificadores e normaliza), `protocolo` (até 160) |
+| Datas e observações | `prazo` (data ou null), `inicioInat` (data ou null), `obs` (até 5000) |
+| Custos | `custo`, `pagador` (`cliente` ou `jaralcon`), `parcelas` (1–360) |
+| Honorários | `honorario` (contábil), `honCobranca` (início da cobrança), `trab` (booleano), `trabQtd` (1–100000), `trabValor` (valor por funcionário), `honAnterior`, `honPerdido` |
+| Alteração contratual | `altItens` (sem repetição: `societario`, `capital`, `bens`, `endereco`, `razao`, `atividades`, `outros`), `altDesc` (até 3000) |
+| Motivo | `motivo` (`encerramento`, `honorarios`, `atendimento`, `concorrente`, `inadimplencia`, `venda`, `reducao`, `outros`), `motivoObs` (até 1500) |
+| Regime | `regime` (`simples`, `presumido`, `real`), `regimeObs` (até 3000) |
+| Saída | `contato` (até 500), `novoContador` (booleano), `contadorNome` (até 200), `contadorContato` (até 500) |
+| Opções | `reatJunta`, `reunAlinh`, `reunAcomp` (booleanos) |
+
+Campos específicos são aceitos somente nos tipos aplicáveis. Ausência permite
+definir dados depois; `null` é aceito em datas, valores, pagador, parcelas, regime,
+motivo e companyId. Use string vazia para limpar texto. `empresa` nunca é vazia.
+
+| `tipo` | Significado e particularidades |
+| --- | --- |
+| `abertura` | Abertura; custo, honorário, regime, reuniões |
+| `mei` | Transformação MEI → ME; custo, honorário, regime, reuniões |
+| `outro` | Cliente de outro escritório; honorário, regime, reuniões |
+| `alteracao` | Alteração contratual; exige itens, descrição, custo, pagador e parcelas na abertura e edição |
+| `inatividade` | **Paralisação**; exige `honPerdido`, usa `inicioInat` em lugar de prazo |
+| `inativa` | **Inatividade**; honorário reduzido, `honAnterior`, `inicioInat` em lugar de prazo |
+| `reativacao` | Honorário, reuniões e etapa opcional controlada por `reatJunta` |
+| `baixa` | Baixa; exige `honPerdido`, tem custo e motivo |
+| `saida` | Saída; exige `honPerdido`; se `novoContador=true`, exige nome e contato do contador |
+| `exclusao` | Exclusão de cliente; exige `honPerdido`, tem motivo |
+
+Exemplo de abertura (enviar sessão, CSRF e `Idempotency-Key`):
+
+```json
+{
+  "tipo":"abertura",
+  "empresa":"Empresa Exemplo",
+  "protocolo":"PROTO-2026-001",
+  "prazo":"2026-11-30",
+  "custo":"500.00",
+  "pagador":"cliente",
+  "parcelas":2,
+  "honorario":"1200.00",
+  "honCobranca":"2026-12-01",
+  "regime":"simples",
+  "reunAlinh":true,
+  "reunAcomp":true
+}
+```
+
+A resposta acrescenta `id`, `organizationId`, `codigo`, `status`, `version`,
+`criadoPor` (membro da organização), `autorAbertura`, `criadoEm`, `atualizadoEm`,
+`concluidoEm`, `workflowVersion`, `tarefas`, `etapas`, `analysis`, `permissions`,
+`notas`, `historico`; Diretoria também recebe `notifications` com contagens por
+estado de entrega. Respostas individuais têm `ETag` com a versão. Campos financeiros
+e textos confidenciais são opcionais no schema pois podem ser omitidos por permissão.
+
+`tarefas` é um objeto indexado pelo ID do catálogo (por exemplo `ab3`), contendo
+`s` (`feito` ou `na`), `por`, `autor`, `em` e, para automáticas, `auto=true`.
+Uma tarefa pendente não tem estado nesse objeto. `etapas` contém `t`, `tasks`,
+`index` original e `completed`, além das opções do catálogo quando aplicáveis.
+Cada tarefa contém `id`, `d` (setor), `txt` e os metadados de campo, reunião,
+opcionalidade e marco existentes no HTML. A organização não pode enviar workflows
+arbitrários. O catálogo é versionado e cada processo preserva sua cópia do fluxo.
+
+`analysis` contém `currentStage` (índice de base zero das etapas efetivas, null se
+todas completas), `completedTasks`, `totalTasks`, `releaseDate`, `waiting`, `late`
+e `pendingSectors`. Datas de liberação são calculadas no fuso da organização.
+Notas e eventos têm `id`, `por`, `autor`, `em`, `kind`, `financial`, `text`, `details`.
+Eventos incluem `opened`, `edited`, `task`, `completed`, `reopened`, `cancelled`,
+`deleted`, `email_retry`; alterações indicam os nomes dos campos, tarefas e estados,
+sem expor seu conteúdo financeiro no histórico público.
+Eventos confidenciais `definitions` e `financial_update` preservam os valores
+definidos na abertura e os valores anteriores/novos de alterações financeiras ou
+de texto privado. São omitidos integralmente para quem não pode consultar valores.
+
+### 17.5 Transições e concorrência
+
+Toda mutação em um processo existente exige `version` inteiro positivo no corpo;
+o servidor bloqueia a linha, verifica a versão e incrementa-a na mesma transação.
+Versão antiga retorna `409`, sem alteração parcial. Recarregue o processo antes de
+reaplicar. Não envie um snapshot inteiro do HTML para sobrescrever o agregado.
+
+Na transição de tarefa, `state` aceita `feito`, `na` ou `pending` (reabrir).
+Apenas a etapa atual pode receber novas conclusões, respeitando o setor autorizado
+e os campos obrigatórios. `na` exige tarefa marcada `opt` no catálogo. Definições
+automáticas de abertura não podem ser reabertas diretamente. Custo/honorário/regime
+preenchidos completam suas tarefas de definição; limpar campos obrigatórios reabre
+as definições correspondentes. Honorário com folha exige quantidade e valor;
+inatividade também exige honorário anterior antes de concluir sua definição.
+
+Etapas são sequenciais, com tarefas de setores diferentes executáveis em paralelo
+dentro da etapa. Reabrir pré-requisito limpa confirmações das etapas posteriores e
+registra `resetTasks`, para impedir conclusão apoiada em pré-requisito inválido.
+Alterar opções retira tarefas desabilitadas e também invalida dependências quando
+necessário. Ao completar todas as tarefas efetivas, o servidor conclui o processo
+e grava `concluidoEm`. Reabrir tarefa de processo concluído reabre o processo.
+
+`reunAlinh=false` e `reunAcomp=false` retiram as respectivas reuniões;
+`reatJunta=false` retira a etapa opcional de reativação; `novoContador=true`
+retira a etapa de solicitar dados do contador. Opções de reunião/reativação são
+habilitadas por padrão. Reuniões de acompanhamento liberam **quatro meses de
+calendário** após a última conclusão da etapa anterior, com ajuste ao último dia do
+mês; nenhum cliente pode antecipar essa data. A liberação é calculada na consulta,
+sem depender de job ou relógio do navegador.
+
+Somente processos `andamento` podem ser cancelados. Processo cancelado precisa ser
+reaberto antes de editar dados ou tarefas. Notas podem ser adicionadas a processos
+encerrados. `reopen/` restaura um cancelado; em concluído, reabre a última tarefa
+manual. Exclusão é lógica e mantém histórico, chave de idempotência e vínculos de
+autoria. Não existe transição arbitrária de status. O estado `revertido` aparece
+em código auxiliar do HTML, mas o catálogo fornecido não contém tarefa de decisão
+que o produza; esta API implementa os estados alcançáveis pelos dez fluxos atuais.
+
+### 17.6 Movimentações e honorários
+
+O relatório é restrito a Diretoria/Financeiro. Conta processos pelo **mês da abertura
+no fuso da organização**, como o HTML, mesmo que a cobrança comece depois.
+Exclui cancelados e excluídos. Soma `honorario + trabQtd × trabValor` quando há folha.
+Ganhos incluem `abertura`, `mei`, `outro`; perdas diretas incluem `baixa`, `saida`,
+`exclusao`, `inatividade`. Em `inativa`, perda é
+`max(0, honAnterior - honorário total novo)`. Reativação continua sem gerar ganho
+de contrato novo, conforme a referência.
+
+Retorna `month`, `gain`, `loss`, `balance`, `missingValues`, `entries`, `exits`,
+`lossesByType`, `previousMonth` e `history` (12 meses terminando no mês solicitado).
+Cada item contém `processId`, `empresa`, `tipo`, `value` (decimal ou null).
+Valor indefinido conta em `missingValues` e fica fora dos totais; não é confundido
+com zero definido. Os totais são decimais, sem cálculo em ponto flutuante.
+
+### 17.7 E-mail de abertura e idempotência
+
+`POST processes/` exige `Idempotency-Key` de 1–128 caracteres ASCII alfanuméricos
+ou `._:-`, preferencialmente UUID criado pelo frontend para aquela abertura.
+Reutilize a mesma chave e o mesmo corpo validado ao repetir uma requisição cujo
+resultado não chegou. A chave é única por organização, sem expiração automática.
+Primeira abertura retorna `201`; repetição equivalente retorna `200`, o mesmo
+processo e nenhum novo envio. Chave com outro conteúdo ou processo excluído retorna
+`409`. A criação do processo e das notificações é atômica.
+
+Destinatários: todos os membros ativos da organização com algum acesso explícito
+a Processos, incluindo o autor se elegível; um e-mail individual por membro,
+deduplicado mesmo com vários setores. Owner/admin sem vínculo não recebe.
+Não são enviados e-mails a clientes/contadores externos ou endereços fornecidos no
+payload. Antes da entrega, usuário, organização, vínculo e permissões são
+consultados novamente; acesso revogado resulta em `skipped`.
+O endereço de cada destinatário é o e-mail do vínculo já utilizado no sistema de
+Rotinas (`OrganizationMember.email`); não é necessário cadastrar outro e-mail.
+
+Conteúdo: organização, código, tipo, empresa, CNPJ, protocolo, prazo, abertura e
+autor; lista de tarefas dos setores em que o destinatário pode atuar. Valores
+estruturados são incluídos somente para Diretoria/Financeiro. Textos livres,
+notas e histórico não entram no e-mail. O assunto contém somente o código do
+processo. Envio usa o backend Django já configurado (`DEFAULT_FROM_EMAIL`, SMTP).
+O corpo usa o template `processes/emails/opened.txt`, com saudação, nome do tipo,
+setores por extenso e abertura no fuso da organização. Não há credenciais ou
+remetente separados para Processos: `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`,
+`EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_TIMEOUT` e
+`DEFAULT_FROM_EMAIL` são compartilhados com os demais e-mails do sistema.
+
+`GET processes/{id}/notifications/` é restrito à Diretoria e retorna um array com
+`id`, `memberId`, `displayName`, `email`, `status`, `claimedAt` e `sentAt`.
+Não altera a versão nem dispara envio. IDs de outro tenant retornam `404`.
+O frontend deve abrir o processo uma única vez com `POST processes/`; não precisa
+fazer outra chamada para iniciar o envio de e-mail.
+
+Após o commit, o backend tenta entregar as notificações registradas. A resposta
+de criação permanece bem-sucedida se o provedor de e-mail falhar; consulte
+`notifications` ou tente `notifications/retry/`. Esta tentativa exige Diretoria e
+`version`, e retorna `200` com o estado do processo, sem recriar destinatários.
+Configure também execução periódica para recuperar pendências após queda da API:
+
+```powershell
+python manage.py send_process_notifications --limit 100 --settings=config.settings.production
+```
+
+Alternativamente, mantenha o worker contínuo, que consulta pendências a cada cinco
+segundos e recupera conexões após indisponibilidade do banco:
+
+```powershell
+python manage.py send_process_notifications --watch --poll-seconds 5 --limit 100 --settings=config.settings.production
+```
+
+O `Procfile` inclui o processo `notificationworker`; ative uma instância no ambiente
+de hospedagem. Em Docker Compose, depois de aplicar as migrações, use
+`docker compose --profile notifications up -d notificationworker`. Sem `--watch`,
+o comando continua executando apenas um lote, adequado para agendadores. Não há
+necessidade de agendador adicional quando o worker contínuo está ativo.
+
+Estados persistidos: `pending` (aguarda), `sending` (reservado antes do contato com
+o provedor), `sent` (aceito), `failed` (falha de preparação, sem tentativa de envio),
+`uncertain` (entrega não confirmada), `skipped` (acesso revogado/exclusão/cancelamento antes do envio).
+Worker e endpoint tentam somente `pending`/`failed`, com bloqueio por notificação;
+uma tentativa concorrente não envia novamente. O worker classifica `sending`
+abandonado há mais de 15 minutos como `uncertain`.
+
+SMTP não permite assegurar entrega exatamente uma vez em caso de timeout ou queda
+após aceitação. A política evita envio duplicado automático: `uncertain` nunca é
+reenviado automaticamente e requer conferência operacional no provedor. Um
+`Message-ID` estável por notificação auxilia essa conferência. `sent` e `skipped`
+também não são reenviados. Ausência de duplicidade pode significar entrega pendente
+de conferência em falhas ambíguas; não exiba confirmação de recebimento ao usuário.
+
+### 17.8 Erros
+
+Todos os erros usam `application/problem+json` com `type`, `title`, `status` e
+`detail` ou `errors`, além do header `X-Request-ID` para correlação.
+
+| Código | Condição |
+| --- | --- |
+| `400` | Campo/parâmetro desconhecido, formato inválido, dados obrigatórios ausentes, campo de outro tipo, estado de tarefa inválido, chave ausente |
+| `403` | Sem sessão/organização ativa, sem acesso ao módulo, ação/setor/valor restrito ou CSRF ausente |
+| `404` | Processo, empresa, membro ou tarefa fora do tenant/fluxo efetivo; processo excluído |
+| `409` | Versão antiga, etapa bloqueada/espera, tarefa automática, transição incompatível ou chave de idempotência reutilizada |
+
+As novas tabelas têm migrações próprias. As relações de processo, empresa, autor e
+destinatário possuem chaves estrangeiras compostas por organização no PostgreSQL,
+além do escopo e validações da aplicação. Execute `manage.py migrate` no deploy.
+Nenhum dado ou acesso de Rotinas é modificado pelas migrações de Processos.

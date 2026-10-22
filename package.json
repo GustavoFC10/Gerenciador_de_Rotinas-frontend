@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "preview:features": "vite --config vite.preview.config.ts",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

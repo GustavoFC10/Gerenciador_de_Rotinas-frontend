@@ -5,6 +5,13 @@ import {
   CreationSuccess,
   FieldError,
 } from '../components/forms/CreationFeedback'
+import MemberModuleFields from '../components/forms/MemberModuleFields'
+import {
+  initialModuleAccesses,
+  moduleAccessError,
+  moduleAccessPayload,
+} from '../utils/memberModuleAccess'
+import type { Department } from '../types/domain'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import TextField from '../components/ui/TextField'
@@ -21,6 +28,7 @@ import type { OrganizationRole } from '../types/domain'
 import { isOwner } from '../utils/permissions'
 
 interface CreateEmployeePageProps {
+  departments?: Department[]
   onInvite: (
     input: MembershipInvitationInput,
   ) => Promise<MembershipInvitationResource>
@@ -33,7 +41,7 @@ interface InvitationDraft {
   role: OrganizationRole
 }
 
-type InvitationField = 'displayName' | 'email' | 'role' | 'submit'
+type InvitationField = 'displayName' | 'email' | 'role' | 'modules' | 'submit'
 type InvitationErrors = Partial<Record<InvitationField, string>>
 
 const initialDraft: InvitationDraft = {
@@ -51,15 +59,14 @@ const invitationRoles: Array<{
   {
     value: ORGANIZATION_ROLE.MEMBER,
     label: 'Colaborador',
-    description:
-      'Participa dos departamentos que receberem acesso após a ativação.',
-    permissionSummary: 'Acesso definido por departamento',
+    description: 'Trabalha nos módulos e setores que receberem acesso.',
+    permissionSummary: 'Acessos definidos por módulo',
   },
   {
     value: ORGANIZATION_ROLE.ADMIN,
     label: 'Administrador',
     description:
-      'Administra a organização e também pode atuar nos departamentos.',
+      'Administra contas e recursos da organização. Os módulos são configurados separadamente.',
     permissionSummary: 'Acesso administrativo',
   },
   {
@@ -71,8 +78,13 @@ const invitationRoles: Array<{
   },
 ]
 
-function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
+function CreateEmployeePage({
+  onInvite,
+  onCancel,
+  departments = [],
+}: CreateEmployeePageProps) {
   const { user } = useAppState()
+  const [moduleAccesses, setModuleAccesses] = useState(initialModuleAccesses)
   const [draft, setDraft] = useState<InvitationDraft>(initialDraft)
   const [errors, setErrors] = useState<InvitationErrors>({})
   const [submitAttempt, setSubmitAttempt] = useState(0)
@@ -95,14 +107,14 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
     return (
       <div className="mx-auto w-full max-w-[90rem]">
         <WorkspaceBar
-          context={{ label: 'Cadastros', to: ROUTES.HOME }}
+          context={{ label: 'Equipe', to: ROUTES.EMPLOYEES }}
           label="Equipe"
           title="Adicionar colaborador"
         />
         <CreationSuccess
           eyebrow="Convite enviado"
           title={invitation.displayName}
-          description="O convite foi enviado por e-mail. A pessoa cria o próprio acesso ao aceitar; os departamentos são configurados depois que o colaborador estiver ativo."
+          description="O convite foi enviado por e-mail. A pessoa cria o próprio acesso ao aceitar; os acessos configurados estarão disponíveis após a ativação."
           detail={
             selectedRole.label +
             ' · expira em ' +
@@ -113,6 +125,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
             label: 'Convidar outra pessoa',
             onClick: () => {
               setDraft(initialDraft)
+              setModuleAccesses(initialModuleAccesses())
               setErrors({})
               setInvitation(null)
             },
@@ -150,11 +163,14 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
       nextErrors.role = 'Escolha um cargo organizacional permitido.'
     }
 
+    const moduleError = moduleAccessError(moduleAccesses)
+    if (moduleError) nextErrors.modules = moduleError
     return nextErrors
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isSubmitting) return
     setSubmitAttempt((current) => current + 1)
     const nextErrors = validate()
     setErrors(nextErrors)
@@ -167,6 +183,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
         displayName: draft.displayName.trim(),
         email: draft.email.trim().toLocaleLowerCase('pt-BR'),
         role: draft.role,
+        moduleAccesses: moduleAccessPayload(moduleAccesses),
       })
       setErrors({})
       setInvitation(createdInvitation)
@@ -186,7 +203,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
   return (
     <div className="mx-auto w-full max-w-[90rem]">
       <WorkspaceBar
-        context={{ label: 'Cadastros', to: ROUTES.HOME }}
+        context={{ label: 'Equipe', to: ROUTES.EMPLOYEES }}
         label="Equipe"
         title="Adicionar colaborador"
         meta="Convite e acesso"
@@ -216,6 +233,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
               <div className="grid gap-4 px-5 py-5 sm:grid-cols-2 sm:px-6">
                 <div className="sm:col-span-2">
                   <TextField
+                    disabled={isSubmitting}
                     id="employee-name"
                     label="Nome completo *"
                     value={draft.displayName}
@@ -237,6 +255,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
 
                 <div className="sm:col-span-2">
                   <TextField
+                    disabled={isSubmitting}
                     id="employee-email"
                     label="E-mail para convite *"
                     type="email"
@@ -271,7 +290,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
               <SectionHeader
                 eyebrow="Permissões"
                 title="Cargo organizacional"
-                description="O cargo se aplica à organização inteira. O papel dentro de cada departamento é configurado depois da ativação do convite."
+                description="O cargo controla a administração da organização. Configure os acessos a Rotinas e Processos abaixo."
               />
               <fieldset
                 className="space-y-2 px-5 py-5 sm:px-6"
@@ -297,6 +316,7 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
                       }
                     >
                       <input
+                        disabled={isSubmitting}
                         type="radio"
                         name="employee-role"
                         value={role.value}
@@ -328,22 +348,20 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
 
             <Card>
               <SectionHeader
-                eyebrow="Escopo"
-                title="Acesso aos departamentos"
-                description="Essa configuração usa o identificador do colaborador, que só existe depois que o convite é aceito."
+                eyebrow="Módulos"
+                title="Acessos de trabalho"
+                description="Uma conta pode acessar apenas Rotinas, apenas Processos, ambos ou nenhum módulo."
               />
               <div className="px-5 py-5 sm:px-6">
-                <div className="rounded-[var(--radius-control)] border border-[var(--color-divider)] bg-[var(--color-panel-soft-bg)] p-4">
-                  <p className="text-sm font-black text-[var(--color-text-strong)]">
-                    Próxima etapa após a ativação
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-                    Abra o perfil do colaborador ativo para definir os
-                    departamentos e o papel de lead, contributor ou viewer. O
-                    identificador retornado agora é do convite, não do
-                    colaborador.
-                  </p>
-                </div>
+                <MemberModuleFields
+                  value={moduleAccesses}
+                  onChange={setModuleAccesses}
+                  departments={departments}
+                  disabled={isSubmitting}
+                />
+                <FieldError id="employee-modules-error">
+                  {errors.modules}
+                </FieldError>
               </div>
             </Card>
           </div>
@@ -374,10 +392,15 @@ function CreateEmployeePage({ onInvite, onCancel }: CreateEmployeePageProps) {
               </div>
               <div>
                 <dt className="text-xs font-bold text-[var(--color-text-muted)]">
-                  Departamentos
+                  Módulos
                 </dt>
                 <dd className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
-                  Serão definidos após o aceite do convite.
+                  {moduleAccesses
+                    .filter((access) => access.enabled)
+                    .map((access) =>
+                      access.module === 'routines' ? 'Rotinas' : 'Processos',
+                    )
+                    .join(' · ') || 'Sem acesso aos módulos'}
                 </dd>
               </div>
             </dl>

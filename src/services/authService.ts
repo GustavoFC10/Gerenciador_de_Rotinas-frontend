@@ -1,5 +1,6 @@
 import { ApiError, HttpClient, httpClient } from './httpClient'
 import type { ImageReference } from '../types/files'
+import type { ModuleSummary } from '../types/modules'
 import type {
   AppUser,
   DepartmentAccessAssignment,
@@ -48,6 +49,7 @@ export interface MembershipSummary {
   role: OrganizationRole
   status: string
   organization: OrganizationSummary
+  modules?: ModuleSummary[]
 }
 
 export interface AuthSession {
@@ -171,6 +173,18 @@ export class AuthService {
   }
 
   private async hydrateAuthState(session: AuthSession): Promise<AuthState> {
+    if (session.activeMembership?.modules !== undefined) {
+      const routines = session.activeMembership.modules.find(
+        (module) => module.module === 'routines',
+      )
+      const departmentAccesses = (routines?.sectors ?? []).flatMap((sector) =>
+        isDepartmentAccessRole(sector.role)
+          ? [{ departmentId: sector.id, role: sector.role }]
+          : [],
+      )
+      return { session, departmentAccesses }
+    }
+
     if (session.activeMembership?.role !== 'member') {
       return { session, departmentAccesses: [] }
     }
@@ -211,6 +225,9 @@ export function createAppUser(authState: AuthState | null): AppUser | null {
     name: membership.displayName,
     email: session.user.email,
     role: membership.role,
+    ...(membership.modules !== undefined
+      ? { modules: membership.modules }
+      : {}),
     departmentAccesses: authState.departmentAccesses,
     avatarUrl: '',
     avatar: membership.avatar,
@@ -227,4 +244,8 @@ function toAuthSession(response: LoginResponse): AuthSession {
 
 function isMissingSessionError(error: unknown): boolean {
   return error instanceof ApiError && [401, 403].includes(error.status)
+}
+
+function isDepartmentAccessRole(role: string): role is DepartmentAccessRole {
+  return role === 'lead' || role === 'contributor' || role === 'viewer'
 }

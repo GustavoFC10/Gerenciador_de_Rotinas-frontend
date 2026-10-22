@@ -208,14 +208,14 @@ function BrandMark({ inverted = false }: { inverted?: boolean }) {
             inverted ? 'text-white' : 'text-[var(--color-text-strong)]'
           }`}
         >
-          Rotinas
+          Jaral Web
         </p>
         <p
           className={`mt-0.5 text-xs font-semibold ${
             inverted ? 'text-white/65' : 'text-[var(--color-text-muted)]'
           }`}
         >
-          Controle por áreas de trabalho
+          Plataforma de gestão
         </p>
       </div>
     </div>
@@ -247,9 +247,10 @@ function getReturnPath(state: unknown): string {
     typeof from !== 'string' ||
     !from.startsWith('/') ||
     from.startsWith('//') ||
-    from.startsWith(ROUTES.LOGIN)
+    from.startsWith(ROUTES.LOGIN) ||
+    from === ROUTES.HOME
   ) {
-    return ROUTES.HOME
+    return ROUTES.HUB
   }
 
   return from

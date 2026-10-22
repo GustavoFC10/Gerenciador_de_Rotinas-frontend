@@ -1,5 +1,6 @@
 import { HttpClient, httpClient } from './httpClient'
 import type { ImageReference } from '../types/files'
+import type { ModuleAccessConfiguration } from '../types/modules'
 import type { ApiResponse } from './httpClient'
 import type { DepartmentAccessRole, OrganizationRole } from '../types/domain'
 
@@ -19,6 +20,7 @@ export interface DepartmentAccessResource {
 }
 
 export interface OrganizationMemberResource {
+  moduleAccesses?: ModuleAccessConfiguration[]
   avatar?: ImageReference | null
   id: string
   email: string
@@ -32,12 +34,15 @@ export interface OrganizationMemberResource {
 }
 
 export interface MembershipInvitationInput {
+  moduleAccesses?: ModuleAccessConfiguration[]
   email: string
   displayName: string
   role: OrganizationRole
 }
 
 export interface MembershipInvitationResource {
+  memberId?: string
+  moduleAccesses?: ModuleAccessConfiguration[]
   id: string
   email: string
   displayName: string
@@ -83,7 +88,12 @@ export class OrganizationMemberService {
 
   update(
     id: string,
-    input: Partial<Pick<OrganizationMemberResource, 'displayName' | 'role'>>,
+    input: Partial<
+      Pick<
+        OrganizationMemberResource,
+        'displayName' | 'role' | 'moduleAccesses'
+      >
+    >,
   ): Promise<ApiResponse<OrganizationMemberResource>> {
     return this.client.patch<OrganizationMemberResource>(memberPath(id), input)
   }
