@@ -43,11 +43,11 @@ deve ter uma regra explícita.
 
 As regras atuais do HTML são a referência inicial para Processos:
 
-| Setor | Acesso |
-| --- | --- |
-| Diretoria | Iniciar e administrar processos, executar tarefas de qualquer setor e visualizar valores e movimentações. |
-| Financeiro | Executar tarefas do próprio setor e visualizar valores e movimentações. |
-| Regularidade | Executar tarefas do próprio setor, sem acesso a valores financeiros ou movimentações. |
+| Setor        | Acesso                                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------------------------- |
+| Diretoria    | Iniciar e administrar processos, executar tarefas de qualquer setor e visualizar valores e movimentações. |
+| Financeiro   | Executar tarefas do próprio setor e visualizar valores e movimentações.                                   |
+| Regularidade | Executar tarefas do próprio setor, sem acesso a valores financeiros ou movimentações.                     |
 
 A seleção de setor na interface deve respeitar os acessos cadastrados. O backend
 deve validar todas as operações e omitir dados financeiros das respostas para

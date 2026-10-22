@@ -1884,17 +1884,22 @@ Regras globais explícitas:
   um owner. Concessões são permitidas para membros `pending` ou `active`; acesso
   efetivo exige membro, usuário e organização ativos.
 
-| Método e rota | Entrada | Resposta |
-| --- | --- | --- |
-| `GET module-permissions/` | — | `200` com módulos efetivos do solicitante |
-| `GET organization-members/{memberId}/module-accesses/` | — | `200` com todos os vínculos do membro no tenant |
-| `PUT organization-members/{memberId}/module-accesses/` | `module`, `sector`, `role`, `jobTitle?` | `200` com a lista atualizada; cria ou substitui um vínculo |
-| `DELETE organization-members/{memberId}/module-accesses/` | `module`, `sector` no corpo JSON | `204`; revoga somente o vínculo indicado |
+| Método e rota                                             | Entrada                                 | Resposta                                                   |
+| --------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------- |
+| `GET module-permissions/`                                 | —                                       | `200` com módulos efetivos do solicitante                  |
+| `GET organization-members/{memberId}/module-accesses/`    | —                                       | `200` com todos os vínculos do membro no tenant            |
+| `PUT organization-members/{memberId}/module-accesses/`    | `module`, `sector`, `role`, `jobTitle?` | `200` com a lista atualizada; cria ou substitui um vínculo |
+| `DELETE organization-members/{memberId}/module-accesses/` | `module`, `sector` no corpo JSON        | `204`; revoga somente o vínculo indicado                   |
 
 Exemplo de concessão em Processos:
 
 ```json
-{"module":"processes","sector":"reg","role":"reg","jobTitle":"Analista de regularidade"}
+{
+  "module": "processes",
+  "sector": "reg",
+  "role": "reg",
+  "jobTitle": "Analista de regularidade"
+}
 ```
 
 `role` deve ser igual a `sector` em Processos: `com` = Diretoria, `fin` = Financeiro,
@@ -1923,12 +1928,16 @@ Financeiro em Processos (substitua o UUID pelo departamento ativo do tenant):
       "module": "routines",
       "enabled": true,
       "role": "departments",
-      "sectors": [{"sector": "00000000-0000-0000-0000-000000000001", "role": "viewer"}]
+      "sectors": [
+        { "sector": "00000000-0000-0000-0000-000000000001", "role": "viewer" }
+      ]
     },
     {
       "module": "processes",
       "enabled": true,
-      "sectors": [{"sector": "fin", "role": "fin", "jobTitle": "Analista financeiro"}]
+      "sectors": [
+        { "sector": "fin", "role": "fin", "jobTitle": "Analista financeiro" }
+      ]
     }
   ]
 }
@@ -1946,8 +1955,12 @@ em Processos, envie no PATCH do colaborador:
 ```json
 {
   "moduleAccesses": [
-    {"module": "routines", "enabled": false},
-    {"module": "processes", "enabled": true, "sectors": [{"sector": "reg", "role": "reg"}]}
+    { "module": "routines", "enabled": false },
+    {
+      "module": "processes",
+      "enabled": true,
+      "sectors": [{ "sector": "reg", "role": "reg" }]
+    }
   ]
 }
 ```
@@ -1974,14 +1987,14 @@ não remove o cargo organizacional nem o histórico.
 
 ### 17.2 Matriz de Processos e confidencialidade
 
-| Ação | Diretoria `com` | Financeiro `fin` | Regularidade `reg` |
-| --- | --- | --- | --- |
-| Consultar processos, catálogo e indicadores | Sim | Sim | Sim |
-| Criar, editar dados, excluir, cancelar e reabrir processo | Sim | Não | Não |
-| Executar/reabrir tarefas | Qualquer setor | Próprio setor | Próprio setor |
-| Adicionar notas | Sim | Sim | Sim |
-| Valores, relatórios de movimentações/honorários | Sim | Sim | Não |
-| Consultar estados e tentar novamente notificações pendentes | Sim | Não | Não |
+| Ação                                                        | Diretoria `com` | Financeiro `fin` | Regularidade `reg` |
+| ----------------------------------------------------------- | --------------- | ---------------- | ------------------ |
+| Consultar processos, catálogo e indicadores                 | Sim             | Sim              | Sim                |
+| Criar, editar dados, excluir, cancelar e reabrir processo   | Sim             | Não              | Não                |
+| Executar/reabrir tarefas                                    | Qualquer setor  | Próprio setor    | Próprio setor      |
+| Adicionar notas                                             | Sim             | Sim              | Sim                |
+| Valores, relatórios de movimentações/honorários             | Sim             | Sim              | Não                |
+| Consultar estados e tentar novamente notificações pendentes | Sim             | Não              | Não                |
 
 `permissions` na resposta de cada processo e no catálogo informa `read`, `create`,
 `edit`, `delete`, `cancel`, `reopen`, `note`, `viewFinancial`, `viewMovements`,
@@ -2004,22 +2017,22 @@ textos enviados pelo usuário. Não é utilizada máscara baseada em expressão 
 
 ### 17.3 Operações e filtros
 
-| Método e rota | Entrada | Resposta |
-| --- | --- | --- |
-| `GET processes/catalog/` | — | `200`: `workflowVersion`, `types`, `sectors`, `permissions` |
-| `GET processes/` | filtros abaixo | `200` paginado: `count`, `next`, `previous`, `results` |
-| `GET processes/{id}/` | — | `200` com processo, etapas efetivas, tarefas, notas e histórico |
-| `POST processes/` | dados de abertura + header `Idempotency-Key` | `201` criado; `200` para replay idêntico |
-| `PATCH processes/{id}/` | `version` + campos editáveis | `200` com nova versão |
-| `DELETE processes/{id}/` | `{"version":N}` | `204`; exclusão lógica, histórico preservado |
-| `POST processes/{id}/tasks/{taskId}/transition/` | `version`, `state` | `200` com processo atualizado |
-| `POST processes/{id}/notes/` | `version`, `text` (1–5000 caracteres) | `200` com processo atualizado |
-| `POST processes/{id}/cancel/` | `{"version":N}` | `200` com processo cancelado |
-| `POST processes/{id}/reopen/` | `{"version":N}` | `200` com processo reaberto |
-| `GET processes/indicators/` | mesmos filtros da lista | `200` com contagens |
-| `GET processes/reports/monthly/?month=YYYY-MM` | mês obrigatório, sem outros parâmetros | `200` com movimentações e honorários |
-| `POST processes/{id}/notifications/retry/` | `{"version":N}` | `200`; tenta apenas notificações ainda elegíveis |
-| `GET processes/{id}/notifications/` | — | `200`; Diretoria consulta cada destinatário e estado da entrega |
+| Método e rota                                    | Entrada                                      | Resposta                                                        |
+| ------------------------------------------------ | -------------------------------------------- | --------------------------------------------------------------- |
+| `GET processes/catalog/`                         | —                                            | `200`: `workflowVersion`, `types`, `sectors`, `permissions`     |
+| `GET processes/`                                 | filtros abaixo                               | `200` paginado: `count`, `next`, `previous`, `results`          |
+| `GET processes/{id}/`                            | —                                            | `200` com processo, etapas efetivas, tarefas, notas e histórico |
+| `POST processes/`                                | dados de abertura + header `Idempotency-Key` | `201` criado; `200` para replay idêntico                        |
+| `PATCH processes/{id}/`                          | `version` + campos editáveis                 | `200` com nova versão                                           |
+| `DELETE processes/{id}/`                         | `{"version":N}`                              | `204`; exclusão lógica, histórico preservado                    |
+| `POST processes/{id}/tasks/{taskId}/transition/` | `version`, `state`                           | `200` com processo atualizado                                   |
+| `POST processes/{id}/notes/`                     | `version`, `text` (1–5000 caracteres)        | `200` com processo atualizado                                   |
+| `POST processes/{id}/cancel/`                    | `{"version":N}`                              | `200` com processo cancelado                                    |
+| `POST processes/{id}/reopen/`                    | `{"version":N}`                              | `200` com processo reaberto                                     |
+| `GET processes/indicators/`                      | mesmos filtros da lista                      | `200` com contagens                                             |
+| `GET processes/reports/monthly/?month=YYYY-MM`   | mês obrigatório, sem outros parâmetros       | `200` com movimentações e honorários                            |
+| `POST processes/{id}/notifications/retry/`       | `{"version":N}`                              | `200`; tenta apenas notificações ainda elegíveis                |
+| `GET processes/{id}/notifications/`              | —                                            | `200`; Diretoria consulta cada destinatário e estado da entrega |
 
 Filtros de lista/indicadores: `page` (inteiro positivo), `tipo`, `status`
 (`andamento`, `concluido`, `cancelado`), `setor` (`com`, `fin`, `reg`), `q`
@@ -2038,51 +2051,51 @@ Os nomes do HTML foram mantidos nos dados do processo. Valores monetários são
 strings decimais em BRL com duas casas, até 14 dígitos no total e sem valores
 negativos. Datas usam `YYYY-MM-DD`; timestamps usam ISO 8601 com fuso.
 
-| Grupo | Campos aceitos |
-| --- | --- |
-| Identificação | `tipo` (obrigatório e imutável), `empresa` (obrigatório, até 200), `companyId` (UUID opcional de empresa ativa do mesmo tenant), `cnpj` (opcional, valida dígitos verificadores e normaliza), `protocolo` (até 160) |
-| Datas e observações | `prazo` (data ou null), `inicioInat` (data ou null), `obs` (até 5000) |
-| Custos | `custo`, `pagador` (`cliente` ou `jaralcon`), `parcelas` (1–360) |
-| Honorários | `honorario` (contábil), `honCobranca` (início da cobrança), `trab` (booleano), `trabQtd` (1–100000), `trabValor` (valor por funcionário), `honAnterior`, `honPerdido` |
-| Alteração contratual | `altItens` (sem repetição: `societario`, `capital`, `bens`, `endereco`, `razao`, `atividades`, `outros`), `altDesc` (até 3000) |
-| Motivo | `motivo` (`encerramento`, `honorarios`, `atendimento`, `concorrente`, `inadimplencia`, `venda`, `reducao`, `outros`), `motivoObs` (até 1500) |
-| Regime | `regime` (`simples`, `presumido`, `real`), `regimeObs` (até 3000) |
-| Saída | `contato` (até 500), `novoContador` (booleano), `contadorNome` (até 200), `contadorContato` (até 500) |
-| Opções | `reatJunta`, `reunAlinh`, `reunAcomp` (booleanos) |
+| Grupo                | Campos aceitos                                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identificação        | `tipo` (obrigatório e imutável), `empresa` (obrigatório, até 200), `companyId` (UUID opcional de empresa ativa do mesmo tenant), `cnpj` (opcional, valida dígitos verificadores e normaliza), `protocolo` (até 160) |
+| Datas e observações  | `prazo` (data ou null), `inicioInat` (data ou null), `obs` (até 5000)                                                                                                                                               |
+| Custos               | `custo`, `pagador` (`cliente` ou `jaralcon`), `parcelas` (1–360)                                                                                                                                                    |
+| Honorários           | `honorario` (contábil), `honCobranca` (início da cobrança), `trab` (booleano), `trabQtd` (1–100000), `trabValor` (valor por funcionário), `honAnterior`, `honPerdido`                                               |
+| Alteração contratual | `altItens` (sem repetição: `societario`, `capital`, `bens`, `endereco`, `razao`, `atividades`, `outros`), `altDesc` (até 3000)                                                                                      |
+| Motivo               | `motivo` (`encerramento`, `honorarios`, `atendimento`, `concorrente`, `inadimplencia`, `venda`, `reducao`, `outros`), `motivoObs` (até 1500)                                                                        |
+| Regime               | `regime` (`simples`, `presumido`, `real`), `regimeObs` (até 3000)                                                                                                                                                   |
+| Saída                | `contato` (até 500), `novoContador` (booleano), `contadorNome` (até 200), `contadorContato` (até 500)                                                                                                               |
+| Opções               | `reatJunta`, `reunAlinh`, `reunAcomp` (booleanos)                                                                                                                                                                   |
 
 Campos específicos são aceitos somente nos tipos aplicáveis. Ausência permite
 definir dados depois; `null` é aceito em datas, valores, pagador, parcelas, regime,
 motivo e companyId. Use string vazia para limpar texto. `empresa` nunca é vazia.
 
-| `tipo` | Significado e particularidades |
-| --- | --- |
-| `abertura` | Abertura; custo, honorário, regime, reuniões |
-| `mei` | Transformação MEI → ME; custo, honorário, regime, reuniões |
-| `outro` | Cliente de outro escritório; honorário, regime, reuniões |
-| `alteracao` | Alteração contratual; exige itens, descrição, custo, pagador e parcelas na abertura e edição |
-| `inatividade` | **Paralisação**; exige `honPerdido`, usa `inicioInat` em lugar de prazo |
-| `inativa` | **Inatividade**; honorário reduzido, `honAnterior`, `inicioInat` em lugar de prazo |
-| `reativacao` | Honorário, reuniões e etapa opcional controlada por `reatJunta` |
-| `baixa` | Baixa; exige `honPerdido`, tem custo e motivo |
-| `saida` | Saída; exige `honPerdido`; se `novoContador=true`, exige nome e contato do contador |
-| `exclusao` | Exclusão de cliente; exige `honPerdido`, tem motivo |
+| `tipo`        | Significado e particularidades                                                               |
+| ------------- | -------------------------------------------------------------------------------------------- |
+| `abertura`    | Abertura; custo, honorário, regime, reuniões                                                 |
+| `mei`         | Transformação MEI → ME; custo, honorário, regime, reuniões                                   |
+| `outro`       | Cliente de outro escritório; honorário, regime, reuniões                                     |
+| `alteracao`   | Alteração contratual; exige itens, descrição, custo, pagador e parcelas na abertura e edição |
+| `inatividade` | **Paralisação**; exige `honPerdido`, usa `inicioInat` em lugar de prazo                      |
+| `inativa`     | **Inatividade**; honorário reduzido, `honAnterior`, `inicioInat` em lugar de prazo           |
+| `reativacao`  | Honorário, reuniões e etapa opcional controlada por `reatJunta`                              |
+| `baixa`       | Baixa; exige `honPerdido`, tem custo e motivo                                                |
+| `saida`       | Saída; exige `honPerdido`; se `novoContador=true`, exige nome e contato do contador          |
+| `exclusao`    | Exclusão de cliente; exige `honPerdido`, tem motivo                                          |
 
 Exemplo de abertura (enviar sessão, CSRF e `Idempotency-Key`):
 
 ```json
 {
-  "tipo":"abertura",
-  "empresa":"Empresa Exemplo",
-  "protocolo":"PROTO-2026-001",
-  "prazo":"2026-11-30",
-  "custo":"500.00",
-  "pagador":"cliente",
-  "parcelas":2,
-  "honorario":"1200.00",
-  "honCobranca":"2026-12-01",
-  "regime":"simples",
-  "reunAlinh":true,
-  "reunAcomp":true
+  "tipo": "abertura",
+  "empresa": "Empresa Exemplo",
+  "protocolo": "PROTO-2026-001",
+  "prazo": "2026-11-30",
+  "custo": "500.00",
+  "pagador": "cliente",
+  "parcelas": 2,
+  "honorario": "1200.00",
+  "honCobranca": "2026-12-01",
+  "regime": "simples",
+  "reunAlinh": true,
+  "reunAcomp": true
 }
 ```
 
@@ -2244,12 +2257,12 @@ de conferência em falhas ambíguas; não exiba confirmação de recebimento ao 
 Todos os erros usam `application/problem+json` com `type`, `title`, `status` e
 `detail` ou `errors`, além do header `X-Request-ID` para correlação.
 
-| Código | Condição |
-| --- | --- |
-| `400` | Campo/parâmetro desconhecido, formato inválido, dados obrigatórios ausentes, campo de outro tipo, estado de tarefa inválido, chave ausente |
-| `403` | Sem sessão/organização ativa, sem acesso ao módulo, ação/setor/valor restrito ou CSRF ausente |
-| `404` | Processo, empresa, membro ou tarefa fora do tenant/fluxo efetivo; processo excluído |
-| `409` | Versão antiga, etapa bloqueada/espera, tarefa automática, transição incompatível ou chave de idempotência reutilizada |
+| Código | Condição                                                                                                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `400`  | Campo/parâmetro desconhecido, formato inválido, dados obrigatórios ausentes, campo de outro tipo, estado de tarefa inválido, chave ausente |
+| `403`  | Sem sessão/organização ativa, sem acesso ao módulo, ação/setor/valor restrito ou CSRF ausente                                              |
+| `404`  | Processo, empresa, membro ou tarefa fora do tenant/fluxo efetivo; processo excluído                                                        |
+| `409`  | Versão antiga, etapa bloqueada/espera, tarefa automática, transição incompatível ou chave de idempotência reutilizada                      |
 
 As novas tabelas têm migrações próprias. As relações de processo, empresa, autor e
 destinatário possuem chaves estrangeiras compostas por organização no PostgreSQL,
