@@ -48,8 +48,10 @@ export default function HubPage() {
   const { activeMembership } = useAuth()
   const { modules, isLoading, error, refetch } = useModuleAccess()
   const canManageTeam = activeMembership?.role === 'owner'
-  const canManageCompanies =
-    activeMembership?.role === 'owner' || activeMembership?.role === 'admin'
+  const canManageCompanies = modules.some(
+    (module) =>
+      module.module === 'companies' && module.actions.includes('read'),
+  )
   return (
     <ModuleWorkspaceLayout>
       <header className="max-w-2xl">

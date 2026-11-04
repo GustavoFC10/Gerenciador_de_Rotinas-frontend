@@ -21,6 +21,7 @@ describe('toClientFromResource', () => {
       mobilePhone: '',
       taxRegime: '',
       version: 1,
+      status: 'active',
       archivedAt: null,
       createdAt: '2026-09-01T00:00:00Z',
       updatedAt: '2026-09-01T00:00:00Z',

@@ -220,20 +220,18 @@ const summaryFields: Fields = {
   codigo: string,
   empresa: string,
   companyId: nullable(string),
-  companyLinkRequired: optional(boolean),
-  companyReference: optional(
-    nullable(
-      shape(
-        {
-          id: uuid,
-          code: nullable(string),
-          name: string,
-          legalName: string,
-          cnpj: string,
-          status: oneOf(['active', 'archived']),
-        },
-        true,
-      ),
+  companyLinkRequired: boolean,
+  companyReference: nullable(
+    shape(
+      {
+        id: uuid,
+        code: nullable(string),
+        name: string,
+        legalName: string,
+        cnpj: string,
+        status: oneOf(['active', 'archived']),
+      },
+      true,
     ),
   ),
   cnpj: string,

@@ -421,18 +421,45 @@ curl.exe "$BASE_URL/api/v1/departments/<UUID_DO_DEPARTAMENTO>/task-assignees/" `
 
 ## 5. Empresas
 
-Escritas neste módulo são exclusivas de `owner/admin`. Empresas pertencem somente ao
-tenant; não existe vínculo obrigatório empresa–departamento. O acesso operacional do
-membro continua sendo controlado por seus acessos aos departamentos.
+O módulo é identificado por `companies` e usa `/api/v1/client-companies/`.
+Exige sessão autenticada, organização ativa e concessão explícita de Empresas.
+O papel organizacional `owner/admin` não concede esse acesso automaticamente.
+Empresas e contatos pertencem somente ao tenant ativo.
+
+| Papel em Empresas | Ações |
+| --- | --- |
+| `viewer` | Consulta empresas e contatos ativos. |
+| `editor` | Também cria e edita empresas e contatos ativos. |
+| `manager` | Também consulta arquivados, arquiva/restaura e acessa impacto e auditoria. |
+
+As respostas de empresa contêm `status=active|archived` persistido, `version` e
+`permissions`. Use as ações retornadas para os controles da interface. Acesso a
+Empresas não concede acesso a Rotinas/Processos, nem o inverso. Os seletores de
+referências operacionais têm contrato próprio e não expõem os canais do cadastro.
+
+### `GET /api/v1/client-companies/catalog/`
+
+Retorna `contractVersion: 1`, `statuses`, `roles` e `permissions` do membro atual.
+Não aceita filtros. Não é a coleção de empresas.
 
 ### `GET /api/v1/client-companies/`
 
 Lista empresas visíveis. Aceita:
 
-- `search`: código, nome de exibição ou razão social (`legalName`);
-- `ordering=code|name|legal_name` com prefixo `-` para ordem decrescente;
-- `includeArchived=true`: apenas owner/admin;
-- `page`: página da listagem.
+- `search`: código, nome, razão social ou CNPJ;
+- `ordering=code|name|legalName|cnpj|status`, com prefixo `-` para ordem decrescente;
+- `status=active|archived`, repetível com OR; omitido seleciona somente `active`;
+- `page`: página a partir de 1;
+- `pageSize`: 1 a 100, padrão 50.
+
+A resposta é `{count,next,previous,results}`. Somente `manager` pode incluir
+`archived`. Para ambos: `?status=active&status=archived`. Parâmetros diferentes
+combinam com AND; só `status` pode ser repetido. Conforme o contrato publicado no
+frontend, também aceita `includeArchived=true` (ativas e arquivadas) e
+`includeArchived=false` (somente ativas), além de `ordering=legal_name` e
+`ordering=-legal_name`. Esses valores são normalizados para os mesmos filtros
+internos; não há outra classificação de status. Não combine `includeArchived`
+com `status` na mesma chamada: a combinação ambígua retorna `400`.
 
 ```powershell
 curl.exe "$BASE_URL/api/v1/client-companies/?search=exemplo&ordering=code&page=1" `
@@ -441,7 +468,21 @@ curl.exe "$BASE_URL/api/v1/client-companies/?search=exemplo&ordering=code&page=1
 
 ### `POST /api/v1/client-companies/`
 
-Cria uma empresa. O código interno é opcional e, quando informado, aceita de 1 a
+Editor/manager. Exige CSRF. `Idempotency-Key` é opcional, conforme os exemplos do
+frontend. Sem a chave, cada criação válida retorna `201`, sujeita às restrições
+de identidade do cadastro. Para permitir repetição segura, envie uma chave de
+1 a 128 caracteres ASCII `[A-Za-z0-9._:-]`, criada uma vez por tentativa lógica.
+Em falha de transporte, repita a mesma chave e corpo: retorna `200` com a mesma
+empresa; corpo diferente para a mesma chave retorna `409`. Chave fornecida vazia
+ou inválida retorna `400`.
+
+Somente `name` é obrigatório (até 160 caracteres). Campos opcionais: `code`,
+`legalName` (até 200), `cnpj`, `email`, `mobilePhone`, `taxRegime` (até 80).
+CNPJ pode estar vazio; quando preenchido, aceita base alfanumérica com dígitos
+verificadores válidos, por exemplo `12.ABC.345/01DE-35`. A resposta normaliza para
+`12ABC34501DE35`. Trate-o como texto e preserve letras e zeros à esquerda.
+
+O código interno é opcional e, quando informado, aceita de 1 a
 32 dígitos e preserva zeros à esquerda; `legalName` é a razão social e permanece
 separado do nome de exibição, CNPJ, e-mail e celular. A razão social é opcional.
 `code` pode ser omitido, `null` ou vazio; valores vazios são normalizados para
@@ -451,14 +492,18 @@ remove o código. O frontend deve suportar `code=null` também nas projeções.
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/client-companies/" `
   -b cookies.txt -H "X-CSRFToken: $CSRF" -H "Content-Type: application/json" `
+  -H "Idempotency-Key: empresa-exemplo-001" `
   -d '{"code":"007","name":"Empresa Exemplo","legalName":"Empresa Exemplo Serviços Ltda.","cnpj":"12.345.678/0001-95","email":"contato@example.com","mobilePhone":"+55 11 99999-9999","taxRegime":"Simples Nacional"}'
 ```
 
-Retorna `201`, o recurso criado e `ETag: "1"`.
+Nova criação retorna `201`, o recurso completo e `ETag: "1"`; replay retorna
+`200` e o ETag atual. A chave não é usada na criação de contatos.
 
 ### `GET /api/v1/client-companies/{id}/`
 
-Obtém uma empresa e sua versão atual.
+Obtém o cadastro completo, suas permissões e `ETag` da versão atual. Viewer/editor
+só acessam ativas; manager também pode consultar arquivadas por ID. ID de outro
+tenant retorna `404`. Não aceita filtros de consulta.
 
 ```powershell
 curl.exe -i "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/" -b cookies.txt
@@ -466,7 +511,10 @@ curl.exe -i "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/" -b cookies.tx
 
 ### `PATCH /api/v1/client-companies/{id}/`
 
-Altera os campos enviados e incrementa a versão.
+Editor/manager. Altera apenas os campos enviados, com CSRF e `If-Match` do cadastro
+lido. Alteração efetiva incrementa a versão; `{}` ou valores inalterados são no-op.
+Campo omitido é preservado. Não enviar `status`, `version`, `permissions` ou
+`organizationId` no corpo. Parâmetros desconhecidos geram `400`.
 
 ```powershell
 curl.exe -X PATCH "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/" `
@@ -477,33 +525,92 @@ curl.exe -X PATCH "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/" `
 
 ### `DELETE /api/v1/client-companies/{id}/`
 
-Arquiva a empresa sem apagar seu cadastro e remove fisicamente seus vínculos
-empresa–rotina. Tarefas já materializadas mantêm os snapshots; ocorrências virtuais
-dependentes desses vínculos deixam de ser projetadas. Não existe vínculo público
-empresa–departamento na API atual. Retorna `204` e o novo ETag.
+Manager. Arquiva o cadastro com CSRF e `If-Match`, sem remover as linhas dos
+vínculos empresa–rotina. Na data efetiva do fuso da organização, encerra os vínculos
+vigentes com término na véspera e cancela os que começam nessa data ou depois.
+Tarefas, snapshots, processos e histórico permanecem; processos não são encerrados.
+Não existe vínculo público empresa–departamento. Retorna `204` com o novo ETag.
+O corpo deve ser vazio. Arquivar novamente um cadastro já arquivado retorna `409`.
+
+O código pode ser reutilizado por outra empresa ativa, mas o CNPJ permanece
+reservado no tenant também entre empresas arquivadas.
 
 ```powershell
 curl.exe -X DELETE "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/" `
   -b cookies.txt -H "X-CSRFToken: $CSRF" -H 'If-Match: "2"'
 ```
 
+### `GET /api/v1/client-companies/{id}/archive-impact/`
+
+Manager. Preview sem escrita e sem lock; retorna `200` e ETag da empresa:
+
+```json
+{
+  "companyId": "<UUID_DA_EMPRESA>",
+  "version": 1,
+  "effectiveOn": "2026-11-04",
+  "routineAssignments": {"active": 2, "future": 1, "ended": 0},
+  "openTasks": 3,
+  "openProcesses": null,
+  "effects": [
+    "end_current_routine_assignments",
+    "cancel_future_routine_assignments",
+    "preserve_existing_operations"
+  ]
+}
+```
+
+Contagens de Rotinas/Processos são `null` quando o membro não tem a autorização
+necessária nesses módulos. A confirmação usa DELETE no cadastro, com o ETag do preview;
+o servidor revalida tudo na transação. Preview não garante sucesso futuro.
+
+```powershell
+curl.exe -i "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/archive-impact/" `
+  -b cookies.txt
+```
+
 ### `POST /api/v1/client-companies/{id}/restore/`
 
-Restaura uma empresa arquivada, após conferir disponibilidade de código/CNPJ.
-Os vínculos de rotina removidos não são recriados automaticamente.
+Manager. Restaura uma empresa arquivada com CSRF e `If-Match`. Não reativa
+automaticamente vínculos de rotina nem contatos arquivados individualmente.
+O corpo aceita somente `code` opcional: permite corrigir o código reutilizado ou
+limpá-lo com `null`/`""`; `{}` mantém o valor atual. Conflito de identidade retorna
+`409`. Retorna `200`, cadastro restaurado e novo ETag.
 
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/restore/" `
-  -b cookies.txt -H "X-CSRFToken: $CSRF" -H 'If-Match: "3"'
+  -b cookies.txt -H "X-CSRFToken: $CSRF" -H 'If-Match: "3"' `
+  -H "Content-Type: application/json" -d '{"code":null}'
 ```
+
+### `GET /api/v1/client-companies/{id}/entries/`
+
+Manager. Auditoria paginada, mais recente primeiro. Aceita somente `page` e
+`pageSize` (1–100, padrão 50). Inclui eventos da empresa e dos contatos, com
+`id`, `companyId`, `authorId`, `authorName`, `kind`, `details`, `createdAt`,
+`companyVersion`. Não há edição/exclusão de eventos.
+
+Erros do cadastro: `400` para payload/filtro inválido ou chave de idempotência
+fornecida em formato inválido; `403` para permissão/CSRF; `404` para recurso fora do escopo; `409` para
+identidade/estado incompatível; `428` sem `If-Match`; `412` com versão antiga.
+Empresas usa `If-Match` no header, diferentemente do `version` no JSON de Processos.
 
 ## 6. Contatos da empresa
 
-O ETag destas operações representa a versão do agregado `ClientCompany`.
+Os contatos usam os mesmos papéis de Empresas. O ETag destas operações representa
+a versão do agregado `ClientCompany`, compartilhada entre todos os seus contatos.
+Uma alteração em contato invalida o ETag anterior da empresa e dos demais contatos.
+Mutações exigem CSRF e `If-Match`; não recebem `version` no JSON.
 
 ### `GET /api/v1/client-companies/{companyId}/contacts/`
 
-Lista contatos da empresa. `includeArchived=true` está disponível para owner/admin.
+Viewer/editor/manager. Lista contatos paginados em `{count,next,previous,results}`.
+Aceita `status=active|archived` repetível (padrão `active`), `search`, `ordering`,
+`page`, `pageSize` (1–100, padrão 50). `ordering` aceita `name`, `jobTitle`, `email`,
+`status` e seus valores com `-`; busca nome, cargo, e-mail e celular.
+Somente manager pode consultar arquivados. Também aceita `includeArchived=true`
+para ambos os estados e `false` para ativos, sem combinar com `status`.
+Contatos de outra empresa ou tenant retornam `404`.
 
 ```powershell
 curl.exe -i "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/contacts/?page=1" `
@@ -512,7 +619,9 @@ curl.exe -i "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/contacts/?page=
 
 ### `POST /api/v1/client-companies/{companyId}/contacts/`
 
-Adiciona um contato e incrementa a versão da empresa.
+Editor/manager. Adiciona contato a uma empresa ativa e incrementa a versão da
+empresa. `name` é obrigatório (até 160); opcionais: `jobTitle` (até 120), `email`,
+`mobilePhone`. Retorna `201`, contato e novo ETag da empresa.
 
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/contacts/" `
@@ -532,7 +641,8 @@ curl.exe -i "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/contacts/<UUID_
 
 ### `PATCH /api/v1/client-companies/{companyId}/contacts/{id}/`
 
-Altera os campos informados no contato.
+Editor/manager. Altera apenas os campos enviados em contato ativo de empresa ativa.
+Retorna `200`, contato e novo ETag da empresa.
 
 ```powershell
 curl.exe -X PATCH "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/contacts/<UUID_DO_CONTATO>/" `
@@ -542,7 +652,7 @@ curl.exe -X PATCH "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/contacts/
 
 ### `DELETE /api/v1/client-companies/{companyId}/contacts/{id}/`
 
-Arquiva o contato sem apagar a linha.
+Manager. Arquiva o contato sem apagar a linha. Retorna `204` e novo ETag da empresa.
 
 ```powershell
 curl.exe -X DELETE "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/contacts/<UUID_DO_CONTATO>/" `
@@ -551,7 +661,8 @@ curl.exe -X DELETE "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/contacts
 
 ### `POST /api/v1/client-companies/{companyId}/contacts/{id}/restore/`
 
-Restaura um contato arquivado.
+Manager. Restaura um contato arquivado de empresa ativa. Corpo vazio/`{}`; retorna
+`200`, contato e novo ETag da empresa. Restaurar empresa não substitui esta ação.
 
 ```powershell
 curl.exe -X POST "$BASE_URL/api/v1/client-companies/<UUID_DA_EMPRESA>/contacts/<UUID_DO_CONTATO>/restore/" `

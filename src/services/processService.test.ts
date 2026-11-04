@@ -453,6 +453,8 @@ function summaryFixture(): ProcessSummary {
     'codigo',
     'empresa',
     'companyId',
+    'companyLinkRequired',
+    'companyReference',
     'cnpj',
     'protocolo',
     'prazo',

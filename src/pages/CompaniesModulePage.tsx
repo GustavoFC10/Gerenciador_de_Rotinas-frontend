@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   Link,
   NavLink,
@@ -14,6 +14,7 @@ import LoadingState from '../components/common/LoadingState'
 import { focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { useAuth } from '../hooks/useAuth'
+import { useModuleAccess } from '../hooks/useModuleAccess'
 import ModuleWorkspaceLayout from '../layouts/ModuleWorkspaceLayout'
 import { queryKeys } from '../query/queryKeys'
 import {
@@ -40,12 +41,34 @@ const fields: {
 
 export default function CompaniesModulePage() {
   const { activeMembership } = useAuth()
-  if (!activeMembership || !['owner', 'admin'].includes(activeMembership.role))
+  const access = useModuleAccess()
+  if (!activeMembership) return <Navigate to={ROUTES.HUB} replace />
+  if (access.isLoading) return <LoadingState message="Carregando acessos…" />
+  if (access.error)
+    return (
+      <div role="alert">
+        Não foi possível atualizar seus acessos.
+        <Button onClick={() => void access.refetch()}>Tentar novamente</Button>
+      </div>
+    )
+  const companies = access.getModule('companies')
+  if (!companies?.actions.includes('read'))
     return <Navigate to={ROUTES.HUB} replace />
-  return <CompaniesWorkspace />
+  return (
+    <CompaniesWorkspace
+      canCreate={companies.actions.includes('create')}
+      canEdit={companies.actions.includes('edit')}
+    />
+  )
 }
 
-function CompaniesWorkspace() {
+function CompaniesWorkspace({
+  canCreate,
+  canEdit,
+}: {
+  canCreate: boolean
+  canEdit: boolean
+}) {
   const { activeMembership } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -54,12 +77,29 @@ function CompaniesWorkspace() {
     membershipId: activeMembership!.id,
   }
   const companiesKey = [...queryKeys.scope(scope), 'general-companies']
+  const pendingCreation = useRef<{ fingerprint: string; key: string } | null>(
+    null,
+  )
   const companies = useQuery({
     queryKey: companiesKey,
     queryFn: () => companyService.listAll(),
   })
   const create = useMutation({
-    mutationFn: (input: ClientCompanyInput) => companyService.create(input),
+    mutationFn: async (input: ClientCompanyInput) => {
+      const fingerprint = JSON.stringify([
+        scope.organizationId,
+        scope.membershipId,
+        input,
+      ])
+      if (pendingCreation.current?.fingerprint !== fingerprint)
+        pendingCreation.current = { fingerprint, key: crypto.randomUUID() }
+      const response = await companyService.create(
+        input,
+        pendingCreation.current.key,
+      )
+      pendingCreation.current = null
+      return response
+    },
     onSuccess: async () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: companiesKey }),
@@ -105,18 +145,20 @@ function CompaniesWorkspace() {
         {[
           { to: ROUTES.COMPANY_REGISTRY, label: 'Cadastro geral', end: true },
           { to: ROUTES.COMPANY_REGISTRY_CREATE, label: 'Adicionar empresa' },
-        ].map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={({ isActive }) =>
-              `rounded-[var(--radius-control)] px-3 py-2 text-sm font-bold ${focusRing} ${isActive ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)]'}`
-            }
-          >
-            {item.label}
-          </NavLink>
-        ))}
+        ]
+          .filter((item) => item.end || canCreate)
+          .map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `rounded-[var(--radius-control)] px-3 py-2 text-sm font-bold ${focusRing} ${isActive ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)]'}`
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
       </nav>
       {companies.isPending ? (
         <LoadingState message="Carregando empresas…" />
@@ -139,25 +181,33 @@ function CompaniesWorkspace() {
             element={
               <CompanyRegistry
                 companies={companies.data}
-                onCreate={() => navigate(ROUTES.COMPANY_REGISTRY_CREATE)}
+                onCreate={
+                  canCreate
+                    ? () => navigate(ROUTES.COMPANY_REGISTRY_CREATE)
+                    : undefined
+                }
               />
             }
           />
           <Route
             path={ROUTES.COMPANY_REGISTRY_CREATE}
             element={
-              <CompanyEditor
-                busy={create.isPending}
-                error={create.error}
-                onSave={async (input) => {
-                  const result = await create.mutateAsync(input)
-                  navigate(
-                    `${ROUTES.COMPANY_REGISTRY}/${encodeURIComponent(result.data.id)}`,
-                    { replace: true },
-                  )
-                }}
-                onCancel={() => navigate(ROUTES.COMPANY_REGISTRY)}
-              />
+              canCreate ? (
+                <CompanyEditor
+                  busy={create.isPending}
+                  error={create.error}
+                  onSave={async (input) => {
+                    const result = await create.mutateAsync(input)
+                    navigate(
+                      `${ROUTES.COMPANY_REGISTRY}/${encodeURIComponent(result.data.id)}`,
+                      { replace: true },
+                    )
+                  }}
+                  onCancel={() => navigate(ROUTES.COMPANY_REGISTRY)}
+                />
+              ) : (
+                <Navigate to={ROUTES.COMPANY_REGISTRY} replace />
+              )
             }
           />
           <Route
@@ -165,6 +215,7 @@ function CompaniesWorkspace() {
             element={
               <CompanyDetails
                 companies={companies.data}
+                readOnly={!canEdit}
                 busy={update.isPending}
                 error={update.error}
                 onSave={async (id, input) => {
@@ -190,7 +241,7 @@ function CompanyRegistry({
   onCreate,
 }: {
   companies: ClientCompanyResource[]
-  onCreate: () => void
+  onCreate?: () => void
 }) {
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
@@ -222,7 +273,7 @@ function CompanyRegistry({
             Cadastre e mantenha os dados gerais usados pelos módulos.
           </p>
         </div>
-        <Button onClick={onCreate}>Adicionar empresa</Button>
+        {onCreate && <Button onClick={onCreate}>Adicionar empresa</Button>}
       </header>
       <div className="rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-4 shadow-[var(--shadow-panel)] sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -278,12 +329,14 @@ function CompanyRegistry({
 
 function CompanyDetails({
   companies,
+  readOnly,
   busy,
   error,
   onSave,
   onCancel,
 }: {
   companies: ClientCompanyResource[]
+  readOnly: boolean
   busy: boolean
   error: Error | null
   onSave: (id: string, input: ClientCompanyInput) => Promise<void>
@@ -301,6 +354,7 @@ function CompanyDetails({
   return (
     <CompanyEditor
       company={company}
+      readOnly={readOnly}
       busy={busy}
       error={error}
       onSave={(input) => onSave(company.id, input)}
@@ -311,12 +365,14 @@ function CompanyDetails({
 
 function CompanyEditor({
   company,
+  readOnly = false,
   busy,
   error,
   onSave,
   onCancel,
 }: {
   company?: ClientCompanyResource
+  readOnly?: boolean
   busy: boolean
   error: Error | null
   onSave: (input: ClientCompanyInput) => Promise<void>
@@ -334,10 +390,13 @@ function CompanyEditor({
   const [saveError, setSaveError] = useState('')
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (readOnly) return
     setSaveError('')
-    const cnpj = values.cnpj?.replace(/\D/g, '') ?? ''
+    const cnpj = values.cnpj?.replace(/[./\s-]/g, '').toUpperCase() ?? ''
     if (cnpj && !isValidCnpj(cnpj)) {
-      setSaveError('Informe um CNPJ válido com 14 dígitos.')
+      setSaveError(
+        'Informe um CNPJ válido, com base alfanumérica e dígitos verificadores.',
+      )
       return
     }
     try {
@@ -368,7 +427,11 @@ function CompanyEditor({
           {company ? 'Dados gerais' : 'Novo cadastro'}
         </p>
         <h1 className="mt-2 text-3xl font-black text-[var(--color-text-strong)]">
-          {company ? `Editar ${company.name}` : 'Adicionar empresa'}
+          {company
+            ? readOnly
+              ? company.name
+              : `Editar ${company.name}`
+            : 'Adicionar empresa'}
         </h1>
       </header>
       <form
@@ -388,15 +451,21 @@ function CompanyEditor({
               type={type ?? 'text'}
               value={values[key] ?? ''}
               required={required}
-              inputMode={key === 'cnpj' ? 'numeric' : undefined}
+              inputMode={key === 'code' ? 'numeric' : undefined}
               maxLength={
-                key === 'name' || key === 'legalName'
-                  ? 200
-                  : key === 'cnpj'
-                    ? 18
-                    : 254
+                key === 'name'
+                  ? 160
+                  : key === 'legalName'
+                    ? 200
+                    : key === 'cnpj'
+                      ? 18
+                      : key === 'code' || key === 'mobilePhone'
+                        ? 32
+                        : key === 'taxRegime'
+                          ? 80
+                          : 254
               }
-              disabled={busy}
+              disabled={busy || readOnly}
               onChange={(event) =>
                 setValues((current) => ({
                   ...current,
@@ -421,13 +490,15 @@ function CompanyEditor({
           <Button type="button" onClick={onCancel} disabled={busy}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={busy}>
-            {busy
-              ? 'Salvando…'
-              : company
-                ? 'Salvar alterações'
-                : 'Cadastrar empresa'}
-          </Button>
+          {!readOnly && (
+            <Button type="submit" disabled={busy}>
+              {busy
+                ? 'Salvando…'
+                : company
+                  ? 'Salvar alterações'
+                  : 'Cadastrar empresa'}
+            </Button>
+          )}
         </div>
       </form>
     </section>
@@ -435,10 +506,12 @@ function CompanyEditor({
 }
 
 function isValidCnpj(value: string) {
-  if (!/^\d{14}$/.test(value) || /^(\d)\1{13}$/.test(value)) return false
+  if (!/^[A-Z0-9]{12}\d{2}$/.test(value) || /^(\d)\1{13}$/.test(value))
+    return false
   const digit = (base: string, weights: number[]) => {
     const sum = [...base].reduce(
-      (total, number, index) => total + Number(number) * weights[index]!,
+      (total, number, index) =>
+        total + (number.charCodeAt(0) - 48) * weights[index]!,
       0,
     )
     const remainder = sum % 11
@@ -453,10 +526,13 @@ function isValidCnpj(value: string) {
 }
 
 function formatCnpj(value: string) {
-  const digits = value.replace(/\D/g, '').slice(0, 14)
+  const digits = value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 14)
   return digits
-    .replace(/^(\d{2})(\d)/, '$1.$2')
-    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1/$2')
-    .replace(/(\d{4})(\d)/, '$1-$2')
+    .replace(/^([A-Z0-9]{2})([A-Z0-9])/, '$1.$2')
+    .replace(/^([A-Z0-9]{2})\.([A-Z0-9]{3})([A-Z0-9])/, '$1.$2.$3')
+    .replace(/\.([A-Z0-9]{3})([A-Z0-9])/, '.$1/$2')
+    .replace(/([A-Z0-9]{4})([A-Z0-9])/, '$1-$2')
 }

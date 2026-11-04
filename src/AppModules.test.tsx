@@ -172,35 +172,48 @@ describe('App module routing', () => {
     expect(host.querySelector('[data-team-module]')).not.toBeNull()
     expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
   })
-  it('opens Empresas for an administrator without operational modules', async () => {
-    await renderApp('/cadastro-empresas', [], 'admin')
-    for (
-      let i = 0;
-      i < 100 && !host.querySelector('[data-companies-module]');
-      i++
-    )
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 10))
-      })
-    expect(host.querySelector('[data-companies-module]')).not.toBeNull()
-    expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
-  })
-  it('blocks direct Empresas access for a regular member', async () => {
-    await renderApp('/cadastro-empresas', [processes], 'member')
-    expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
-    expect(host.querySelector('[data-companies-module]')).toBeNull()
-    expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
-  })
+  it.each(['owner', 'admin', 'member'] as const)(
+    'opens Empresas with an explicit grant for %s',
+    async (role) => {
+      await renderApp('/cadastro-empresas', [
+        {
+          module: 'companies',
+          globalAccess: false,
+          actions: ['read'],
+          sectors: [],
+        },
+      ], role)
+      for (
+        let i = 0;
+        i < 100 && !host.querySelector('[data-companies-module]');
+        i++
+      )
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+        })
+      expect(host.querySelector('[data-companies-module]')).not.toBeNull()
+      expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
+    },
+  )
+  it.each(['owner', 'admin', 'member'] as const)(
+    'blocks direct Empresas access without a grant for %s',
+    async (role) => {
+      await renderApp('/cadastro-empresas', [processes], role)
+      expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
+      expect(host.querySelector('[data-companies-module]')).toBeNull()
+      expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
+    },
+  )
   it.each(['admin', 'member'] as const)(
     'blocks direct Equipe access for %s',
     async (role) => {
-      const list = vi
-        .spyOn(organizationMemberService, 'listAll')
-        .mockResolvedValue([])
-      await renderApp('/equipe/novo', [], role)
-      expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
-      expect(list).not.toHaveBeenCalled()
-      expect(departmentService.listAll).not.toHaveBeenCalled()
+        const list = vi
+          .spyOn(organizationMemberService, 'listAll')
+          .mockResolvedValue([])
+        await renderApp('/equipe/novo', [], role)
+        expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
+        expect(list).not.toHaveBeenCalled()
+        expect(departmentService.listAll).not.toHaveBeenCalled()
     },
   )
   it('redirects legacy access settings into Equipe for an owner', async () => {

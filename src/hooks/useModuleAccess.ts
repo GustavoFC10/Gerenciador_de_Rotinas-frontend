@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 
 import { moduleService } from '../services/moduleService'
 import { queryKeys } from '../query/queryKeys'
-import type { AppModule } from '../types/modules'
+import type { AccessibleModule } from '../types/modules'
 import { useAuth } from './useAuth'
 
 export function useModuleAccess() {
@@ -70,9 +70,9 @@ export function useModuleAccess() {
 
   return {
     modules,
-    getModule: (module: AppModule) =>
+    getModule: (module: AccessibleModule) =>
       modules.find((item) => item.module === module),
-    canAccessModule: (module: AppModule) =>
+    canAccessModule: (module: AccessibleModule) =>
       modules.some((item) => item.module === module),
     isLoading: query.isPending,
     error: query.error,
