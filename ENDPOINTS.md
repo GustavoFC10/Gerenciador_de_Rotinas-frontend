@@ -426,11 +426,11 @@ Exige sessão autenticada, organização ativa e concessão explícita de Empres
 O papel organizacional `owner/admin` não concede esse acesso automaticamente.
 Empresas e contatos pertencem somente ao tenant ativo.
 
-| Papel em Empresas | Ações |
-| --- | --- |
-| `viewer` | Consulta empresas e contatos ativos. |
-| `editor` | Também cria e edita empresas e contatos ativos. |
-| `manager` | Também consulta arquivados, arquiva/restaura e acessa impacto e auditoria. |
+| Papel em Empresas | Ações                                                                      |
+| ----------------- | -------------------------------------------------------------------------- |
+| `viewer`          | Consulta empresas e contatos ativos.                                       |
+| `editor`          | Também cria e edita empresas e contatos ativos.                            |
+| `manager`         | Também consulta arquivados, arquiva/restaura e acessa impacto e auditoria. |
 
 As respostas de empresa contêm `status=active|archived` persistido, `version` e
 `permissions`. Use as ações retornadas para os controles da interface. Acesso a
@@ -549,7 +549,7 @@ Manager. Preview sem escrita e sem lock; retorna `200` e ETag da empresa:
   "companyId": "<UUID_DA_EMPRESA>",
   "version": 1,
   "effectiveOn": "2026-11-04",
-  "routineAssignments": {"active": 2, "future": 1, "ended": 0},
+  "routineAssignments": { "active": 2, "future": 1, "ended": 0 },
   "openTasks": 3,
   "openProcesses": null,
   "effects": [

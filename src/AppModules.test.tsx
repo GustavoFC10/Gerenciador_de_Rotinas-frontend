@@ -175,14 +175,18 @@ describe('App module routing', () => {
   it.each(['owner', 'admin', 'member'] as const)(
     'opens Empresas with an explicit grant for %s',
     async (role) => {
-      await renderApp('/cadastro-empresas', [
-        {
-          module: 'companies',
-          globalAccess: false,
-          actions: ['read'],
-          sectors: [],
-        },
-      ], role)
+      await renderApp(
+        '/cadastro-empresas',
+        [
+          {
+            module: 'companies',
+            globalAccess: false,
+            actions: ['read'],
+            sectors: [],
+          },
+        ],
+        role,
+      )
       for (
         let i = 0;
         i < 100 && !host.querySelector('[data-companies-module]');
@@ -207,13 +211,13 @@ describe('App module routing', () => {
   it.each(['admin', 'member'] as const)(
     'blocks direct Equipe access for %s',
     async (role) => {
-        const list = vi
-          .spyOn(organizationMemberService, 'listAll')
-          .mockResolvedValue([])
-        await renderApp('/equipe/novo', [], role)
-        expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
-        expect(list).not.toHaveBeenCalled()
-        expect(departmentService.listAll).not.toHaveBeenCalled()
+      const list = vi
+        .spyOn(organizationMemberService, 'listAll')
+        .mockResolvedValue([])
+      await renderApp('/equipe/novo', [], role)
+      expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
+      expect(list).not.toHaveBeenCalled()
+      expect(departmentService.listAll).not.toHaveBeenCalled()
     },
   )
   it('redirects legacy access settings into Equipe for an owner', async () => {
