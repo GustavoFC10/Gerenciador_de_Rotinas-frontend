@@ -34,6 +34,7 @@ import type {
   ProcessCreateInput,
   ProcessFilters,
   ProcessIndicators,
+  ProcessPage,
   ProcessResource,
   ProcessSector,
   ProcessTypeId,
@@ -59,6 +60,12 @@ const emptyIndicators: ProcessIndicators = {
     concluido: 0,
     cancelado: 0,
   },
+}
+const loadingPage: ProcessPage = {
+  count: 0,
+  next: null,
+  previous: null,
+  results: [],
 }
 
 export default function ProcessesPage() {
@@ -106,6 +113,7 @@ export default function ProcessesPage() {
   const navigationRef = useRef<HTMLElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const restoredListLocation = useRef('')
   const page = location.pathname
     .slice(ROUTES.PROCESSES.length)
     .replace(/^\/+|\/+$/g, '')
@@ -115,7 +123,9 @@ export default function ProcessesPage() {
       : ''
   const requestedView =
     page === 'fila' ? 'fila' : (searchParams.get('situacao') ?? 'ativos')
-  const view = PROCESS_VIEWS[requestedView] ? requestedView : 'ativos'
+  const explicitStatuses = searchParams.getAll('status')
+  const namedView = PROCESS_VIEWS[requestedView] ? requestedView : 'ativos'
+  const view = explicitStatuses.length ? 'todos' : namedView
   const type = searchParams.get('tipo') ?? ''
   const search = searchParams.get('q') ?? ''
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(searchParams.get('mes') ?? '')
@@ -142,7 +152,6 @@ export default function ProcessesPage() {
   const chosenSector =
     sector && allowedSectors.includes(sector) ? sector : allowedSectors[0]
   const isList = page === 'lista' || page === 'fila'
-  const explicitStatuses = searchParams.getAll('status')
   const rawFilters: ProcessFilters = {
     ...(explicitStatuses.length
       ? { status: explicitStatuses as ProcessStatus[] }
@@ -150,11 +159,11 @@ export default function ProcessesPage() {
     ...(type ? { tipo: type as ProcessTypeId } : {}),
     ...(search ? { q: search } : {}),
     ...(searchParams.get('month') ? { month: searchParams.get('month')! } : {}),
-    ...(searchParams.get('responsibleSector')
+    ...(searchParams.get('responsibleSector') ||
+    (view === 'responsabilidade' && chosenSector)
       ? {
-          responsibleSector: searchParams.get(
-            'responsibleSector',
-          ) as ProcessSector,
+          responsibleSector: (searchParams.get('responsibleSector') ||
+            chosenSector) as ProcessSector,
         }
       : {}),
     ...(view === 'fila' && chosenSector ? { queueSector: chosenSector } : {}),
@@ -184,20 +193,12 @@ export default function ProcessesPage() {
     filterError =
       error instanceof Error ? error : new Error('Filtros inválidos.')
   }
-  const indicatorFilters = { ...filters }
-  delete indicatorFilters.page
-  delete indicatorFilters.pageSize
   const listQuery = useProcessList(
     scope,
     filters,
     ready && !filterError && isList && (view !== 'fila' || !!chosenSector),
   )
   const indicatorsQuery = useProcessIndicators(scope, {}, ready)
-  const filteredIndicatorsQuery = useProcessIndicators(
-    scope,
-    indicatorFilters,
-    ready && !filterError && isList && (view !== 'fila' || !!chosenSector),
-  )
   const queueQuery = useProcessList(
     scope,
     { queueSector: chosenSector, pageSize: 8 },
@@ -229,7 +230,6 @@ export default function ProcessesPage() {
     catalogQuery.error ??
     indicatorsQuery.error ??
     listQuery.error ??
-    filteredIndicatorsQuery.error ??
     queueQuery.error ??
     scheduledQuery.error ??
     executionQuery.error
@@ -280,6 +280,23 @@ export default function ProcessesPage() {
   }, [pendingAlertsQuery.error, denyAlertAccess])
 
   useEffect(() => {
+    if (page !== 'fila' || !explicitStatuses.length || filterError) return
+    const params = new URLSearchParams(searchParams)
+    params.set('situacao', 'todos')
+    navigate(`${ROUTES.PROCESSES}/lista?${params}`, {
+      replace: true,
+      state: location.state,
+    })
+  }, [
+    page,
+    explicitStatuses.length,
+    filterError,
+    searchParams,
+    navigate,
+    location.state,
+  ])
+
+  useEffect(() => {
     if (
       !isApiError(scopeQueryError) ||
       ![403, 404].includes(scopeQueryError.status)
@@ -323,6 +340,43 @@ export default function ProcessesPage() {
       queryClient.removeQueries({ queryKey: processQueryKeys.root(scope) })
     }
   }, [scope, queryClient])
+
+  useEffect(() => {
+    const restore = (
+      location.state as {
+        restoreProcessList?: { scope: string; scroll?: number; id?: string }
+      } | null
+    )?.restoreProcessList
+    if (
+      !isList ||
+      listQuery.isPending ||
+      !listQuery.data ||
+      !restore ||
+      restore.scope !== scopeContext ||
+      restoredListLocation.current === location.key
+    )
+      return
+    const frame = requestAnimationFrame(() => {
+      const row = [
+        ...document.querySelectorAll<HTMLElement>('[data-process-id]'),
+      ].find((item) => item.dataset.processId === restore.id)
+      row?.focus({ preventScroll: true })
+      if (Number.isFinite(restore.scroll))
+        window.scrollTo({
+          top: Math.max(0, restore.scroll!),
+          behavior: 'instant',
+        })
+      restoredListLocation.current = location.key
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [
+    isList,
+    listQuery.isPending,
+    listQuery.data,
+    location.key,
+    location.state,
+    scopeContext,
+  ])
 
   useEffect(() => {
     if (
@@ -404,10 +458,17 @@ export default function ProcessesPage() {
       else next.delete(key)
     }
     if (!('page' in patch)) next.delete('page')
+    if (patch.situacao && page === 'fila' && patch.situacao !== 'fila') {
+      navigate(`${ROUTES.PROCESSES}/lista?${next}`, { replace: true })
+      return
+    }
     setSearchParams(next, { replace: true })
   }
   function openList(nextView: string, nextType = '') {
-    const params = new URLSearchParams()
+    const params = new URLSearchParams(isList ? searchParams : undefined)
+    params.delete('status')
+    params.delete('page')
+    if (nextView === 'fila') params.delete('situacao')
     if (nextView !== 'fila') params.set('situacao', nextView)
     if (nextType) params.set('tipo', nextType)
     if (nextView === 'responsabilidade' && chosenSector)
@@ -416,14 +477,36 @@ export default function ProcessesPage() {
       `${ROUTES.PROCESSES}/${nextView === 'fila' ? 'fila' : 'lista'}${params.size ? `?${params}` : ''}`,
     )
   }
+  function clearListFilters() {
+    const params = new URLSearchParams()
+    if (view !== 'fila') params.set('situacao', view)
+    if (view === 'responsabilidade' && filters.responsibleSector)
+      params.set('responsibleSector', filters.responsibleSector)
+    if (searchParams.has('pageSize'))
+      params.set('pageSize', String(filters.pageSize ?? 50))
+    navigate(
+      `${ROUTES.PROCESSES}/${view === 'fila' ? 'fila' : 'lista'}${params.size ? `?${params}` : ''}`,
+      { replace: true },
+    )
+  }
   function openProcess(id: string) {
     navigate(`${ROUTES.PROCESSES}/${encodeURIComponent(id)}`, {
-      state: { processBack: `${location.pathname}${location.search}` },
+      state: {
+        processBack: `${location.pathname}${location.search}`,
+        processBackScroll: window.scrollY,
+        processBackId: id,
+        processBackScope: scopeContext,
+      },
     })
   }
   function closeProcess() {
-    const back = (location.state as { processBack?: unknown } | null)
-      ?.processBack
+    const backState = location.state as {
+      processBack?: unknown
+      processBackScroll?: number
+      processBackId?: string
+      processBackScope?: string
+    } | null
+    const back = backState?.processBack
     navigate(
       typeof back === 'string' &&
         (back === ROUTES.PROCESSES ||
@@ -433,6 +516,18 @@ export default function ProcessesPage() {
           back.startsWith(`${ROUTES.PROCESSES}/movimentacoes`))
         ? back
         : ROUTES.PROCESSES,
+      {
+        state:
+          backState?.processBackScope === scopeContext
+            ? {
+                restoreProcessList: {
+                  scope: scopeContext,
+                  scroll: backState.processBackScroll,
+                  id: backState.processBackId,
+                },
+              }
+            : null,
+      },
     )
   }
   function changed(process: ProcessResource) {
@@ -579,7 +674,7 @@ export default function ProcessesPage() {
     (!processId && page !== 'movimentacoes' && page !== 'avisos'
       ? (indicatorsQuery.error ??
         (isList
-          ? (listQuery.error ?? filteredIndicatorsQuery.error)
+          ? listQuery.error
           : (queueQuery.error ?? scheduledQuery.error ?? executionQuery.error)))
       : null)
 
@@ -637,7 +732,7 @@ export default function ProcessesPage() {
               </Link>
               <button
                 className="nav-i"
-                aria-current={page === 'fila' ? 'page' : undefined}
+                aria-current={view === 'fila' && isList ? 'page' : undefined}
                 onClick={() => openList('fila')}
               >
                 <ProcessIcon name="inbox" />
@@ -701,7 +796,9 @@ export default function ProcessesPage() {
                     aria-pressed={chosenSector === key}
                     onClick={() => {
                       setSector(key)
-                      if (page === 'fila') updateSearch({ page: '' })
+                      if (view === 'fila') updateSearch({ page: '' })
+                      else if (view === 'responsabilidade')
+                        updateSearch({ responsibleSector: key, page: '' })
                       setDepartmentMenu(false)
                     }}
                   >
@@ -714,6 +811,9 @@ export default function ProcessesPage() {
           </section>
           <section>
             <h2 className="sec-t">Listagens</h2>
+            <p className="process-count-scope">
+              Contagens de toda a organização
+            </p>
             <nav>
               <button
                 className="nav-i nav-parent"
@@ -860,28 +960,21 @@ export default function ProcessesPage() {
           >
             <ProcessIcon name="list" />
           </button>
-          <label className="search">
-            <span className="sr-only">Buscar processo</span>
-            <svg className="i" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" />
-            </svg>
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => {
-                const value = event.target.value
-                if (page !== 'lista') {
-                  navigate(
-                    `${ROUTES.PROCESSES}/lista?situacao=todos&q=${encodeURIComponent(value)}`,
-                    { replace: true },
-                  )
-                } else updateSearch({ q: value })
-              }}
-              placeholder="Buscar empresa, CNPJ ou protocolo"
-            />
-          </label>
-          <span className="sp" />
+          <nav className="process-breadcrumb" aria-label="Localização">
+            <Link to={ROUTES.PROCESSES}>Processos</Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">
+              {processId
+                ? (detailQuery.data?.codigo ?? 'Ficha do processo')
+                : page === 'avisos'
+                  ? 'Avisos por e-mail'
+                  : page === 'movimentacoes'
+                    ? 'Movimentações Empresariais'
+                    : isList
+                      ? PROCESS_VIEWS[view].title
+                      : 'Início'}
+            </span>
+          </nav>
           <button
             className="btn process-refresh"
             disabled={
@@ -935,12 +1028,10 @@ export default function ProcessesPage() {
               page !== 'movimentacoes' &&
               page !== 'avisos' &&
               (indicatorsQuery.isPending ||
-                (isList
-                  ? (view !== 'fila' || chosenSector) &&
-                    (listQuery.isPending || filteredIndicatorsQuery.isPending)
-                  : scheduledQuery.isPending ||
+                (!isList &&
+                  (scheduledQuery.isPending ||
                     executionQuery.isPending ||
-                    (!!chosenSector && queueQuery.isPending)))) ? (
+                    (!!chosenSector && queueQuery.isPending))))) ? (
             <div className="panel empty" role="status">
               Carregando processos…
             </div>
@@ -1044,23 +1135,29 @@ export default function ProcessesPage() {
               </div>
             ) : (
               <>
-                {listQuery.isFetching && (
-                  <p role="status">Atualizando processos…</p>
-                )}
                 <ProcessList
-                  data={listQuery.data!}
+                  data={listQuery.data ?? loadingPage}
                   catalog={catalog}
-                  indicators={filteredIndicatorsQuery.data!}
                   filters={filters}
                   sector={chosenSector}
                   view={view}
                   timeZone={timeZone}
                   onFilters={updateSearch}
-                  onClear={() =>
-                    navigate(`${ROUTES.PROCESSES}/lista?situacao=todos`)
+                  onClear={clearListFilters}
+                  customStatuses={
+                    view === 'todos'
+                      ? (explicitStatuses as ProcessStatus[])
+                      : undefined
                   }
+                  baseResponsibleSector={
+                    view === 'responsabilidade'
+                      ? filters.responsibleSector
+                      : undefined
+                  }
+                  isFetching={listQuery.isFetching}
+                  isLoading={listQuery.isPending}
+                  searchValue={search}
                   onOpen={openProcess}
-                  onCreate={openCreate}
                   onWaiting={() => openList('agendados')}
                 />
                 {view === 'fila' &&
@@ -1098,7 +1195,6 @@ export default function ProcessesPage() {
               onOpen={openProcess}
               onList={openList}
               onSector={setSector}
-              onCreate={openCreate}
             />
           )}
         </main>

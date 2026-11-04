@@ -25,9 +25,12 @@ Você pode explorar:
   módulos. Teste contas apenas de Processos, cargos por setor e habilitação ou
   bloqueio independente de Rotinas e Processos, inclusive em convites pendentes.
 - Estados simulados dos e-mails e nova tentativa dos envios pendentes.
-- Etiquetas dos dez tipos e navegação da central de avisos por e-mail, exclusiva
-  da Diretoria, além da seção de cobranças do Financeiro. As novas coleções ficam
-  vazias no preview: os ciclos temporais são gerados pelo worker do backend real.
+- Etiquetas dos dez tipos, filtros compactos e navegação da central de avisos,
+  exclusiva da Diretoria. O preview inclui avisos fictícios pendentes e históricos,
+  membros para seleção no campo unificado (pessoas, departamentos ou todos) e
+  cobranças complementares do Financeiro. Preparar, copiar e declarar são ações
+  distintas; nenhum e-mail é enviado. Esses exemplos são snapshots estáticos e
+  não executam o worker temporal do backend.
 - Uma planilha de Rotinas com tarefas fictícias para conferir a troca de módulo.
 
 As mudanças ficam no armazenamento da sessão exclusivo do preview. **Nenhum e-mail é

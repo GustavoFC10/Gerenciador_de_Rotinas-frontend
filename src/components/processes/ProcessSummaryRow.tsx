@@ -50,6 +50,7 @@ export default function ProcessSummaryRow({
     return (
       <button
         className={`prow ${process.status === 'atrasado' ? 'is-late' : ''}`}
+        data-process-id={process.id}
         onClick={() => onOpen(process.id)}
       >
         <span className={`badge ${status.tone}`}>{status.label}</span>
@@ -77,6 +78,7 @@ export default function ProcessSummaryRow({
   return (
     <button
       className={`lrow ${process.status === 'concluido' ? 'is-done' : ''}`}
+      data-process-id={process.id}
       onClick={() => onOpen(process.id)}
     >
       <span className="nm">

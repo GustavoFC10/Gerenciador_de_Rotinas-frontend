@@ -1,5 +1,10 @@
 import type { OrganizationMemberResource } from '../services/organizationMemberService'
 import workflows from './workflows.json'
+import {
+  communicationMembers,
+  createCommunicationFixtures,
+  recordedLeggacyTracking,
+} from './processCommunicationsFixtures'
 import type {
   ModuleAccessConfiguration,
   ModuleAccess,
@@ -7,11 +12,15 @@ import type {
 } from '../types/modules'
 import type { OrganizationRole, ScheduledOccurrence } from '../types/domain'
 import type {
+  AlertRecipient,
+  ProcessAlert,
+  ProcessAlertRecipientOption,
   ProcessCatalogType,
   ProcessCreateInput,
   ProcessDetailDto,
   ProcessEntry,
   ProcessFields,
+  ProcessFollowUp,
   ProcessMovementMonth,
   ProcessPermissions,
   ProcessResource,
@@ -167,6 +176,11 @@ const fullPermissions: ProcessPermissions = {
   sectors: ['com'],
   executeSectors: ['com', 'fin', 'reg'],
 }
+const isUuid = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value)
+const isProcessSector = (value: unknown): value is ProcessSector =>
+  typeof value === 'string' && ['com', 'fin', 'reg'].includes(value)
 
 function stagesOf(process: ProcessResource): ProcessStage[] {
   const type = types.find((type) => type.id === process.tipo)!
@@ -537,6 +551,16 @@ function seed(): PreviewState {
   past.honorario = '2600.00'
   past.trab = false
   processes.push(past)
+  // A recorded synthetic server snapshot makes the Leggacy section reviewable.
+  const tracked = processes[0]!
+  tracked.leggacy = [structuredClone(recordedLeggacyTracking)]
+  tracked.tarefas.ab4 = {
+    s: 'feito',
+    por: 'demo-financeiro',
+    autor: 'Marina Costa',
+    em: recordedLeggacyTracking.sentAt,
+  }
+  tracked.analysis.completedTasks = Object.keys(tracked.tarefas).length
   return {
     schema: 2,
     actor: 'demo-diretoria',
@@ -580,6 +604,10 @@ function seed(): PreviewState {
 
 export class PreviewBackend {
   state: PreviewState
+  private communications: {
+    followUps: ProcessFollowUp[]
+    alerts: ProcessAlert[]
+  }
   constructor(private readonly store?: Store) {
     try {
       const saved = JSON.parse(
@@ -594,6 +622,7 @@ export class PreviewBackend {
     } catch {
       this.state = seed()
     }
+    this.communications = createCommunicationFixtures(this.state.processes)
   }
   save() {
     try {
@@ -604,6 +633,7 @@ export class PreviewBackend {
   }
   reset() {
     this.state = seed()
+    this.communications = createCommunicationFixtures(this.state.processes)
     this.save()
   }
   selectActor(id: string) {
@@ -978,6 +1008,353 @@ export class PreviewBackend {
       balance: centsToDecimal(gain - loss),
     }
   }
+
+  private communicationRecipients(): ProcessAlertRecipientOption[] {
+    return communicationMembers
+      .flatMap((fixture) => {
+        const sourceId = fixture.actorId ?? fixture.memberId
+        const profile = this.state.members?.[sourceId]
+        if (profile && profile.status !== 'active') return []
+        const grants = this.state.accesses[sourceId]
+        const granted =
+          grants === undefined
+            ? fixture.sectors
+            : grants
+                .filter((access) => access.module === 'processes')
+                .map((access) => access.sector as ProcessSector)
+        const configuration = profile?.moduleAccesses?.find(
+          (access) => access.module === 'processes',
+        )
+        if (configuration?.enabled === false || !granted.length) return []
+        return [
+          {
+            memberId: fixture.memberId,
+            name: profile?.displayName ?? fixture.name,
+            email: profile?.email ?? fixture.email,
+            sectors: [...new Set(granted)],
+          },
+        ]
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  }
+
+  private resolveCommunicationSelection(body: Body):
+    | {
+        selectedSectors: ProcessSector[]
+        selectedMemberIds: string[]
+        recipients: AlertRecipient[]
+      }
+    | string {
+    if (
+      Object.keys(body).some(
+        (key) => !['version', 'sectors', 'memberIds'].includes(key),
+      )
+    )
+      return 'A seleção contém campos não aceitos.'
+    const sectorsInput = body.sectors ?? []
+    const membersInput = body.memberIds ?? []
+    if (
+      !Array.isArray(sectorsInput) ||
+      sectorsInput.length > 3 ||
+      sectorsInput.some((value) => !isProcessSector(value))
+    )
+      return 'Selecione setores válidos de Processos.'
+    if (
+      !Array.isArray(membersInput) ||
+      membersInput.length > 500 ||
+      membersInput.some((value) => !isUuid(value))
+    )
+      return 'Selecione membros válidos.'
+    const selectedSectors = [...new Set(sectorsInput)] as ProcessSector[]
+    const selectedMemberIds = [...new Set(membersInput)] as string[]
+    const eligible = this.communicationRecipients()
+    if (
+      selectedMemberIds.some(
+        (id) => !eligible.some((member) => member.memberId === id),
+      )
+    )
+      return 'Selecione membros ativos e autorizados desta organização.'
+    const recipients = eligible
+      .filter(
+        (member) =>
+          selectedMemberIds.includes(member.memberId) ||
+          member.sectors.some((sector) => selectedSectors.includes(sector)),
+      )
+      .map(({ memberId, name, email }) => ({ memberId, name, email }))
+    if (!recipients.length)
+      return 'Selecione ao menos uma pessoa ou setor com membros ativos.'
+    return { selectedSectors, selectedMemberIds, recipients }
+  }
+
+  /** Only explicit commands close recorded fixtures; reads never evaluate time. */
+  private closeCommunicationSituations(
+    process: PreviewProcess,
+    deadlineChanged = false,
+  ) {
+    const active = ['andamento', 'atrasado', 'agendado'].includes(
+      process.status,
+    )
+    const tasks = stagesOf(process).flatMap((stage) => stage.tasks)
+    const closedFollowUps = new Set<string>()
+    const currentStage =
+      process.etapas[process.analysis.currentStage ?? -1]?.index ??
+      process.analysis.currentStage
+    for (const followUp of this.communications.followUps.filter(
+      (item) => item.processId === process.id && item.state !== 'resolved',
+    )) {
+      const valid =
+        active &&
+        tasks.some((task) => task.id === followUp.returnTaskId) &&
+        process.tarefas[followUp.sendTaskId]?.s === 'feito' &&
+        !process.tarefas[followUp.returnTaskId]
+      if (valid) continue
+      followUp.state = 'resolved'
+      followUp.resolvedAt = now()
+      followUp.resolution = active ? 'return_or_reset' : 'process_closed'
+      followUp.version++
+      closedFollowUps.add(followUp.id)
+      process.entries.push(
+        entry(
+          'followup_closed',
+          'encerrou a cobrança complementar da Leggacy',
+          'Sistema',
+          '',
+          false,
+          { trigger: 'clock', followUpId: followUp.id },
+        ),
+      )
+    }
+    for (const alert of this.communications.alerts.filter(
+      (item) => item.processId === process.id && !item.resolvedAt,
+    )) {
+      const close =
+        !active ||
+        (alert.kind === 'leggacy'
+          ? !!alert.followUpId && closedFollowUps.has(alert.followUpId)
+          : deadlineChanged ||
+            process.status !== 'atrasado' ||
+            alert.stageIndex !== currentStage)
+      if (!close) continue
+      alert.resolvedAt = now()
+      if (!alert.sentAt) alert.status = 'resolved'
+      alert.version++
+    }
+    process.leggacy = process.leggacy
+      .filter(
+        (item) =>
+          process.tarefas[item.sendTaskId]?.s === 'feito' &&
+          tasks.some((task) => task.id === item.returnTaskId),
+      )
+      .map((item) => ({
+        ...item,
+        awaitingReturn: !process.tarefas[item.returnTaskId],
+        followUpDue:
+          item.followUpDue && active && !process.tarefas[item.returnTaskId],
+      }))
+  }
+
+  private communicationResponse(
+    path: string,
+    method: string,
+    body: Body,
+    url: URL,
+    json: (data: unknown, status?: number, version?: number) => Response,
+    error: (status: number, detail: string) => Response,
+  ): Response {
+    const permissions = this.permissions()
+    if (
+      !permissions.read ||
+      this.member(this.state.actor).status !== 'active' ||
+      (path.startsWith('process-alerts') && !permissions.create)
+    )
+      return error(403, 'Sem acesso a esta área de Processos.')
+    const visible = (processId: string) =>
+      this.state.processes.some(
+        (process) =>
+          process.id === processId &&
+          process.organizationId === organization.id,
+      )
+    const page = <T>(values: T[]) => {
+      const result = paginated(values, url)
+      return Number(url.searchParams.get('page') ?? 1) > 1 &&
+        !result.results.length
+        ? error(404, 'Página não encontrada.')
+        : json(result)
+    }
+    if (
+      method === 'GET' &&
+      [
+        'process-follow-ups',
+        'process-alerts',
+        'process-alerts/recipient-options',
+      ].includes(path)
+    ) {
+      const allowed =
+        path === 'process-follow-ups'
+          ? ['processId', 'state', 'page', 'pageSize']
+          : path === 'process-alerts'
+            ? ['processId', 'kind', 'status', 'page', 'pageSize']
+            : ['q', 'sector', 'page', 'pageSize']
+      const invalid = queryError(url, allowed)
+      if (
+        invalid ||
+        [...url.searchParams.keys()].some(
+          (key) => url.searchParams.getAll(key).length > 1,
+        )
+      )
+        return error(400, invalid ?? 'Os parâmetros não podem ser repetidos.')
+      const processId = url.searchParams.get('processId')
+      if (processId !== null && !isUuid(processId))
+        return error(400, 'Processo inválido.')
+      if (path === 'process-follow-ups') {
+        const state = url.searchParams.get('state')
+        if (
+          state !== null &&
+          !['pending', 'completed', 'resolved'].includes(state)
+        )
+          return error(400, 'Situação de cobrança inválida.')
+        return page(
+          this.communications.followUps.filter(
+            (item) =>
+              visible(item.processId) &&
+              (!processId || item.processId === processId) &&
+              (!state || item.state === state),
+          ),
+        )
+      }
+      if (path === 'process-alerts') {
+        const kind = url.searchParams.get('kind')
+        const status = url.searchParams.get('status')
+        if (kind !== null && !['leggacy', 'overdue'].includes(kind))
+          return error(400, 'Tipo de aviso inválido.')
+        if (
+          status !== null &&
+          !['pending', 'sent', 'resolved'].includes(status)
+        )
+          return error(400, 'Situação de aviso inválida.')
+        return page(
+          this.communications.alerts.filter(
+            (item) =>
+              visible(item.processId) &&
+              (!processId || item.processId === processId) &&
+              (!kind || item.kind === kind) &&
+              (!status || item.status === status),
+          ),
+        )
+      }
+      const sector = url.searchParams.get('sector')
+      const q =
+        url.searchParams.get('q')?.trim().toLocaleLowerCase('pt-BR') ?? ''
+      if (sector !== null && !isProcessSector(sector))
+        return error(400, 'Setor inválido.')
+      if (q.length > 200)
+        return error(400, 'A busca permite até 200 caracteres.')
+      return page(
+        this.communicationRecipients().filter(
+          (member) =>
+            (!sector || member.sectors.includes(sector as ProcessSector)) &&
+            (!q ||
+              [member.name, member.email].some((value) =>
+                value.toLocaleLowerCase('pt-BR').includes(q),
+              )),
+        ),
+      )
+    }
+    const match =
+      /^(process-alerts|process-follow-ups)\/([^/]+)(?:\/(.*))?$/.exec(path)
+    if (!match || !isUuid(match[2]))
+      return error(404, 'Registro não encontrado.')
+    const action = match[3] ?? ''
+    const collection =
+      match[1] === 'process-alerts'
+        ? this.communications.alerts
+        : this.communications.followUps
+    const resource = collection.find(
+      (item) => item.id === match[2] && visible(item.processId),
+    )
+    if (!resource) return error(404, 'Registro não encontrado.')
+    if (method === 'GET' && !action) return json(resource)
+    if (method !== 'POST') return error(405, 'Operação indisponível.')
+    if (!Number.isSafeInteger(body.version) || Number(body.version) < 1)
+      return error(400, 'Informe a versão atual do registro.')
+    if (body.version !== resource.version)
+      return error(
+        409,
+        'Outra operação alterou o registro. Recarregue e revise a seleção.',
+      )
+    const process = this.state.processes.find(
+      (item) => item.id === resource.processId,
+    )!
+    const memberId =
+      communicationMembers.find((member) => member.actorId === this.state.actor)
+        ?.memberId ?? '30000000-0000-4000-8000-000000000099'
+    const author = this.session().activeMembership.displayName
+    if (match[1] === 'process-follow-ups') {
+      const followUp = resource as ProcessFollowUp
+      if (action !== 'complete') return error(404, 'Operação indisponível.')
+      if (!permissions.executeSectors.includes('fin'))
+        return error(
+          403,
+          'Somente o Financeiro ou a Diretoria registra a cobrança.',
+        )
+      if (Object.keys(body).some((key) => key !== 'version'))
+        return error(400, 'A cobrança recebe somente a versão atual.')
+      if (followUp.state !== 'pending')
+        return error(409, 'A cobrança já foi registrada ou encerrada.')
+      followUp.state = 'completed'
+      followUp.completedAt = now()
+      followUp.completedBy = memberId
+      followUp.version++
+      process.entries.push(
+        entry(
+          'followup_done',
+          'registrou a cobrança realizada com a Leggacy',
+          author,
+          memberId,
+          false,
+          { followUpId: followUp.id },
+        ),
+      )
+      this.save()
+      return json(followUp)
+    }
+    const alert = resource as ProcessAlert
+    if (!['prepare', 'declare-sent'].includes(action))
+      return error(404, 'Operação indisponível.')
+    if (alert.status !== 'pending')
+      return error(409, 'Este aviso já foi declarado ou encerrado.')
+    const selection = this.resolveCommunicationSelection(body)
+    if (typeof selection === 'string') return error(400, selection)
+    if (action === 'prepare')
+      return json({
+        alertId: alert.id,
+        version: alert.version,
+        subject: alert.subject,
+        body: alert.body,
+        recipients: selection.recipients,
+        copyText: `Para: ${selection.recipients.map((member) => member.email).join(', ')}\nAssunto: ${alert.subject}\n\n${alert.body}`,
+      })
+    alert.status = 'sent'
+    alert.sentAt = now()
+    alert.sentBy = memberId
+    alert.recipients = structuredClone(selection.recipients)
+    alert.selectedSectors = selection.selectedSectors
+    alert.selectedMemberIds = selection.selectedMemberIds
+    alert.version++
+    process.entries.push(
+      entry(
+        'alert_sent',
+        'declarou o envio manual do aviso por e-mail',
+        author,
+        memberId,
+        false,
+        { alertId: alert.id },
+      ),
+    )
+    this.save()
+    return json(alert)
+  }
+
   async handle(
     url: URL,
     method = 'GET',
@@ -1156,23 +1533,7 @@ export class PreviewBackend {
       path === 'process-alerts' ||
       path.startsWith('process-alerts/')
     ) {
-      const permissions = this.permissions()
-      if (
-        !permissions.read ||
-        (path.startsWith('process-alerts') && !permissions.create)
-      )
-        return error(403, 'Sem acesso a esta área de Processos.')
-      // Preview has no temporal worker. The production API owns these cycles.
-      if (
-        method === 'GET' &&
-        [
-          'process-follow-ups',
-          'process-alerts',
-          'process-alerts/recipient-options',
-        ].includes(path)
-      )
-        return json({ count: 0, next: null, previous: null, results: [] })
-      return error(404, 'Registro indisponível neste preview.')
+      return this.communicationResponse(path, method, body, url, json, error)
     }
     if (path.startsWith('processes')) {
       const permissions = this.permissions()
@@ -1369,6 +1730,9 @@ export class PreviewBackend {
               return error(400, 'Tipo de entrada inválido.')
             const entries = process.entries
               .filter((item) => !item.financial || permissions.viewFinancial)
+              .filter(
+                (item) => item.kind !== 'alert_sent' || permissions.create,
+              )
               .filter(
                 (item) =>
                   !kind ||
@@ -1631,6 +1995,11 @@ export class PreviewBackend {
           }
         } else if (action || method !== 'PATCH')
           return error(404, 'Operação não encontrada no preview.')
+        if (action !== 'notes' && action !== 'notifications/retry')
+          this.closeCommunicationSituations(
+            process,
+            method === 'PATCH' && 'prazo' in body,
+          )
         process.version++
         process.atualizadoEm = now()
         this.save()

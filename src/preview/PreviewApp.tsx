@@ -14,7 +14,7 @@ const root = document.getElementById('root')
 if (!root) throw new Error('Raiz do preview não encontrada.')
 const style = document.createElement('style')
 style.textContent =
-  'body:has([role="dialog"][aria-modal="true"]) .feature-preview-controls{display:none}'
+  'body:has([role="dialog"][aria-modal="true"]) .feature-preview-controls,body:has(.process-recipient-popover) .feature-preview-controls{display:none}'
 document.head.append(style)
 document.title = 'Preview local · Rotinas e Processos'
 createRoot(root).render(

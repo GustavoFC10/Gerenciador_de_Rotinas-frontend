@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
   useProcessAlert,
   useProcessAlerts,
-  useProcessAlertRecipientOptions,
 } from '../../hooks/useProcessCommunications'
 import { processQueryKeys } from '../../query/processQueryKeys'
 import type { OrganizationQueryScope } from '../../query/queryKeys'
@@ -14,17 +13,14 @@ import type {
   PreparedProcessAlert,
   ProcessAlert,
   ProcessAlertFilters,
-  ProcessAlertRecipientOption,
   ProcessPermissions,
   ProcessSector,
 } from '../../types/processes'
 import { getErrorPresentation } from '../../utils/apiErrors'
-import {
-  formatProcessDate,
-  PROCESS_SECTORS,
-} from '../../utils/processPresentation'
+import { formatProcessDate } from '../../utils/processPresentation'
 import ProcessIcon from './ProcessIcon'
 import ProcessQueryError from './ProcessQueryError'
+import ProcessRecipientSelector from './ProcessRecipientSelector'
 import '../../styles/process-alerts.css'
 
 interface Props {
@@ -63,6 +59,11 @@ function AuthorizedAlerts({ scope, timeZone, onOpen, onUnavailable }: Props) {
   const [kind, setKind] = useState<ProcessAlertFilters['kind']>()
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState('')
+  const [mobileDetail, setMobileDetail] = useState(false)
+  const detailRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const focusDetail = useRef(false)
+  const focusList = useRef(false)
   const [denied, setDenied] = useState<unknown>(null)
   const alerts = useProcessAlerts(
     scope,
@@ -72,6 +73,20 @@ function AuthorizedAlerts({ scope, timeZone, onOpen, onUnavailable }: Props) {
   const detail = useProcessAlert(scope, selectedId, !!selectedId && !denied)
   const error = denied ?? alerts.error
   const accessError = alerts.error ?? detail.error
+  useEffect(() => {
+    if (focusDetail.current && detail.data && !detail.error) {
+      focusDetail.current = false
+      detailRef.current?.focus()
+      if (window.matchMedia?.('(max-width: 760px)').matches)
+        detailRef.current?.scrollIntoView?.({ block: 'start' })
+    }
+    if (focusList.current && !mobileDetail) {
+      focusList.current = false
+      listRef.current
+        ?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')
+        ?.focus()
+    }
+  }, [detail.data, detail.error, mobileDetail])
   useEffect(() => {
     if (!isApiError(accessError) || accessError.status !== 403) return
     setDenied(accessError)
@@ -174,8 +189,10 @@ function AuthorizedAlerts({ scope, timeZone, onOpen, onUnavailable }: Props) {
           Carregando avisos…
         </div>
       ) : (
-        <div className="process-alert-grid">
-          <div className="panel process-alert-list">
+        <div
+          className={`process-alert-grid ${mobileDetail ? 'process-alert-show-detail' : ''}`}
+        >
+          <div className="panel process-alert-list" ref={listRef}>
             {alerts.data?.results.length === 0 && (
               <p className="empty">Nenhum aviso nesta consulta.</p>
             )}
@@ -184,7 +201,11 @@ function AuthorizedAlerts({ scope, timeZone, onOpen, onUnavailable }: Props) {
                 className="process-alert-row"
                 key={alert.id}
                 aria-pressed={selectedId === alert.id}
-                onClick={() => setSelectedId(alert.id)}
+                onClick={() => {
+                  focusDetail.current = true
+                  setSelectedId(alert.id)
+                  setMobileDetail(true)
+                }}
               >
                 <span className={`process-alert-status ${alert.status}`}>
                   {statusLabels[alert.status]}
@@ -199,6 +220,12 @@ function AuthorizedAlerts({ scope, timeZone, onOpen, onUnavailable }: Props) {
                 <small>
                   Criado em {formatProcessDate(alert.createdAt, timeZone)}
                 </small>
+                <span className="process-alert-row-action">
+                  {alert.status === 'pending'
+                    ? 'Selecionar destinatários'
+                    : 'Consultar aviso'}
+                  <ProcessIcon name="chevr" size={15} />
+                </span>
               </button>
             ))}
             {alerts.data && (
@@ -211,7 +238,23 @@ function AuthorizedAlerts({ scope, timeZone, onOpen, onUnavailable }: Props) {
               />
             )}
           </div>
-          <div className="process-alert-detail">
+          <div
+            className="process-alert-detail"
+            ref={detailRef}
+            tabIndex={-1}
+            aria-label="Detalhe do aviso"
+          >
+            <button
+              className="btn process-alert-back"
+              type="button"
+              onClick={() => {
+                focusList.current = true
+                setMobileDetail(false)
+              }}
+            >
+              <ProcessIcon name="chevr" size={15} />
+              Voltar aos avisos
+            </button>
             {!selectedId ? (
               <div className="panel empty">
                 <ProcessIcon name="inbox" />
@@ -266,10 +309,6 @@ function AlertEditor({
   const [memberIds, setMemberIds] = useState<string[]>(() => [
     ...alert.selectedMemberIds,
   ])
-  const [memberNames, setMemberNames] = useState<Record<string, string>>({})
-  const [search, setSearch] = useState('')
-  const [recipientSector, setRecipientSector] = useState<ProcessSector>()
-  const [recipientPage, setRecipientPage] = useState(1)
   const [prepared, setPrepared] = useState<PreparedProcessAlert | null>(null)
   const [copied, setCopied] = useState(false)
   const [busy, setBusy] = useState<'prepare' | 'copy' | 'declare' | null>(null)
@@ -298,20 +337,6 @@ function AlertEditor({
     return () => clearInterval(timer)
   }, [retryUntil])
   const pending = alert.status === 'pending'
-  const options = useProcessAlertRecipientOptions(
-    scope,
-    {
-      q: search || undefined,
-      sector: recipientSector,
-      page: recipientPage,
-      pageSize: 50,
-    },
-    pending,
-  )
-  useEffect(() => {
-    if (isApiError(options.error) && options.error.status === 403)
-      onForbidden(options.error)
-  }, [options.error, onForbidden])
   const preparationCurrent = !!prepared && prepared.version === alert.version
   const disabled = !!busy || waiting
 
@@ -504,153 +529,38 @@ function AlertEditor({
           </div>
         )}
       </dl>
-      <div className="process-alert-email">
+      {pending && (
+        <section
+          className="process-alert-recipient-section"
+          aria-label="Seleção de destinatários"
+        >
+          <h3>Quem deve receber este aviso?</h3>
+          <ProcessRecipientSelector
+            scope={scope}
+            sectors={sectors}
+            memberIds={memberIds}
+            disabled={disabled}
+            onForbidden={onForbidden}
+            onChange={(selection) => {
+              editSelection()
+              setSectors(selection.sectors)
+              setMemberIds(selection.memberIds)
+            }}
+          />
+        </section>
+      )}
+      <details
+        className="process-alert-email"
+        open={preparationCurrent || !pending}
+      >
+        <summary>Assunto e mensagem do aviso</summary>
         <h3>Assunto</h3>
         <p>{preparationCurrent ? prepared.subject : alert.subject}</p>
         <h3>Mensagem</h3>
         <pre>{preparationCurrent ? prepared.body : alert.body}</pre>
-      </div>
+      </details>
       {pending ? (
         <>
-          <fieldset className="process-alert-sectors" disabled={disabled}>
-            <legend>Setores destinatários</legend>
-            <p>Selecione setores completos e/ou membros específicos.</p>
-            {(Object.keys(PROCESS_SECTORS) as ProcessSector[]).map((sector) => (
-              <label key={sector}>
-                <input
-                  type="checkbox"
-                  checked={sectors.includes(sector)}
-                  onChange={() => {
-                    editSelection()
-                    setSectors((old) =>
-                      old.includes(sector)
-                        ? old.filter((id) => id !== sector)
-                        : [...old, sector],
-                    )
-                  }}
-                />
-                {PROCESS_SECTORS[sector]}
-              </label>
-            ))}
-          </fieldset>
-          <fieldset className="process-alert-members" disabled={disabled}>
-            <legend>Membros específicos</legend>
-            <div className="process-alert-recipient-filters">
-              <label>
-                Buscar membro
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(event) => {
-                    setSearch(event.target.value)
-                    setRecipientPage(1)
-                  }}
-                />
-              </label>
-              <label>
-                Filtrar membros por setor
-                <select
-                  value={recipientSector ?? ''}
-                  onChange={(event) => {
-                    setRecipientSector(
-                      (event.target.value || undefined) as
-                        ProcessSector | undefined,
-                    )
-                    setRecipientPage(1)
-                  }}
-                >
-                  <option value="">Todos os setores</option>
-                  {(Object.keys(PROCESS_SECTORS) as ProcessSector[]).map(
-                    (sector) => (
-                      <option key={sector} value={sector}>
-                        {PROCESS_SECTORS[sector]}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </label>
-            </div>
-            {memberIds.length > 0 && (
-              <ul
-                className="process-alert-selected-members"
-                aria-label="Membros selecionados"
-              >
-                {memberIds.map((id) => (
-                  <li key={id}>
-                    {memberNames[id] ||
-                      options.data?.results.find(
-                        (member) => member.memberId === id,
-                      )?.name ||
-                      id}
-                    <button
-                      type="button"
-                      className="btn sm"
-                      aria-label={`Remover membro ${memberNames[id] || id}`}
-                      onClick={() => {
-                        editSelection()
-                        setMemberIds((old) => old.filter((item) => item !== id))
-                      }}
-                    >
-                      Remover
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {options.error ? (
-              <ProcessQueryError
-                title="Não foi possível carregar destinatários"
-                error={options.error}
-                retry={() => void options.refetch()}
-              />
-            ) : options.isPending ? (
-              <p role="status">Carregando membros…</p>
-            ) : (
-              <>
-                {!options.data?.results.length && (
-                  <p>Nenhum membro encontrado.</p>
-                )}
-                <div className="process-alert-recipient-options">
-                  {options.data?.results.map(
-                    (member: ProcessAlertRecipientOption) => (
-                      <label key={member.memberId}>
-                        <input
-                          type="checkbox"
-                          checked={memberIds.includes(member.memberId)}
-                          onChange={() => {
-                            editSelection()
-                            setMemberNames((old) => ({
-                              ...old,
-                              [member.memberId]: member.name,
-                            }))
-                            setMemberIds((old) =>
-                              old.includes(member.memberId)
-                                ? old.filter((id) => id !== member.memberId)
-                                : [...old, member.memberId],
-                            )
-                          }}
-                        />
-                        <span>
-                          <strong>{member.name}</strong>
-                          <small>{member.email}</small>
-                        </span>
-                      </label>
-                    ),
-                  )}
-                </div>
-                {options.data && (
-                  <AlertPagination
-                    page={recipientPage}
-                    count={options.data.count}
-                    previous={!!options.data.previous}
-                    next={!!options.data.next}
-                    onPage={setRecipientPage}
-                    label="membros"
-                  />
-                )}
-              </>
-            )}
-          </fieldset>
           {preparationCurrent && (
             <Recipients
               recipients={prepared.recipients}

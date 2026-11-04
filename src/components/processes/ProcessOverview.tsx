@@ -19,7 +19,6 @@ interface Props {
   onOpen: (id: string) => void
   onList: (view: string, type?: string) => void
   onSector: (sector: ProcessSector) => void
-  onCreate: () => void
 }
 
 export default function ProcessOverview({
@@ -33,7 +32,6 @@ export default function ProcessOverview({
   onOpen,
   onList,
   onSector,
-  onCreate,
 }: Props) {
   const executable =
     indicators.byStatus.andamento + indicators.byStatus.atrasado
@@ -59,12 +57,11 @@ export default function ProcessOverview({
           {!indicators.total && (
             <section className="panel empty">
               <h2>Nenhum processo cadastrado</h2>
-              {catalog.permissions.create && (
-                <button className="btn primary" onClick={onCreate}>
-                  <ProcessIcon name="plus" />
-                  Novo processo
-                </button>
-              )}
+              <p>
+                {catalog.permissions.create
+                  ? 'Use Novo processo na barra superior para iniciar o acompanhamento.'
+                  : 'Os processos cadastrados pela Diretoria aparecerão aqui.'}
+              </p>
             </section>
           )}
           <section className="panel mine-panel">

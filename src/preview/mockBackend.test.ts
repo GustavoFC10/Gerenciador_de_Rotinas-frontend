@@ -1,10 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PreviewBackend } from './mockBackend'
 import {
+  communicationFixtureIds as communicationIds,
+  communicationMembers,
+} from './processCommunicationsFixtures'
+import {
   parseProcessCatalog,
+  parsePreparedProcessAlert,
+  parseProcessAlert,
+  parseProcessAlertPage,
+  parseProcessAlertRecipientPage,
   parseProcessDetail,
   parseProcessEntriesPage,
   parseProcessIndicators,
+  parseProcessFollowUp,
+  parseProcessFollowUpPage,
   parseProcessPage,
 } from '../services/processContract'
 
@@ -559,5 +569,430 @@ describe('isolated feature preview', () => {
     restored.reset()
     restored.selectActor('demo-regularidade')
     expect(restored.permissions().viewFinancial).toBe(false)
+  })
+})
+
+describe('synthetic communication preview', () => {
+  afterEach(() => vi.useRealTimers())
+  const openingId = '00000000-0000-4000-8000-000000000001'
+
+  it('serves recorded pending, declared and resolved snapshots through production decoders', async () => {
+    const backend = new PreviewBackend()
+    const alerts = parseProcessAlertPage(await json(backend, 'process-alerts/'))
+    expect(alerts.count).toBe(4)
+    expect(new Set(alerts.results.map((alert) => alert.status))).toEqual(
+      new Set(['pending', 'sent', 'resolved']),
+    )
+    const pending = parseProcessAlertPage(
+      await json(backend, 'process-alerts/?status=pending&pageSize=1'),
+    )
+    expect(pending.count).toBe(2)
+    expect(pending.results).toHaveLength(1)
+    expect(pending.next).toContain('page=2')
+    const second = parseProcessAlertPage(
+      await json(backend, pending.next!.replace('/api/v1/', '')),
+    )
+    expect(second.previous).toContain('page=1')
+    expect(second.results[0].id).not.toBe(pending.results[0].id)
+    const followUps = parseProcessFollowUpPage(
+      await json(backend, `process-follow-ups/?processId=${openingId}`),
+    )
+    expect(followUps.count).toBe(2)
+    expect(
+      followUps.results.find((item) => item.state === 'resolved')?.completedBy,
+    ).toBe(communicationMembers[1].memberId)
+    parseProcessFollowUp(
+      await json(
+        backend,
+        `process-follow-ups/${communicationIds.pendingFollowUp}/`,
+      ),
+    )
+    parseProcessAlert(
+      await json(backend, `process-alerts/${communicationIds.leggacyAlert}/`),
+    )
+    const tracking = parseProcessDetail(
+      await json(backend, `processes/${openingId}/`),
+    ).leggacy[0]
+    expect(tracking.followUpDue).toBe(true)
+    expect(tracking.awaitingReturn).toBe(true)
+  })
+
+  it('supports recipient search, sector filtering and requested-page metadata', async () => {
+    const backend = new PreviewBackend()
+    const all = parseProcessAlertRecipientPage(
+      await json(backend, 'process-alerts/recipient-options/?pageSize=2'),
+    )
+    expect(all.count).toBe(5)
+    expect(all.results).toHaveLength(2)
+    expect(all.next).toContain('page=2')
+    expect(
+      (await json(backend, 'process-alerts/recipient-options/?q=MARINA'))
+        .results[0].email,
+    ).toBe('marina.costa@example.com')
+    const financial = parseProcessAlertRecipientPage(
+      await json(
+        backend,
+        'process-alerts/recipient-options/?sector=fin&pageSize=1',
+      ),
+    )
+    expect(financial.count).toBe(3)
+    expect(
+      financial.results.every((member) => member.sectors.includes('fin')),
+    ).toBe(true)
+    expect(
+      (await backend.handle(url('process-alerts/recipient-options/?page=99')))
+        .status,
+    ).toBe(404)
+  })
+
+  it('prepares people, sectors and their union without duplicates or mutation', async () => {
+    const backend = new PreviewBackend()
+    const path = `process-alerts/${communicationIds.leggacyAlert}/`
+    const before = await json(backend, path)
+    for (const selection of [
+      { memberIds: [communicationMembers[1].memberId] },
+      { sectors: ['fin'] },
+      {
+        sectors: ['fin'],
+        memberIds: [
+          communicationMembers[1].memberId,
+          communicationMembers[1].memberId,
+        ],
+      },
+    ]) {
+      const prepared = parsePreparedProcessAlert(
+        await json(backend, path + 'prepare/', 'POST', {
+          version: before.version,
+          ...selection,
+        }),
+      )
+      expect(prepared.recipients).toHaveLength('sectors' in selection ? 3 : 1)
+      expect(
+        new Set(prepared.recipients.map((member) => member.memberId)).size,
+      ).toBe(prepared.recipients.length)
+      expect(prepared.copyText).toBe(
+        `Para: ${prepared.recipients.map((member) => member.email).join(', ')}\nAssunto: ${before.subject}\n\n${before.body}`,
+      )
+      expect(await json(backend, path)).toEqual(before)
+    }
+    const everyone = parsePreparedProcessAlert(
+      await json(backend, path + 'prepare/', 'POST', {
+        version: 1,
+        sectors: ['com', 'fin', 'reg'],
+      }),
+    )
+    expect(everyone.recipients).toHaveLength(5)
+    expect(
+      new Set(everyone.recipients.map((member) => member.memberId)).size,
+    ).toBe(5)
+  })
+
+  it('declares external sending separately and freezes recipients using the alert version', async () => {
+    const backend = new PreviewBackend()
+    const path = `process-alerts/${communicationIds.leggacyAlert}/`
+    const processBefore = await json(backend, `processes/${openingId}/`)
+    const selection = {
+      version: 1,
+      sectors: ['fin'],
+      memberIds: [communicationMembers[1].memberId],
+    }
+    await json(backend, path + 'prepare/', 'POST', selection)
+    expect((await json(backend, path)).status).toBe('pending')
+    const declared = parseProcessAlert(
+      await json(backend, path + 'declare-sent/', 'POST', selection),
+    )
+    expect(declared.status).toBe('sent')
+    expect(declared.sentBy).toBe(communicationMembers[0].memberId)
+    expect(declared.version).toBe(2)
+    expect(declared.recipients).toHaveLength(3)
+    expect(declared.selectedMemberIds).toEqual(selection.memberIds)
+    expect(
+      (await json(backend, 'process-alerts/?status=pending&pageSize=1')).count,
+    ).toBe(1)
+    await json(backend, 'organization-members/demo-financeiro/', 'PATCH', {
+      displayName: 'Marina atualizada',
+      email: 'outro@example.com',
+    })
+    expect((await json(backend, path)).recipients).toEqual(declared.recipients)
+    const processAfter = await json(backend, `processes/${openingId}/`)
+    expect(processAfter.notifications).toEqual(processBefore.notifications)
+    expect(processAfter.tarefas).toEqual(processBefore.tarefas)
+    expect(
+      (await backend.handle(url(path + 'declare-sent/'), 'POST', selection))
+        .status,
+    ).toBe(409)
+    expect(
+      (
+        await backend.handle(url(path + 'declare-sent/'), 'POST', {
+          ...selection,
+          version: 2,
+        })
+      ).status,
+    ).toBe(409)
+    backend.selectActor('demo-financeiro')
+    const entries = await json(backend, `processes/${openingId}/entries/`)
+    expect(
+      entries.results.some(
+        (item: { kind: string }) => item.kind === 'alert_sent',
+      ),
+    ).toBe(false)
+  })
+
+  it('revalidates revoked and suspended recipients between preparation and declaration', async () => {
+    const backend = new PreviewBackend()
+    const path = `process-alerts/${communicationIds.leggacyAlert}/`
+    const selection = {
+      version: 1,
+      memberIds: [communicationMembers[1].memberId],
+    }
+    await json(backend, path + 'prepare/', 'POST', selection)
+    backend.state.accesses['demo-financeiro'] = []
+    const revoked = await backend.handle(
+      url(path + 'declare-sent/'),
+      'POST',
+      selection,
+    )
+    expect(revoked.status).toBe(400)
+    expect((await json(backend, path)).status).toBe('pending')
+    expect(
+      (await json(backend, 'process-alerts/recipient-options/?q=Marina')).count,
+    ).toBe(0)
+    const regularity = backend.member('demo-regularidade')
+    backend.storeMember({ ...regularity, status: 'suspended' })
+    expect(
+      (await json(backend, 'process-alerts/recipient-options/?sector=reg'))
+        .count,
+    ).toBe(1)
+    expect(
+      (
+        await backend.handle(url(path + 'prepare/'), 'POST', {
+          version: 1,
+          memberIds: [communicationMembers[2].memberId],
+        })
+      ).status,
+    ).toBe(400)
+    expect(
+      (
+        await backend.handle(url(path + 'prepare/'), 'POST', {
+          version: 1,
+          sectors: [],
+          memberIds: [],
+        })
+      ).status,
+    ).toBe(400)
+  })
+
+  it.each([
+    'demo-financeiro',
+    'demo-regularidade',
+    'demo-rotinas',
+    'demo-admin',
+  ])('protects communication routes and actions for %s', async (persona) => {
+    const backend = new PreviewBackend()
+    backend.selectActor(persona)
+    for (const path of [
+      'process-alerts/',
+      'process-alerts/recipient-options/',
+      `process-alerts/${communicationIds.leggacyAlert}/`,
+    ])
+      expect((await backend.handle(url(path))).status).toBe(403)
+    expect(
+      (
+        await backend.handle(
+          url(`process-alerts/${communicationIds.leggacyAlert}/prepare/`),
+          'POST',
+          { version: 1, sectors: ['fin'] },
+        )
+      ).status,
+    ).toBe(403)
+    const readable = ['demo-financeiro', 'demo-regularidade'].includes(persona)
+    expect((await backend.handle(url('process-follow-ups/'))).status).toBe(
+      readable ? 200 : 403,
+    )
+    const complete = await backend.handle(
+      url(`process-follow-ups/${communicationIds.pendingFollowUp}/complete/`),
+      'POST',
+      { version: 1 },
+    )
+    expect(complete.status).toBe(persona === 'demo-financeiro' ? 200 : 403)
+  })
+
+  it('records follow-up completion without changing the workflow, then closes it on return', async () => {
+    const backend = new PreviewBackend()
+    backend.selectActor('demo-financeiro')
+    const before = await json(backend, `processes/${openingId}/`)
+    const followUpPath = `process-follow-ups/${communicationIds.pendingFollowUp}/`
+    const completed = parseProcessFollowUp(
+      await json(backend, followUpPath + 'complete/', 'POST', { version: 1 }),
+    )
+    expect(completed.state).toBe('completed')
+    expect(completed.version).toBe(2)
+    expect(completed.completedBy).toBe(communicationMembers[1].memberId)
+    const after = await json(backend, `processes/${openingId}/`)
+    expect(after.analysis).toEqual(before.analysis)
+    expect(after.tarefas).toEqual(before.tarefas)
+    expect(after.version).toBe(before.version)
+    expect(after.leggacy[0].awaitingReturn).toBe(true)
+    expect(
+      (
+        await backend.handle(url(followUpPath + 'complete/'), 'POST', {
+          version: 1,
+        })
+      ).status,
+    ).toBe(409)
+    await json(
+      backend,
+      `processes/${openingId}/tasks/ab5/transition/`,
+      'POST',
+      { version: before.version, state: 'feito' },
+    )
+    const resolved = parseProcessFollowUp(await json(backend, followUpPath))
+    expect(resolved.state).toBe('resolved')
+    expect(resolved.completedAt).toBe(completed.completedAt)
+    expect(resolved.completedBy).toBe(completed.completedBy)
+    expect(resolved.resolution).toBe('return_or_reset')
+    expect(
+      (await json(backend, `processes/${openingId}/`)).leggacy[0]
+        .awaitingReturn,
+    ).toBe(false)
+    backend.selectActor('demo-diretoria')
+    expect(
+      (await json(backend, `process-alerts/${communicationIds.leggacyAlert}/`))
+        .status,
+    ).toBe('resolved')
+  })
+
+  it('closes pending situations after cancellation while keeping declared history and never regenerating on reads', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const backend = new PreviewBackend()
+    const path = `process-alerts/${communicationIds.leggacyAlert}/`
+    const before = await json(backend, 'process-alerts/')
+    vi.setSystemTime(new Date('2040-01-01T12:00:00Z'))
+    expect(await json(backend, 'process-alerts/')).toEqual(before)
+    await json(backend, path + 'declare-sent/', 'POST', {
+      version: 1,
+      sectors: ['com', 'fin', 'reg'],
+    })
+    const cancelled = await json(
+      backend,
+      `processes/${openingId}/cancel/`,
+      'POST',
+      { version: 1 },
+    )
+    const declared = await json(backend, path)
+    expect(declared.status).toBe('sent')
+    expect(declared.resolvedAt).toBeTruthy()
+    expect(
+      (
+        await json(
+          backend,
+          `process-follow-ups/${communicationIds.pendingFollowUp}/`,
+        )
+      ).resolution,
+    ).toBe('process_closed')
+    await json(backend, `processes/${openingId}/reopen/`, 'POST', {
+      version: cancelled.version,
+    })
+    expect((await json(backend, path)).status).toBe('sent')
+    expect((await json(backend, 'process-alerts/')).count).toBe(4)
+  })
+
+  it('does not expose records of deleted processes or a different organization', async () => {
+    const backend = new PreviewBackend()
+    const process = backend.state.processes.find(
+      (item) => item.id === openingId,
+    )!
+    process.organizationId = 'other-organization'
+    expect(
+      (
+        await backend.handle(
+          url(`process-alerts/${communicationIds.leggacyAlert}/`),
+        )
+      ).status,
+    ).toBe(404)
+    expect(
+      (await json(backend, `process-follow-ups/?processId=${openingId}`)).count,
+    ).toBe(0)
+    process.organizationId = 'demo-office'
+    await backend.handle(url(`processes/${openingId}/`), 'DELETE', {
+      version: 1,
+    })
+    expect(
+      (
+        await backend.handle(
+          url(`process-follow-ups/${communicationIds.pendingFollowUp}/`),
+        )
+      ).status,
+    ).toBe(404)
+    expect(
+      (await json(backend, `process-alerts/?processId=${openingId}`)).count,
+    ).toBe(0)
+  })
+
+  it('validates query limits, empty selections and resource versions without mutating fixtures', async () => {
+    const backend = new PreviewBackend()
+    for (const path of [
+      'process-alerts/?pageSize=101',
+      'process-alerts/?status=other',
+      'process-alerts/?status=pending&status=sent',
+      'process-alerts/?kind=other',
+      'process-follow-ups/?state=other',
+      'process-follow-ups/?processId=not-a-uuid',
+      'process-alerts/recipient-options/?sector=other',
+      'process-alerts/?page=0',
+    ])
+      expect((await backend.handle(url(path))).status, path).toBe(400)
+    const path = `process-alerts/${communicationIds.leggacyAlert}/`
+    expect(
+      (
+        await backend.handle(url(path + 'prepare/'), 'POST', {
+          version: 99,
+          sectors: ['fin'],
+        })
+      ).status,
+    ).toBe(409)
+    expect(
+      (
+        await backend.handle(url(path + 'prepare/'), 'POST', {
+          version: 1,
+          emails: ['arbitrary@example.com'],
+        })
+      ).status,
+    ).toBe(400)
+    expect((await json(backend, path)).version).toBe(1)
+    const followUpPath = `process-follow-ups/${communicationIds.pendingFollowUp}/`
+    expect(
+      (
+        await backend.handle(url(followUpPath + 'complete/'), 'POST', {
+          version: 0,
+        })
+      ).status,
+    ).toBe(400)
+    expect(
+      (
+        await backend.handle(url(followUpPath + 'reopen/'), 'POST', {
+          version: 1,
+        })
+      ).status,
+    ).toBe(404)
+  })
+
+  it('retains communication changes for the instance and resets the synthetic demonstration explicitly', async () => {
+    const backend = new PreviewBackend()
+    const path = `process-alerts/${communicationIds.leggacyAlert}/`
+    await json(backend, path + 'declare-sent/', 'POST', {
+      version: 1,
+      sectors: ['com'],
+    })
+    backend.selectActor('demo-financeiro')
+    backend.selectActor('demo-diretoria')
+    expect((await json(backend, path)).status).toBe('sent')
+    backend.reset()
+    expect((await json(backend, path)).status).toBe('pending')
+    expect((await json(backend, 'process-alerts/?status=pending')).count).toBe(
+      2,
+    )
+    await backend.handle(url('auth/logout/'), 'POST')
+    expect((await backend.handle(url('process-alerts/'))).status).toBe(403)
   })
 })
