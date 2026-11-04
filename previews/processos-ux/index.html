@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Processos · prévia de ajustes de UX</title>
+    <link rel="stylesheet" href="preview.css" />
+    <script src="preview.js" defer></script>
+  </head>
+  <body class="ux-preview">
+    <a class="skip" href="#conteudo">Ir para o conteúdo</a>
+    <div class="review-bar">
+      <span><strong>Prévia para revisão</strong> · dados fictícios</span>
+      <nav aria-label="Prévias de UX">
+        <a href="index.html" aria-current="page">Lista e filtros</a>
+        <a href="recipients.html">Destinatários de e-mail →</a>
+      </nav>
+    </div>
+    <button
+      id="nav-scrim"
+      class="nav-scrim"
+      aria-label="Fechar navegação"
+      tabindex="-1"
+      hidden
+    ></button>
+    <div class="workspace">
+      <aside class="sidebar" aria-label="Navegação de processos" id="sidebar">
+        <button
+          class="icon-button mobile-nav-close"
+          id="close-nav"
+          aria-label="Fechar navegação"
+        >
+          ×
+        </button>
+        <a href="index.html" class="brand">
+          <span class="brand-icon" aria-hidden="true">☷</span>
+          <span
+            ><strong>Processos</strong><small>Jaralcon · prévia</small></span
+          >
+        </a>
+        <div class="sidebar-content">
+          <a href="#visao-geral" class="nav-link" data-open-guide
+            >⌂ <span>Início</span></a
+          >
+          <button class="nav-link" data-view="fila">
+            ▤ <span>Minha fila</span>
+          </button>
+          <div class="department">
+            <span class="department-dot"></span
+            ><span
+              ><small>Meu departamento</small
+              ><strong id="department-label">Diretoria</strong></span
+            >
+          </div>
+          <div class="section-label">PROCESSOS</div>
+          <p class="scope-caption">Contagens de toda a organização</p>
+          <nav id="view-nav" aria-label="Listas por situação"></nav>
+          <div class="section-label">GESTÃO</div>
+          <a href="recipients.html" class="nav-link"
+            ><span aria-hidden="true">✉</span> <span>Avisos por e-mail</span
+            ><span class="counter">2</span></a
+          >
+          <a href="#preservado" class="nav-link" data-open-guide
+            ><span aria-hidden="true">↗</span>
+            <span>Movimentações Empresariais</span></a
+          >
+        </div>
+        <div class="sidebar-footer">
+          <span class="avatar" aria-hidden="true">PC</span
+          ><span
+            ><strong>Perfil de conferência</strong
+            ><small>Ambiente demonstrativo</small></span
+          >
+        </div>
+      </aside>
+      <div class="main-shell">
+        <header class="topbar">
+          <button
+            class="icon-button menu-toggle"
+            aria-label="Abrir navegação"
+            aria-expanded="false"
+            aria-controls="sidebar"
+          >
+            ☰
+          </button>
+          <div class="breadcrumb">
+            Processos <span aria-hidden="true">/</span>
+            <strong id="breadcrumb-view">Abertos</strong>
+          </div>
+          <div class="topbar-actions">
+            <button
+              class="icon-button"
+              id="refresh"
+              aria-label="Atualizar lista"
+              title="Atualizar lista"
+            >
+              ↻
+            </button>
+            <button class="button primary" id="new-process">
+              <span aria-hidden="true">＋</span> Novo processo
+            </button>
+          </div>
+        </header>
+        <main id="conteudo" tabindex="-1">
+          <div class="page-heading">
+            <div>
+              <h1 id="view-title">Abertos</h1>
+              <p id="view-description">
+                Processos em andamento, atrasados e aguardando liberação.
+              </p>
+            </div>
+            <span class="preview-chip">Estrutura atual preservada</span>
+          </div>
+          <section class="filter-panel" aria-label="Filtros de processos">
+            <div class="filter-row">
+              <label class="field search-field" for="search"
+                ><span>Buscar nesta lista</span
+                ><input
+                  id="search"
+                  type="search"
+                  placeholder="Empresa, CNPJ ou protocolo"
+                  autocomplete="off"
+              /></label>
+              <label class="field" for="type"
+                ><span>Tipo de processo</span
+                ><select id="type">
+                  <option value="">Todos os tipos</option>
+                </select></label
+              >
+              <label class="field" for="sector"
+                ><span>Setor responsável</span
+                ><select id="sector">
+                  <option value="">Qualquer responsável</option>
+                  <option value="com">Diretoria</option>
+                  <option value="fin">Financeiro</option>
+                  <option value="reg">Regularidade</option>
+                </select></label
+              >
+              <button
+                class="button secondary more-button"
+                id="more-toggle"
+                aria-expanded="false"
+                aria-controls="more-filters"
+              >
+                Mais filtros
+                <span id="extra-count" class="small-count" hidden>0</span
+                ><span aria-hidden="true">⌄</span>
+              </button>
+            </div>
+            <div id="more-filters" class="more-filters" hidden>
+              <label class="field month-field" for="month"
+                ><span>Mês de abertura</span><input type="month" id="month"
+              /></label>
+              <div class="status-customization">
+                <div id="base-status-hint">
+                  <strong>As situações vêm da lista escolhida no menu.</strong>
+                  <p>
+                    Combine outras situações se precisar de uma consulta
+                    específica.
+                  </p>
+                  <button class="text-button" id="customize-status">
+                    Personalizar situações
+                  </button>
+                </div>
+                <fieldset id="custom-statuses" hidden>
+                  <legend>Situações · selecione uma ou mais</legend>
+                  <div id="status-options" class="status-options"></div>
+                  <p>
+                    Sem seleção: todas as situações. A navegação indica “Todos
+                    os processos”.
+                  </p>
+                </fieldset>
+              </div>
+            </div>
+            <div
+              class="active-filters"
+              id="active-filters"
+              aria-label="Filtros adicionais ativos"
+              hidden
+            >
+              <div id="filter-chips" class="filter-chips"></div>
+              <button class="text-button" id="clear">Limpar filtros</button>
+            </div>
+          </section>
+          <div class="list-summary">
+            <p id="result-count" role="status" aria-live="polite"></p>
+            <span id="query-state">Lista atualizada</span>
+          </div>
+          <section class="process-list" aria-label="Resultados de processos">
+            <div class="list-head" aria-hidden="true">
+              <span>Empresa e processo</span><span>Etapa atual</span
+              ><span>Situação</span><span>Prazo</span>
+            </div>
+            <div id="records"></div>
+          </section>
+          <nav class="pagination" aria-label="Paginação de processos">
+            <span id="range"></span>
+            <div class="pagination-actions">
+              <label for="page-size"
+                >Por página
+                <select id="page-size">
+                  <option>5</option>
+                  <option>10</option>
+                </select></label
+              ><button class="button secondary" id="previous">Anterior</button
+              ><span id="page-label">Página 1</span
+              ><button class="button secondary" id="next">Próxima</button>
+            </div>
+          </nav>
+          <section class="review-tools" aria-label="Controles da prévia">
+            <div>
+              <strong>Conferir comportamento</strong>
+              <p>Os controles abaixo só simulam estados para revisão.</p>
+            </div>
+            <label class="field" for="persona"
+              ><span>Perfil</span
+              ><select id="persona">
+                <option value="com">Diretoria</option>
+                <option value="fin">Financeiro</option>
+                <option value="reg">Regularidade</option>
+              </select></label
+            >
+            <label class="field" for="scenario"
+              ><span>Estado da consulta</span
+              ><select id="scenario">
+                <option value="normal">Com resultados</option>
+                <option value="empty">Sem resultados</option>
+                <option value="loading">Carregando</option>
+                <option value="error">Falha ao consultar</option>
+              </select></label
+            >
+            <button class="button secondary" id="theme">Ver tema escuro</button>
+            <button class="button secondary" id="guide-button">
+              Ver ajustes propostos
+            </button>
+          </section>
+          <p class="local-note">
+            Esta prévia não consulta a API nem altera a aplicação. O fluxo
+            contábil, os nomes das etapas, o cálculo financeiro e o PDF
+            continuam sendo a referência.
+          </p>
+        </main>
+      </div>
+    </div>
+    <dialog id="guide" aria-labelledby="guide-title">
+      <div class="dialog-heading">
+        <h2 id="guide-title">O que muda nesta proposta</h2>
+        <button
+          class="icon-button"
+          data-close="guide"
+          aria-label="Fechar ajustes"
+        >
+          ×
+        </button>
+      </div>
+      <div class="guide-content">
+        <section id="visao-geral">
+          <h3>01 · Uma ação principal</h3>
+          <p>
+            “Novo processo” fica na barra superior. A lista e o estado vazio
+            usam esse mesmo ponto de entrada, sem duplicar o botão.
+          </p>
+        </section>
+        <section>
+          <h3>02 · Contadores com significado claro</h3>
+          <p>
+            O menu mostra o panorama da organização. A lista informa só o total
+            da consulta atual. Os quatro cartões ficam no Início, onde servem ao
+            acompanhamento geral.
+          </p>
+        </section>
+        <section>
+          <h3>03 · Filtros compactos</h3>
+          <p>
+            Uma busca contextual e controles da mesma altura. “Mais filtros”
+            abre um painel na própria página; as categorias permanecem
+            identificadas.
+          </p>
+        </section>
+        <section>
+          <h3>04 · Situação sem repetição</h3>
+          <p>
+            “Abertos” já inclui três situações. Elas não viram três etiquetas
+            extras. Etiquetas removíveis mostram apenas refinamentos feitos pela
+            pessoa.
+          </p>
+        </section>
+        <section>
+          <h3>05 · Destinatários visíveis</h3>
+          <p>
+            Na <a href="recipients.html">prévia de avisos</a>, selecione um
+            aviso e confira setores, pessoas e destinatários efetivos antes de
+            copiar ou declarar o envio.
+          </p>
+        </section>
+        <section id="preservado">
+          <h3>O que permanece</h3>
+          <p>
+            Menu lateral, cinco status, dez tipos, departamentos, etapas,
+            permissões, regras de Leggacy, honorários e PDF. A proposta ajusta
+            hierarquia e apresentação.
+          </p>
+        </section>
+        <p class="references">
+          Referências:
+          <a
+            href="https://linear.app/docs/filters"
+            target="_blank"
+            rel="noreferrer"
+            >Linear</a
+          >
+          ·
+          <a
+            href="https://github.com/microsoft/vscode/issues"
+            target="_blank"
+            rel="noreferrer"
+            >GitHub Issues</a
+          >
+          ·
+          <a
+            href="https://design-system.service.gov.uk/components/button/"
+            target="_blank"
+            rel="noreferrer"
+            >GOV.UK</a
+          >
+          ·
+          <a
+            href="https://www.carbondesignsystem.com/building-blocks/core/patterns/filtering"
+            target="_blank"
+            rel="noreferrer"
+            >Carbon</a
+          >
+        </p>
+      </div>
+    </dialog>
+    <dialog id="detail" aria-labelledby="detail-title">
+      <div class="dialog-heading">
+        <h2 id="detail-title">Ficha do processo</h2>
+        <button
+          class="icon-button"
+          data-close="detail"
+          aria-label="Fechar ficha"
+        >
+          ×
+        </button>
+      </div>
+      <div id="detail-content" class="guide-content"></div>
+    </dialog>
+    <dialog id="new-dialog" aria-labelledby="new-title">
+      <form id="demo-create">
+        <div class="dialog-heading">
+          <h2 id="new-title">Novo processo · demonstração</h2>
+          <button
+            class="icon-button"
+            type="button"
+            data-close="new-dialog"
+            aria-label="Fechar abertura"
+          >
+            ×
+          </button>
+        </div>
+        <div class="guide-content">
+          <p>
+            A abertura real continuará usando o formulário atual. Aqui, os
+            campos apenas demonstram o ponto único de entrada.
+          </p>
+          <label class="field" for="demo-company"
+            ><span>Nome fictício da empresa</span
+            ><input id="demo-company" required maxlength="100" /></label
+          ><label class="field" for="demo-type"
+            ><span>Tipo de processo</span
+            ><select id="demo-type"></select></label
+          ><button class="button primary" type="submit">
+            Adicionar à demonstração
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <noscript>Ative o JavaScript para testar os filtros desta prévia.</noscript>
+  </body>
+</html>

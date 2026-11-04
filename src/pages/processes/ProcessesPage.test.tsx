@@ -20,6 +20,7 @@ import type {
   ProcessCatalog,
   ProcessFilters,
   ProcessIndicators,
+  ProcessPage,
   ProcessResource,
   ProcessStatus,
   ProcessSummary,
@@ -257,7 +258,8 @@ async function render(path: string) {
   await waitFor(
     () =>
       !!host.querySelector('main') &&
-      !host.querySelector('main')!.textContent?.startsWith('Carregando'),
+      !host.querySelector('main')!.textContent?.startsWith('Carregando') &&
+      !host.querySelector('.process-list[aria-busy="true"]'),
   )
 }
 
@@ -277,6 +279,21 @@ async function changeName(value: string) {
     input.dispatchEvent(new Event('input', { bubbles: true }))
   })
 }
+async function searchList(value: string, waitForResults = true) {
+  const input = host.querySelector<HTMLInputElement>(
+    'main input[type="search"]',
+  )!
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )!.set!.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await settle()
+  if (waitForResults)
+    await waitFor(() => !host.querySelector('.process-list[aria-busy="true"]'))
+}
 async function submitForm() {
   await act(async () => {
     document
@@ -287,6 +304,222 @@ async function submitForm() {
 }
 
 describe('ProcessesPage integration', () => {
+  it('shows one creation action and one contextual search without repeating KPI cards or implicit statuses', async () => {
+    await render('/processos/lista?situacao=ativos')
+    expect(
+      host.querySelectorAll('button[aria-label="Novo processo"]'),
+    ).toHaveLength(1)
+    expect(
+      [...host.querySelectorAll('button')].filter(
+        (item) => item.textContent?.trim() === 'Novo processo',
+      ),
+    ).toHaveLength(1)
+    expect(host.querySelectorAll('input[type="search"]')).toHaveLength(1)
+    expect(host.querySelector('main .scards')).toBeNull()
+    expect(
+      host.querySelector('[aria-label="Filtros adicionais ativos"]'),
+    ).toBeNull()
+    expect(host.querySelector('select[multiple]')).toBeNull()
+    expect(host.textContent).toContain('Contagens de toda a organização')
+    await searchList('Empresa inexistente')
+    expect(host.querySelector('main')?.textContent).toContain(
+      '0 processos nesta lista',
+    )
+    expect(
+      host.querySelector('.subnav [aria-current="page"] .ct')?.textContent,
+    ).toBe('1')
+    expect(processService.indicators).toHaveBeenCalledTimes(1)
+    expect(processService.indicators).toHaveBeenCalledWith(
+      {},
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('keeps a single creation entry point when the home page is empty', async () => {
+    records = []
+    await render('/processos')
+    expect(
+      [...host.querySelectorAll('button')].filter(
+        (item) => item.textContent?.trim() === 'Novo processo',
+      ),
+    ).toHaveLength(1)
+  })
+
+  it('keeps search focused and preserves trailing spaces while a new filtered page is loading', async () => {
+    await render('/processos/lista?situacao=todos')
+    const input = host.querySelector<HTMLInputElement>(
+      'main input[type="search"]',
+    )!
+    input.focus()
+    let finish!: (page: ApiResponse<ProcessPage>) => void
+    vi.mocked(processService.list).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    await searchList('Empresa ', false)
+    expect(host.querySelector('main input[type="search"]')).toBe(input)
+    expect(document.activeElement).toBe(input)
+    expect(input.value).toBe('Empresa ')
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Carregando processos…',
+    )
+    expect(host.querySelector('main')?.textContent).not.toContain(
+      '0 processos nesta lista',
+    )
+    await act(async () =>
+      finish(
+        response({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [summary(records[0]!)],
+        }),
+      ),
+    )
+    await waitFor(() => !!host.querySelector('.lrow'))
+    expect(host.querySelector('main input[type="search"]')).toBe(input)
+    expect(input.value).toBe('Empresa ')
+    expect(processService.list).toHaveBeenLastCalledWith(
+      { q: 'Empresa', page: 1, pageSize: 50 },
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('clears refinements while retaining the selected view and page size', async () => {
+    records = [makeProcessTestResource({ status: 'agendado' })]
+    await render(
+      '/processos/lista?situacao=agendados&q=ausente&tipo=mei&month=2026-01&responsibleSector=reg&pageSize=25&page=2',
+    )
+    await act(async () => button('Limpar filtros').click())
+    await waitFor(() => !!host.querySelector('.lrow'))
+    expect(processService.list).toHaveBeenLastCalledWith(
+      { status: ['agendado'], page: 1, pageSize: 25 },
+      expect.any(AbortSignal),
+    )
+    expect(host.querySelector('[data-testid="location"]')?.textContent).toBe(
+      '/processos/lista?situacao=agendados&pageSize=25',
+    )
+  })
+
+  it('keeps the queue sector when clearing its additional filters', async () => {
+    records = [
+      makeProcessTestResource({
+        analysis: { ...records[0]!.analysis, pendingSectors: ['com'] },
+      }),
+    ]
+    await render('/processos/fila?q=ausente&page=2&pageSize=10')
+    await act(async () => button('Limpar filtros').click())
+    await waitFor(() => !!host.querySelector('.lrow'))
+    expect(processService.list).toHaveBeenLastCalledWith(
+      { queueSector: 'com', page: 1, pageSize: 10 },
+      expect.any(AbortSignal),
+    )
+    expect(host.querySelector('[data-testid="location"]')?.textContent).toBe(
+      '/processos/fila?pageSize=10',
+    )
+  })
+
+  it('preserves search and type when changing the navigation view and resets pagination', async () => {
+    await render(
+      '/processos/lista?situacao=todos&q=Empresa&tipo=abertura&page=2&pageSize=25',
+    )
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>('.subnav button')]
+        .find((item) => item.textContent?.startsWith('Aguardando liberação'))!
+        .click(),
+    )
+    await waitFor(
+      () =>
+        host.querySelector('main h1')?.textContent === 'Aguardando liberação',
+    )
+    expect(processService.list).toHaveBeenLastCalledWith(
+      {
+        status: ['agendado'],
+        q: 'Empresa',
+        tipo: 'abertura',
+        page: 1,
+        pageSize: 25,
+      },
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('leaves the queue route when personalizing situations and omits the last deselected status', async () => {
+    records.push(
+      makeProcessTestResource({
+        id: 'closed-process',
+        empresa: 'Empresa concluída',
+        status: 'concluido',
+      }),
+    )
+    await render('/processos/fila')
+    await act(async () => button('Mais filtros').click())
+    await act(async () => button('Personalizar situações').click())
+    await waitFor(
+      () => host.querySelector('main h1')?.textContent === 'Todos os processos',
+    )
+    expect(
+      host.querySelector('[data-testid="location"]')?.textContent,
+    ).toContain('/processos/lista?situacao=todos')
+    let checks = [
+      ...host.querySelectorAll<HTMLInputElement>(
+        '.process-list-status-options input',
+      ),
+    ]
+    await act(async () => checks[0]!.click())
+    await settle()
+    expect(vi.mocked(processService.list).mock.lastCall?.[0]?.status).toEqual([
+      'andamento',
+    ])
+    checks = [
+      ...host.querySelectorAll<HTMLInputElement>(
+        '.process-list-status-options input',
+      ),
+    ]
+    await act(async () => checks[0]!.click())
+    await settle()
+    await waitFor(() => host.querySelectorAll('.lrow').length === 2)
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Empresa concluída',
+    )
+    expect(
+      host.querySelector('[data-testid="location"]')?.textContent,
+    ).not.toContain('status=')
+  })
+
+  it('does not label an explicit incompatible status query as the Abertos view', async () => {
+    await render('/processos/lista?situacao=ativos&status=concluido')
+    expect(host.querySelector('main h1')?.textContent).toBe(
+      'Todos os processos',
+    )
+    expect(
+      host.querySelector('.subnav [aria-current="page"]')?.textContent,
+    ).toContain('Todos os processos')
+    expect(processService.list).toHaveBeenLastCalledWith(
+      { status: ['concluido'], page: 1, pageSize: 50 },
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('moves explicit status filters from a legacy queue URL into the custom list', async () => {
+    records = [makeProcessTestResource({ status: 'cancelado' })]
+    await render('/processos/fila?status=cancelado&q=Empresa')
+    await waitFor(() =>
+      host
+        .querySelector('[data-testid="location"]')!
+        .textContent!.startsWith('/processos/lista?'),
+    )
+    expect(host.querySelector('main h1')?.textContent).toBe(
+      'Todos os processos',
+    )
+    expect(processService.list).toHaveBeenLastCalledWith(
+      { status: ['cancelado'], q: 'Empresa', page: 1, pageSize: 50 },
+      expect.any(AbortSignal),
+    )
+    expect(host.querySelector('button.nav-i[aria-current="page"]')).toBeNull()
+  })
   it('reserves the alerts route and uses the global pending count without loading processes or all alerts', async () => {
     vi.mocked(processService.alerts).mockResolvedValue(
       response({ count: 83, next: '?page=2', previous: null, results: [] }),
@@ -487,7 +720,9 @@ describe('ProcessesPage integration', () => {
         .click(),
     )
     await waitFor(
-      () => host.querySelector('main h1')?.textContent === 'Abertos',
+      () =>
+        host.querySelector('main h1')?.textContent === 'Abertos' &&
+        !host.querySelector('.process-list[aria-busy="true"]'),
     )
     await settle()
     const queries = vi
@@ -737,7 +972,7 @@ describe('ProcessesPage integration', () => {
     records = []
     await render('/processos/lista?situacao=todos')
     expect(host.querySelector('main')?.textContent).toContain(
-      'Nenhum processo cadastrado',
+      'Nenhum processo nesta lista',
     )
     expect(host.querySelector('main [role="alert"]')).toBeNull()
     await act(async () =>
@@ -746,10 +981,15 @@ describe('ProcessesPage integration', () => {
         .click(),
     )
     await waitFor(
-      () =>
-        host
-          .querySelector('main')
-          ?.textContent?.includes('Nenhum resultado nos filtros') ?? false,
+      () => host.querySelector('main h1')?.textContent === 'Abertos',
+    )
+    await waitFor(() => !host.querySelector('.process-list[aria-busy="true"]'))
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Nenhum processo nesta lista',
+    )
+    await searchList('Empresa inexistente')
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Nenhum resultado nos filtros',
     )
     expect(host.querySelector('main [role="alert"]')).toBeNull()
   })

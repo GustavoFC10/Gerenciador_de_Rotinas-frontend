@@ -177,12 +177,28 @@ async function openAlert() {
   await act(async () =>
     host.querySelector<HTMLButtonElement>('.process-alert-row')!.click(),
   )
-  await waitFor(() => !!host.querySelector('.process-alert-members'))
+  await waitFor(() => !!host.querySelector('.process-recipient-selector'))
+  await openSelector()
   await waitFor(
-    () => !!host.querySelector('.process-alert-recipient-options input'),
+    () => !!host.querySelector('[aria-label="Pessoas cadastradas"] input'),
+  )
+}
+async function openSelector() {
+  if (!host.querySelector('[role="dialog"]'))
+    await act(async () =>
+      host
+        .querySelector<HTMLButtonElement>('.process-recipient-trigger')!
+        .click(),
+    )
+  await waitFor(
+    () => !!host.querySelector('[aria-label="Pessoas cadastradas"] input'),
   )
 }
 async function prepareAndCopy() {
+  const close = [...host.querySelectorAll<HTMLButtonElement>('button')].find(
+    (item) => item.textContent?.includes('Concluir'),
+  )
+  if (close) await act(async () => close.click())
   await click('Preparar texto')
   await waitFor(() => !button('Copiar texto').disabled)
   await click('Copiar texto')
@@ -190,28 +206,38 @@ async function prepareAndCopy() {
 }
 function checkbox(label: string) {
   const found = [...host.querySelectorAll<HTMLLabelElement>('label')].find(
-    (item) => item.textContent?.trim() === label,
+    (item) => item.querySelector('strong')?.textContent === label,
   )
   if (!found) throw new Error(`Checkbox não encontrado: ${label}`)
   return found.querySelector<HTMLInputElement>('input[type=checkbox]')!
 }
 
 describe('central de avisos manuais', () => {
-  it('bloqueia Financeiro e Regularidade sem consultar dados restritos', async () => {
-    await render({
-      ...processTestPermissions,
-      create: false,
-      executeSectors: ['fin'],
-    })
-    expect(host.textContent).toContain('Acesso restrito')
-    expect(processService.alerts).not.toHaveBeenCalled()
-    expect(processService.alertRecipientOptions).not.toHaveBeenCalled()
-  })
+  it.each(['fin', 'reg'] as const)(
+    'bloqueia o setor %s sem consultar dados restritos',
+    async (sector) => {
+      await render({
+        ...processTestPermissions,
+        create: false,
+        executeSectors: [sector],
+      })
+      expect(host.textContent).toContain('Acesso restrito')
+      expect(processService.alerts).not.toHaveBeenCalled()
+      expect(processService.alertRecipientOptions).not.toHaveBeenCalled()
+    },
+  )
 
   it('prepara setores e membro sem deduplicar no navegador e declara somente após cópia', async () => {
     await render()
     await openAlert()
     expect(host.textContent).toContain('81 avisos')
+    expect(host.querySelectorAll('.process-recipient-trigger')).toHaveLength(1)
+    expect(
+      host
+        .querySelector('.process-recipient-selector')!
+        .compareDocumentPosition(host.querySelector('.process-alert-email')!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
     expect(checkbox('Diretoria').checked).toBe(true)
     expect(checkbox('Financeiro').checked).toBe(true)
     expect(host.querySelector('script')).toBeNull()
@@ -219,7 +245,7 @@ describe('central de avisos manuais', () => {
       '<script>texto seguro</script>',
     )
     const member = host.querySelector<HTMLInputElement>(
-      '.process-alert-recipient-options input',
+      '[aria-label="Pessoas cadastradas"] input',
     )!
     await act(async () => member.click())
     await prepareAndCopy()
@@ -242,13 +268,14 @@ describe('central de avisos manuais', () => {
     })
     expect(host.textContent).toContain('Envio declarado')
     expect(host.textContent).not.toContain('Entregue')
-    expect(host.querySelector('.process-alert-members')).toBeNull()
+    expect(host.querySelector('.process-recipient-selector')).toBeNull()
   })
 
   it('invalida preparo e cópia ao alterar seleção e permite destinatários individuais', async () => {
     await render()
     await openAlert()
     await prepareAndCopy()
+    await openSelector()
     await act(async () => checkbox('Diretoria').click())
     expect(button('Copiar texto').disabled).toBe(true)
     expect(button('Declarar envio').disabled).toBe(true)
@@ -257,7 +284,7 @@ describe('central de avisos manuais', () => {
     await act(async () =>
       host
         .querySelector<HTMLInputElement>(
-          '.process-alert-recipient-options input',
+          '[aria-label="Pessoas cadastradas"] input',
         )!
         .click(),
     )
@@ -285,6 +312,7 @@ describe('central de avisos manuais', () => {
     await waitFor(() =>
       host.textContent!.includes('Sua seleção foi preservada'),
     )
+    await openSelector()
     expect(checkbox('Regularidade').checked).toBe(true)
     expect(button('Declarar envio').disabled).toBe(true)
     expect(button('Copiar texto').disabled).toBe(true)
@@ -405,7 +433,72 @@ describe('central de avisos manuais', () => {
     expect(host.textContent).toContain('Diretora Ana')
     expect(host.textContent).toContain('Situação encerrada em')
     expect(host.textContent).toContain('historico@example.test')
-    expect(host.querySelector('.process-alert-members')).toBeNull()
+    expect(host.querySelector('.process-recipient-selector')).toBeNull()
     expect(processService.alertRecipientOptions).not.toHaveBeenCalled()
+  })
+
+  it('prepara Todos com todas as pessoas resolvidas pelo servidor, além da página visível', async () => {
+    const recipients = Array.from({ length: 81 }, (_, index) => ({
+      memberId: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      name: `Pessoa ${index + 1}`,
+      email: `pessoa${index + 1}@example.test`,
+    }))
+    vi.mocked(processService.alertRecipientOptions).mockResolvedValue(
+      response({
+        count: 81,
+        next: '?page=2',
+        previous: null,
+        results: recipients
+          .slice(0, 50)
+          .map((member) => ({ ...member, sectors: ['fin'] })),
+      }),
+    )
+    vi.mocked(processService.prepareAlert).mockResolvedValue(
+      response({
+        alertId,
+        version: 4,
+        subject: alert.subject,
+        body: alert.body,
+        recipients,
+        copyText: 'TODOS RESOLVIDOS PELO SERVIDOR',
+      }),
+    )
+    await render()
+    await openAlert()
+    expect(
+      host.querySelectorAll('[aria-label="Pessoas cadastradas"] input'),
+    ).toHaveLength(50)
+    await act(async () => checkbox('Todos com acesso a Processos').click())
+    await prepareAndCopy()
+    expect(processService.prepareAlert).toHaveBeenCalledWith(alertId, {
+      version: 4,
+      sectors: ['com', 'fin', 'reg'],
+      memberIds: [],
+    })
+    expect(processService.alertRecipientOptions).toHaveBeenCalledTimes(1)
+    expect(
+      host.querySelectorAll('.process-alert-effective-recipients li'),
+    ).toHaveLength(81)
+    expect(host.textContent).toContain('pessoa81@example.test')
+    expect(copy).toHaveBeenCalledWith('TODOS RESOLVIDOS PELO SERVIDOR')
+    expect(processService.declareAlertSent).not.toHaveBeenCalled()
+  })
+
+  it('foca o detalhe ao abrir e retorna ao aviso selecionado ao voltar à lista', async () => {
+    await render()
+    await waitFor(() => !!host.querySelector('.process-alert-row'))
+    const row = host.querySelector<HTMLButtonElement>('.process-alert-row')!
+    expect(row.textContent).toContain('Selecionar destinatários')
+    await act(async () => row.click())
+    await waitFor(() => !!host.querySelector('.process-recipient-selector'))
+    expect(document.activeElement).toBe(
+      host.querySelector('.process-alert-detail'),
+    )
+    expect(host.querySelector('.process-alert-show-detail')).not.toBeNull()
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('.process-alert-back')!.click(),
+    )
+    expect(document.activeElement).toBe(row)
+    expect(host.querySelector('.process-alert-show-detail')).toBeNull()
   })
 })
