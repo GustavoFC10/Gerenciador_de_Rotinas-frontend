@@ -166,12 +166,17 @@ describe('módulo independente de Empresas', () => {
     await act(async () => setInput(field('Nome fantasia'), 'Nova Empresa'))
     await act(async () => setInput(field('CNPJ'), '12345678000111'))
     await act(async () =>
-      host.querySelector('form')!.dispatchEvent(
-        new Event('submit', { bubbles: true, cancelable: true }),
-      ),
+      host
+        .querySelector('form')!
+        .dispatchEvent(
+          new Event('submit', { bubbles: true, cancelable: true }),
+        ),
     )
     await waitFor(
-      () => host.querySelector('[role="alert"]')?.textContent?.includes('CNPJ válido') ?? false,
+      () =>
+        host
+          .querySelector('[role="alert"]')
+          ?.textContent?.includes('CNPJ válido') ?? false,
     )
     expect(create).not.toHaveBeenCalled()
     await act(async () => setInput(field('CNPJ'), '12345678000195'))

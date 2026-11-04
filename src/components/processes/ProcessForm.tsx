@@ -277,9 +277,7 @@ export default function ProcessForm({
                       update({ companyId: null, empresa: '', cnpj: '' })
                       setCompanySearch('')
                       setCompanyPage(1)
-                      document
-                        .getElementById(`${id}-empresa-search`)
-                        ?.focus()
+                      document.getElementById(`${id}-empresa-search`)?.focus()
                     }}
                   >
                     Trocar empresa
@@ -360,8 +358,7 @@ export default function ProcessForm({
                         type="button"
                         className="btn sm"
                         disabled={
-                          !companyOptions.data.next ||
-                          companyOptions.isFetching
+                          !companyOptions.data.next || companyOptions.isFetching
                         }
                         onClick={() => setCompanyPage((page) => page + 1)}
                       >

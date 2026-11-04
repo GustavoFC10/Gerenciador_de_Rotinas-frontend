@@ -174,7 +174,11 @@ describe('App module routing', () => {
   })
   it('opens Empresas for an administrator without operational modules', async () => {
     await renderApp('/cadastro-empresas', [], 'admin')
-    for (let i = 0; i < 100 && !host.querySelector('[data-companies-module]'); i++)
+    for (
+      let i = 0;
+      i < 100 && !host.querySelector('[data-companies-module]');
+      i++
+    )
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 10))
       })

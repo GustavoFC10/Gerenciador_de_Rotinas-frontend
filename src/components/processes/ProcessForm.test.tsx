@@ -74,9 +74,9 @@ describe('ProcessForm', () => {
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 10))
       })
-      const company = [...dialog.querySelectorAll<HTMLButtonElement>('.company-option')].find(
-        (option) => option.textContent?.includes('Empresa Teste'),
-      )!
+      const company = [
+        ...dialog.querySelectorAll<HTMLButtonElement>('.company-option'),
+      ].find((option) => option.textContent?.includes('Empresa Teste'))!
       await act(async () => company.click())
       expect(dialog.querySelector('.company-selected')?.textContent).toContain(
         'Empresa Teste',

@@ -78,7 +78,10 @@ describe('isolated feature preview', () => {
   })
   it('creates and edits general company records through the module API', async () => {
     const backend = new PreviewBackend()
-    const initial = await json(backend, 'client-companies/?includeArchived=false')
+    const initial = await json(
+      backend,
+      'client-companies/?includeArchived=false',
+    )
     expect(initial.results.length).toBeGreaterThan(0)
     const createdResponse = await backend.handle(
       url('client-companies/'),
@@ -105,11 +108,9 @@ describe('isolated feature preview', () => {
     })
     expect(
       (
-        await backend.handle(
-          url(`client-companies/${created.id}/`),
-          'PATCH',
-          { name: 'Edição desatualizada' },
-        )
+        await backend.handle(url(`client-companies/${created.id}/`), 'PATCH', {
+          name: 'Edição desatualizada',
+        })
       ).status,
     ).toBe(409)
   })
@@ -185,6 +186,45 @@ describe('isolated feature preview', () => {
         )
       ).status,
     ).toBe(400)
+  })
+
+  it('creates and edits general company records through the module API', async () => {
+    const backend = new PreviewBackend()
+    const initial = await json(
+      backend,
+      'client-companies/?includeArchived=false',
+    )
+    expect(initial.results.length).toBeGreaterThan(0)
+    const createdResponse = await backend.handle(
+      url('client-companies/'),
+      'POST',
+      {
+        name: 'Empresa do módulo',
+        legalName: 'Empresa do módulo Ltda.',
+        cnpj: '12345678000195',
+      },
+    )
+    expect(createdResponse.status).toBe(201)
+    const created = await createdResponse.json()
+    const updatedResponse = await backend.handle(
+      url(`client-companies/${created.id}/`),
+      'PATCH',
+      { name: 'Empresa atualizada' },
+      new Headers({ 'If-Match': '"1"' }),
+    )
+    expect(updatedResponse.status).toBe(200)
+    expect(await updatedResponse.json()).toMatchObject({
+      id: created.id,
+      name: 'Empresa atualizada',
+      version: 2,
+    })
+    expect(
+      (
+        await backend.handle(url(`client-companies/${created.id}/`), 'PATCH', {
+          name: 'Edição desatualizada',
+        })
+      ).status,
+    ).toBe(409)
   })
 
   it('serves responses accepted by the same contract decoder for all authorized personas', async () => {

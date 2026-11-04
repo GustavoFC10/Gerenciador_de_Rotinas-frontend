@@ -296,10 +296,7 @@ async function changeFormValue(
       ? HTMLTextAreaElement.prototype
       : HTMLInputElement.prototype
   await act(async () => {
-    Object.getOwnPropertyDescriptor(
-      prototype,
-      'value',
-    )!.set!.call(input, value)
+    Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(input, value)
     input.dispatchEvent(new Event('input', { bubbles: true }))
   })
 }
@@ -670,7 +667,10 @@ describe('ProcessesPage integration', () => {
     client.setQueryData(followUpsKey, { count: 1, results: [] })
     client.setQueryData(alertKey, { version: 1 })
     await act(async () => button('Editar').click())
-    await changeFormValue('Observação atualizada', '[role="dialog"] textarea[id$="-obs"]')
+    await changeFormValue(
+      'Observação atualizada',
+      '[role="dialog"] textarea[id$="-obs"]',
+    )
     await submitForm()
     expect(host.querySelector('main')?.textContent).toContain(
       'Observação atualizada',
@@ -973,7 +973,8 @@ describe('ProcessesPage integration', () => {
         .click(),
     )
     await waitFor(
-      () => document.querySelector<HTMLButtonElement>('.company-option') !== null,
+      () =>
+        document.querySelector<HTMLButtonElement>('.company-option') !== null,
     )
     await act(async () =>
       document.querySelector<HTMLButtonElement>('.company-option')!.click(),
@@ -1351,7 +1352,8 @@ describe('ProcessesPage integration', () => {
         .click(),
     )
     await waitFor(
-      () => document.querySelector<HTMLButtonElement>('.company-option') !== null,
+      () =>
+        document.querySelector<HTMLButtonElement>('.company-option') !== null,
     )
     await act(async () =>
       document.querySelector<HTMLButtonElement>('.company-option')!.click(),
@@ -1388,10 +1390,7 @@ describe('ProcessesPage integration', () => {
       .mockRejectedValue(conflict)
     await render('/processos/process-1')
     await act(async () => button('Editar').click())
-    await changeFormValue(
-      'Meu ajuste',
-      '[role="dialog"] textarea[id$="-obs"]',
-    )
+    await changeFormValue('Meu ajuste', '[role="dialog"] textarea[id$="-obs"]')
     const latest = {
       ...original,
       version: 5,

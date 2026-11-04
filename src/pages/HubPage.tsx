@@ -104,7 +104,7 @@ export default function HubPage() {
               ? canManageTeam
               : item.module === 'companies'
                 ? canManageCompanies
-              : modules.some((module) => module.module === item.module),
+                : modules.some((module) => module.module === item.module),
           )
           .map((item) => {
             const access = modules.find(
@@ -147,11 +147,7 @@ export default function HubPage() {
   )
 }
 
-function ModuleIcon({
-  module,
-}: {
-  module: AppModule | 'team' | 'companies'
-}) {
+function ModuleIcon({ module }: { module: AppModule | 'team' | 'companies' }) {
   return (
     <svg
       viewBox="0 0 24 24"
