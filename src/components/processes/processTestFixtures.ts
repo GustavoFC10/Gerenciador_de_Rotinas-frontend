@@ -202,6 +202,8 @@ export function makeProcessTestResource(
     organizationId: 'org-1',
     empresa: 'Empresa Exemplo',
     companyId: null,
+    companyLinkRequired: false,
+    companyReference: null,
     cnpj: '',
     protocolo: '',
     prazo: null,

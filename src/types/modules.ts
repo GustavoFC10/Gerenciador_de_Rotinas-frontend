@@ -1,6 +1,7 @@
 import type { DepartmentAccessRole } from './domain'
 
 export type AppModule = 'routines' | 'processes'
+export type AccessibleModule = AppModule | 'companies'
 export type ProcessSector = 'com' | 'fin' | 'reg'
 
 export interface ModuleAccessConfiguration {
@@ -23,7 +24,8 @@ export interface ModuleSector {
 }
 
 export interface ModuleSummary {
-  module: AppModule
+  module: AccessibleModule
+  role?: string
   globalAccess: boolean
   actions: string[]
   sectors: ModuleSector[]

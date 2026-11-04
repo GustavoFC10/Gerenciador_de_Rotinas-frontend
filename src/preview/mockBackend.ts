@@ -182,6 +182,7 @@ function seedClientCompanies(): ClientCompanyResource[] {
     email: `empresa${index + 1}@preview.example`,
     mobilePhone: '11999990000',
     taxRegime: 'Simples Nacional',
+    status: 'active',
     version: 1,
     archivedAt: null,
     createdAt: stamp(-100),
@@ -462,6 +463,8 @@ function seed(): PreviewState {
       statusNextEvaluationAt: null,
       responsibleSectors: [],
       companyId: null,
+      companyLinkRequired: false,
+      companyReference: null,
       criadoPor: 'demo-diretoria',
       autorAbertura: 'Ana Souza',
       criadoEm: stamp(-24 - index),
@@ -717,6 +720,25 @@ export class PreviewBackend {
     const financial =
       manage || processes.some((access) => access.sector === 'fin')
     return [
+      // The demo owner/admin personas are seeded with an explicit Companies grant.
+      ...(['demo-diretoria', 'demo-rotinas'].includes(memberId)
+        ? [
+            {
+              module: 'companies' as const,
+              role: 'manager',
+              globalAccess: false,
+              sectors: [],
+              actions: [
+                'read',
+                'create',
+                'edit',
+                'archive',
+                'restore',
+                'readArchived',
+              ],
+            },
+          ]
+        : []),
       ...((configuration?.enabled ??
       (persona.role !== 'member' || !!routines.length))
         ? [
@@ -914,6 +936,8 @@ export class PreviewBackend {
     void _entries
     void _resume
     const process: ProcessDetailDto = detail
+    process.companyLinkRequired ??= false
+    process.companyReference ??= null
     process.permissions = this.permissions()
     if (!process.permissions.create) delete process.notifications
     if (!process.permissions.viewFinancial) {
@@ -953,6 +977,8 @@ export class PreviewBackend {
       codigo: process.codigo,
       empresa: process.empresa,
       companyId: process.companyId ?? null,
+      companyLinkRequired: process.companyLinkRequired,
+      companyReference: process.companyReference,
       cnpj: process.cnpj ?? '',
       protocolo: process.protocolo ?? '',
       prazo: process.prazo ?? null,
@@ -1733,6 +1759,15 @@ export class PreviewBackend {
           return error(400, 'Escolha o tipo e uma empresa ativa cadastrada.')
         const process: PreviewProcess = {
           companyId: company.id,
+          companyLinkRequired: true,
+          companyReference: {
+            id: company.id,
+            code: company.code,
+            name: company.name,
+            legalName: company.legalName,
+            cnpj: company.cnpj,
+            status: company.status,
+          },
           empresa: company.name,
           cnpj: company.cnpj,
           protocolo: '',
@@ -2123,10 +2158,14 @@ export class PreviewBackend {
     )
     if (path === 'client-companies') {
       if (method === 'GET') {
-        const includeArchived =
-          url.searchParams.get('includeArchived') === 'true'
-        const results = companies.filter(
-          (company) => includeArchived || !company.archivedAt,
+        if (url.searchParams.has('includeArchived'))
+          return error(400, 'Use status para filtrar empresas.')
+        const statuses = url.searchParams.getAll('status')
+        const selected = statuses.length ? statuses : ['active']
+        const results = companies.filter((company) =>
+          selected.includes(
+            company.status ?? (company.archivedAt ? 'archived' : 'active'),
+          ),
         )
         return json({
           count: results.length,
@@ -2165,6 +2204,7 @@ export class PreviewBackend {
         email: String(body.email ?? '').trim(),
         mobilePhone: String(body.mobilePhone ?? '').trim(),
         taxRegime: String(body.taxRegime ?? '').trim(),
+        status: 'active',
         version: 1,
         archivedAt: null,
         createdAt: now(),
@@ -2316,6 +2356,7 @@ export class PreviewBackend {
         )
       if (companyMatch[2] && method === 'POST') {
         company.archivedAt = null
+        company.status = 'active'
         company.version++
         company.updatedAt = now()
         this.save()
@@ -2357,6 +2398,7 @@ export class PreviewBackend {
       }
       if (method === 'DELETE') {
         company.archivedAt = now()
+        company.status = 'archived'
         company.version++
         company.updatedAt = now()
         this.save()

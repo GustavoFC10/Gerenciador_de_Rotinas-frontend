@@ -106,9 +106,8 @@ describe('HubPage module access', () => {
 
   it('keeps Equipe unavailable to an admin even with no modules', () => {
     const markup = renderHub([], 'admin')
-    expect(markup).toContain('href="/cadastro-empresas"')
-    expect(markup).toContain('Acessar empresas')
-    expect(markup).not.toContain('Nenhum módulo disponível')
+    expect(markup).not.toContain('href="/cadastro-empresas"')
+    expect(markup).toContain('Nenhum módulo disponível')
     expect(markup).not.toContain('href="/configuracoes/modulos"')
     expect(markup).not.toContain('href="/equipe"')
     expect(markup).not.toContain('href="/processos"')
@@ -117,5 +116,18 @@ describe('HubPage module access', () => {
   it('does not expose the company registry module to a regular member', () => {
     const markup = renderHub([], 'member')
     expect(markup).not.toContain('href="/cadastro-empresas"')
+  })
+
+  it('offers Empresas to a member with an explicit companies grant', () => {
+    const markup = renderHub([
+      {
+        module: 'companies',
+        globalAccess: false,
+        sectors: [],
+        actions: ['read'],
+      },
+    ])
+    expect(markup).toContain('href="/cadastro-empresas"')
+    expect(markup).toContain('Acessar empresas')
   })
 })

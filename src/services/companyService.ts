@@ -4,7 +4,7 @@ import type { ApiResponse } from './httpClient'
 const CLIENT_COMPANIES_ENDPOINT = '/api/v1/client-companies/'
 
 export interface ClientCompanyInput {
-  code?: string
+  code?: string | null
   name: string
   legalName?: string
   cnpj?: string
@@ -39,9 +39,53 @@ export interface ClientRoutineAssignmentResource {
   updatedAt: string
 }
 
-interface PaginatedResponse<T> {
+export interface PaginatedResponse<T> {
+  count: number
   next: string | null
+  previous: string | null
   results: T[]
+}
+
+export type CompanyStatus = 'active' | 'archived'
+export type CompanyRole = 'viewer' | 'editor' | 'manager'
+export interface CompanyPermissions {
+  role: CompanyRole | null
+  read: boolean
+  create: boolean
+  edit: boolean
+  archive: boolean
+  restore: boolean
+  readArchived: boolean
+  readContacts: boolean
+  createContact: boolean
+  editContact: boolean
+  archiveContact: boolean
+  restoreContact: boolean
+  readArchivedContacts: boolean
+  readEntries: boolean
+}
+export interface CompanyCatalog {
+  contractVersion: 1
+  statuses: Record<CompanyStatus, string>
+  roles: CompanyRole[]
+  permissions: CompanyPermissions
+}
+export interface CompanyFilters {
+  status?: CompanyStatus[]
+  search?: string
+  ordering?:
+    | 'code'
+    | 'name'
+    | 'legalName'
+    | 'cnpj'
+    | 'status'
+    | '-code'
+    | '-name'
+    | '-legalName'
+    | '-cnpj'
+    | '-status'
+  page?: number
+  pageSize?: number
 }
 
 export interface ClientCompanyResource {
@@ -54,6 +98,8 @@ export interface ClientCompanyResource {
   mobilePhone: string
   taxRegime: string
   version: number
+  status: CompanyStatus
+  permissions?: CompanyPermissions
   archivedAt: string | null
   createdAt: string
   updatedAt: string
@@ -62,10 +108,27 @@ export interface ClientCompanyResource {
 export class CompanyService {
   constructor(private readonly client: HttpClient) {}
 
+  catalog(): Promise<ApiResponse<CompanyCatalog>> {
+    return this.client.get<CompanyCatalog>(
+      `${CLIENT_COMPANIES_ENDPOINT}catalog/`,
+    )
+  }
+
+  list(
+    filters: CompanyFilters = {},
+  ): Promise<ApiResponse<PaginatedResponse<ClientCompanyResource>>> {
+    const query = new URLSearchParams()
+    for (const status of filters.status ?? ['active'])
+      query.append('status', status)
+    for (const [key, value] of Object.entries(filters)) {
+      if (key !== 'status' && value !== undefined) query.set(key, String(value))
+    }
+    return this.client.get(`${CLIENT_COMPANIES_ENDPOINT}?${query}`)
+  }
+
   listAll(includeArchived = false): Promise<ClientCompanyResource[]> {
-    const query = new URLSearchParams({
-      includeArchived: String(includeArchived),
-    })
+    const query = new URLSearchParams({ status: 'active' })
+    if (includeArchived) query.append('status', 'archived')
 
     return this.collectPages<ClientCompanyResource>(
       `${CLIENT_COMPANIES_ENDPOINT}?${query.toString()}`,
@@ -78,10 +141,20 @@ export class CompanyService {
 
   create(
     input: ClientCompanyInput,
+    idempotencyKey: string,
   ): Promise<ApiResponse<ClientCompanyResource>> {
+    if (
+      typeof idempotencyKey !== 'string' ||
+      !/^[A-Za-z0-9._:-]{1,128}$/.test(idempotencyKey)
+    ) {
+      throw new Error(
+        'Informe uma chave de idempotência válida para criar a empresa.',
+      )
+    }
     return this.client.post<ClientCompanyResource>(
       CLIENT_COMPANIES_ENDPOINT,
       input,
+      { idempotencyKey },
     )
   }
 
@@ -102,10 +175,11 @@ export class CompanyService {
   restore(
     id: string,
     etag: string,
+    changes: Pick<ClientCompanyInput, 'code'> = {},
   ): Promise<ApiResponse<ClientCompanyResource>> {
     return this.client.post<ClientCompanyResource>(
       `${companyPath(id)}restore/`,
-      {},
+      changes,
       { ifMatch: etag },
     )
   }

@@ -14,6 +14,9 @@ import {
 } from '../services/companyService'
 import type { ApiResponse } from '../services/httpClient'
 import CompaniesModulePage from './CompaniesModulePage'
+import { moduleService } from '../services/moduleService'
+import type { CompanyRole } from '../services/companyService'
+import type { ModuleSummary } from '../types/modules'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -27,6 +30,7 @@ const company: ClientCompanyResource = {
   mobilePhone: '11999990000',
   taxRegime: 'Simples Nacional',
   version: 7,
+  status: 'active',
   archivedAt: null,
   createdAt: '2026-01-01T12:00:00Z',
   updatedAt: '2026-01-01T12:00:00Z',
@@ -58,11 +62,29 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 
-async function render(path: string) {
+async function render(
+  path: string,
+  companyRole: CompanyRole | null = 'manager',
+  role: 'owner' | 'member' = 'owner',
+) {
+  const modules: ModuleSummary[] = companyRole
+    ? [
+        {
+          module: 'companies',
+          role: companyRole,
+          globalAccess: false,
+          sectors: [],
+          actions:
+            companyRole === 'viewer' ? ['read'] : ['read', 'create', 'edit'],
+        },
+      ]
+    : []
+  vi.spyOn(moduleService, 'permissions').mockResolvedValue({ modules })
   const membership = {
     id: 'member-1',
     displayName: 'Ana Silva',
-    role: 'owner' as const,
+    role,
+    modules,
     status: 'active',
     organization: {
       id: 'org-1',
@@ -196,6 +218,57 @@ describe('módulo independente de Empresas', () => {
         name: 'Nova Empresa',
         cnpj: '12.345.678/0001-95',
       }),
+      expect.any(String),
     )
+  })
+
+  it('permite leitura de viewer que não é administrador, sem ações de escrita', async () => {
+    vi.spyOn(companyService, 'listAll').mockResolvedValue([company])
+    await render(`/cadastro-empresas/${company.id}`, 'viewer', 'member')
+    await waitFor(() => !!host.querySelector('form'))
+    expect(
+      [...host.querySelectorAll('input')].every((input) => input.disabled),
+    ).toBe(true)
+    expect(host.querySelector('button[type="submit"]')).toBeNull()
+    expect(host.textContent).not.toContain('Adicionar empresa')
+  })
+
+  it('não concede o cadastro ao owner sem acesso explícito', async () => {
+    const list = vi.spyOn(companyService, 'listAll')
+    await render('/cadastro-empresas', null)
+    expect(list).not.toHaveBeenCalled()
+  })
+
+  it('preserva CNPJ alfanumérico e a chave ao repetir criação após falha de transporte', async () => {
+    vi.spyOn(companyService, 'listAll').mockResolvedValue([])
+    const create = vi
+      .spyOn(companyService, 'create')
+      .mockRejectedValueOnce(new Error('Falha de transporte'))
+      .mockResolvedValueOnce(
+        response({ ...company, id: 'created-alpha' }, '"1"'),
+      )
+    await render('/cadastro-empresas/nova', 'editor', 'member')
+    await waitFor(() => !!host.querySelector('form'))
+    await act(async () => {
+      setInput(field('Nome fantasia'), 'Empresa Alfa')
+      setInput(field('CNPJ'), '12ABC34501DE35')
+    })
+    const submit = async () =>
+      act(async () => {
+        host
+          .querySelector('form')!
+          .dispatchEvent(
+            new Event('submit', { bubbles: true, cancelable: true }),
+          )
+      })
+    await submit()
+    await waitFor(
+      () => host.textContent?.includes('Falha de transporte') ?? false,
+    )
+    await submit()
+    await waitFor(() => create.mock.calls.length === 2)
+    expect(create.mock.calls[0]![0].cnpj).toBe('12.ABC.345/01DE-35')
+    expect(create.mock.calls[0]![1]).toBeTruthy()
+    expect(create.mock.calls[1]![1]).toBe(create.mock.calls[0]![1])
   })
 })

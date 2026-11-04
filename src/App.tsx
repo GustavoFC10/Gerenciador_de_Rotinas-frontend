@@ -109,7 +109,7 @@ function ModuleRouter({
   activeMembership: MembershipSummary
 }) {
   const location = useLocation()
-  const { canAccessModule, isLoading, error } = useModuleAccess()
+  const { canAccessModule, getModule, isLoading, error } = useModuleAccess()
 
   if (location.pathname === ROUTES.HUB) return <HubPage />
   if (location.pathname === ROUTES.HUB_PROFILE)
@@ -123,7 +123,9 @@ function ModuleRouter({
     location.pathname === ROUTES.COMPANY_REGISTRY ||
     location.pathname.startsWith(`${ROUTES.COMPANY_REGISTRY}/`)
   ) {
-    return ['owner', 'admin'].includes(activeMembership.role) ? (
+    if (isLoading) return <LoadingState message="Carregando acessos…" />
+    if (error) return <Navigate to={ROUTES.HUB} replace />
+    return getModule('companies')?.actions.includes('read') ? (
       <Suspense fallback={<LoadingState message="Carregando Empresas…" />}>
         <CompaniesModulePage />
       </Suspense>

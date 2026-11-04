@@ -78,10 +78,7 @@ describe('isolated feature preview', () => {
   })
   it('creates and edits general company records through the module API', async () => {
     const backend = new PreviewBackend()
-    const initial = await json(
-      backend,
-      'client-companies/?includeArchived=false',
-    )
+    const initial = await json(backend, 'client-companies/?status=active')
     expect(initial.results.length).toBeGreaterThan(0)
     const createdResponse = await backend.handle(
       url('client-companies/'),
@@ -139,7 +136,10 @@ describe('isolated feature preview', () => {
     await json(backend, 'organization-members/demo-diretoria/', 'PATCH', {
       moduleAccesses: [{ module: 'routines', enabled: false }],
     })
-    expect(backend.modules().map((item) => item.module)).toEqual(['processes'])
+    expect(backend.modules().map((item) => item.module)).toEqual([
+      'companies',
+      'processes',
+    ])
   })
 
   it('seeds all ten workflows and useful operational states', async () => {
@@ -190,10 +190,7 @@ describe('isolated feature preview', () => {
 
   it('creates and edits general company records through the module API', async () => {
     const backend = new PreviewBackend()
-    const initial = await json(
-      backend,
-      'client-companies/?includeArchived=false',
-    )
+    const initial = await json(backend, 'client-companies/?status=active')
     expect(initial.results.length).toBeGreaterThan(0)
     const createdResponse = await backend.handle(
       url('client-companies/'),

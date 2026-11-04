@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import {
@@ -33,6 +33,9 @@ export function useCompanyMutations({
 }: CompanyMutationScope) {
   const queryClient = useQueryClient()
   const scope = { organizationId, membershipId }
+  const pendingCreation = useRef<{ fingerprint: string; key: string } | null>(
+    null,
+  )
 
   const createCompanyMutation = useMutation({
     mutationFn: async (
@@ -44,7 +47,19 @@ export function useCompanyMutations({
       let screenName: string | undefined
 
       try {
-        const createdCompany = await companyService.create(input.company)
+        const fingerprint = JSON.stringify([
+          organizationId,
+          membershipId,
+          input.company,
+        ])
+        if (pendingCreation.current?.fingerprint !== fingerprint) {
+          pendingCreation.current = { fingerprint, key: crypto.randomUUID() }
+        }
+        const createdCompany = await companyService.create(
+          input.company,
+          pendingCreation.current.key,
+        )
+        pendingCreation.current = null
         const client = toClientFromResource(createdCompany.data)
         const createdCompanySummary = { id: client.id, name: client.name }
         company = createdCompanySummary

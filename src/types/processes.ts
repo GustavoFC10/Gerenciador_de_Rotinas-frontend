@@ -209,8 +209,8 @@ export interface ProcessSummaryDto {
   organizationId: string
   empresa: string
   companyId: string | null
-  companyLinkRequired?: boolean
-  companyReference?: ProcessCompanyReference | null
+  companyLinkRequired: boolean
+  companyReference: ProcessCompanyReference | null
   cnpj: string
   protocolo: string
   prazo: string | null
