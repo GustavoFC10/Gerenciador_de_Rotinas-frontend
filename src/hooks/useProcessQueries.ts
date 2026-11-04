@@ -5,6 +5,7 @@ import { processService } from '../services/processService'
 import { ProcessContractError } from '../services/processContract'
 import type {
   ProcessCatalog,
+  ProcessCompanyOptionsPage,
   ProcessCompanyOptionsFilters,
   ProcessFilters,
   ProcessIndicators,
@@ -46,7 +47,7 @@ export function useProcessCompanyOptions(
   filters: ProcessCompanyOptionsFilters,
   enabled: boolean,
 ) {
-  return useQuery({
+  return useQuery<ProcessCompanyOptionsPage, Error>({
     ...options,
     enabled,
     queryKey: processQueryKeys.companyOptions(scope, filters),
