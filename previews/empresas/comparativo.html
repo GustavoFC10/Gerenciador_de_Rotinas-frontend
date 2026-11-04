@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Empresas · compare as três opções</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f1f5f9;
+        color: #0f172a;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+      main {
+        max-width: 1600px;
+        margin: auto;
+        padding: 40px 36px;
+      }
+      header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 25px;
+        margin-bottom: 30px;
+      }
+      .eyebrow {
+        color: #2563eb;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 1.8px;
+      }
+      h1 {
+        margin: 10px 0;
+        font-size: 32px;
+        letter-spacing: -1.1px;
+      }
+      header p {
+        margin: 0;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      header > a {
+        padding: 11px 16px;
+        background: #2563eb;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 750;
+        white-space: nowrap;
+      }
+      .options {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 20px;
+      }
+      article {
+        overflow: hidden;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 1px 2px #0f172a0a;
+      }
+      .title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 19px 20px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .number {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border-radius: 7px;
+        background: #dbeafe;
+        color: #2563eb;
+        font-size: 11px;
+        font-weight: 800;
+      }
+      h2 {
+        margin: 0;
+        font-size: 15px;
+        letter-spacing: -0.3px;
+      }
+      .title small {
+        display: block;
+        margin-top: 4px;
+        color: #64748b;
+        font-size: 10px;
+      }
+      .capture {
+        display: block;
+        background: #f8fafc;
+      }
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .description {
+        padding: 20px;
+        border-top: 1px solid #e2e8f0;
+      }
+      .description p {
+        min-height: 60px;
+        margin: 0;
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.8;
+      }
+      .description a {
+        display: inline-block;
+        margin-top: 13px;
+        color: #2563eb;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 750;
+      }
+      .note {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 25px;
+        color: #64748b;
+        font-size: 11px;
+        line-height: 1.8;
+      }
+      a:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 5px;
+      }
+      @media (max-width: 900px) {
+        main {
+          padding: 25px 18px;
+        }
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .options {
+          grid-template-columns: 1fr;
+        }
+        .description p {
+          min-height: 0;
+        }
+        h1 {
+          font-size: 27px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <span class="eyebrow">JARALCON · ESTUDO VISUAL</span>
+          <h1>Um módulo. Três formas de organizar.</h1>
+          <p>
+            As mesmas cores, componentes e informações. Compare a navegação e o
+            espaço de cada proposta para Empresas.
+          </p>
+        </div>
+        <a href="index.html">Abrir preview interativo →</a>
+      </header>
+      <section class="options" aria-label="Opções visuais">
+        <article>
+          <div class="title">
+            <span class="number">01</span>
+            <div>
+              <h2>Catálogo essencial</h2>
+              <small>Próximo do catálogo atual e do HUB</small>
+            </div>
+          </div>
+          <a class="capture" href="opcao-01-essencial.png"
+            ><img
+              src="opcao-01-essencial.png"
+              alt="Opção 1: catálogo centralizado com navegação horizontal e tabela"
+          /></a>
+          <div class="description">
+            <p>
+              Um catálogo direto, com foco na tabela. A ficha abre em uma página
+              própria; a busca e os filtros ficam preservados ao voltar.
+            </p>
+            <a href="index.html?opcao=essencial">Explorar opção 1 →</a>
+          </div>
+        </article>
+        <article>
+          <div class="title">
+            <span class="number">02</span>
+            <div>
+              <h2>Área de trabalho</h2>
+              <small>Próximo de Rotinas e Processos</small>
+            </div>
+          </div>
+          <a class="capture" href="opcao-02-workspace.png"
+            ><img
+              src="opcao-02-workspace.png"
+              alt="Opção 2: navegação lateral, indicadores do cadastro e tabela de empresas"
+          /></a>
+          <div class="description">
+            <p>
+              O módulo ganha navegação lateral, resumo do cadastro e uma tabela
+              ampla. A ficha abre em um painel, mantendo o catálogo ao fundo.
+            </p>
+            <a href="index.html?opcao=workspace">Explorar opção 2 →</a>
+          </div>
+        </article>
+        <article>
+          <div class="title">
+            <span class="number">03</span>
+            <div>
+              <h2>Lista e ficha</h2>
+              <small>Consulta sem sair do catálogo</small>
+            </div>
+          </div>
+          <a class="capture" href="opcao-03-lista-ficha.png"
+            ><img
+              src="opcao-03-lista-ficha.png"
+              alt="Opção 3: lista de empresas à esquerda e ficha da empresa selecionada ao lado"
+          /></a>
+          <div class="description">
+            <p>
+              A lista continua visível enquanto a ficha é consultada. O espaço
+              favorece alternar entre empresas e acessar cadastro, contatos e
+              histórico.
+            </p>
+            <a href="index.html?opcao=ficha">Explorar opção 3 →</a>
+          </div>
+        </article>
+      </section>
+      <footer class="note">
+        <span
+          >Dados fictícios. Nenhuma integração ou alteração no cadastro
+          real.</span
+        ><span
+          >Também disponíveis: tema escuro, versão mobile e formulários
+          demonstrativos no preview.</span
+        >
+      </footer>
+    </main>
+  </body>
+</html>

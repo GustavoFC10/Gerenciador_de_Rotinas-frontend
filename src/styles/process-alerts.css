@@ -1,0 +1,263 @@
+.processes-module .process-alert-filters {
+  display: flex;
+  gap: 16px;
+  align-items: end;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.processes-module .process-alert-filters label,
+.processes-module .process-alert-recipient-filters label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.processes-module .process-alert-filters select,
+.processes-module .process-alert-recipient-filters select,
+.processes-module .process-alert-recipient-filters input {
+  background: var(--control);
+  border: 1px solid var(--control-border);
+  color: var(--text-main);
+  border-radius: var(--r-control);
+  min-height: 38px;
+  padding: 7px 10px;
+  max-width: 100%;
+}
+.processes-module .process-alert-count {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.processes-module .process-alert-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.6fr);
+  gap: 20px;
+  align-items: start;
+}
+.processes-module .process-alert-list {
+  overflow: hidden;
+}
+.processes-module .process-alert-row {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  text-align: left;
+  gap: 5px;
+  padding: 16px 20px;
+  width: 100%;
+  border-bottom: 1px solid var(--divider);
+}
+.processes-module .process-alert-row[aria-pressed='true'] {
+  background: var(--brand-soft);
+  box-shadow: inset 3px 0 var(--brand);
+}
+.processes-module .process-alert-row:hover {
+  background: var(--panel-soft);
+}
+.processes-module .process-alert-row strong {
+  color: var(--text-strong);
+  font-size: 14px;
+}
+.processes-module .process-alert-row span:not(.process-alert-status),
+.processes-module .process-alert-row small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.processes-module .process-alert-status {
+  display: inline-flex;
+  border-radius: 6px;
+  background: var(--pend-bg);
+  color: var(--pend-text);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.processes-module .process-alert-status.sent {
+  background: var(--ok-bg);
+  color: var(--ok-text);
+}
+.processes-module .process-alert-status.resolved {
+  background: var(--panel-soft);
+  color: var(--text-muted);
+}
+.processes-module .process-alert-editor {
+  padding: 20px;
+}
+.processes-module .process-alert-editor header {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.processes-module .process-alert-editor header h2 {
+  flex: 1;
+  min-width: 150px;
+  font-size: 18px;
+  color: var(--text-strong);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.processes-module .process-alert-editor header p {
+  width: 100%;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.processes-module .process-alert-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 20px 0;
+  font-size: 12px;
+}
+.processes-module .process-alert-dates dt {
+  color: var(--text-muted);
+}
+.processes-module .process-alert-dates dd {
+  margin: 3px 0 0;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.processes-module .process-alert-email {
+  padding: 14px;
+  background: var(--panel-soft);
+  border: 1px solid var(--divider);
+  border-radius: var(--r-control);
+  overflow-wrap: anywhere;
+}
+.processes-module .process-alert-email h3,
+.processes-module .process-alert-effective-recipients h3 {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+.processes-module .process-alert-email p {
+  margin: 0 0 18px;
+  font-weight: 600;
+}
+.processes-module .process-alert-email pre {
+  white-space: pre-wrap;
+  font: 13px/1.6 var(--font);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.processes-module .process-alert-sectors,
+.processes-module .process-alert-members {
+  border: 1px solid var(--divider);
+  border-radius: var(--r-control);
+  margin: 20px 0 0;
+  padding: 12px;
+  min-width: 0;
+}
+.processes-module .process-alert-editor legend {
+  color: var(--text-strong);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 0 4px;
+}
+.processes-module .process-alert-sectors p {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0 0 10px;
+}
+.processes-module .process-alert-sectors label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 16px 6px 0;
+}
+.processes-module .process-alert-recipient-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.processes-module .process-alert-recipient-filters label {
+  flex: 1;
+  min-width: 140px;
+}
+.processes-module .process-alert-recipient-options {
+  max-height: 250px;
+  overflow-y: auto;
+  margin-top: 12px;
+}
+.processes-module .process-alert-recipient-options label {
+  display: flex;
+  gap: 9px;
+  padding: 8px 0;
+  align-items: center;
+  border-bottom: 1px solid var(--divider);
+  overflow-wrap: anywhere;
+}
+.processes-module .process-alert-recipient-options small {
+  display: block;
+  color: var(--text-muted);
+}
+.processes-module .process-alert-selected-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+}
+.processes-module .process-alert-selected-members li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--r-control);
+  background: var(--brand-soft);
+  overflow-wrap: anywhere;
+}
+.processes-module .process-alert-effective-recipients {
+  margin-top: 20px;
+  padding: 12px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--r-control);
+  background: var(--brand-soft);
+}
+.processes-module .process-alert-effective-recipients ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.processes-module .process-alert-effective-recipients li {
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+.processes-module .process-alert-effective-recipients span {
+  color: var(--text-muted);
+}
+.processes-module .process-alert-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.processes-module .process-alert-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+.processes-module .process-alert-manual-note {
+  color: var(--text-subtle);
+  font-size: 12px;
+  margin: 12px 0 0;
+}
+.processes-module .process-alert-notice {
+  font-size: 13px;
+  color: var(--brand-strong);
+  margin-top: 16px;
+}
+@media (max-width: 1180px) {
+  .processes-module .process-alert-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .processes-module .process-alert-list {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+}

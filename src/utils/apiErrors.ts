@@ -287,8 +287,12 @@ function getStatusMessage(
     }
     case 501:
       return 'Esta funcionalidade ainda não está disponível.'
-    case 503:
-      return 'O serviço está indisponível temporariamente. Tente novamente em instantes.'
+    case 503: {
+      const seconds = getRetryAfterSeconds(retryAfter)
+      return seconds === null
+        ? 'O serviço está indisponível temporariamente. Tente novamente em instantes.'
+        : `O serviço está indisponível temporariamente. Aguarde ${seconds} ${seconds === 1 ? 'segundo' : 'segundos'} antes de tentar novamente.`
+    }
     default:
       return status !== null && status >= 500
         ? 'Ocorreu uma falha temporária. Tente novamente em instantes.'

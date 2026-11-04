@@ -2,7 +2,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AuthContext,
@@ -15,7 +15,15 @@ import {
 import { processQueryKeys } from '../../query/processQueryKeys'
 import { ApiError, type ApiResponse } from '../../services/httpClient'
 import { processService } from '../../services/processService'
-import type { ProcessCatalog, ProcessResource } from '../../types/processes'
+import { ProcessContractError } from '../../services/processContract'
+import type {
+  ProcessCatalog,
+  ProcessFilters,
+  ProcessIndicators,
+  ProcessResource,
+  ProcessStatus,
+  ProcessSummary,
+} from '../../types/processes'
 import ProcessesPage from './ProcessesPage'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -33,6 +41,133 @@ let client: QueryClient
 let catalog: ProcessCatalog
 let records: ProcessResource[]
 
+function serverResults(filters: ProcessFilters = {}) {
+  return records.filter(
+    (record) =>
+      (!filters.status?.length || filters.status.includes(record.status)) &&
+      (!filters.tipo || record.tipo === filters.tipo) &&
+      (!filters.responsibleSector ||
+        record.responsibleSectors.includes(filters.responsibleSector)) &&
+      (!filters.queueSector ||
+        (['andamento', 'atrasado'].includes(record.status) &&
+          record.analysis.pendingSectors.includes(filters.queueSector))) &&
+      (!filters.q || record.empresa.includes(filters.q)),
+  )
+}
+function summary(record: ProcessResource): ProcessSummary {
+  return Object.fromEntries(
+    [
+      'id',
+      'organizationId',
+      'tipo',
+      'codigo',
+      'empresa',
+      'companyId',
+      'cnpj',
+      'protocolo',
+      'prazo',
+      'criadoPor',
+      'autorAbertura',
+      'criadoEm',
+      'atualizadoEm',
+      'concluidoEm',
+      'status',
+      'statusChangedAt',
+      'statusNextEvaluationAt',
+      'responsibleSectors',
+      'version',
+      'workflowVersion',
+      'analysis',
+      'permissions',
+    ].map((key) => [key, record[key as keyof ProcessResource]]),
+  ) as unknown as ProcessSummary
+}
+
+function indicatorResults(filters: ProcessFilters = {}): ProcessIndicators {
+  const matches = serverResults(filters)
+  const byStatus: Record<ProcessStatus, number> = {
+    andamento: 0,
+    agendado: 0,
+    atrasado: 0,
+    concluido: 0,
+    cancelado: 0,
+  }
+  for (const record of matches) byStatus[record.status]++
+  return {
+    total: matches.length,
+    active: byStatus.andamento + byStatus.agendado + byStatus.atrasado,
+    completed: byStatus.concluido,
+    cancelled: byStatus.cancelado,
+    waiting: byStatus.agendado,
+    late: byStatus.atrasado,
+    byStatus,
+    bySector: Object.fromEntries(
+      ['com', 'fin', 'reg'].map((sector) => [
+        sector,
+        matches.filter(
+          (record) =>
+            ['andamento', 'atrasado'].includes(record.status) &&
+            record.analysis.pendingSectors.includes(
+              sector as 'com' | 'fin' | 'reg',
+            ),
+        ).length,
+      ]),
+    ),
+    byType: Object.fromEntries(
+      catalog.types.map((type) => [
+        type.id,
+        matches.filter((record) => record.tipo === type.id).length,
+      ]),
+    ),
+  }
+}
+
+function httpError(status: number, retryAfter?: number) {
+  return new ApiError({
+    problem: {
+      type: 'test-http',
+      title: 'Falha HTTP de teste',
+      status,
+      detail: `Resposta HTTP ${status}`,
+    },
+    requestId: 'request-processes-test',
+    response: new Response(null, {
+      status,
+      headers: retryAfter ? { 'Retry-After': String(retryAfter) } : {},
+    }),
+  })
+}
+
+async function waitFor(check: () => boolean, timeout = 2000) {
+  const deadline = Date.now() + timeout
+  while (!check()) {
+    if (Date.now() >= deadline)
+      throw new Error(
+        `A interface não atingiu o estado esperado: ${host.querySelector('main')?.textContent}`,
+      )
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    })
+  }
+}
+
+async function settle() {
+  for (let step = 0; step < 3; step++)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    })
+}
+
+function LocationProbe() {
+  const location = useLocation()
+  return (
+    <output data-testid="location">
+      {location.pathname}
+      {location.search}
+    </output>
+  )
+}
+
 beforeEach(() => {
   catalog = structuredClone(processTestCatalog)
   records = [makeProcessTestResource()]
@@ -46,21 +181,31 @@ beforeEach(() => {
   vi.spyOn(processService, 'catalog').mockImplementation(async () =>
     response(catalog),
   )
-  vi.spyOn(processService, 'listAll').mockImplementation(async () => records)
+  vi.spyOn(processService, 'list').mockImplementation(async (filters = {}) => {
+    const matches = serverResults(filters)
+    const page = filters.page ?? 1
+    const size = filters.pageSize ?? 50
+    return response({
+      count: matches.length,
+      previous: page > 1 ? '?page=1' : null,
+      next: page * size < matches.length ? `?page=${page + 1}` : null,
+      results: matches.slice((page - 1) * size, page * size).map(summary),
+    })
+  })
+  vi.spyOn(processService, 'entries').mockResolvedValue(
+    response({ count: 0, next: null, previous: null, results: [] }),
+  )
+  vi.spyOn(processService, 'alerts').mockResolvedValue(
+    response({ count: 0, next: null, previous: null, results: [] }),
+  )
+  vi.spyOn(processService, 'followUps').mockResolvedValue(
+    response({ count: 0, next: null, previous: null, results: [] }),
+  )
   vi.spyOn(processService, 'get').mockImplementation(async (id) =>
     response(records.find((record) => record.id === id)!),
   )
-  vi.spyOn(processService, 'indicators').mockResolvedValue(
-    response({
-      total: 1,
-      active: 1,
-      late: 0,
-      waiting: 0,
-      completed: 0,
-      cancelled: 0,
-      bySector: { fin: 1, reg: 1 },
-      byType: { abertura: 1 },
-    }),
+  vi.spyOn(processService, 'indicators').mockImplementation(
+    async (filters = {}) => response(indicatorResults(filters)),
   )
 })
 afterEach(async () => {
@@ -68,6 +213,7 @@ afterEach(async () => {
   client.clear()
   host.remove()
   vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 async function render(path: string) {
@@ -94,7 +240,7 @@ async function render(path: string) {
     login: vi.fn(),
     logout: vi.fn(),
     selectActiveMembership: vi.fn(),
-    refreshSession: vi.fn(),
+    refreshSession: vi.fn().mockResolvedValue(undefined),
   }
   await act(async () => {
     root.render(
@@ -102,15 +248,17 @@ async function render(path: string) {
         <QueryClientProvider client={client}>
           <AuthContext.Provider value={auth}>
             <ProcessesPage />
+            <LocationProbe />
           </AuthContext.Provider>
         </QueryClientProvider>
       </MemoryRouter>,
     )
-    await new Promise((resolve) => setTimeout(resolve, 15))
   })
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 15))
-  })
+  await waitFor(
+    () =>
+      !!host.querySelector('main') &&
+      !host.querySelector('main')!.textContent?.startsWith('Carregando'),
+  )
 }
 
 const button = (label: string) =>
@@ -139,6 +287,555 @@ async function submitForm() {
 }
 
 describe('ProcessesPage integration', () => {
+  it('reserves the alerts route and uses the global pending count without loading processes or all alerts', async () => {
+    vi.mocked(processService.alerts).mockResolvedValue(
+      response({ count: 83, next: '?page=2', previous: null, results: [] }),
+    )
+    await render('/processos/avisos')
+    await waitFor(() => host.textContent!.includes('83 avisos'))
+    expect(processService.get).not.toHaveBeenCalled()
+    expect(processService.alerts).toHaveBeenCalledWith(
+      { status: 'pending', pageSize: 1 },
+      expect.any(AbortSignal),
+    )
+    expect(processService.alerts).toHaveBeenCalledWith(
+      { status: 'pending', kind: undefined, page: 1, pageSize: 50 },
+      expect.any(AbortSignal),
+    )
+    expect(
+      vi
+        .mocked(processService.alerts)
+        .mock.calls.every(([filters]) => !filters?.page || filters.page === 1),
+    ).toBe(true)
+    const nav = host.querySelector<HTMLAnchorElement>(
+      'a[href="/processos/avisos"]',
+    )!
+    expect(nav.textContent).toContain('83')
+  })
+
+  it.each(['fin', 'reg'] as const)(
+    'blocks direct alerts access for %s without fetching restricted data',
+    async (sector) => {
+      catalog.permissions = {
+        ...catalog.permissions,
+        create: false,
+        executeSectors: [sector],
+      }
+      await render('/processos/avisos')
+      expect(host.querySelector('main')?.textContent).toContain(
+        'Acesso restrito',
+      )
+      expect(host.querySelector('a[href="/processos/avisos"]')).toBeNull()
+      expect(processService.alerts).not.toHaveBeenCalled()
+      expect(processService.get).not.toHaveBeenCalled()
+    },
+  )
+
+  it('shows complementary follow-ups to Financeiro in its queue and keeps them outside workflow totals', async () => {
+    catalog.permissions = {
+      ...catalog.permissions,
+      create: false,
+      executeSectors: ['fin'],
+    }
+    await render('/processos/fila')
+    await waitFor(
+      () => !!host.querySelector('[aria-label="Cobranças da Leggacy"]'),
+    )
+    expect(processService.followUps).toHaveBeenCalledWith(
+      { processId: undefined, state: 'pending', page: 1, pageSize: 50 },
+      expect.any(AbortSignal),
+    )
+    expect(processService.alerts).not.toHaveBeenCalled()
+    expect(records[0]!.analysis.completedTasks).toBe(0)
+    expect(records[0]!.analysis.totalTasks).toBe(4)
+  })
+
+  it('removes alert content, recipients and counters when the catalog revokes Diretoria access', async () => {
+    await render('/processos/avisos')
+    await act(async () => {
+      client.setQueryData(processQueryKeys.alertRecipients(scope, {}), {
+        results: [{ email: 'restrito@example.com' }],
+      })
+      client.setQueryData(processQueryKeys.alert(scope, 'test-alert'), {
+        body: 'Conteúdo restrito',
+      })
+      catalog = {
+        ...catalog,
+        permissions: { ...catalog.permissions, create: false },
+      }
+      client.setQueryData(processQueryKeys.catalog(scope), catalog)
+    })
+    await waitFor(() =>
+      host.querySelector('main')!.textContent!.includes('Acesso restrito'),
+    )
+    expect(
+      client.getQueriesData({ queryKey: processQueryKeys.alerts(scope) }),
+    ).toEqual([])
+    expect(
+      client.getQueriesData({
+        queryKey: processQueryKeys.alertRecipients(scope),
+      }),
+    ).toEqual([])
+    expect(
+      client.getQueryData(processQueryKeys.alert(scope, 'test-alert')),
+    ).toBeUndefined()
+    expect(host.querySelector('a[href="/processos/avisos"]')).toBeNull()
+  })
+
+  it('keeps process reading available when only the alert counter is forbidden', async () => {
+    vi.mocked(processService.alerts).mockRejectedValue(httpError(403))
+    await render('/processos/lista?situacao=todos')
+    await settle()
+    expect(host.querySelector('main')?.textContent).toContain('Empresa Exemplo')
+    expect(host.querySelector('a[href="/processos/avisos"]')).toBeNull()
+    expect(
+      client.getQueriesData({ queryKey: processQueryKeys.alerts(scope) }),
+    ).toEqual([])
+  })
+
+  it('invalidates complementary situations and their history after editing a process', async () => {
+    vi.spyOn(processService, 'update').mockImplementation(async (id, patch) => {
+      const result = {
+        ...records[0]!,
+        ...patch,
+        id,
+        version: records[0]!.version + 1,
+      }
+      records = [result]
+      return response(result)
+    })
+    await render('/processos/process-1')
+    const followUpsKey = processQueryKeys.followUps(scope, {
+      processId: 'process-1',
+      state: 'resolved',
+    })
+    const alertKey = processQueryKeys.alert(scope, 'historic-alert')
+    client.setQueryData(followUpsKey, { count: 1, results: [] })
+    client.setQueryData(alertKey, { version: 1 })
+    await act(async () => button('Editar').click())
+    await changeName('Empresa Atualizada')
+    await submitForm()
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Empresa Atualizada',
+    )
+    expect(client.getQueryState(followUpsKey)?.isInvalidated).toBe(true)
+    expect(client.getQueryState(alertKey)?.isInvalidated).toBe(true)
+  })
+
+  it('shows each second-visit workflow at home with status, responsibility and release when the executable queue is empty', async () => {
+    records = (['abertura', 'mei', 'outro', 'reativacao'] as const).map(
+      (tipo) =>
+        makeProcessTestResource({
+          id: `waiting-${tipo}`,
+          tipo,
+          empresa: `Acompanhamento ${tipo}`,
+          status: 'agendado',
+          responsibleSectors: ['fin'],
+          analysis: {
+            currentStage: 3,
+            completedTasks: 6,
+            totalTasks: 7,
+            releaseDate: '2027-02-22',
+            waiting: true,
+            late: false,
+            pendingSectors: [],
+          },
+        }),
+    )
+    await render('/processos')
+    const main = host.querySelector('main')!
+    expect(main.textContent).toContain('Nenhuma ação liberada')
+    for (const tipo of ['abertura', 'mei', 'outro', 'reativacao'])
+      expect(main.textContent).toContain(`Acompanhamento ${tipo}`)
+    expect(main.textContent).toContain('Aguardando liberação')
+    expect(main.textContent).toContain('Responsável: Financeiro')
+    expect(main.textContent).toContain('Libera em 22/02/2027')
+    const queries = vi
+      .mocked(processService.list)
+      .mock.calls.map(([filters]) => filters!)
+    expect(queries).toHaveLength(3)
+    expect(queries).toContainEqual(
+      expect.objectContaining({ status: ['agendado'], pageSize: 6 }),
+    )
+    expect(queries).toContainEqual(
+      expect.objectContaining({ queueSector: 'com', pageSize: 8 }),
+    )
+    expect(
+      queries.every((filters) => !filters.page || filters.page === 1),
+    ).toBe(true)
+  })
+
+  it('queries all three open statuses and keeps the global list independent from the selected queue sector', async () => {
+    await render('/processos/fila')
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('.dept-card')!.click(),
+    )
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>('.dept-menu button')]
+        .find((item) => item.textContent === 'Financeiro')!
+        .click(),
+    )
+    await waitFor(() =>
+      vi
+        .mocked(processService.list)
+        .mock.calls.some(([filters]) => filters?.queueSector === 'fin'),
+    )
+    const countBefore = vi.mocked(processService.list).mock.calls.length
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>('.subnav button')]
+        .find((item) => item.textContent?.startsWith('Abertos'))!
+        .click(),
+    )
+    await waitFor(
+      () => host.querySelector('main h1')?.textContent === 'Abertos',
+    )
+    await settle()
+    const queries = vi
+      .mocked(processService.list)
+      .mock.calls.slice(countBefore)
+      .map(([filters]) => filters!)
+    expect(
+      queries.some(
+        (filters) =>
+          filters.status?.length === 3 &&
+          ['andamento', 'agendado', 'atrasado'].every((status) =>
+            filters.status!.includes(status as ProcessStatus),
+          ),
+      ),
+    ).toBe(true)
+    expect(queries.every((filters) => filters.queueSector === undefined)).toBe(
+      true,
+    )
+  })
+
+  it('loads only the requested page, retains filters after a detail visit, and resets pagination on filter changes', async () => {
+    records = Array.from({ length: 3 }, (_, index) =>
+      makeProcessTestResource({
+        id: `page-process-${index}`,
+        empresa: `Empresa ${index}`,
+        responsibleSectors: ['fin'],
+      }),
+    )
+    const requested =
+      '/processos/lista?situacao=todos&tipo=abertura&responsibleSector=fin&pageSize=1&page=2'
+    await render(requested)
+    expect(host.querySelectorAll('.lrow')).toHaveLength(1)
+    expect(host.querySelector('.lrow')!.textContent).toContain('Empresa 1')
+    expect(processService.list).toHaveBeenCalledTimes(1)
+    expect(processService.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        page: 2,
+        pageSize: 1,
+        tipo: 'abertura',
+        responsibleSector: 'fin',
+      }),
+      expect.any(AbortSignal),
+    )
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('.lrow')!.click(),
+    )
+    await waitFor(() => !!host.querySelector('#procPage'))
+    expect(processService.get).toHaveBeenCalledWith(
+      'page-process-1',
+      expect.any(AbortSignal),
+    )
+    await act(async () => button('Voltar para processos').click())
+    await waitFor(
+      () => host.querySelector('main h1')?.textContent === 'Todos os processos',
+    )
+    expect(host.querySelector('[data-testid="location"]')?.textContent).toBe(
+      requested,
+    )
+    expect(host.querySelector('.lrow')!.textContent).toContain('Empresa 1')
+    await act(async () => button('Próxima página').click())
+    await waitFor(
+      () =>
+        host.querySelector('.lrow')?.textContent?.includes('Empresa 2') ??
+        false,
+    )
+    expect(
+      vi
+        .mocked(processService.list)
+        .mock.calls.map(([filters]) => filters?.page),
+    ).toEqual([2, 3])
+    const type = host.querySelector<HTMLSelectElement>(
+      '[aria-label="Tipo de processo"]',
+    )!
+    await act(async () => {
+      type.value = ''
+      type.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await waitFor(
+      () =>
+        host.querySelector('.lrow')?.textContent?.includes('Empresa 0') ??
+        false,
+    )
+    expect(processService.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1, responsibleSector: 'fin' }),
+      expect.any(AbortSignal),
+    )
+    expect(
+      vi.mocked(processService.list).mock.lastCall?.[0],
+    ).not.toHaveProperty('tipo')
+  })
+
+  it('resets the queue page when changing the execution sector', async () => {
+    records = Array.from({ length: 4 }, (_, index) =>
+      makeProcessTestResource({
+        id: `queue-${index}`,
+        empresa: `Fila ${index}`,
+        responsibleSectors: index < 2 ? ['com'] : ['fin'],
+        analysis: {
+          ...records[0]!.analysis,
+          pendingSectors: index < 2 ? ['com'] : ['fin'],
+        },
+      }),
+    )
+    await render('/processos/fila?page=2&pageSize=1')
+    expect(host.querySelector('.lrow')?.textContent).toContain('Fila 1')
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('.dept-card')!.click(),
+    )
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>('.dept-menu button')]
+        .find((item) => item.textContent === 'Financeiro')!
+        .click(),
+    )
+    await waitFor(
+      () =>
+        host.querySelector('.lrow')?.textContent?.includes('Fila 2') ?? false,
+    )
+    expect(processService.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1, pageSize: 1, queueSector: 'fin' }),
+      expect.any(AbortSignal),
+    )
+    expect(
+      host.querySelector('[data-testid="location"]')?.textContent,
+    ).not.toContain('page=2')
+  })
+
+  it.each([400, 429, 503])(
+    'presents HTTP %s as an error and does not retry automatically',
+    async (status) => {
+      vi.mocked(processService.list).mockRejectedValue(
+        httpError(status, status === 400 ? undefined : 30),
+      )
+      await render('/processos/lista?situacao=todos')
+      const main = host.querySelector('main')!
+      expect(main.querySelector('[role="alert"]')).not.toBeNull()
+      expect(main.textContent).not.toContain('Nenhum processo cadastrado')
+      expect(main.textContent).not.toContain('Nenhum resultado nos filtros')
+      expect(main.textContent).toContain('request-processes-test')
+      if (status !== 400) {
+        const retry = [
+          ...main.querySelectorAll<HTMLButtonElement>('button'),
+        ].find((item) => item.textContent?.includes('Aguarde'))!
+        expect(retry.disabled).toBe(true)
+        await act(async () => retry.click())
+      }
+      await settle()
+      expect(processService.list).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it('presents incompatible payloads with their request reference instead of a successful empty collection', async () => {
+    vi.mocked(processService.list).mockRejectedValue(
+      new ProcessContractError(
+        'response.results.0.status',
+        'contract-request-42',
+      ),
+    )
+    await render('/processos/lista?situacao=todos')
+    const main = host.querySelector('main')!
+    expect(main.textContent).toContain('Resposta incompatível')
+    expect(main.textContent).toContain('contract-request-42')
+    expect(main.querySelector('[role="alert"]')).not.toBeNull()
+    expect(main.textContent).not.toContain('Nenhum processo cadastrado')
+    await settle()
+    expect(processService.list).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([429, 503, 'contract'] as const)(
+    'exposes a %s detail refresh failure even when an old detail is cached',
+    async (failure) => {
+      records[0] = makeProcessTestResource({ obs: 'Conteúdo anterior ao erro' })
+      await render('/processos/process-1')
+      expect(host.querySelector('main')?.textContent).toContain(
+        'Conteúdo anterior ao erro',
+      )
+      vi.mocked(processService.get).mockRejectedValue(
+        failure === 'contract'
+          ? new ProcessContractError(
+              'response.status',
+              'detail-contract-request',
+            )
+          : httpError(failure, 30),
+      )
+      await act(async () => {
+        await client.invalidateQueries({
+          queryKey: processQueryKeys.detail(scope, 'process-1'),
+        })
+      })
+      await waitFor(() => !!host.querySelector('main [role="alert"]'))
+      expect(host.querySelector('main')?.textContent).toContain(
+        'Processo indisponível',
+      )
+      expect(host.querySelector('main')?.textContent).not.toContain(
+        'Conteúdo anterior ao erro',
+      )
+      if (failure === 'contract')
+        expect(host.querySelector('main')?.textContent).toContain(
+          'detail-contract-request',
+        )
+      else {
+        const retry = [
+          ...host.querySelectorAll<HTMLButtonElement>('main button'),
+        ].find((item) => item.textContent?.includes('Aguarde'))!
+        expect(retry.disabled).toBe(true)
+        await act(async () => retry.click())
+      }
+      await settle()
+      expect(processService.get).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it('does not restore an old scope cache or navigate when an opening finishes after leaving that context', async () => {
+    let finishOpening!: (result: ApiResponse<ProcessResource>) => void
+    vi.spyOn(processService, 'create').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishOpening = resolve
+        }),
+    )
+    await render('/processos?tipo=abertura')
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('.top .primary')!.click(),
+    )
+    await changeName('Abertura no contexto anterior')
+    await submitForm()
+    expect(processService.create).toHaveBeenCalledTimes(1)
+    await act(async () => root.render(<div>Outro contexto ativo</div>))
+    expect(
+      client
+        .getQueryCache()
+        .findAll({ queryKey: processQueryKeys.root(scope) }),
+    ).toHaveLength(0)
+    await act(async () => {
+      finishOpening(response(records[0]!))
+      await Promise.resolve()
+    })
+    await settle()
+    expect(
+      client
+        .getQueryCache()
+        .findAll({ queryKey: processQueryKeys.root(scope) }),
+    ).toHaveLength(0)
+    expect(host.textContent).toBe('Outro contexto ativo')
+  })
+
+  it('distinguishes a successful empty collection from a successful filtered search with no matches', async () => {
+    records = []
+    await render('/processos/lista?situacao=todos')
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Nenhum processo cadastrado',
+    )
+    expect(host.querySelector('main [role="alert"]')).toBeNull()
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>('.subnav button')]
+        .find((item) => item.textContent?.startsWith('Abertos'))!
+        .click(),
+    )
+    await waitFor(
+      () =>
+        host
+          .querySelector('main')
+          ?.textContent?.includes('Nenhum resultado nos filtros') ?? false,
+    )
+    expect(host.querySelector('main [role="alert"]')).toBeNull()
+  })
+
+  it('removes cached process scopes when list access is revoked and prevents stale detail reopening', async () => {
+    records[0] = makeProcessTestResource({ obs: 'Segredo já revogado' })
+    client.setQueryData(
+      processQueryKeys.detail(scope, records[0]!.id),
+      records[0],
+    )
+    client.setQueryData(
+      processQueryKeys.entries(scope, records[0]!.id, { kind: 'note' }),
+      { count: 1, results: [{ text: 'Segredo em comentário' }] },
+    )
+    client.setQueryData(processQueryKeys.report(scope, '2026-10'), {
+      gain: '99999.00',
+    })
+    vi.mocked(processService.list).mockRejectedValue(httpError(403))
+    await render('/processos/lista?situacao=todos')
+    await waitFor(
+      () =>
+        client.getQueryData(processQueryKeys.detail(scope, 'process-1')) ===
+        undefined,
+    )
+    expect(
+      client.getQueryData(
+        processQueryKeys.entries(scope, 'process-1', { kind: 'note' }),
+      ),
+    ).toBeUndefined()
+    expect(
+      client.getQueryData(processQueryKeys.report(scope, '2026-10')),
+    ).toBeUndefined()
+    expect(host.textContent).not.toContain('Segredo já revogado')
+    expect(host.querySelector('main [role="alert"]')).not.toBeNull()
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>('.subnav button')]
+        .find((item) => item.textContent?.startsWith('Todos os processos'))!
+        .click(),
+    )
+    await settle()
+    expect(host.querySelector('main [role="alert"]')).not.toBeNull()
+    expect(processService.get).not.toHaveBeenCalled()
+    expect(processService.list).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes an edit snapshot and hides its private values when catalog permissions are reduced', async () => {
+    records[0] = makeProcessTestResource({
+      obs: 'Texto financeiro privado',
+      custo: '12345.67',
+    })
+    await render('/processos/process-1')
+    await act(async () => button('Editar').click())
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+    const {
+      custo: _custo,
+      obs: _obs,
+      honorario: _honorario,
+      ...publicRecord
+    } = records[0]!
+    void _custo
+    void _obs
+    void _honorario
+    const reduced = {
+      ...catalog.permissions,
+      create: false,
+      edit: false,
+      viewFinancial: false,
+      viewMovements: false,
+    }
+    records[0] = { ...publicRecord, permissions: reduced }
+    catalog = { ...catalog, permissions: reduced }
+    await act(async () => {
+      client.setQueryData(
+        processQueryKeys.detail(scope, 'process-1'),
+        records[0],
+      )
+      client.setQueryData(processQueryKeys.catalog(scope), catalog)
+    })
+    await waitFor(() => document.querySelector('[role="dialog"]') === null)
+    expect(host.textContent).not.toContain('Texto financeiro privado')
+    expect(host.textContent).not.toContain('12.345,67')
+    expect(host.querySelector('.top')?.textContent).not.toContain(
+      'Novo processo',
+    )
+  })
+
   it('stops displaying cached details when the backend revokes resource access', async () => {
     records[0] = makeProcessTestResource({
       obs: 'Informação anterior restrita',
@@ -167,6 +864,146 @@ describe('ProcessesPage integration', () => {
       'Informação anterior restrita',
     )
   })
+
+  it('closes the private edit snapshot and clears resource caches when saving is forbidden', async () => {
+    records[0] = makeProcessTestResource({
+      obs: 'Observação restrita antes da revogação',
+      custo: '19999.89',
+    })
+    vi.spyOn(processService, 'update').mockRejectedValue(httpError(403))
+    await render('/processos/process-1')
+    await act(async () => button('Editar').click())
+    const dialog = document.querySelector('[role="dialog"]')!
+    expect(dialog).not.toBeNull()
+    expect(
+      [
+        ...dialog.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+          'input,textarea',
+        ),
+      ].some(
+        (input) => input.value === 'Observação restrita antes da revogação',
+      ),
+    ).toBe(true)
+    client.setQueryData(
+      processQueryKeys.list(scope, { status: ['andamento'] }),
+      {
+        count: 1,
+        next: null,
+        previous: null,
+        results: [summary(records[0]!)],
+      },
+    )
+    client.setQueryData(processQueryKeys.report(scope, '2026-10'), {
+      gain: '19999.89',
+    })
+    await changeName('Edição recusada pelo servidor')
+    await submitForm()
+    await waitFor(
+      () =>
+        host
+          .querySelector('main')
+          ?.textContent?.includes('Processo indisponível') ?? false,
+    )
+    expect(processService.update).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+    expect(host.textContent).not.toContain(
+      'Observação restrita antes da revogação',
+    )
+    expect(host.textContent).not.toContain('19.999,89')
+    expect(
+      client.getQueryData(processQueryKeys.detail(scope, 'process-1')),
+    ).toBeUndefined()
+    expect(
+      client
+        .getQueryCache()
+        .findAll({ queryKey: processQueryKeys.entries(scope, 'process-1') }),
+    ).toHaveLength(0)
+    expect(
+      client
+        .getQueryCache()
+        .findAll({ queryKey: processQueryKeys.list(scope) })
+        .every((query) => query.state.data === undefined),
+    ).toBe(true)
+    expect(
+      client.getQueryData(processQueryKeys.report(scope, '2026-10')),
+    ).toBeUndefined()
+    await settle()
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Processo indisponível',
+    )
+    expect(processService.get).toHaveBeenCalledTimes(1)
+  })
+
+  it('retains the parent denial notice after an entries 403 without restoring detail data or looping requests', async () => {
+    records[0] = makeProcessTestResource({
+      obs: 'Conteúdo privado antes do histórico negar acesso',
+    })
+    const notesKey = processQueryKeys.entries(scope, 'process-1', {
+      kind: 'note',
+      page: 1,
+      pageSize: 50,
+    })
+    client.setQueryData(notesKey, {
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        {
+          id: 'private-note',
+          por: 'member-1',
+          autor: 'Ana Silva',
+          em: '2026-10-29T12:00:00-03:00',
+          kind: 'note',
+          financial: true,
+          text: 'Comentário financeiro anteriormente autorizado',
+          details: {},
+        },
+      ],
+    })
+    client.setQueryData(processQueryKeys.report(scope, '2026-10'), {
+      gain: '99999.00',
+    })
+    await render('/processos/process-1')
+    expect(host.textContent).toContain(
+      'Comentário financeiro anteriormente autorizado',
+    )
+    expect(processService.entries).not.toHaveBeenCalled()
+    vi.mocked(processService.entries).mockRejectedValue(httpError(403))
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: notesKey })
+    })
+    await waitFor(
+      () =>
+        host
+          .querySelector('main')
+          ?.textContent?.includes('Processo indisponível') ?? false,
+    )
+    expect(host.textContent).not.toContain(
+      'Conteúdo privado antes do histórico negar acesso',
+    )
+    expect(host.textContent).not.toContain(
+      'Comentário financeiro anteriormente autorizado',
+    )
+    expect(
+      client.getQueryData(processQueryKeys.detail(scope, 'process-1')),
+    ).toBeUndefined()
+    expect(
+      client
+        .getQueryCache()
+        .findAll({ queryKey: processQueryKeys.entries(scope, 'process-1') }),
+    ).toHaveLength(0)
+    expect(
+      client.getQueryData(processQueryKeys.report(scope, '2026-10')),
+    ).toBeUndefined()
+    await settle()
+    expect(host.querySelector('main [role="alert"]')).not.toBeNull()
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Processo indisponível',
+    )
+    expect(processService.entries).toHaveBeenCalledTimes(1)
+    expect(processService.get).toHaveBeenCalledTimes(1)
+  })
+
   it('restricts Regularidade navigation and avoids querying financial reports even on direct links', async () => {
     catalog.permissions = {
       ...catalog.permissions,
@@ -193,11 +1030,13 @@ describe('ProcessesPage integration', () => {
     expect(host.querySelectorAll('.dept-menu button')).toHaveLength(1)
   })
 
-  it('keeps scheduled processes outside the sector queue using server analysis', async () => {
+  it('requests an executable queue separately and keeps scheduled processes outside it', async () => {
     records.push(
       makeProcessTestResource({
         id: 'waiting',
         empresa: 'Empresa Agendada',
+        status: 'agendado',
+        responsibleSectors: ['com'],
         analysis: {
           currentStage: 0,
           completedTasks: 0,
@@ -205,7 +1044,7 @@ describe('ProcessesPage integration', () => {
           waiting: true,
           late: false,
           releaseDate: '2027-02-22',
-          pendingSectors: ['com'],
+          pendingSectors: [],
         },
       }),
     )
@@ -219,6 +1058,10 @@ describe('ProcessesPage integration', () => {
     )
     expect(host.querySelector('main')?.textContent).not.toContain(
       'Empresa Agendada',
+    )
+    expect(processService.list).toHaveBeenCalledWith(
+      expect.objectContaining({ queueSector: 'com', page: 1, pageSize: 50 }),
+      expect.any(AbortSignal),
     )
   })
 

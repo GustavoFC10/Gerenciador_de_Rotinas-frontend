@@ -51,6 +51,7 @@
           },
           {
             "id": "ab5",
+            "cob": "ab4",
             "d": "fin",
             "txt": "CNPJ liberado pela Leggacy",
             "marco": true
@@ -160,6 +161,7 @@
           },
           {
             "id": "me5",
+            "cob": "me4",
             "d": "fin",
             "txt": "Transformação concluída pela Leggacy",
             "marco": true
@@ -341,6 +343,7 @@
         "tasks": [
           {
             "id": "al4",
+            "cob": "al3",
             "d": "fin",
             "txt": "Alteração registrada na Junta pela Leggacy",
             "marco": true
@@ -529,6 +532,7 @@
           },
           {
             "id": "re7",
+            "cob": "re6",
             "d": "fin",
             "txt": "Reativação concluída pela Leggacy"
           }
@@ -644,6 +648,7 @@
           },
           {
             "id": "ba7",
+            "cob": "ba6",
             "d": "fin",
             "txt": "Baixa concluída pela Leggacy",
             "marco": true

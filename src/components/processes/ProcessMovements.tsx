@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import logoUrl from '../../assets/jaralcon-report-logo.png'
 import { useOverlayDialog } from '../../hooks/useOverlayDialog'
 import { processQueryKeys } from '../../query/processQueryKeys'
@@ -16,14 +16,14 @@ import type {
   ProcessMonthlyReport,
   ProcessMovementItem,
 } from '../../types/processes'
-import { getErrorPresentation } from '../../utils/apiErrors'
 import {
   formatBRL,
   monthLabel,
-  processTypeName,
   shiftMonth,
 } from '../../utils/processPresentation'
 import ProcessIcon from './ProcessIcon'
+import ProcessQueryError from './ProcessQueryError'
+import ProcessTypeBadge from './ProcessTypeBadge'
 
 interface Props {
   scope: OrganizationQueryScope
@@ -32,6 +32,7 @@ interface Props {
   authorName: string
   onMonth: (month: string) => void
   onOpen: (id: string) => void
+  onUnavailable?: (error: unknown) => void
 }
 
 export default function ProcessMovements({
@@ -41,19 +42,40 @@ export default function ProcessMovements({
   authorName,
   onMonth,
   onOpen,
+  onUnavailable,
 }: Props) {
   const [showReport, setShowReport] = useState(false)
+  const [denied, setDenied] = useState<{
+    context: string
+    error: unknown
+  } | null>(null)
+  const queryClient = useQueryClient()
+  const context = `${scope.organizationId}:${scope.membershipId}:${month}`
+  const retainedError = denied?.context === context ? denied.error : null
   const query = useQuery({
+    retry: false,
+    refetchOnWindowFocus: false,
+    enabled: !retainedError,
     queryKey: processQueryKeys.report(scope, month),
     queryFn: ({ signal }) =>
       processService
         .monthlyReport(month, signal)
         .then((response) => response.data),
   })
-  const report =
-    isApiError(query.error) && [403, 404].includes(query.error.status)
-      ? undefined
-      : query.data
+  const error = retainedError ?? query.error
+  const report = error ? undefined : query.data
+  useEffect(() => {
+    if (error) setShowReport(false)
+  }, [error])
+  useEffect(() => {
+    if (!isApiError(query.error) || ![403, 404].includes(query.error.status))
+      return
+    setDenied({ context, error: query.error })
+    onUnavailable?.(query.error)
+    const queryKey = processQueryKeys.report(scope, '').slice(0, -1)
+    void queryClient.cancelQueries({ queryKey })
+    queryClient.removeQueries({ queryKey })
+  }, [query.error, context, onUnavailable, queryClient, scope])
   return (
     <>
       <div className="lhead">
@@ -65,6 +87,14 @@ export default function ProcessMovements({
           </p>
         </div>
         <div className="process-actions">
+          <button
+            className="btn"
+            aria-label="Atualizar movimentações"
+            disabled={query.isFetching || !!error}
+            onClick={() => void query.refetch()}
+          >
+            <ProcessIcon name="refresh" size={16} />
+          </button>
           <button
             className="btn primary"
             onClick={() => setShowReport(true)}
@@ -107,18 +137,23 @@ export default function ProcessMovements({
           </div>
         </div>
       </div>
-      {query.isPending && (
+      {query.isPending && !error && (
         <div className="panel empty" role="status">
           Carregando movimentações…
         </div>
       )}
-      {query.error && (
-        <div className="banner" role="alert">
-          {getErrorPresentation(query.error).message}{' '}
-          <button className="btn sm" onClick={() => void query.refetch()}>
-            Tentar novamente
-          </button>
-        </div>
+      {!!error && (
+        <ProcessQueryError
+          error={error}
+          title="Não foi possível carregar movimentações"
+          retry={() => {
+            if (retainedError) setDenied(null)
+            else void query.refetch()
+          }}
+        />
+      )}
+      {query.isFetching && report && (
+        <p role="status">Atualizando movimentações…</p>
       )}
       {report && (
         <>
@@ -259,7 +294,9 @@ function MovementList({
             >
               <span className="nm">
                 <b>{item.empresa}</b>
-                <small>{processTypeName(catalog, item.tipo)}</small>
+                <small>
+                  <ProcessTypeBadge catalog={catalog} tipo={item.tipo} />
+                </small>
               </span>
               <span
                 className={`mv ${item.value == null ? 'none' : sign > 0 ? 'up' : 'down'}`}
@@ -300,7 +337,7 @@ function LossBreakdown({
       {types.map(([type, amount]) => (
         <div key={type} className="mot-r">
           <span className="ml">
-            {processTypeName(catalog, type)}
+            <ProcessTypeBadge catalog={catalog} tipo={type} />
             <small>
               {report.exits.filter((item) => item.tipo === type).length}{' '}
               empresas
@@ -545,7 +582,9 @@ function ReportRows({
       <div className="rr" key={item.processId}>
         <div>
           <b>{item.empresa}</b>
-          <small>{processTypeName(catalog, item.tipo)}</small>
+          <small>
+            <ProcessTypeBadge catalog={catalog} tipo={item.tipo} />
+          </small>
         </div>
         <span className={item.value == null ? 'na' : sign > 0 ? 'up' : 'down'}>
           {item.value == null

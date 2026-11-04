@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 
 import Button from '../components/ui/Button'
 import { ROUTES } from '../constants/routes'
 import { useAuth } from '../hooks/useAuth'
+import { getErrorPresentation } from '../utils/apiErrors'
 
 interface LoginLocationState {
   from?: string
@@ -17,8 +18,38 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<ReturnType<
+    typeof getErrorPresentation
+  > | null>(null)
+  const [retryUntil, setRetryUntil] = useState(0)
+  const [retryRemaining, setRetryRemaining] = useState(0)
+  const submitting = useRef(false)
+  const blockedUntil = useRef(0)
+  const presentation =
+    error ??
+    (initializationError ? getErrorPresentation(initializationError) : null)
   const returnPath = getReturnPath(location.state)
+
+  useEffect(() => {
+    const seconds = initializationError
+      ? getErrorPresentation(initializationError).retryAfterSeconds
+      : null
+    if (seconds == null || seconds === 0) return
+    blockedUntil.current = Date.now() + seconds * 1000
+    setRetryUntil(blockedUntil.current)
+  }, [initializationError])
+
+  useEffect(() => {
+    if (!retryUntil) return
+    function update() {
+      setRetryRemaining(
+        Math.max(0, Math.ceil((retryUntil - Date.now()) / 1000)),
+      )
+    }
+    update()
+    const timer = setInterval(update, 1000)
+    return () => clearInterval(timer)
+  }, [retryUntil])
 
   if (isAuthenticated) {
     return <Navigate to={returnPath} replace />
@@ -26,19 +57,26 @@ function LoginPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setError('')
+    if (submitting.current || Date.now() < blockedUntil.current) return
+    submitting.current = true
+    setError(null)
     setIsSubmitting(true)
 
     try {
       await login({ email, password })
       navigate(returnPath, { replace: true })
     } catch (currentError) {
-      setError(
-        currentError instanceof Error
-          ? currentError.message
-          : 'Não foi possível entrar. Tente novamente.',
+      const failure = getErrorPresentation(
+        currentError,
+        'Não foi possível entrar. Tente novamente.',
       )
+      setError(failure)
+      if (failure.retryAfterSeconds) {
+        blockedUntil.current = Date.now() + failure.retryAfterSeconds * 1000
+        setRetryUntil(blockedUntil.current)
+      }
     } finally {
+      submitting.current = false
       setIsSubmitting(false)
     }
   }
@@ -123,7 +161,7 @@ function LoginPage() {
                   value={email}
                   onChange={(event) => {
                     setEmail(event.target.value)
-                    setError('')
+                    setError(null)
                   }}
                   placeholder="nome@empresa.com"
                   required
@@ -142,7 +180,7 @@ function LoginPage() {
                     value={password}
                     onChange={(event) => {
                       setPassword(event.target.value)
-                      setError('')
+                      setError(null)
                     }}
                     placeholder="Digite sua senha"
                     required
@@ -161,12 +199,17 @@ function LoginPage() {
                 </span>
               </label>
 
-              {(error || initializationError) && (
+              {presentation && (
                 <p
                   className="rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3 py-2.5 text-sm font-semibold text-[var(--status-error-text)]"
                   role="alert"
                 >
-                  {error || initializationError?.message}
+                  {presentation.message}
+                  {presentation.supportReference && (
+                    <span className="block">
+                      {presentation.supportReference}
+                    </span>
+                  )}
                 </p>
               )}
 
@@ -174,9 +217,13 @@ function LoginPage() {
                 type="submit"
                 tone="primary"
                 className="w-full"
-                disabled={isSubmitting}
+                disabled={isSubmitting || retryRemaining > 0}
               >
-                {isSubmitting ? 'Entrando...' : 'Entrar'}
+                {isSubmitting
+                  ? 'Entrando...'
+                  : retryRemaining > 0
+                    ? `Aguarde ${retryRemaining}s`
+                    : 'Entrar'}
               </Button>
             </form>
           </div>

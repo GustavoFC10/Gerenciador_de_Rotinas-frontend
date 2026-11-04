@@ -1,4 +1,8 @@
-import type { ProcessCatalog, ProcessResource } from '../types/processes'
+import type {
+  ProcessCatalog,
+  ProcessStatus,
+  ProcessSummary,
+} from '../types/processes'
 import { formatProcessMoney } from './processMoney'
 
 export const PROCESS_SECTORS = {
@@ -7,14 +11,19 @@ export const PROCESS_SECTORS = {
   reg: 'Regularidade',
 } as const
 
-export function processStatus(process: ProcessResource) {
-  if (process.status === 'concluido')
-    return { tone: 'completed', label: 'Concluído' }
-  if (process.status === 'cancelado')
-    return { tone: 'pending', label: 'Cancelado' }
-  if (process.analysis.waiting) return { tone: 'scheduled', label: 'Agendado' }
-  if (process.analysis.late) return { tone: 'error', label: 'Atrasado' }
-  return { tone: 'progress', label: 'Em andamento' }
+export const PROCESS_STATUS_PRESENTATION: Record<
+  ProcessStatus,
+  { tone: string; label: string }
+> = {
+  andamento: { tone: 'progress', label: 'Em andamento' },
+  agendado: { tone: 'scheduled', label: 'Aguardando liberação' },
+  atrasado: { tone: 'error', label: 'Atrasado' },
+  concluido: { tone: 'completed', label: 'Concluído' },
+  cancelado: { tone: 'pending', label: 'Cancelado' },
+}
+
+export function processStatus(process: Pick<ProcessSummary, 'status'>) {
+  return PROCESS_STATUS_PRESENTATION[process.status]
 }
 
 export function processTypeName(catalog: ProcessCatalog, tipo: string) {
@@ -66,7 +75,7 @@ export function formatBRL(value: string | number | null | undefined) {
   return formatProcessMoney(value)
 }
 
-export function processAge(process: ProcessResource) {
+export function processAge(process: ProcessSummary) {
   return Math.max(
     0,
     Math.floor(
@@ -78,14 +87,10 @@ export function processAge(process: ProcessResource) {
 }
 
 export function processDaysUntilDue(
-  process: ProcessResource,
+  process: ProcessSummary,
   timeZone = 'America/Sao_Paulo',
 ) {
-  if (
-    !process.prazo ||
-    process.status !== 'andamento' ||
-    process.analysis.waiting
-  )
+  if (!process.prazo || !['andamento', 'atrasado'].includes(process.status))
     return null
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone,
@@ -100,10 +105,10 @@ export function processDaysUntilDue(
 }
 
 export function processDaysLate(
-  process: ProcessResource,
+  process: ProcessSummary,
   timeZone = 'America/Sao_Paulo',
 ) {
-  if (!process.prazo || !process.analysis.late) return 0
+  if (!process.prazo || process.status !== 'atrasado') return 0
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone,
     year: 'numeric',

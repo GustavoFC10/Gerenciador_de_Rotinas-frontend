@@ -1,0 +1,669 @@
+{
+  "exportadoEm": "2026-10-31",
+  "processos": [
+    {
+      "atualizadoEm": "2026-10-23T17:04:10.302Z",
+      "cnpj": null,
+      "codigo": "EXC-2610-IGA5",
+      "concluidoEm": null,
+      "criadoEm": "2026-10-23T17:03:38.252Z",
+      "criadoPor": "u_qbnIGtcR7UjIl2kg8j29OA",
+      "empresa": "Maria Aparecida",
+      "historico": [
+        {
+          "acao": "abriu o processo",
+          "em": "2026-10-23T17:03:38.252Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Comunicar formalmente o cliente sobre o encerramento do contrato",
+          "em": "2026-10-23T17:03:54.136Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Efetuar o distrato e cobrar possíveis débitos",
+          "em": "2026-10-23T17:03:58.102Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Retirar a cobrança do cliente no sistema de cobrança",
+          "em": "2026-10-23T17:04:02.623Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Elaborar carta de confissão de dívida",
+          "em": "2026-10-23T17:04:10.302Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        }
+      ],
+      "honPerdido": 0,
+      "inicioInat": null,
+      "notas": [],
+      "obs": null,
+      "prazo": "2026-11-30",
+      "status": "andamento",
+      "tarefas": {
+        "ex1": {
+          "em": "2026-10-23T17:03:54.136Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ex2": {
+          "em": "2026-10-23T17:03:58.102Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ex3": {
+          "em": "2026-10-23T17:04:02.623Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ex4": {
+          "em": "2026-10-23T17:04:10.302Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        }
+      },
+      "tipo": "exclusao",
+      "id": "cnc2r47vc4hj"
+    },
+    {
+      "altDesc": "eqwe",
+      "altItens": [
+        "capital",
+        "endereco"
+      ],
+      "atualizadoEm": "2026-10-23T13:13:52.745Z",
+      "cnpj": null,
+      "codigo": "ALT-2610-YH3F",
+      "concluidoEm": "2026-10-23T13:13:52.745Z",
+      "criadoEm": "2026-10-23T13:13:32.596Z",
+      "criadoPor": "u_qbnIGtcR7UjIl2kg8j29OA",
+      "custo": 690,
+      "empresa": "rwarw1'1",
+      "historico": [
+        {
+          "acao": "abriu o processo",
+          "em": "2026-10-23T13:13:32.596Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "registrou as definições da alteração: Capital social, Endereço; custo R$ 690,00, pago por cliente, à vista",
+          "em": "2026-10-23T13:13:32.596Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Repassar os dados da alteração contratual para a Leggacy",
+          "em": "2026-10-23T13:13:37.323Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Enviar a guia de pagamento ao cliente",
+          "em": "2026-10-23T13:13:40.810Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Alteração registrada na Junta pela Leggacy",
+          "em": "2026-10-23T13:13:44.259Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Enviar o contrato alterado registrado ao cliente",
+          "em": "2026-10-23T13:13:45.289Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Informar os departamentos sobre a alteração, quando necessário",
+          "em": "2026-10-23T13:13:51.295Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Salvar os documentos da alteração no servidor",
+          "em": "2026-10-23T13:13:52.745Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu o processo",
+          "em": "2026-10-23T13:13:52.745Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        }
+      ],
+      "inicioInat": null,
+      "notas": [],
+      "obs": null,
+      "pagador": "cliente",
+      "parcelas": 1,
+      "prazo": null,
+      "status": "concluido",
+      "tarefas": {
+        "al2": {
+          "em": "2026-10-23T13:13:40.810Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "al3": {
+          "em": "2026-10-23T13:13:37.323Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "al4": {
+          "em": "2026-10-23T13:13:44.259Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "al5": {
+          "em": "2026-10-23T13:13:52.745Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "al7": {
+          "em": "2026-10-23T13:13:45.289Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "al8": {
+          "em": "2026-10-23T13:13:51.295Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ald": {
+          "auto": true,
+          "em": "2026-10-23T13:13:32.596Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        }
+      },
+      "tipo": "alteracao",
+      "id": "n2j9qiavhtte"
+    },
+    {
+      "atualizadoEm": "2026-10-23T17:02:00.622Z",
+      "cnpj": "00.000.000/0000-01",
+      "codigo": "ABE-2610-GH8B",
+      "concluidoEm": null,
+      "criadoEm": "2026-10-23T16:59:32.594Z",
+      "criadoPor": "u_qbnIGtcR7UjIl2kg8j29OA",
+      "custo": 950,
+      "empresa": "Joaquim da Silva",
+      "historico": [
+        {
+          "acao": "abriu o processo",
+          "em": "2026-10-23T16:59:32.594Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "definiu o custo do processo: R$ 950,00, pago por cliente, 2x de R$ 475,00",
+          "em": "2026-10-23T16:59:32.594Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "definiu o novo honorário mensal: R$ 350,00, cobrança do 1º honorário em 20/12/2026",
+          "em": "2026-10-23T16:59:32.595Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "definiu o regime tributário: Simples Nacional",
+          "em": "2026-10-23T16:59:32.595Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Contatar o cliente, apresentar-se como responsável pelo financeiro e solicitar os dados",
+          "em": "2026-10-23T17:00:21.097Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Repassar as informações à Leggacy para abertura do CNPJ",
+          "em": "2026-10-23T17:00:31.613Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Enviar a guia de pagamento ao cliente",
+          "em": "2026-10-23T17:00:43.813Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: CNPJ liberado pela Leggacy",
+          "em": "2026-10-23T17:00:49.000Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Informar o cliente sobre a liberação",
+          "em": "2026-10-23T17:00:57.867Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Assinar o contrato de prestação de serviços contábeis",
+          "em": "2026-10-23T17:01:03.298Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Cadastrar a empresa nos sistemas de gestão e contábil",
+          "em": "2026-10-23T17:01:29.846Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Cadastrar o cliente na planilha geral de clientes",
+          "em": "2026-10-23T17:01:37.450Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Agendar a reunião de 1ª visita (dias fixos)",
+          "em": "2026-10-23T17:02:00.622Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        }
+      ],
+      "honCobranca": "2026-12-20",
+      "honorario": 350,
+      "inicioInat": null,
+      "notas": [],
+      "obs": null,
+      "pagador": "cliente",
+      "parcelas": 2,
+      "prazo": "2026-11-30",
+      "regime": "simples",
+      "regimeObs": "Atividade de comércio de peças, junto com prestação de serviço",
+      "reunAcomp": true,
+      "reunAlinh": true,
+      "status": "andamento",
+      "tarefas": {
+        "ab1": {
+          "em": "2026-10-23T16:59:32.595Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ab11": {
+          "em": "2026-10-23T17:01:37.450Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ab3": {
+          "em": "2026-10-23T17:00:21.097Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ab4": {
+          "em": "2026-10-23T17:00:31.613Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ab5": {
+          "em": "2026-10-23T17:00:49.000Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ab6": {
+          "em": "2026-10-23T17:00:57.867Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ab7": {
+          "em": "2026-10-23T17:01:03.298Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ab8": {
+          "em": "2026-10-23T17:01:29.846Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ab9": {
+          "em": "2026-10-23T17:02:00.622Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "abc": {
+          "em": "2026-10-23T16:59:32.594Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "abg": {
+          "em": "2026-10-23T17:00:43.813Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "abh": {
+          "em": "2026-10-23T16:59:32.594Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        }
+      },
+      "tipo": "abertura",
+      "trab": false,
+      "trabQtd": null,
+      "trabValor": null,
+      "id": "pekx4jk4ins3"
+    },
+    {
+      "atualizadoEm": "2026-10-23T13:12:47.491Z",
+      "cnpj": null,
+      "codigo": "INA-2610-3CTG",
+      "concluidoEm": "2026-10-23T13:12:47.491Z",
+      "criadoEm": "2026-10-23T13:12:08.630Z",
+      "criadoPor": "u_qbnIGtcR7UjIl2kg8j29OA",
+      "empresa": "testes",
+      "historico": [
+        {
+          "acao": "abriu o processo",
+          "em": "2026-10-23T13:12:08.630Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "definiu a cobrança do 1º honorário: 01/11/0002",
+          "em": "2026-10-23T13:12:14.013Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Definições de inatividade",
+          "em": "2026-10-23T13:12:14.335Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Atualizar o novo honorário no sistema de cobrança",
+          "em": "2026-10-23T13:12:39.257Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Comunicar os departamentos sobre a inatividade",
+          "em": "2026-10-23T13:12:43.241Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Atualizar os sistemas internos",
+          "em": "2026-10-23T13:12:44.970Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Atualizar a planilha geral de clientes",
+          "em": "2026-10-23T13:12:47.491Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu o processo",
+          "em": "2026-10-23T13:12:47.491Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        }
+      ],
+      "honAnterior": 550,
+      "honCobranca": "0002-11-01",
+      "honorario": 100,
+      "inicioInat": null,
+      "notas": [],
+      "obs": null,
+      "prazo": null,
+      "status": "concluido",
+      "tarefas": {
+        "ia2": {
+          "em": "2026-10-23T13:12:39.257Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ia3": {
+          "em": "2026-10-23T13:12:43.241Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ia4": {
+          "em": "2026-10-23T13:12:44.969Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ia5": {
+          "em": "2026-10-23T13:12:47.491Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "iah": {
+          "em": "2026-10-23T13:12:14.334Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        }
+      },
+      "tipo": "inativa",
+      "trab": false,
+      "trabQtd": null,
+      "trabValor": null,
+      "id": "pvk9md2xr4en"
+    },
+    {
+      "atualizadoEm": "2026-10-29T17:30:27.240Z",
+      "cnpj": null,
+      "codigo": "MEI-2610-JTDM",
+      "concluidoEm": null,
+      "criadoEm": "2026-10-29T17:26:37.562Z",
+      "criadoPor": "u_qbnIGtcR7UjIl2kg8j29OA",
+      "custo": 700,
+      "empresa": "testes",
+      "historico": [
+        {
+          "acao": "abriu o processo",
+          "em": "2026-10-29T17:26:37.562Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "definiu o custo do processo: R$ 700,00, pago por cliente, 2x de R$ 350,00",
+          "em": "2026-10-29T17:26:37.562Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "definiu o novo honorário mensal: R$ 350,00, cobrança do 1º honorário em 20/12/2026",
+          "em": "2026-10-29T17:26:37.563Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "definiu o regime tributário: Simples Nacional",
+          "em": "2026-10-29T17:26:37.563Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Contatar o cliente, apresentar-se como responsável pelo financeiro e solicitar os dados",
+          "em": "2026-10-29T17:28:00.271Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Repassar as informações à Leggacy para conversão do MEI para ME",
+          "em": "2026-10-29T17:28:07.975Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Enviar a guia de pagamento ao cliente",
+          "em": "2026-10-29T17:28:12.363Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Transformação concluída pela Leggacy",
+          "em": "2026-10-29T17:28:16.177Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Informar o cliente sobre a liberação",
+          "em": "2026-10-29T17:28:23.555Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Assinar o contrato de prestação de serviços contábeis",
+          "em": "2026-10-29T17:28:30.570Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Cadastrar a empresa nos sistemas de gestão e contábil",
+          "em": "2026-10-29T17:29:37.498Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Cadastrar o cliente na planilha geral de clientes",
+          "em": "2026-10-29T17:29:43.105Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "reabriu: Cadastrar o cliente na planilha geral de clientes",
+          "em": "2026-10-29T17:30:22.528Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Cadastrar o cliente na planilha geral de clientes",
+          "em": "2026-10-29T17:30:23.726Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Agendar a reunião de 1ª visita (dias fixos)",
+          "em": "2026-10-29T17:30:27.240Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        }
+      ],
+      "honCobranca": "2026-12-20",
+      "honorario": 350,
+      "inicioInat": null,
+      "notas": [],
+      "obs": null,
+      "pagador": "cliente",
+      "parcelas": 2,
+      "prazo": "2026-11-15",
+      "regime": "simples",
+      "regimeObs": "Comércio de ração",
+      "reunAcomp": true,
+      "reunAlinh": true,
+      "status": "andamento",
+      "tarefas": {
+        "me1": {
+          "em": "2026-10-29T17:26:37.563Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "me11": {
+          "em": "2026-10-29T17:30:23.726Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "me3": {
+          "em": "2026-10-29T17:28:00.271Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "me4": {
+          "em": "2026-10-29T17:28:07.974Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "me5": {
+          "em": "2026-10-29T17:28:16.177Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "me6": {
+          "em": "2026-10-29T17:28:23.554Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "me7": {
+          "em": "2026-10-29T17:28:30.570Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "me8": {
+          "em": "2026-10-29T17:29:37.498Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "me9": {
+          "em": "2026-10-29T17:30:27.240Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "mec": {
+          "em": "2026-10-29T17:26:37.562Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "meg": {
+          "em": "2026-10-29T17:28:12.363Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "meh": {
+          "em": "2026-10-29T17:26:37.563Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        }
+      },
+      "tipo": "mei",
+      "trab": false,
+      "trabQtd": null,
+      "trabValor": null,
+      "id": "s3hpu59retie"
+    },
+    {
+      "atualizadoEm": "2026-10-29T17:31:37.142Z",
+      "cnpj": null,
+      "codigo": "EXC-2610-KZXQ",
+      "concluidoEm": null,
+      "criadoEm": "2026-10-29T17:31:20.495Z",
+      "criadoPor": "u_qbnIGtcR7UjIl2kg8j29OA",
+      "empresa": "Fernanda",
+      "historico": [
+        {
+          "acao": "abriu o processo",
+          "em": "2026-10-29T17:31:20.495Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Comunicar formalmente o cliente sobre o encerramento do contrato",
+          "em": "2026-10-29T17:31:28.496Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Efetuar o distrato e cobrar possíveis débitos",
+          "em": "2026-10-29T17:31:31.502Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Retirar a cobrança do cliente no sistema de cobrança",
+          "em": "2026-10-29T17:31:34.790Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        },
+        {
+          "acao": "concluiu: Elaborar carta de confissão de dívida",
+          "em": "2026-10-29T17:31:37.142Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA"
+        }
+      ],
+      "honPerdido": 0,
+      "inicioInat": null,
+      "notas": [],
+      "obs": null,
+      "prazo": "2026-11-20",
+      "status": "andamento",
+      "tarefas": {
+        "ex1": {
+          "em": "2026-10-29T17:31:28.496Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ex2": {
+          "em": "2026-10-29T17:31:31.502Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ex3": {
+          "em": "2026-10-29T17:31:34.790Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        },
+        "ex4": {
+          "em": "2026-10-29T17:31:37.142Z",
+          "por": "u_qbnIGtcR7UjIl2kg8j29OA",
+          "s": "feito"
+        }
+      },
+      "tipo": "exclusao",
+      "id": "zgthpsvyqxki"
+    }
+  ],
+  "alertas": [],
+  "config": {
+    "emails": {
+      "com": [],
+      "fin": [],
+      "reg": []
+    }
+  }
+}

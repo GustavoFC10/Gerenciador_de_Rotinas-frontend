@@ -1,0 +1,47 @@
+.process-type-badge {
+  --type-color: #475569;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--type-color) 28%, transparent);
+  border-radius: var(--r-control, 8px);
+  background: color-mix(in srgb, var(--type-color) 9%, var(--panel, #fff));
+  color: var(--type-color);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  vertical-align: middle;
+  text-align: left;
+}
+.process-type-abertura {
+  --type-color: #1d4ed8;
+}
+.process-type-mei {
+  --type-color: #4338ca;
+}
+.process-type-outro {
+  --type-color: #0e7490;
+}
+.process-type-alteracao {
+  --type-color: #7e22ce;
+}
+.process-type-inatividade {
+  --type-color: #92400e;
+}
+.process-type-inativa {
+  --type-color: #475569;
+}
+.process-type-reativacao {
+  --type-color: #0f766e;
+}
+.process-type-baixa {
+  --type-color: #be185d;
+}
+.process-type-saida {
+  --type-color: #c2410c;
+}
+.process-type-exclusao {
+  --type-color: #b91c1c;
+}

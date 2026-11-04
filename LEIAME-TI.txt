@@ -1,0 +1,101 @@
+PROCESSOS JARALCON — O QUE O TI PRECISA PARA COLOCAR NO AR
+==========================================================
+
+Arquivos:
+- processos-jaralcon.html  -> o sistema completo em um arquivo (HTML, CSS e JS puro, sem build)
+- dados-atuais.json        -> processos já cadastrados, para importar no banco (contém alguns testes; conferir com a Diretoria)
+
+Falta fazer: hospedar, ligar um banco de dados, login com setor por usuário e envio de e-mails.
+
+
+1. O QUE O SISTEMA FAZ (resumo)
+-------------------------------
+- Abre e acompanha 10 tipos de processo (abertura, alteração, baixa, saída etc.), com etapas e tarefas por setor:
+  Diretoria (com), Financeiro (fin) e Regularidade (reg).
+- Início, fila de cada setor, listas por situação, página do processo com comentários e histórico.
+- Movimentações Empresariais (honorários ganhos/perdidos) com relatório em PDF.
+- Avisos por e-mail (seção 4).
+- Permissões: só a Diretoria abre/edita/cancela/exclui processos e vê os Avisos; Financeiro e Regularidade
+  concluem só tarefas do próprio setor; Regularidade não vê valores nem Movimentações.
+
+
+2. CÓDIGO
+---------
+- Todo o JavaScript fica numa função (() => { ... })() no fim do arquivo.
+- Dependências externas: fonte Inter (Google Fonts) e jsPDF 2.5.1 (cdnjs, carregado só ao gerar o PDF).
+- Hoje usa o banco e o login do Claude (objeto window.claude). Fora dele entra em "modo local" e salva no
+  localStorage (chaves jp_local, jp_alertas, jp_emails, jp_dept). Modo local é só para teste.
+- Link direto para um processo: endereco-do-sistema#ID_DO_PROCESSO
+
+
+3. O QUE TROCAR
+---------------
+a) Banco de dados — 3 coleções:
+   - processos : 1 documento por processo (tipo, empresa, cnpj, codigo, status [andamento|concluido|cancelado],
+                 prazo, criadoEm, criadoPor, concluidoEm, tarefas {idTarefa:{s,por,em}}, notas[], historico[]
+                 e campos de valores).
+   - alertas   : 1 documento por aviso de e-mail (seção 4).
+   - config    : documento "emails" = { com:[...], fin:[...], reg:[...] } (e-mails por setor).
+
+   Pontos do código que acessam o banco:
+   - commit(id, patch, kind): grava processos. kind = "set" (cria/substitui), "update" (mescla o patch,
+     inclusive objetos aninhados como tarefas) ou "delete".
+   - Bloco final (async () => { ... })(): assina em tempo real processos, alertas e config (onSnapshot).
+   - criarAlerta, salvarAlerta, salvarEmails: gravam avisos e e-mails.
+   Firebase Firestore tem praticamente a mesma API (collection().doc().set/update/delete e onSnapshot): é a troca
+   mais direta. Com Supabase: uma tabela por coleção com id text + data jsonb.
+
+b) Login e setor:
+   - Hoje cada pessoa escolhe o setor no menu lateral (setDept / jp_dept). Em produção o setor deve vir do cadastro
+     do usuário (com, fin ou reg) e a troca de setor deve ser escondida.
+   - S.me precisa receber {id, name, avatarUrl} do usuário logado. Nomes do histórico: trocar user.profiles(ids)
+     por consulta à tabela de usuários.
+   - Regras de permissão: canOpen, canManage, canDo, canMoney. Repetir as mesmas regras no banco (segurança/RLS),
+     porque hoje elas existem só na tela.
+
+
+4. AVISOS POR E-MAIL
+--------------------
+Regras:
+- Leggacy sem retorno 7 dias após o envio  -> Diretoria e Financeiro
+  ID do aviso: {idProcesso}_leg_{idTarefa}
+- Processo em andamento com prazo vencido há mais de 7 dias (qualquer etapa) -> Diretoria, Financeiro e Regularidade
+  ID do aviso: {idProcesso}_atr_{indiceDaEtapa}
+Cada ID gera um único aviso (não repete).
+
+Constantes no código: LEGGACY_DIAS = 7, ATRASO_AVISO_DIAS = 7, ALERTA_TIPOS (destinatários),
+LINK_SISTEMA = "" (preencher com o endereço do sistema; entra no link do e-mail).
+
+Documento alertas/{id}:
+  { tipo: "leggacy"|"atraso", procId, empresa, processo, destinos:["com","fin"...],
+    assunto, corpo, status: "pendente"|"enviado", criadoEm, enviadoEm }
+
+Como está hoje:
+- checarAlertas() roda no navegador quando os dados mudam e cria o aviso se o ID não existe.
+- Chama enviarEmail(alerta, listaDeEmails), que hoje retorna false: o aviso fica "pendente" e a Diretoria envia
+  manualmente pela tela "Avisos por e-mail" (copiar e marcar como enviado).
+- Os e-mails de cada setor são cadastrados nessa tela (vários por setor).
+
+Para enviar de verdade (recomendado):
+1. Job no servidor 1x por dia (ex.: 8h) que aplica as duas regras na coleção processos, cria o documento em
+   alertas com o mesmo ID (se não existir), envia para os e-mails de config/emails dos setores em "destinos"
+   (SendGrid, Resend, SMTP...) e marca status "enviado". Assim sai e-mail mesmo com o sistema fechado.
+2. Com o job ativo, desligar a criação no navegador (checarAlertas retornar sem fazer nada).
+   Alternativa simples: implementar enviarEmail() chamando o servidor e retornar true quando enviar
+   (só envia quando alguém abre o sistema).
+
+Para replicar as regras no servidor:
+- Envio à Leggacy = tarefas[idTarefaDeEnvio].em ; retorno = tarefas[idTarefaDeRetorno].s
+  Os pares estão em TIPOS, campo "cob" da tarefa de retorno (ex.: ab5 tem cob:"ab4").
+- Atraso: campo prazo, só para status "andamento".
+
+
+5. CHECKLIST
+------------
+[ ] Hospedar processos-jaralcon.html (ex.: Vercel)
+[ ] Criar coleções processos, alertas, config e adaptar commit + assinaturas em tempo real
+[ ] Importar dados-atuais.json (cada item de "processos" vira um documento com seu "id")
+[ ] Login, setor por usuário e regras de acesso no banco
+[ ] Preencher LINK_SISTEMA e ligar o envio de e-mails (job diário ou enviarEmail)
+[ ] Cadastrar os e-mails dos setores na tela "Avisos por e-mail"
+[ ] Teste final: abrir processo, concluir tarefas, gerar PDF e receber um aviso de teste

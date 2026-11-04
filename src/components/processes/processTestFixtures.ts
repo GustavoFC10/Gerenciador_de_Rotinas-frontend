@@ -19,7 +19,16 @@ export const processTestPermissions: ProcessPermissions = {
 }
 
 export const processTestCatalog: ProcessCatalog = {
-  workflowVersion: 1,
+  contractVersion: 2,
+  workflowVersion: 2,
+  statuses: {
+    andamento: 'Em andamento',
+    agendado: 'Aguardando liberação',
+    atrasado: 'Atrasado',
+    concluido: 'Concluído',
+    cancelado: 'Cancelado',
+  },
+  openStatuses: ['andamento', 'agendado', 'atrasado'],
   sectors: { com: 'Diretoria', fin: 'Financeiro', reg: 'Regularidade' },
   permissions: processTestPermissions,
   types: [
@@ -192,9 +201,16 @@ export function makeProcessTestResource(
     id: 'process-1',
     organizationId: 'org-1',
     empresa: 'Empresa Exemplo',
+    companyId: null,
+    cnpj: '',
+    protocolo: '',
+    prazo: null,
     tipo: 'abertura',
     codigo: 'ABE-2610-TEST',
     status: 'andamento',
+    statusChangedAt: '2026-10-22T12:00:00Z',
+    statusNextEvaluationAt: null,
+    responsibleSectors: ['fin', 'reg'],
     version: 4,
     workflowVersion: 1,
     criadoPor: 'member-1',
@@ -204,6 +220,7 @@ export function makeProcessTestResource(
     concluidoEm: null,
     etapas: processTestCatalog.types[0]!.etapas.slice(1),
     tarefas: {},
+    leggacy: [],
     analysis: {
       currentStage: 0,
       completedTasks: 0,
@@ -213,8 +230,6 @@ export function makeProcessTestResource(
       late: false,
       pendingSectors: ['fin', 'reg'],
     },
-    notas: [],
-    historico: [],
     permissions: processTestPermissions,
     ...overrides,
   }

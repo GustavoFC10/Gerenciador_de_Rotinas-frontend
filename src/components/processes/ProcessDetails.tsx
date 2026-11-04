@@ -1,7 +1,19 @@
-import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNotifications } from '../../hooks/useNotifications'
+import { useProcessEntries } from '../../hooks/useProcessEntries'
+import { processQueryKeys } from '../../query/processQueryKeys'
+import type { OrganizationQueryScope } from '../../query/queryKeys'
 import { isApiError, type ApiResponse } from '../../services/httpClient'
 import { processService } from '../../services/processService'
+import { getErrorPresentation } from '../../utils/apiErrors'
 import type {
   ProcessCatalog,
   ProcessCatalogType,
@@ -9,6 +21,7 @@ import type {
   ProcessEntry,
   ProcessField,
   ProcessResource,
+  ProcessStatus,
   ProcessTask,
 } from '../../types/processes'
 import {
@@ -17,6 +30,8 @@ import {
 } from '../../utils/processPresentation'
 import ProcessFields from './ProcessFields'
 import ProcessIcon from './ProcessIcon'
+import ProcessFollowUps from './ProcessFollowUps'
+import ProcessTypeBadge from './ProcessTypeBadge'
 import {
   DIRECT_LOSS_TYPES,
   PROCESS_ALTERATIONS,
@@ -36,12 +51,14 @@ import {
 } from './processFormUtils'
 
 export interface ProcessDetailsProps {
+  scope: OrganizationQueryScope
   process: ProcessResource
   catalog: ProcessCatalog
   onChange: (process: ProcessResource) => void
   onClose: () => void
   onEdit: () => void
   onDelete: () => Promise<void>
+  onUnavailable?: (error: unknown) => void
   timeZone?: string
 }
 
@@ -457,27 +474,43 @@ function ProcessValues({
 }
 
 export default function ProcessDetails({
+  scope,
   process,
   catalog,
   onChange,
   onClose,
   onEdit,
   onDelete,
+  onUnavailable,
   timeZone = 'America/Sao_Paulo',
 }: ProcessDetailsProps) {
   const id = useId()
+  const queryClient = useQueryClient()
   const { notify } = useNotifications()
   const [expanded, setExpanded] = useState<Set<number>>(
     () => new Set([process.analysis.currentStage ?? 0]),
   )
-  const [busy, setBusy] = useState(false)
+  const [saving, setBusy] = useState(false)
+  const [coolingDown, setCoolingDown] = useState(false)
+  const active = useRef(true)
+  const cooldownTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  )
+  const busy = saving || coolingDown
+  useEffect(() => {
+    active.current = true
+    return () => {
+      active.current = false
+      clearTimeout(cooldownTimer.current)
+    }
+  }, [])
   const busyRef = useRef(false)
   const [error, setError] = useState('')
   const [comment, setComment] = useState('')
   const [confirmation, setConfirmation] = useState<
     'delete' | 'cancel' | string | null
   >(null)
-  const [feedLimit, setFeedLimit] = useState(40)
+  const [unavailable, setUnavailable] = useState(false)
   const [openedAt] = useState(() => Date.now())
   const type = catalog.types.find((type) => type.id === process.tipo)
   const taskNames = Object.fromEntries(
@@ -487,6 +520,29 @@ export default function ProcessDetails({
   )
   const a = process.analysis
   const status = processStatus(process)
+  const isOpen = ['andamento', 'agendado', 'atrasado'].includes(process.status)
+  const executable =
+    process.status === 'andamento' || process.status === 'atrasado'
+  function revokeAccess(error: unknown) {
+    active.current = false
+    setUnavailable(true)
+    onUnavailable?.(error)
+    for (const queryKey of [
+      processQueryKeys.detail(scope, process.id),
+      processQueryKeys.entries(scope, process.id),
+      processQueryKeys.list(scope),
+      processQueryKeys.indicators(scope),
+      processQueryKeys.report(scope, '').slice(0, -1),
+      processQueryKeys.followUps(scope),
+      processQueryKeys.followUp(scope, '').slice(0, -1),
+      processQueryKeys.alerts(scope),
+      processQueryKeys.alert(scope, '').slice(0, -1),
+      processQueryKeys.alertRecipients(scope),
+    ]) {
+      void queryClient.cancelQueries({ queryKey })
+      queryClient.removeQueries({ queryKey })
+    }
+  }
   const date = (value: string | null | undefined) =>
     value ? formatProcessDate(value, timeZone) : 'A definir'
   const timestamp = (value: string | null | undefined) =>
@@ -512,13 +568,18 @@ export default function ProcessDetails({
     action: () => Promise<ApiResponse<ProcessResource>>,
     message?: string,
   ) {
-    if (busyRef.current) return false
+    if (busyRef.current || coolingDown) return false
     busyRef.current = true
     setBusy(true)
     setError('')
     try {
       const response = await action()
+      if (!active.current) return false
       onChange(response.data)
+      void queryClient.invalidateQueries(
+        { queryKey: processQueryKeys.entries(scope, process.id) },
+        { cancelRefetch: false },
+      )
       if (response.data.analysis.currentStage !== a.currentStage)
         setExpanded(
           new Set([
@@ -529,12 +590,34 @@ export default function ProcessDetails({
       if (message) notify({ title: message, tone: 'success' })
       return true
     } catch (error) {
-      if (isApiError(error) && error.status === 409) {
+      const presentation = getErrorPresentation(error)
+      if (
+        isApiError(error) &&
+        (error.status === 429 || error.status === 503) &&
+        presentation.retryAfterSeconds
+      ) {
+        setCoolingDown(true)
+        clearTimeout(cooldownTimer.current)
+        cooldownTimer.current = setTimeout(
+          () => setCoolingDown(false),
+          presentation.retryAfterSeconds * 1000,
+        )
+      }
+      if (isApiError(error) && (error.status === 403 || error.status === 404)) {
+        revokeAccess(error)
+      } else if (isApiError(error) && error.status === 409) {
         let refreshed = false
         try {
-          onChange((await processService.get(process.id)).data)
+          const current = (await processService.get(process.id)).data
+          if (!active.current) return false
+          onChange(current)
           refreshed = true
-        } catch {
+        } catch (refreshError) {
+          if (
+            isApiError(refreshError) &&
+            (refreshError.status === 403 || refreshError.status === 404)
+          )
+            revokeAccess(refreshError)
           /* Preserve the conflict notice when refreshing also fails. */
         }
         setError(
@@ -542,9 +625,9 @@ export default function ProcessDetails({
         )
       } else
         setError(
-          error instanceof Error
-            ? error.message
-            : 'Não foi possível salvar. Tente novamente.',
+          [presentation.message, presentation.supportReference]
+            .filter(Boolean)
+            .join(' '),
         )
       return false
     } finally {
@@ -553,17 +636,26 @@ export default function ProcessDetails({
     }
   }
   async function remove() {
-    if (busyRef.current) return
+    if (busyRef.current || coolingDown) return
     busyRef.current = true
     setBusy(true)
     setError('')
     try {
       await onDelete()
     } catch (error) {
-      if (isApiError(error) && error.status === 409) {
+      if (isApiError(error) && (error.status === 403 || error.status === 404)) {
+        revokeAccess(error)
+      } else if (isApiError(error) && error.status === 409) {
         try {
-          onChange((await processService.get(process.id)).data)
-        } catch {
+          const current = (await processService.get(process.id)).data
+          if (!active.current) return
+          onChange(current)
+        } catch (refreshError) {
+          if (
+            isApiError(refreshError) &&
+            (refreshError.status === 403 || refreshError.status === 404)
+          )
+            revokeAccess(refreshError)
           /* The original server message remains actionable. */
         }
       }
@@ -589,19 +681,15 @@ export default function ProcessDetails({
     )
       setComment('')
   }
-  const feed = [
-    ...process.notas.map((entry) => ({ ...entry, isNote: true })),
-    ...process.historico.map((entry) => ({ ...entry, isNote: false })),
-  ]
-    .filter((entry) => !entry.financial || process.permissions.viewFinancial)
-    .sort((left, right) => right.em.localeCompare(left.em))
   function taskView(task: ProcessTask, locked: boolean) {
     const state = process.tarefas[task.id]
     const done = !!state?.s
     const canExecute = process.permissions.executeSectors.includes(task.d)
     const automatic = task.auto || state?.auto
     const canTransition =
-      !automatic && canExecute && !locked && process.status !== 'cancelado'
+      !automatic &&
+      canExecute &&
+      ((done && process.status !== 'cancelado') || (!locked && executable))
     const fieldHidden =
       task.campo &&
       task.campo !== 'regime' &&
@@ -699,7 +787,7 @@ export default function ProcessDetails({
           )}
         </div>
         <div className="tbtns">
-          {task.opt && !done && !locked && canExecute && (
+          {task.opt && !done && !locked && canExecute && executable && (
             <button
               className="sbtn nabtn"
               disabled={busy}
@@ -784,6 +872,19 @@ export default function ProcessDetails({
       </div>
     </div>
   )
+  if (unavailable)
+    return (
+      <div className="panel empty" role="alert">
+        <h1>Processo indisponível</h1>
+        <p>
+          Seu acesso a este processo não está disponível. O conteúdo foi
+          removido.
+        </p>
+        <button className="btn" onClick={onClose}>
+          Voltar para processos
+        </button>
+      </div>
+    )
   return (
     <div id="procPage" aria-busy={busy}>
       <button className="back" type="button" onClick={onClose}>
@@ -800,7 +901,7 @@ export default function ProcessDetails({
       <section
         className={`panel phead ${process.status === 'concluido' ? 'is-done' : process.status === 'cancelado' ? 'is-closed' : ''}`}
       >
-        {process.status !== 'andamento' && (
+        {!isOpen && (
           <div
             className={`pbanner ${process.status === 'concluido' ? 'ok' : 'can'}`}
           >
@@ -824,12 +925,19 @@ export default function ProcessDetails({
         )}
         <div className="info">
           <div className="kicker">
-            <ProcessIcon name={type?.icon ?? 'list'} size={16} />
-            {type?.nome ?? process.tipo}
+            <ProcessTypeBadge catalog={catalog} tipo={process.tipo} />
           </div>
           <h1>{process.empresa}</h1>
           <div className="row2">
             <span className={`badge ${status.tone}`}>{status.label}</span>
+            {process.responsibleSectors.length > 0 && (
+              <span>
+                Responsável:{' '}
+                {process.responsibleSectors
+                  .map((sector) => catalog.sectors[sector])
+                  .join(' e ')}
+              </span>
+            )}
             <span>
               Protocolo <b>{process.codigo}</b>
             </span>
@@ -838,7 +946,7 @@ export default function ProcessDetails({
               {age === 1 ? 'dia' : 'dias'}
             </span>
             {process.prazo && (
-              <span className={a.late ? 'late' : ''}>
+              <span className={process.status === 'atrasado' ? 'late' : ''}>
                 Prazo {date(process.prazo)}
               </span>
             )}
@@ -872,7 +980,7 @@ export default function ProcessDetails({
               : process.status === 'cancelado'
                 ? 'Processo cancelado'
                 : a.currentStage != null
-                  ? `Etapa ${a.currentStage + 1} de ${process.etapas.length} · ${process.etapas[a.currentStage]?.t ?? ''}${a.waiting ? ` · libera em ${date(a.releaseDate)}` : ''}`
+                  ? `Etapa ${a.currentStage + 1} de ${process.etapas.length} · ${process.etapas[a.currentStage]?.t ?? ''}${process.status === 'agendado' ? ` · libera em ${date(a.releaseDate)}` : ''}`
                   : 'Atualizando as etapas'}
           </small>
         </div>
@@ -890,9 +998,10 @@ export default function ProcessDetails({
               const completed =
                 stage.completed ??
                 stage.tasks.every((task) => !!process.tarefas[task.id]?.s)
-              const waiting = index === a.currentStage && a.waiting
+              const waiting =
+                index === a.currentStage && process.status === 'agendado'
               const locked =
-                process.status === 'cancelado' ||
+                !executable ||
                 (a.currentStage != null && index > a.currentStage) ||
                 waiting
               const current = index === a.currentStage && !locked
@@ -911,7 +1020,7 @@ export default function ProcessDetails({
               const sub = completed
                 ? `Concluída${lastTime ? ` em ${timestamp(lastTime)}` : ''}`
                 : waiting
-                  ? `Fica disponível em ${date(a.releaseDate)}, ${stage.espera ?? 4} meses após a etapa anterior`
+                  ? `Fica disponível em ${date(a.releaseDate)}${stage.espera ? `, ${stage.espera} meses após a etapa anterior` : ''}`
                   : stage.espera
                     ? `Disponível ${stage.espera} meses após a conclusão da etapa anterior`
                     : locked
@@ -987,6 +1096,48 @@ export default function ProcessDetails({
               )
             })}
           </section>
+          {(process.leggacy ?? []).some(
+            (tracking) => tracking.awaitingReturn,
+          ) && (
+            <section className="panel" aria-label="Acompanhamento da Leggacy">
+              <div className="panel-h">
+                <h2>Acompanhamento da Leggacy</h2>
+              </div>
+              {process.leggacy
+                .filter((tracking) => tracking.awaitingReturn)
+                .map((tracking) => (
+                  <div
+                    className={`process-leggacy-tracking ${tracking.followUpDue ? 'follow-up-due' : ''}`}
+                    key={`${tracking.sendTaskId}:${tracking.sentAt}`}
+                  >
+                    <p>
+                      <ProcessIcon name="clock" size={16} /> Aguardando retorno
+                      há {tracking.daysWaiting}{' '}
+                      {tracking.daysWaiting === 1 ? 'dia' : 'dias'}
+                    </p>
+                    <p>
+                      {taskNames[tracking.returnTaskId] ?? 'Retorno da Leggacy'}
+                    </p>
+                    <small>
+                      Envio em {timestamp(tracking.sentAt)} · Cobrança a partir
+                      de {date(tracking.dueOn)}
+                    </small>
+                    {tracking.followUpDue && (
+                      <p>
+                        <strong>Cobrança necessária</strong>
+                      </p>
+                    )}
+                  </div>
+                ))}
+            </section>
+          )}
+          <ProcessFollowUps
+            scope={scope}
+            permissions={process.permissions}
+            processId={process.id}
+            timeZone={timeZone}
+            onUnavailable={revokeAccess}
+          />
           <section className="panel">
             <div className="panel-h">
               <h2>Comentários e histórico</h2>
@@ -1021,33 +1172,14 @@ export default function ProcessDetails({
                 Seus comentários são visíveis para a Diretoria e o Financeiro.
               </p>
             )}
-            <div className="feed">
-              {feed.length ? (
-                feed
-                  .slice(0, feedLimit)
-                  .map((entry) => (
-                    <HistoryEntry
-                      key={entry.id}
-                      entry={entry}
-                      isNote={entry.isNote}
-                      timestamp={timestamp}
-                      taskNames={taskNames}
-                    />
-                  ))
-              ) : (
-                <div className="ev">
-                  <div className="c">Sem registros ainda.</div>
-                </div>
-              )}
-            </div>
-            {feedLimit < feed.length && (
-              <button
-                className="btn sm"
-                onClick={() => setFeedLimit((previous) => previous + 40)}
-              >
-                Mostrar mais registros
-              </button>
-            )}
+            <ProcessEntries
+              scope={scope}
+              processId={process.id}
+              timestamp={timestamp}
+              taskNames={taskNames}
+              statuses={catalog.statuses}
+              onUnavailable={revokeAccess}
+            />
           </section>
         </div>
         <div className="col-side">
@@ -1249,35 +1381,30 @@ export default function ProcessDetails({
                 </div>
               ) : (
                 <>
-                  {process.status === 'andamento' &&
-                    process.permissions.cancel && (
-                      <button
-                        className="btn"
-                        disabled={busy}
-                        onClick={() => setConfirmation('cancel')}
-                      >
-                        Cancelar processo
-                      </button>
-                    )}
-                  {process.status !== 'andamento' &&
-                    process.permissions.reopen && (
-                      <button
-                        className="btn"
-                        disabled={busy}
-                        onClick={() =>
-                          void mutate(
-                            () =>
-                              processService.reopen(
-                                process.id,
-                                process.version,
-                              ),
-                            'Processo reaberto',
-                          )
-                        }
-                      >
-                        Reabrir processo
-                      </button>
-                    )}
+                  {isOpen && process.permissions.cancel && (
+                    <button
+                      className="btn"
+                      disabled={busy}
+                      onClick={() => setConfirmation('cancel')}
+                    >
+                      Cancelar processo
+                    </button>
+                  )}
+                  {!isOpen && process.permissions.reopen && (
+                    <button
+                      className="btn"
+                      disabled={busy}
+                      onClick={() =>
+                        void mutate(
+                          () =>
+                            processService.reopen(process.id, process.version),
+                          'Processo reaberto',
+                        )
+                      }
+                    >
+                      Reabrir processo
+                    </button>
+                  )}
                   {process.permissions.delete && (
                     <button
                       className="btn danger"
@@ -1297,18 +1424,165 @@ export default function ProcessDetails({
   )
 }
 
+function ProcessEntries({
+  scope,
+  processId,
+  timestamp,
+  taskNames,
+  statuses,
+  onUnavailable,
+}: {
+  scope: OrganizationQueryScope
+  processId: string
+  timestamp: (date: string) => string
+  taskNames: Record<string, string>
+  statuses: ProcessCatalog['statuses']
+  onUnavailable: (error: unknown) => void
+}) {
+  const [kind, setKind] = useState<'note' | 'event'>('note')
+  const [page, setPage] = useState(1)
+  const query = useProcessEntries(scope, processId, {
+    kind,
+    page,
+    pageSize: 50,
+  })
+  const presentation = query.error ? getErrorPresentation(query.error) : null
+  const [retryReady, setRetryReady] = useState(true)
+  const inaccessible =
+    isApiError(query.error) &&
+    (query.error.status === 403 || query.error.status === 404)
+  useEffect(() => {
+    if (inaccessible) onUnavailable(query.error)
+  }, [inaccessible, onUnavailable, query.error])
+  useEffect(() => {
+    const seconds = presentation?.retryAfterSeconds
+    if (seconds == null || seconds === 0) {
+      setRetryReady(true)
+      return
+    }
+    setRetryReady(false)
+    const timer = setTimeout(() => setRetryReady(true), seconds * 1000)
+    return () => clearTimeout(timer)
+  }, [query.errorUpdatedAt, presentation?.retryAfterSeconds])
+  if (inaccessible) return null
+  return (
+    <div className="process-entries" aria-busy={query.isFetching}>
+      <div
+        className="process-actions"
+        role="group"
+        aria-label="Tipo de registro"
+      >
+        {(['note', 'event'] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={`btn sm ${kind === value ? 'primary' : ''}`}
+            aria-pressed={kind === value}
+            onClick={() => {
+              setKind(value)
+              setPage(1)
+            }}
+          >
+            {value === 'note' ? 'Comentários' : 'Histórico'}
+          </button>
+        ))}
+      </div>
+      {query.isPending ? (
+        <p role="status">Carregando registros…</p>
+      ) : presentation ? (
+        <div className="err-msg" role="alert">
+          <p>{presentation.message}</p>
+          {presentation.supportReference && (
+            <p>{presentation.supportReference}</p>
+          )}
+          <button
+            className="btn sm"
+            type="button"
+            disabled={query.isFetching || !retryReady}
+            onClick={() => {
+              setRetryReady(false)
+              void query.refetch().then(() => setRetryReady(true))
+            }}
+          >
+            Tentar carregar registros novamente
+          </button>
+        </div>
+      ) : query.data ? (
+        <>
+          {query.isFetching && <p role="status">Atualizando registros…</p>}
+          <div className="feed">
+            {query.data.results.length ? (
+              query.data.results.map((entry) => (
+                <HistoryEntry
+                  key={entry.id}
+                  entry={entry}
+                  isNote={entry.kind === 'note'}
+                  timestamp={timestamp}
+                  taskNames={taskNames}
+                  statuses={statuses}
+                />
+              ))
+            ) : (
+              <p>Sem {kind === 'note' ? 'comentários' : 'eventos'} ainda.</p>
+            )}
+          </div>
+          <nav className="process-actions" aria-label="Paginação dos registros">
+            <button
+              className="btn sm"
+              disabled={query.isFetching || !query.data.previous}
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+            >
+              Anterior
+            </button>
+            <span>
+              Página {page} · {query.data.count} registros
+            </span>
+            <button
+              className="btn sm"
+              disabled={query.isFetching || !query.data.next}
+              onClick={() => setPage((value) => value + 1)}
+            >
+              Próxima
+            </button>
+          </nav>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
 function HistoryEntry({
   entry,
   isNote,
   timestamp,
   taskNames,
+  statuses,
 }: {
   entry: ProcessEntry
   isNote: boolean
   timestamp: (date: string) => string
   taskNames: Record<string, string>
+  statuses: ProcessCatalog['statuses']
 }) {
-  const initials = (entry.autor || 'Equipe')
+  const details =
+    entry.details != null && typeof entry.details === 'object'
+      ? (entry.details as Record<string, unknown>)
+      : null
+  const statusChange = entry.kind === 'status_changed' && details
+  const automatic =
+    (statusChange &&
+      ['clock', 'migration', 'migration_reverse'].includes(
+        String(details.trigger),
+      )) ||
+    (['followup_created', 'followup_closed', 'alert_created'].includes(
+      entry.kind,
+    ) &&
+      details?.trigger === 'clock')
+  const author = automatic ? 'Sistema' : entry.autor || 'Equipe'
+  const action = statusChange
+    ? `alterou a situação de ${statuses[details.from as ProcessStatus]} para ${statuses[details.to as ProcessStatus]}`
+    : entry.text
+  const initials = author
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -1321,7 +1595,7 @@ function HistoryEntry({
         {initials}
       </span>
       <div className="c">
-        <b>{entry.autor || 'Equipe'}</b> {isNote ? 'comentou' : entry.text} ·{' '}
+        <b>{author}</b> {isNote ? 'comentou' : action} ·{' '}
         <time dateTime={entry.em}>{timestamp(entry.em)}</time>
         {isNote && <p style={{ whiteSpace: 'pre-wrap' }}>{entry.text}</p>}
         {entry.details != null &&

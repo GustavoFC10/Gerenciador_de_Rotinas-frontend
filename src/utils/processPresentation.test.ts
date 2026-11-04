@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it, vi } from 'vitest'
 import { makeProcessTestResource } from '../components/processes/processTestFixtures'
-import { inProcessView } from './processFilters'
+import { processViewFilters } from './processFilters'
 import {
   formatProcessDate,
   monthLabel,
@@ -9,8 +9,8 @@ import {
   shiftMonth,
 } from './processPresentation'
 
-describe('process presentation and filters', () => {
-  it('preserves calendar dates and uses organization timezone for monthly boundaries', () => {
+describe('process presentation and navigation', () => {
+  it('preserves calendar dates and organization timezone boundaries', () => {
     expect(formatProcessDate('2026-10-22', 'America/Sao_Paulo')).toBe(
       '22/10/2026',
     )
@@ -24,25 +24,43 @@ describe('process presentation and filters', () => {
     expect(shiftMonth('2027-01', -1)).toBe('2026-12')
     expect(monthLabel('2026-10')).toBe('outubro de 2026')
   })
-  it('uses server waiting and lateness rather than recomputing release rules in the browser', () => {
-    const scheduled = makeProcessTestResource({
+  it('presents only the persisted status, even when analysis or dates disagree', () => {
+    const process = makeProcessTestResource({
+      status: 'agendado',
       prazo: '2000-01-01',
-      analysis: {
-        currentStage: 0,
-        completedTasks: 0,
-        totalTasks: 1,
-        waiting: true,
-        late: false,
-        releaseDate: '2027-02-22',
-        pendingSectors: ['fin'],
-      },
     })
-    expect(processStatus(scheduled)).toEqual({
+    expect(processStatus(process)).toEqual({
       tone: 'scheduled',
-      label: 'Agendado',
+      label: 'Aguardando liberação',
     })
-    expect(inProcessView(scheduled, 'agendados')).toBe(true)
-    expect(inProcessView(scheduled, 'atrasados')).toBe(false)
-    expect(inProcessView(scheduled, 'fila', 'fin')).toBe(false)
+    expect(processStatus({ ...process, status: 'atrasado' })).toEqual({
+      tone: 'error',
+      label: 'Atrasado',
+    })
+    const disagreeing = {
+      ...process,
+      status: 'andamento' as const,
+      analysis: { ...process.analysis, waiting: true, late: true },
+    }
+    expect(processStatus(disagreeing)).toEqual({
+      tone: 'progress',
+      label: 'Em andamento',
+    })
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2040-01-01'))
+      expect(processStatus(process).label).toBe('Aguardando liberação')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+  it('maps views to explicit status sets without classifying records locally', () => {
+    expect(processViewFilters('ativos')).toEqual({
+      status: ['andamento', 'agendado', 'atrasado'],
+    })
+    expect(processViewFilters('andamento')).toEqual({ status: ['andamento'] })
+    expect(processViewFilters('agendados')).toEqual({ status: ['agendado'] })
+    expect(processViewFilters('atrasados')).toEqual({ status: ['atrasado'] })
+    expect(processViewFilters('todos')).toEqual({})
   })
 })

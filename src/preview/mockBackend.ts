@@ -9,6 +9,7 @@ import type { OrganizationRole, ScheduledOccurrence } from '../types/domain'
 import type {
   ProcessCatalogType,
   ProcessCreateInput,
+  ProcessDetailDto,
   ProcessEntry,
   ProcessFields,
   ProcessMovementMonth,
@@ -16,12 +17,54 @@ import type {
   ProcessResource,
   ProcessSector,
   ProcessStage,
+  ProcessStatus,
+  ProcessSummary,
 } from '../types/processes'
 import { centsToDecimal, decimalToCents } from '../utils/processMoney'
 
 const types = workflows as ProcessCatalogType[]
 const sectors = { com: 'Diretoria', fin: 'Financeiro', reg: 'Regularidade' }
-const storageKey = 'routine-manager.features-preview.v1'
+const storageKey = 'routine-manager.features-preview.v2'
+const statuses: Record<ProcessStatus, string> = {
+  andamento: 'Em andamento',
+  agendado: 'Aguardando liberação',
+  atrasado: 'Atrasado',
+  concluido: 'Concluído',
+  cancelado: 'Cancelado',
+}
+const openStatuses: ProcessStatus[] = ['andamento', 'agendado', 'atrasado']
+const editableFields = [
+  'empresa',
+  'companyId',
+  'cnpj',
+  'protocolo',
+  'prazo',
+  'inicioInat',
+  'obs',
+  'custo',
+  'pagador',
+  'parcelas',
+  'honorario',
+  'honCobranca',
+  'trab',
+  'trabQtd',
+  'trabValor',
+  'honAnterior',
+  'honPerdido',
+  'altItens',
+  'altDesc',
+  'motivo',
+  'motivoObs',
+  'regime',
+  'regimeObs',
+  'contato',
+  'novoContador',
+  'contadorNome',
+  'contadorContato',
+  'reatJunta',
+  'reunAlinh',
+  'reunAcomp',
+] as const
 const organization = {
   id: 'demo-office',
   name: 'Jaralcon · demonstração',
@@ -77,13 +120,23 @@ export const previewPersonas = [
 
 interface PreviewState {
   members?: Record<string, OrganizationMemberResource>
-  schema: 1
+  schema: 2
   actor: string
   authenticated: boolean
   accesses: Record<string, ModuleAccess[]>
-  processes: ProcessResource[]
+  processes: PreviewProcess[]
   openings: Record<string, { body: string; id: string }>
   routineStates: Record<string, string>
+}
+/** Audit data is stored separately from the public detail projection. */
+interface PreviewProcess extends ProcessDetailDto {
+  entries: ProcessEntry[]
+  resumeSnapshot?: {
+    status: ProcessStatus
+    stage: number | null
+    sectors: ProcessSector[]
+    releaseDate: string | null
+  }
 }
 type Store = Pick<Storage, 'getItem' | 'setItem'>
 type Body = Record<string, unknown>
@@ -137,85 +190,87 @@ function stagesOf(process: ProcessResource): ProcessStage[] {
     }))
     .filter((stage) => stage.tasks.length)
 }
-function fieldReady(process: ProcessResource, field: string) {
-  if (field === 'regime') return !!process.regime
-  if (field === 'honorario')
-    return (
-      process.honorario != null &&
-      !!process.honCobranca &&
-      (!process.trab || (!!process.trabQtd && process.trabValor != null)) &&
-      (process.tipo !== 'inativa' || process.honAnterior != null)
-    )
-  return process.custo != null && !!process.pagador && !!process.parcelas
-}
-function analyze(process: ProcessResource) {
-  process.etapas = stagesOf(process)
-  const ids = new Set(
-    process.etapas.flatMap((stage) => stage.tasks.map((task) => task.id)),
-  )
-  for (const key of Object.keys(process.tarefas))
-    if (!ids.has(key)) delete process.tarefas[key]
-  for (const task of process.etapas.flatMap((stage) => stage.tasks)) {
-    if (task.auto || (task.campo && fieldReady(process, task.campo)))
-      process.tarefas[task.id] ??= {
-        s: 'feito',
-        por: process.criadoPor,
-        autor: process.autorAbertura,
-        em: process.criadoEm,
-        ...(task.auto ? { auto: true } : {}),
-      }
-    else if (task.campo) delete process.tarefas[task.id]
-  }
-  for (const stage of process.etapas)
-    stage.completed = stage.tasks.every((task) => !!process.tarefas[task.id])
-  const current = process.etapas.findIndex((stage) => !stage.completed)
-  let release: string | null = null
-  const stage = process.etapas[current]
-  if (current > 0 && stage?.espera) {
-    const last = process.etapas[current - 1]!.tasks.map(
-      (task) => process.tarefas[task.id]?.em ?? '',
-    )
-      .sort()
-      .at(-1)
-    if (last) {
-      const base = new Date(last)
-      const day = base.getDate()
-      base.setMonth(base.getMonth() + stage.espera)
-      if (base.getDate() < day) base.setDate(0)
-      release = base.toISOString().slice(0, 10)
-    }
-  }
-  const waiting =
-    process.status !== 'cancelado' && !!release && release > date()
-  if (process.status !== 'cancelado') {
-    process.status = current < 0 ? 'concluido' : 'andamento'
-    process.concluidoEm = current < 0 ? (process.concluidoEm ?? now()) : null
-  }
+/** Recorded snapshots: reads never evaluate the clock or recalculate status. */
+function fixtureSnapshot(
+  process: PreviewProcess,
+  status: ProcessStatus,
+  currentStage: number | null,
+  responsibleSectors: ProcessSector[],
+  releaseDate: string | null = null,
+) {
+  process.status = status
+  process.statusChangedAt = process.atualizadoEm
+  process.statusNextEvaluationAt =
+    status === 'agendado' && releaseDate
+      ? `${releaseDate}T00:00:00-03:00`
+      : null
+  process.responsibleSectors = responsibleSectors
+  process.concluidoEm = ['concluido', 'cancelado'].includes(status)
+    ? process.atualizadoEm
+    : null
+  process.etapas.forEach((stage, index) => {
+    stage.completed = currentStage === null || index < currentStage
+    if (stage.completed)
+      stage.tasks.forEach((task) => {
+        process.tarefas[task.id] ??= {
+          s: 'feito',
+          por: 'demo-diretoria',
+          autor: 'Ana Souza',
+          em: process.atualizadoEm,
+        }
+      })
+  })
   process.analysis = {
-    currentStage: current < 0 ? null : current,
+    currentStage,
+    completedTasks: Object.keys(process.tarefas).length,
     totalTasks: process.etapas.flatMap((stage) => stage.tasks).length,
-    completedTasks: process.etapas
-      .flatMap((stage) => stage.tasks)
-      .filter((task) => !!process.tarefas[task.id]).length,
-    releaseDate: waiting ? release : null,
-    waiting,
-    late:
-      process.status === 'andamento' &&
-      !waiting &&
-      !!process.prazo &&
-      process.prazo < date(),
-    pendingSectors:
-      process.status === 'andamento' && !waiting && stage
-        ? [
-            ...new Set(
-              stage.tasks
-                .filter((task) => !process.tarefas[task.id])
-                .map((task) => task.d),
-            ),
-          ]
-        : [],
+    releaseDate,
+    waiting: status === 'agendado',
+    late: status === 'atrasado',
+    pendingSectors: ['andamento', 'atrasado'].includes(status)
+      ? [...responsibleSectors]
+      : [],
   }
   return process
+}
+
+/** Explicit command response fixtures, without a time-based workflow engine. */
+const commandFixtures: Record<
+  string,
+  readonly {
+    stage: number | null
+    status: ProcessStatus
+    sectors: ProcessSector[]
+  }[]
+> = {
+  abertura: [
+    { stage: 1, status: 'andamento', sectors: ['fin'] },
+    { stage: 2, status: 'andamento', sectors: ['fin', 'reg'] },
+    { stage: 3, status: 'andamento', sectors: ['fin', 'reg'] },
+    { stage: 4, status: 'agendado', sectors: ['fin'] },
+    { stage: null, status: 'concluido', sectors: [] },
+  ],
+  mei: [
+    { stage: 1, status: 'andamento', sectors: ['fin'] },
+    { stage: 2, status: 'andamento', sectors: ['fin', 'reg'] },
+    { stage: 3, status: 'andamento', sectors: ['fin', 'reg'] },
+    { stage: 4, status: 'agendado', sectors: ['fin'] },
+    { stage: null, status: 'concluido', sectors: [] },
+  ],
+  outro: [
+    { stage: 1, status: 'andamento', sectors: ['fin', 'reg'] },
+    { stage: 2, status: 'andamento', sectors: ['fin', 'reg'] },
+    { stage: 3, status: 'agendado', sectors: ['fin'] },
+    { stage: null, status: 'concluido', sectors: [] },
+  ],
+  reativacao: [
+    { stage: 1, status: 'andamento', sectors: ['fin'] },
+    { stage: 2, status: 'andamento', sectors: ['fin'] },
+    { stage: 3, status: 'andamento', sectors: ['reg'] },
+    { stage: 4, status: 'andamento', sectors: ['fin'] },
+    { stage: 5, status: 'agendado', sectors: ['fin'] },
+    { stage: null, status: 'concluido', sectors: [] },
+  ],
 }
 function entry(
   kind: string,
@@ -236,6 +291,104 @@ function entry(
     details,
   }
 }
+
+function queryError(url: URL, allowed: readonly string[]) {
+  const keys = [...new Set(url.searchParams.keys())]
+  for (const key of keys) {
+    if (!allowed.includes(key)) return `Parâmetro desconhecido: ${key}.`
+    if (key !== 'status' && url.searchParams.getAll(key).length > 1)
+      return `O parâmetro ${key} não pode ser repetido.`
+  }
+  for (const key of ['page', 'pageSize']) {
+    const value = url.searchParams.get(key)
+    if (
+      value !== null &&
+      (!/^[1-9]\d*$/.test(value) ||
+        !Number.isSafeInteger(Number(value)) ||
+        (key === 'pageSize' && Number(value) > 100))
+    )
+      return `O parâmetro ${key} é inválido.`
+  }
+  return null
+}
+
+function collectionQueryError(url: URL) {
+  const invalid = queryError(url, [
+    'status',
+    'tipo',
+    'q',
+    'month',
+    'responsibleSector',
+    'queueSector',
+    'page',
+    'pageSize',
+  ])
+  if (invalid) return invalid
+  if (url.searchParams.getAll('status').some((status) => !(status in statuses)))
+    return 'Situação inválida.'
+  const tipo = url.searchParams.get('tipo')
+  if (tipo !== null && !types.some((type) => type.id === tipo))
+    return 'Tipo de processo inválido.'
+  for (const key of ['responsibleSector', 'queueSector']) {
+    const sector = url.searchParams.get(key)
+    if (sector !== null && !(sector in sectors)) return 'Setor inválido.'
+  }
+  const selectedMonth = url.searchParams.get('month')
+  if (selectedMonth !== null && !/^\d{4}-(0[1-9]|1[0-2])$/.test(selectedMonth))
+    return 'Mês inválido.'
+  return null
+}
+
+function filteredProcesses(processes: PreviewProcess[], url: URL) {
+  const selectedStatuses = url.searchParams.getAll('status')
+  const tipo = url.searchParams.get('tipo')
+  const responsibleSector = url.searchParams.get('responsibleSector')
+  const queueSector = url.searchParams.get('queueSector')
+  const selectedMonth = url.searchParams.get('month')
+  const search = url.searchParams.get('q')?.trim().toLocaleLowerCase('pt-BR')
+  return processes.filter((process) => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: organization.timezone,
+      year: 'numeric',
+      month: '2-digit',
+    }).formatToParts(new Date(process.criadoEm))
+    const createdMonth = `${parts.find((part) => part.type === 'year')!.value}-${parts.find((part) => part.type === 'month')!.value}`
+    return (
+      (!selectedStatuses.length || selectedStatuses.includes(process.status)) &&
+      (!tipo || process.tipo === tipo) &&
+      (!responsibleSector ||
+        process.responsibleSectors.includes(
+          responsibleSector as ProcessSector,
+        )) &&
+      (!queueSector ||
+        (['andamento', 'atrasado'].includes(process.status) &&
+          process.analysis.pendingSectors.includes(
+            queueSector as ProcessSector,
+          ))) &&
+      (!selectedMonth || createdMonth === selectedMonth) &&
+      (!search ||
+        [process.empresa, process.cnpj, process.protocolo, process.codigo].some(
+          (value) => value?.toLocaleLowerCase('pt-BR').includes(search),
+        ))
+    )
+  })
+}
+
+function paginated<T>(results: T[], url: URL) {
+  const page = Number(url.searchParams.get('page') ?? '1')
+  const pageSize = Number(url.searchParams.get('pageSize') ?? '50')
+  const link = (target: number) => {
+    const next = new URL(url)
+    next.searchParams.set('page', String(target))
+    return next.pathname + next.search
+  }
+  return {
+    count: results.length,
+    next: page * pageSize < results.length ? link(page + 1) : null,
+    previous: page > 1 ? link(page - 1) : null,
+    results: results.slice((page - 1) * pageSize, page * pageSize),
+  }
+}
 function seed(): PreviewState {
   const names = [
     'Aurora Comércio de Alimentos',
@@ -249,9 +402,9 @@ function seed(): PreviewState {
     'Studio Essência',
     'Mercado das Flores',
   ]
-  const processes = types.map((type, index): ProcessResource => {
-    const process: ProcessResource = {
-      id: `demo-process-${type.id}`,
+  const processes = types.map((type, index): PreviewProcess => {
+    const process: PreviewProcess = {
+      id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
       organizationId: organization.id,
       tipo: type.id,
       empresa: names[index]!,
@@ -260,7 +413,11 @@ function seed(): PreviewState {
       protocolo: `PROTO-DEMO-${100 + index}`,
       status: index === 8 ? 'cancelado' : 'andamento',
       version: 1,
-      workflowVersion: 1,
+      workflowVersion: 2,
+      statusChangedAt: stamp(-1),
+      statusNextEvaluationAt: null,
+      responsibleSectors: [],
+      companyId: null,
       criadoPor: 'demo-diretoria',
       autorAbertura: 'Ana Souza',
       criadoEm: stamp(-24 - index),
@@ -268,6 +425,7 @@ function seed(): PreviewState {
       concluidoEm: index === 8 ? stamp(-2) : null,
       prazo: index === 1 ? date(-8) : date(12 + index),
       tarefas: {},
+      leggacy: [],
       etapas: [],
       analysis: {
         currentStage: 0,
@@ -278,15 +436,15 @@ function seed(): PreviewState {
         late: false,
         pendingSectors: [],
       },
-      notas: [
+      entries: [
         entry(
           'note',
           'Documentação recebida. A equipe pode seguir com a próxima etapa.',
           'Bruno Lima',
           'demo-regularidade',
         ),
+        entry('opened', 'abriu o processo'),
       ],
-      historico: [entry('opened', 'abriu o processo')],
       permissions: fullPermissions,
       custo: '750.00',
       pagador: 'cliente',
@@ -328,29 +486,51 @@ function seed(): PreviewState {
       process.honorario = null
       process.regime = null
     }
-    analyze(process)
-    const completedStages =
-      index === 6
-        ? process.etapas.length - 1
-        : index === 7
-          ? process.etapas.length
-          : index === 2
-            ? 1
-            : 0
-    process.etapas.slice(0, completedStages).forEach((stage) =>
-      stage.tasks.forEach((task) => {
-        process.tarefas[task.id] = {
-          s: 'feito',
-          por: task.d === 'reg' ? 'demo-regularidade' : 'demo-financeiro',
-          autor: task.d === 'reg' ? 'Bruno Lima' : 'Marina Costa',
-          em: stamp(index === 7 ? -3 : -9),
-        }
-      }),
-    )
-    return analyze(process)
+    process.etapas = stagesOf(process)
+    if (index === 0) return fixtureSnapshot(process, 'andamento', 1, ['fin'])
+    if (index === 1) return fixtureSnapshot(process, 'atrasado', 0, ['com'])
+    if (index === 2 || index === 6)
+      return fixtureSnapshot(
+        process,
+        'agendado',
+        process.etapas.length - 1,
+        ['fin'],
+        date(90),
+      )
+    if (index === 7) return fixtureSnapshot(process, 'concluido', null, [])
+    if (index === 8) return fixtureSnapshot(process, 'cancelado', 0, [])
+    return fixtureSnapshot(process, 'andamento', 0, ['com'])
   })
+  // All four second-visit workflows have a persisted waiting snapshot.
+  for (const tipo of ['abertura', 'mei'] as const) {
+    const waiting = structuredClone(
+      processes.find((process) => process.tipo === tipo)!,
+    )
+    waiting.id = `00000000-0000-4000-8000-${String(processes.length + 1).padStart(12, '0')}`
+    waiting.empresa += ' · aguardando acompanhamento'
+    waiting.codigo += '-AGE'
+    waiting.tarefas = {}
+    fixtureSnapshot(
+      waiting,
+      'agendado',
+      waiting.etapas.length - 1,
+      ['fin'],
+      date(90),
+    )
+    waiting.entries.push(
+      entry(
+        'status_changed',
+        'Aguardando a reunião de acompanhamento',
+        'Ana Souza',
+        'demo-diretoria',
+        false,
+        { from: 'andamento', to: 'agendado', trigger: 'command' },
+      ),
+    )
+    processes.push(waiting)
+  }
   const past = structuredClone(processes[0]!)
-  past.id = 'demo-process-anterior'
+  past.id = '00000000-0000-4000-8000-000000000099'
   past.empresa = 'Tecnologia Horizonte'
   past.codigo = 'ABE-DEMO-ANT'
   past.criadoEm = `${previousMonth(month(), -1)}-08T12:00:00-03:00`
@@ -358,7 +538,7 @@ function seed(): PreviewState {
   past.trab = false
   processes.push(past)
   return {
-    schema: 1,
+    schema: 2,
     actor: 'demo-diretoria',
     authenticated: true,
     processes,
@@ -406,7 +586,7 @@ export class PreviewBackend {
         store?.getItem(storageKey) ?? 'null',
       ) as PreviewState | null
       this.state =
-        saved?.schema === 1 &&
+        saved?.schema === 2 &&
         saved.processes &&
         previewPersonas.some((p) => p.id === saved.actor)
           ? saved
@@ -663,15 +843,16 @@ export class PreviewBackend {
       activeMembership: membership,
     }
   }
-  project(raw: ProcessResource): ProcessResource {
-    const process = structuredClone(analyze(raw))
+  project(raw: PreviewProcess): ProcessResource {
+    const {
+      entries: _entries,
+      resumeSnapshot: _resume,
+      ...detail
+    } = structuredClone(raw)
+    void _entries
+    void _resume
+    const process: ProcessDetailDto = detail
     process.permissions = this.permissions()
-    process.notas = process.notas.filter(
-      (item) => !item.financial || process.permissions.viewFinancial,
-    )
-    process.historico = process.historico.filter(
-      (item) => !item.financial || process.permissions.viewFinancial,
-    )
     if (!process.permissions.create) delete process.notifications
     if (!process.permissions.viewFinancial) {
       for (const key of [
@@ -700,6 +881,33 @@ export class PreviewBackend {
       )
     }
     return process
+  }
+  summary(raw: PreviewProcess): ProcessSummary {
+    const process = this.project(raw)
+    return {
+      id: process.id,
+      organizationId: process.organizationId,
+      tipo: process.tipo,
+      codigo: process.codigo,
+      empresa: process.empresa,
+      companyId: process.companyId ?? null,
+      cnpj: process.cnpj ?? '',
+      protocolo: process.protocolo ?? '',
+      prazo: process.prazo ?? null,
+      criadoPor: process.criadoPor,
+      autorAbertura: process.autorAbertura,
+      criadoEm: process.criadoEm,
+      atualizadoEm: process.atualizadoEm,
+      concluidoEm: process.concluidoEm,
+      status: process.status,
+      statusChangedAt: process.statusChangedAt,
+      statusNextEvaluationAt: process.statusNextEvaluationAt,
+      responsibleSectors: process.responsibleSectors,
+      version: process.version,
+      workflowVersion: process.workflowVersion,
+      analysis: process.analysis,
+      permissions: process.permissions,
+    }
   }
   report(value: string): ProcessMovementMonth {
     const result: ProcessMovementMonth = {
@@ -942,6 +1150,30 @@ export class PreviewBackend {
     }
     if (/organization-members\/[^/]+\/avatar$/.test(path))
       return json({ file: null, version: 1 }, 200, 1)
+    if (
+      path === 'process-follow-ups' ||
+      path.startsWith('process-follow-ups/') ||
+      path === 'process-alerts' ||
+      path.startsWith('process-alerts/')
+    ) {
+      const permissions = this.permissions()
+      if (
+        !permissions.read ||
+        (path.startsWith('process-alerts') && !permissions.create)
+      )
+        return error(403, 'Sem acesso a esta área de Processos.')
+      // Preview has no temporal worker. The production API owns these cycles.
+      if (
+        method === 'GET' &&
+        [
+          'process-follow-ups',
+          'process-alerts',
+          'process-alerts/recipient-options',
+        ].includes(path)
+      )
+        return json({ count: 0, next: null, previous: null, results: [] })
+      return error(404, 'Registro indisponível neste preview.')
+    }
     if (path.startsWith('processes')) {
       const permissions = this.permissions()
       if (!permissions.read)
@@ -950,7 +1182,15 @@ export class PreviewBackend {
           'Este perfil não tem acesso a Processos. Troque o perfil nas opções do preview.',
         )
       if (path === 'processes/catalog')
-        return json({ workflowVersion: 1, types, sectors, permissions })
+        return json({
+          contractVersion: 2,
+          workflowVersion: 2,
+          statuses,
+          openStatuses,
+          types,
+          sectors,
+          permissions,
+        })
       if (path === 'processes/reports/monthly') {
         if (!permissions.viewMovements)
           return error(403, 'Relatórios restritos à Diretoria e ao Financeiro.')
@@ -963,40 +1203,84 @@ export class PreviewBackend {
           ),
         })
       }
-      const processes = this.state.processes.map((p) => analyze(p))
+      const processes = this.state.processes
+      const collectionRead =
+        method === 'GET' &&
+        (path === 'processes' || path === 'processes/indicators')
+      if (collectionRead) {
+        const invalid = collectionQueryError(url)
+        if (invalid) return error(400, invalid)
+        const queueSector = url.searchParams.get('queueSector')
+        if (
+          queueSector &&
+          !permissions.executeSectors.includes(queueSector as ProcessSector)
+        )
+          return error(
+            403,
+            'Sem autorização para executar tarefas neste setor.',
+          )
+      }
+      const filtered = collectionRead
+        ? filteredProcesses(processes, url)
+        : processes
       if (path === 'processes/indicators')
         return json({
-          total: processes.length,
-          active: processes.filter((p) => p.status === 'andamento').length,
-          completed: processes.filter((p) => p.status === 'concluido').length,
-          cancelled: processes.filter((p) => p.status === 'cancelado').length,
-          late: processes.filter((p) => p.analysis.late).length,
-          waiting: processes.filter((p) => p.analysis.waiting).length,
+          total: filtered.length,
+          active: filtered.filter((p) => openStatuses.includes(p.status))
+            .length,
+          completed: filtered.filter((p) => p.status === 'concluido').length,
+          cancelled: filtered.filter((p) => p.status === 'cancelado').length,
+          late: filtered.filter((p) => p.status === 'atrasado').length,
+          waiting: filtered.filter((p) => p.status === 'agendado').length,
+          byStatus: Object.fromEntries(
+            Object.keys(statuses).map((status) => [
+              status,
+              filtered.filter((p) => p.status === status).length,
+            ]),
+          ),
           bySector: Object.fromEntries(
             Object.keys(sectors).map((sector) => [
               sector,
-              processes.filter((p) =>
-                p.analysis.pendingSectors.includes(sector as ProcessSector),
+              filtered.filter(
+                (p) =>
+                  ['andamento', 'atrasado'].includes(p.status) &&
+                  p.analysis.pendingSectors.includes(sector as ProcessSector),
               ).length,
             ]),
           ),
           byType: Object.fromEntries(
             types.map((type) => [
               type.id,
-              processes.filter((p) => p.tipo === type.id).length,
+              filtered.filter((p) => p.tipo === type.id).length,
             ]),
           ),
         })
-      if (path === 'processes' && method === 'GET')
+      if (path === 'processes' && method === 'GET') {
+        const page = paginated(filtered, url)
+        if (
+          Number(url.searchParams.get('page') ?? 1) > 1 &&
+          !page.results.length
+        )
+          return error(404, 'Página não encontrada.')
         return json({
-          count: processes.length,
-          next: null,
-          previous: null,
-          results: processes.map((p) => this.project(p)),
+          ...page,
+          results: page.results.map((p) => this.summary(p)),
         })
+      }
       if (path === 'processes' && method === 'POST') {
         if (!permissions.create)
           return error(403, 'Somente a Diretoria abre processos.')
+        if (
+          Object.keys(body).some(
+            (key) =>
+              key !== 'tipo' &&
+              !(editableFields as readonly string[]).includes(key),
+          )
+        )
+          return error(
+            400,
+            'A abertura contém campos não aceitos pelo contrato.',
+          )
         const key = headers.get('Idempotency-Key') ?? ''
         if (!key) return error(400, 'Faltou a chave da abertura.')
         const replay = this.state.openings[key]
@@ -1010,7 +1294,11 @@ export class PreviewBackend {
         const type = types.find((t) => t.id === input.tipo)
         if (!type || !input.empresa?.trim())
           return error(400, 'Escolha o tipo e informe a empresa.')
-        const process: ProcessResource = {
+        const process: PreviewProcess = {
+          companyId: null,
+          cnpj: '',
+          protocolo: '',
+          prazo: null,
           ...input,
           id: crypto.randomUUID(),
           organizationId: organization.id,
@@ -1022,8 +1310,12 @@ export class PreviewBackend {
           concluidoEm: null,
           status: 'andamento',
           version: 1,
-          workflowVersion: 1,
+          workflowVersion: 2,
+          statusChangedAt: now(),
+          statusNextEvaluationAt: null,
+          responsibleSectors: ['com'],
           tarefas: {},
+          leggacy: [],
           etapas: [],
           analysis: {
             currentStage: 0,
@@ -1034,8 +1326,7 @@ export class PreviewBackend {
             late: false,
             pendingSectors: [],
           },
-          notas: [],
-          historico: [
+          entries: [
             entry(
               'opened',
               'abriu o processo',
@@ -1053,7 +1344,9 @@ export class PreviewBackend {
           },
           permissions,
         }
-        this.state.processes.unshift(analyze(process))
+        process.etapas = stagesOf(process)
+        fixtureSnapshot(process, 'andamento', 0, ['com'])
+        this.state.processes.unshift(process)
         this.state.openings[key] = {
           id: process.id,
           body: JSON.stringify(body),
@@ -1067,8 +1360,36 @@ export class PreviewBackend {
         const action = match[2] ?? ''
         if (!process)
           return error(404, 'Processo não encontrado na demonstração.')
-        if (method === 'GET')
+        if (method === 'GET') {
+          if (action === 'entries') {
+            const invalid = queryError(url, ['kind', 'page', 'pageSize'])
+            if (invalid) return error(400, invalid)
+            const kind = url.searchParams.get('kind')
+            if (kind !== null && kind !== 'note' && kind !== 'event')
+              return error(400, 'Tipo de entrada inválido.')
+            const entries = process.entries
+              .filter((item) => !item.financial || permissions.viewFinancial)
+              .filter(
+                (item) =>
+                  !kind ||
+                  (kind === 'note'
+                    ? item.kind === 'note'
+                    : item.kind !== 'note'),
+              )
+              .slice()
+              .reverse()
+              .sort((a, b) => b.em.localeCompare(a.em))
+            const page = paginated(entries, url)
+            if (
+              Number(url.searchParams.get('page') ?? 1) > 1 &&
+              !page.results.length
+            )
+              return error(404, 'Página não encontrada.')
+            return json(page)
+          }
+          if (action) return error(404, 'Recurso não encontrado no preview.')
           return json(this.project(process), 200, process.version)
+        }
         if (body.version !== process.version)
           return error(
             409,
@@ -1085,10 +1406,23 @@ export class PreviewBackend {
         if (!action && method === 'PATCH') {
           if (!permissions.edit || process.status === 'cancelado')
             return error(403, 'Este perfil não pode editar o processo.')
+          if (
+            Object.keys(body).some(
+              (key) =>
+                key !== 'version' &&
+                !(editableFields as readonly string[]).includes(key),
+            )
+          )
+            return error(
+              400,
+              'A edição contém campos não aceitos pelo contrato.',
+            )
+          if ('empresa' in body && !String(body.empresa ?? '').trim())
+            return error(400, 'Informe a empresa.')
           const { version: _version, ...patch } = body
           void _version
           Object.assign(process, patch)
-          process.historico.push(
+          process.entries.push(
             entry(
               'edited',
               'editou os dados do processo',
@@ -1101,7 +1435,9 @@ export class PreviewBackend {
         } else if (action === 'notes') {
           if (!permissions.note || !String(body.text ?? '').trim())
             return error(400, 'Escreva o comentário.')
-          process.notas.push(
+          if (String(body.text).trim().length > 5000)
+            return error(400, 'O comentário aceita até 5000 caracteres.')
+          process.entries.push(
             entry(
               'note',
               String(body.text).trim(),
@@ -1111,16 +1447,40 @@ export class PreviewBackend {
             ),
           )
         } else if (action === 'cancel') {
-          if (!permissions.cancel || process.status !== 'andamento')
-            return error(409, 'Só processos em andamento podem ser cancelados.')
-          process.status = 'cancelado'
-          process.concluidoEm = now()
-          process.historico.push(
-            entry('cancelled', 'cancelou o processo', author, this.actor.id),
+          if (!permissions.cancel)
+            return error(403, 'Somente a Diretoria cancela processos.')
+          if (!openStatuses.includes(process.status))
+            return error(409, 'Somente processos abertos podem ser cancelados.')
+          const from = process.status
+          process.resumeSnapshot = {
+            status: process.status,
+            stage: process.analysis.currentStage,
+            sectors: [...process.responsibleSectors],
+            releaseDate: process.analysis.releaseDate,
+          }
+          process.atualizadoEm = now()
+          fixtureSnapshot(
+            process,
+            'cancelado',
+            process.analysis.currentStage,
+            [],
+          )
+          process.entries.push(
+            entry(
+              'status_changed',
+              'cancelou o processo',
+              author,
+              this.actor.id,
+              false,
+              { from, to: 'cancelado', trigger: 'command' },
+            ),
           )
         } else if (action === 'reopen') {
           if (!permissions.reopen)
             return error(403, 'Somente a Diretoria reabre processos.')
+          if (!['concluido', 'cancelado'].includes(process.status))
+            return error(409, 'Este processo já está aberto.')
+          const from = process.status
           if (process.status === 'concluido') {
             const last = process.etapas
               .flatMap((s) => s.tasks)
@@ -1128,10 +1488,31 @@ export class PreviewBackend {
               .at(-1)
             if (last) delete process.tarefas[last.id]
           }
-          process.status = 'andamento'
-          process.concluidoEm = null
-          process.historico.push(
-            entry('reopened', 'reabriu o processo', author, this.actor.id),
+          const resume = process.resumeSnapshot ?? {
+            status: 'andamento' as const,
+            stage:
+              process.status === 'concluido' ? process.etapas.length - 1 : 0,
+            sectors: ['fin'] as ProcessSector[],
+            releaseDate: null,
+          }
+          process.atualizadoEm = now()
+          fixtureSnapshot(
+            process,
+            resume.status,
+            resume.stage,
+            resume.sectors,
+            resume.releaseDate,
+          )
+          delete process.resumeSnapshot
+          process.entries.push(
+            entry(
+              'status_changed',
+              'reabriu o processo',
+              author,
+              this.actor.id,
+              false,
+              { from, to: process.status, trigger: 'command' },
+            ),
           )
         } else if (action === 'notifications/retry') {
           if (!permissions.create)
@@ -1142,7 +1523,7 @@ export class PreviewBackend {
           counts.pending = 0
           counts.failed = 0
           process.notifications = counts
-          process.historico.push(
+          process.entries.push(
             entry(
               'email_retry',
               'simulou nova tentativa dos e-mails pendentes',
@@ -1151,6 +1532,8 @@ export class PreviewBackend {
             ),
           )
         } else if (/^tasks\/.+\/transition$/.test(action)) {
+          if (!['feito', 'na', 'pending'].includes(String(body.state)))
+            return error(400, 'Transição de tarefa inválida.')
           const id = action.split('/')[1]!
           const stageIndex = process.etapas.findIndex((s) =>
             s.tasks.some((t) => t.id === id),
@@ -1160,7 +1543,10 @@ export class PreviewBackend {
           )
           if (!task || !permissions.executeSectors.includes(task.d))
             return error(403, 'Tarefa de outro setor.')
-          if (task.auto || process.status === 'cancelado')
+          if (
+            task.auto ||
+            !['andamento', 'atrasado', 'concluido'].includes(process.status)
+          )
             return error(409, 'Esta tarefa não pode ser alterada.')
           if (body.state === 'pending') {
             process.etapas.slice(stageIndex + 1).forEach((s) =>
@@ -1171,7 +1557,7 @@ export class PreviewBackend {
             delete process.tarefas[id]
           } else {
             if (
-              process.analysis.waiting ||
+              !['andamento', 'atrasado'].includes(process.status) ||
               stageIndex !== process.analysis.currentStage
             )
               return error(
@@ -1187,7 +1573,7 @@ export class PreviewBackend {
               em: now(),
             }
           }
-          process.historico.push(
+          process.entries.push(
             entry(
               'task',
               `${body.state === 'pending' ? 'reabriu' : 'concluiu'}: ${task.txt}`,
@@ -1195,11 +1581,58 @@ export class PreviewBackend {
               this.actor.id,
             ),
           )
+          const currentStage = process.etapas[stageIndex]!
+          if (body.state === 'pending') {
+            // Explicit preview reopening response; no calendar evaluation.
+            fixtureSnapshot(process, 'andamento', stageIndex, [task.d])
+          } else if (
+            currentStage.tasks.every((item) => !!process.tarefas[item.id])
+          ) {
+            const snapshot = commandFixtures[process.tipo]?.[stageIndex]
+            if (snapshot) {
+              const from = process.status
+              fixtureSnapshot(
+                process,
+                snapshot.status,
+                snapshot.stage,
+                snapshot.sectors,
+                snapshot.status === 'agendado' ? date(90) : null,
+              )
+              if (from !== process.status)
+                process.entries.push(
+                  entry(
+                    'status_changed',
+                    'atualizou a situação do processo',
+                    author,
+                    this.actor.id,
+                    false,
+                    { from, to: process.status, trigger: 'command' },
+                  ),
+                )
+            } else {
+              // Other workflows have fixed snapshots; the preview does not
+              // reproduce the production domain engine for unsupported paths.
+              process.analysis.completedTasks = Object.keys(
+                process.tarefas,
+              ).length
+            }
+          } else {
+            process.analysis.completedTasks = Object.keys(
+              process.tarefas,
+            ).length
+            process.responsibleSectors = [
+              ...new Set(
+                currentStage.tasks
+                  .filter((item) => !process.tarefas[item.id])
+                  .map((item) => item.d),
+              ),
+            ]
+            process.analysis.pendingSectors = [...process.responsibleSectors]
+          }
         } else if (action || method !== 'PATCH')
           return error(404, 'Operação não encontrada no preview.')
         process.version++
         process.atualizadoEm = now()
-        analyze(process)
         this.save()
         return json(this.project(process), 200, process.version)
       }
@@ -1404,7 +1837,8 @@ export function installPreviewBackend() {
   if (installed) return installed
   let store: Store | undefined
   try {
-    store = window.localStorage
+    // Demonstration data is fictional and stays within this browser session.
+    store = window.sessionStorage
   } catch {
     /* Storage pode estar bloqueado. */
   }

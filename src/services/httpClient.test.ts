@@ -1,8 +1,31 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { ApiError, HttpClient } from './httpClient'
+import { ApiError, ApiResponseError, HttpClient } from './httpClient'
 
 describe('HttpClient error responses', () => {
+  it('mantém o request ID quando HTTP 200 contém JSON inválido, sem expor o corpo', async () => {
+    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('{"secret":"privado",', {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': 'invalid-json-request',
+        },
+      }),
+    )
+    const client = new HttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImplementation,
+    })
+    const error = await client
+      .get('/api/v1/processes/')
+      .catch((error: unknown) => error)
+    expect(error).toBeInstanceOf(ApiResponseError)
+    expect(error).toMatchObject({ requestId: 'invalid-json-request' })
+    expect((error as Error).message).not.toContain('privado')
+    expect(fetchImplementation).toHaveBeenCalledTimes(1)
+  })
+
   it('preserva os erros estruturados e os apresenta como mensagens de campo', async () => {
     const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
       jsonResponse(

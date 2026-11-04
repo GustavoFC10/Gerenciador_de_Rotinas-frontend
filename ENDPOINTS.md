@@ -27,6 +27,12 @@ módulo estão documentados na seção 17. As rotas de Rotinas e seus vínculos 
 permanecem válidos. Processos usa `version` no corpo das mutações e conflito `409`,
 conforme seu contrato abaixo; as operações anteriores continuam usando `If-Match`.
 
+Atualização de 26/10/2026: Processos usa cinco status persistidos, resumos e
+histórico paginados, conforme a revisão 2 da seção 17. Operações protegidas por
+throttle recusam indisponibilidade do Redis com `503` e `Retry-After: 5`, preservando
+os limites; o frontend deve oferecer nova tentativa sem encerrar a sessão nem
+interpretar a falha como credencial inválida. Limite excedido retorna `429`.
+
 O cadastro geral agora aceita `moduleAccesses` no convite e na edição do
 colaborador. Nas rotas operacionais, o nível administrativo de Rotinas pode ser
 configurado separadamente do cargo organizacional. As referências anteriores a
@@ -82,7 +88,8 @@ Listas comuns usam paginação por página:
 }
 ```
 
-Tarefas e eventos usam cursor, com `next`, `previous` e `results`. Erros tratados usam
+Tarefas e eventos operacionais de Rotinas usam cursor, com `next`, `previous` e
+`results`. Entradas de Processos usam páginas, conforme a seção 17. Erros tratados usam
 `application/problem+json` e podem incluir um mapa `errors` por campo.
 
 Todas as respostas recebem `X-Request-ID`. O cliente pode enviar um valor próprio de
@@ -1621,7 +1628,12 @@ JPEG/PNG/WebP até 5 MiB e 16 MP. Nome/extensão, MIME detectado e tamanho
 são validados no servidor. Antimalware só é executado quando
 `FILES_REQUIRE_MALWARE_SCAN=True`; no rollout interno, a análise é dispensada por
 configuração e registrada na auditoria. SVG, animação, binários não permitidos e PDFs criptografados
-são rejeitados. TXT/CSV precisam de UTF-8 e são servidos como download.
+são rejeitados. A inspeção de PDF percorre objetos e referências indiretas com
+limites de quantidade/profundidade, rejeitando JavaScript, ações automáticas ou
+externas ativas, XFA, arquivos embutidos e conteúdo multimídia ativo. Links comuns
+HTTP/HTTPS/mailto/tel, destinos internos e formulários estáticos continuam aceitos.
+Essa política é independente do scanner antimalware. TXT/CSV precisam de UTF-8 e
+são servidos como download.
 
 ### `POST /api/v1/files/upload-intents/{intentId}/confirm/`
 
@@ -1849,11 +1861,17 @@ exercitados sem banco para confirmar omissão, `null` e código vazio.
 
 ## 17. Processos e acessos por módulo
 
-Contrato de 22/10/2026. Todas as rotas abaixo começam com `/api/v1/`, usam sessão,
+Contrato revisado em 26/10/2026 (`contractVersion=2` no catálogo). Todas as rotas
+abaixo continuam em `/api/v1/`, usam sessão,
 organização ativa e CSRF nas escritas. Nenhuma aceita `organizationId`, autor,
 histórico, tarefas ou status enviados livremente pelo cliente. Campos desconhecidos
 são rejeitados. O `openapi.yml` contém os schemas de entrada e saída gerados dos
 mesmos serializers executados pela API.
+
+Esta revisão substitui o contrato anterior no mesmo endpoint: não existe adaptador
+de três status nem rota paralela V2. Frontend e backend devem ser publicados de
+forma coordenada. A migração `processes.0003_persisted_status` classifica os registros
+existentes, preserva os snapshots de workflow e registra mudanças em auditoria.
 
 ### 17.1 HUB e administração de acessos
 
@@ -1999,11 +2017,16 @@ não remove o cargo organizacional nem o histórico.
 `permissions` na resposta de cada processo e no catálogo informa `read`, `create`,
 `edit`, `delete`, `cancel`, `reopen`, `note`, `viewFinancial`, `viewMovements`,
 `sectors` cadastrados e `executeSectors`. Todos os setores com acesso podem consultar
-os processos do tenant; o filtro `setor` significa pendências atuais daquele setor.
+os processos do tenant. `responsibleSector` consulta responsabilidade da etapa atual,
+inclusive durante espera. `queueSector` consulta a fila executável e exige que o
+solicitante possa executar naquele setor. A seleção de setor da fila não deve virar
+filtro implícito da lista global.
 
 Para quem não tem `viewFinancial`, a API **omite as propriedades** `custo`, `pagador`,
 `parcelas`, `honorario`, `honCobranca`, `trab`, `trabQtd`, `trabValor`, `honAnterior`
-e `honPerdido`, em listagens e detalhes. Não use a ausência como valor zero.
+e `honPerdido`, nos detalhes. A lista de resumos não inclui campos financeiros nem
+textos privados para qualquer setor; consulte o detalhe ou o relatório autorizado.
+Não use a ausência como valor zero.
 Textos livres `obs`, `altDesc`, `regimeObs`, `motivoObs`, `contato` e
 `contadorContato` também são confidenciais: podem conter valores escritos sem
 símbolo monetário. A indicação do pagador no texto da tarefa de guia é omitida.
@@ -2017,33 +2040,66 @@ textos enviados pelo usuário. Não é utilizada máscara baseada em expressão 
 
 ### 17.3 Operações e filtros
 
-| Método e rota                                    | Entrada                                      | Resposta                                                        |
-| ------------------------------------------------ | -------------------------------------------- | --------------------------------------------------------------- |
-| `GET processes/catalog/`                         | —                                            | `200`: `workflowVersion`, `types`, `sectors`, `permissions`     |
-| `GET processes/`                                 | filtros abaixo                               | `200` paginado: `count`, `next`, `previous`, `results`          |
-| `GET processes/{id}/`                            | —                                            | `200` com processo, etapas efetivas, tarefas, notas e histórico |
-| `POST processes/`                                | dados de abertura + header `Idempotency-Key` | `201` criado; `200` para replay idêntico                        |
-| `PATCH processes/{id}/`                          | `version` + campos editáveis                 | `200` com nova versão                                           |
-| `DELETE processes/{id}/`                         | `{"version":N}`                              | `204`; exclusão lógica, histórico preservado                    |
-| `POST processes/{id}/tasks/{taskId}/transition/` | `version`, `state`                           | `200` com processo atualizado                                   |
-| `POST processes/{id}/notes/`                     | `version`, `text` (1–5000 caracteres)        | `200` com processo atualizado                                   |
-| `POST processes/{id}/cancel/`                    | `{"version":N}`                              | `200` com processo cancelado                                    |
-| `POST processes/{id}/reopen/`                    | `{"version":N}`                              | `200` com processo reaberto                                     |
-| `GET processes/indicators/`                      | mesmos filtros da lista                      | `200` com contagens                                             |
-| `GET processes/reports/monthly/?month=YYYY-MM`   | mês obrigatório, sem outros parâmetros       | `200` com movimentações e honorários                            |
-| `POST processes/{id}/notifications/retry/`       | `{"version":N}`                              | `200`; tenta apenas notificações ainda elegíveis                |
-| `GET processes/{id}/notifications/`              | —                                            | `200`; Diretoria consulta cada destinatário e estado da entrega |
+| Método e rota                                    | Entrada                                      | Resposta                                                                                                     |
+| ------------------------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `GET processes/catalog/`                         | —                                            | `200`: `contractVersion=2`, `workflowVersion`, `statuses`, `openStatuses`, `types`, `sectors`, `permissions` |
+| `GET processes/`                                 | filtros abaixo                               | `200` com resumos paginados: `count`, `next`, `previous`, `results`                                          |
+| `GET processes/{id}/`                            | —                                            | `200` com dados autorizados do processo, etapas efetivas e tarefas; sem notas/histórico embutidos            |
+| `GET processes/{id}/entries/`                    | `kind=note                                   | event`opcional,`page`, `pageSize`                                                                            | `200` com notas/eventos paginados, mais recentes primeiro |
+| `POST processes/`                                | dados de abertura + header `Idempotency-Key` | `201` criado; `200` para replay idêntico                                                                     |
+| `PATCH processes/{id}/`                          | `version` + campos editáveis                 | `200` com nova versão                                                                                        |
+| `DELETE processes/{id}/`                         | `{"version":N}`                              | `204`; exclusão lógica, histórico preservado                                                                 |
+| `POST processes/{id}/tasks/{taskId}/transition/` | `version`, `state`                           | `200` com processo atualizado                                                                                |
+| `POST processes/{id}/notes/`                     | `version`, `text` (1–5000 caracteres)        | `200` com processo atualizado                                                                                |
+| `POST processes/{id}/cancel/`                    | `{"version":N}`                              | `200` com processo cancelado                                                                                 |
+| `POST processes/{id}/reopen/`                    | `{"version":N}`                              | `200` com processo reaberto                                                                                  |
+| `GET processes/indicators/`                      | mesmos filtros da lista                      | `200` com contagens                                                                                          |
+| `GET processes/reports/monthly/?month=YYYY-MM`   | mês obrigatório, sem outros parâmetros       | `200` com movimentações e honorários                                                                         |
+| `POST processes/{id}/notifications/retry/`       | `{"version":N}`                              | `200`; tenta apenas notificações ainda elegíveis                                                             |
+| `GET processes/{id}/notifications/`              | —                                            | `200`; Diretoria consulta cada destinatário e estado da entrega                                              |
 
-Filtros de lista/indicadores: `page` (inteiro positivo), `tipo`, `status`
-(`andamento`, `concluido`, `cancelado`), `setor` (`com`, `fin`, `reg`), `q`
-(empresa, CNPJ, protocolo ou código), `late` e `waiting` (booleanos), `month`
-(`YYYY-MM`, mês de abertura no fuso da organização). Parâmetros desconhecidos ou
-inválidos retornam `400`. `setor` exige autorização de execução naquele setor.
-Processos em espera não entram na fila nem nos atrasados. Consulte
-`?waiting=true` para os agendados e `?late=true` para os atrasados.
+Situações são selecionadas exclusivamente pelo campo `status` salvo no banco:
 
-Indicadores retornam `total`, `active`, `completed`, `cancelled`, `late`, `waiting`,
-`bySector` (pendências atuais) e `byType`, sem valores financeiros.
+| `status`    | Significado                                                  | Integra os processos abertos |
+| ----------- | ------------------------------------------------------------ | ---------------------------- |
+| `andamento` | Pendência liberada, sem atraso aplicável.                    | Sim                          |
+| `agendado`  | Etapa atual aguarda data de liberação.                       | Sim                          |
+| `atrasado`  | Pendência liberada com prazo vencido no fuso da organização. | Sim                          |
+| `concluido` | Todas as tarefas efetivas finalizadas ou dispensadas.        | Não                          |
+| `cancelado` | Cancelamento explícito.                                      | Não                          |
+
+Filtros de lista/indicadores: `tipo`, `status` repetível, `responsibleSector`,
+`queueSector` (`com`, `fin`, `reg`), `q` (empresa, CNPJ, protocolo ou código) e
+`month` (`YYYY-MM`, mês de abertura no fuso da organização). Repetir `status`
+combina valores com OR; filtros diferentes são cumulativos em AND. Os demais
+parâmetros da lista não podem ser repetidos. Sem `status`, todos os cinco estados
+são elegíveis. Não há classificação por tarefas/datas na filtragem.
+
+Exemplos de consulta:
+
+```text
+GET /api/v1/processes/?status=andamento&status=agendado&status=atrasado&pageSize=50
+GET /api/v1/processes/?status=agendado&responsibleSector=fin
+GET /api/v1/processes/?queueSector=fin
+```
+
+`responsibleSector` inclui agendados com responsabilidade naquele setor, mesmo
+antes da liberação. `queueSector` inclui apenas `andamento`/`atrasado` e exige
+autorização de execução no setor; um agendado permanece na lista global e na aba
+Agendados, mas ainda não tem ação executável. `status=andamento` agora significa
+somente aquele valor: para a visão de abertos, envie os três valores indicados.
+
+Listas e histórico usam `page` positivo e `pageSize` entre 1 e 100, com padrão 50.
+Filtragem e paginação acontecem no SQL antes da projeção. Indicadores agregam todo
+o conjunto filtrado, independentemente dos parâmetros de paginação. Parâmetros
+desconhecidos/inválidos retornam `400`; os antigos `setor`, `waiting` e `late` não
+são mais aceitos como filtros.
+
+Indicadores retornam `total`, `active` (soma dos três estados abertos), `completed`,
+`cancelled`, `late`, `waiting`, `byStatus` (os cinco valores), `bySector` (fila
+executável) e `byType`, sem valores financeiros. Contagens de atraso/espera também
+vêm do status salvo. Totais globais exigem consulta sem filtros; não use o tamanho
+da página como total nem misture indicadores de escopos diferentes.
 
 ### 17.4 Campos e tipos
 
@@ -2099,12 +2155,19 @@ Exemplo de abertura (enviar sessão, CSRF e `Idempotency-Key`):
 }
 ```
 
-A resposta acrescenta `id`, `organizationId`, `codigo`, `status`, `version`,
+A lista usa um schema de resumo: `id`, `organizationId`, `tipo`, `codigo`, `empresa`,
+`companyId`, `cnpj`, `protocolo`, `prazo`, `status`, `version`, `workflowVersion`,
 `criadoPor` (membro da organização), `autorAbertura`, `criadoEm`, `atualizadoEm`,
-`concluidoEm`, `workflowVersion`, `tarefas`, `etapas`, `analysis`, `permissions`,
-`notas`, `historico`; Diretoria também recebe `notifications` com contagens por
-estado de entrega. Respostas individuais têm `ETag` com a versão. Campos financeiros
-e textos confidenciais são opcionais no schema pois podem ser omitidos por permissão.
+`concluidoEm`, `statusChangedAt`, `statusNextEvaluationAt`, `responsibleSectors`,
+`analysis` e `permissions`. Não inclui dados financeiros/textos livres, `tarefas`,
+`etapas`, `notas`, `historico` ou notificações.
+
+Detalhe e respostas de mutação acrescentam os dados autorizados de abertura/edição,
+`tarefas` e `etapas`; Diretoria também recebe `notifications` com contagens por
+estado de entrega. Notas/histórico são consultados exclusivamente pelo endpoint
+paginado `entries/`, inclusive após adicionar uma nota. Respostas individuais têm
+`ETag` com a versão. Campos financeiros e textos confidenciais são opcionais no
+schema pois podem ser omitidos por permissão.
 
 `tarefas` é um objeto indexado pelo ID do catálogo (por exemplo `ab3`), contendo
 `s` (`feito` ou `na`), `por`, `autor`, `em` e, para automáticas, `auto=true`.
@@ -2114,13 +2177,25 @@ Cada tarefa contém `id`, `d` (setor), `txt` e os metadados de campo, reunião,
 opcionalidade e marco existentes no HTML. A organização não pode enviar workflows
 arbitrários. O catálogo é versionado e cada processo preserva sua cópia do fluxo.
 
-`analysis` contém `currentStage` (índice de base zero das etapas efetivas, null se
-todas completas), `completedTasks`, `totalTasks`, `releaseDate`, `waiting`, `late`
-e `pendingSectors`. Datas de liberação são calculadas no fuso da organização.
-Notas e eventos têm `id`, `por`, `autor`, `em`, `kind`, `financial`, `text`, `details`.
-Eventos incluem `opened`, `edited`, `task`, `completed`, `reopened`, `cancelled`,
-`deleted`, `email_retry`; alterações indicam os nomes dos campos, tarefas e estados,
-sem expor seu conteúdo financeiro no histórico público.
+`analysis` contém os valores persistidos `currentStage` (índice de base zero das
+etapas efetivas, null se todas completas), `completedTasks`, `totalTasks` e
+`releaseDate`. `waiting` equivale a `status=agendado`; `late` equivale a
+`status=atrasado`; são informações explicativas, não seletores de situação.
+`pendingSectors` corresponde às responsabilidades quando o estado é
+`andamento`/`atrasado`, ficando vazio nos demais. `responsibleSectors` permanece
+preenchido durante a espera e fica vazio em estados terminais. Liberação e próxima
+avaliação temporal são persistidas com o fuso da organização. `concluidoEm` é o
+instante de encerramento e também existe para cancelados; o status distingue ambos.
+
+Em `entries/`, `kind=note` seleciona notas e `kind=event` seleciona os demais eventos;
+omitir `kind` inclui ambos. As entradas têm `id`, `por`, `autor`, `em`, `kind`,
+`financial`, `text`, `details`. A exclusão de conteúdo financeiro ocorre no SQL
+antes da contagem/paginação. Eventos incluem `opened`, `edited`, `task`,
+`status_changed`, `reopened`, `cancelled`, `deleted`, `email_retry`. `status_changed`
+registra `from`, `to`, `trigger`; os gatilhos `clock`/`migration` identificam ação
+automática, usando o criador como vínculo de autoria técnica. Não apresentar essa
+autoria como se o usuário tivesse executado manualmente a transição temporal.
+Alterações públicas indicam campos/tarefas/estados sem conteúdo financeiro.
 Eventos confidenciais `definitions` e `financial_update` preservam os valores
 definidos na abertura e os valores anteriores/novos de alterações financeiras ou
 de texto privado. São omitidos integralmente para quem não pode consultar valores.
@@ -2152,10 +2227,30 @@ e grava `concluidoEm`. Reabrir tarefa de processo concluído reabre o processo.
 retira a etapa de solicitar dados do contador. Opções de reunião/reativação são
 habilitadas por padrão. Reuniões de acompanhamento liberam **quatro meses de
 calendário** após a última conclusão da etapa anterior, com ajuste ao último dia do
-mês; nenhum cliente pode antecipar essa data. A liberação é calculada na consulta,
-sem depender de job ou relógio do navegador.
+mês; nenhum cliente pode antecipar essa data. A classificação é decidida por uma
+função única e persistida nas mutações, em vez de ser recalculada pelos filtros.
+Prioridade: cancelamento preservado → todas as tarefas efetivas completas → espera
+→ atraso → andamento. `statusChangedAt` muda quando o status muda;
+`statusNextEvaluationAt` agenda liberação/vencimento. Atraso começa após o fim do dia
+do prazo no fuso da organização. Nos três estados abertos, `concluidoEm` é nulo.
 
-Somente processos `andamento` podem ser cancelados. Processo cancelado precisa ser
+O processo `processclock` executa `reconcile_process_statuses --watch` e aplica as
+transições temporais com locks, versão e auditoria. Antes de consultar o status
+salvo, as leituras reconciliam avaliações vencidas do tenant usando um único
+instante de corte, lotes de até 200 registros, no máximo cinco lotes e orçamento
+de dois segundos verificado entre lotes. Leituras usam locks sem espera (`NOWAIT`).
+Se ainda houver avaliações vencidas no corte, se houver conflito de lock ou erro
+de banco, retornam `503` com `Retry-After: 5` em vez de serializar status defasado.
+O orçamento entre lotes não é um timeout rígido de cada operação SQL; o worker
+contínuo deve absorver acúmulos maiores.
+
+Assim, interrupção do worker não faz o navegador inventar status ou confundir
+indisponibilidade temporária com coleção vazia. Repetições sem mudança não
+incrementam versão nem duplicam eventos. Cancelamento concorrente não é desfeito
+pelo relógio. O worker continua usando locks com espera; a restrição não bloqueante
+é própria da reconciliação no caminho de leitura.
+
+Processos `andamento`, `agendado` e `atrasado` podem ser cancelados. Processo cancelado precisa ser
 reaberto antes de editar dados ou tarefas. Notas podem ser adicionadas a processos
 encerrados. `reopen/` restaura um cancelado; em concluído, reabre a última tarefa
 manual. Exclusão é lógica e mantém histórico, chave de idempotência e vínculos de
@@ -2263,8 +2358,120 @@ Todos os erros usam `application/problem+json` com `type`, `title`, `status` e
 | `403`  | Sem sessão/organização ativa, sem acesso ao módulo, ação/setor/valor restrito ou CSRF ausente                                              |
 | `404`  | Processo, empresa, membro ou tarefa fora do tenant/fluxo efetivo; processo excluído                                                        |
 | `409`  | Versão antiga, etapa bloqueada/espera, tarefa automática, transição incompatível ou chave de idempotência reutilizada                      |
+| `429`  | Limite de requisições atingido; respeitar `Retry-After`                                                                                    |
+| `503`  | Cache de proteção indisponível ou reconciliação temporal sem condição de concluir dentro do orçamento/locks; `Retry-After: 5`              |
+
+O módulo usa limite compartilhado por `PROCESSES_THROTTLE_RATE` (padrão
+`120/minute`). A proteção de identidade também recusa operações protegidas quando
+Redis está indisponível; falha de cache não equivale a credenciais inválidas nem
+significa que a mutação foi concluída. Se o retorno de uma escrita se perder por
+falha de rede, consultar o recurso/versão antes de reaplicar e, em abertura,
+reutilizar a mesma chave de idempotência/corpo.
 
 As novas tabelas têm migrações próprias. As relações de processo, empresa, autor e
 destinatário possuem chaves estrangeiras compostas por organização no PostgreSQL,
 além do escopo e validações da aplicação. Execute `manage.py migrate` no deploy.
 Nenhum dado ou acesso de Rotinas é modificado pelas migrações de Processos.
+
+### 17.9 Cobranças da Leggacy e avisos com envio declarado
+
+Adicionado em 03/11/2026. `contractVersion=2`, `workflowVersion=2` no catálogo.
+Novos processos copiam o catálogo com os pares envio/retorno identificados por
+`cob`: `ab5→ab4`, `me5→me4`, `al4→al3`, `re7→re6`, `ba7→ba6`.
+Não há importação do JSON demonstrativo nem backfill de snapshots antigos.
+
+Cobranças são pendências complementares do Financeiro, sem alterar tarefas,
+progresso, responsabilidade ou conclusão do workflow. Surgem após sete dias
+corridos pelas datas no fuso da organização, a partir do `em` da tarefa de envio
+concluída (`feito`) e enquanto o retorno não estiver concluído/dispensado. Concluir
+a cobrança registra o contato realizado, não o retorno. O retorno, invalidação do
+envio/etapa, cancelamento, conclusão ou exclusão encerram o ciclo automaticamente,
+preservando autor/data de uma eventual cobrança realizada. Novo envio com nova
+data inicia outro ciclo. Uma cobrança por processo/tarefa de retorno/data de envio.
+
+O detalhe de Processos inclui `leggacy[]` com `sendTaskId`, `returnTaskId`,
+`sentAt`, `dueOn`, `daysWaiting`, `awaitingReturn`, `followUpDue`. Isso não é uma
+segunda classificação de status. O estado do processo continua persistido nos
+cinco valores já documentados. `daysWaiting` é a idade do envio na consulta; para
+apresentar espera atual, verificar também `awaitingReturn`.
+
+| Endpoint                                         | Permissão e resposta                                             |
+| ------------------------------------------------ | ---------------------------------------------------------------- |
+| `GET /api/v1/process-follow-ups/`                | Leitura de Processos; coleção paginada                           |
+| `GET /api/v1/process-follow-ups/{id}/`           | Leitura; detalhe da cobrança                                     |
+| `POST /api/v1/process-follow-ups/{id}/complete/` | Financeiro/Diretoria; `{version}` da cobrança; `200` com detalhe |
+| `GET /api/v1/process-alerts/`                    | Diretoria; avisos paginados                                      |
+| `GET /api/v1/process-alerts/{id}/`               | Diretoria; detalhe do aviso                                      |
+| `GET /api/v1/process-alerts/recipient-options/`  | Diretoria; membros elegíveis paginados                           |
+| `POST /api/v1/process-alerts/{id}/prepare/`      | Diretoria; prepara texto/destinatários sem gravar envio          |
+| `POST /api/v1/process-alerts/{id}/declare-sent/` | Diretoria; registra declaração manual, autor e destinatários     |
+
+Coleções usam `{count,next,previous,results}`, `page` e `pageSize` de 1 a 100,
+padrão 50. Cobranças aceitam `processId`, `state=pending|completed|resolved`.
+Avisos aceitam `processId`, `kind=leggacy|overdue`, `status=pending|sent|resolved`.
+Opções de destinatários aceitam `q` (nome/e-mail) e `sector=com|fin|reg`; cada
+resultado contém `{memberId,name,email,sectors}`. Financeiro/Regularidade não têm
+acesso à central ou aos endereços dos destinatários. Cobranças não expõem e-mails.
+
+Os avisos são gerados nas seguintes condições:
+
+- `leggacy`: ciclo de cobrança que atingiu sete dias sem retorno. Sugestão de
+  destinatários: Diretoria e Financeiro (`com`, `fin`).
+- `overdue`: status `atrasado` com prazo vencido há **mais de sete dias**, portanto
+  a partir do oitavo. Sugestão: os três setores. Usa o índice original da etapa do
+  snapshot, o ciclo de reabertura e o prazo como chave. Mudança de etapa ainda
+  atrasada, reabertura ou mudança de prazo podem gerar novo aviso.
+
+Agendados, concluídos, cancelados e excluídos não geram avisos de atraso. O
+backend fecha situações que deixaram de existir e impede declará-las como enviadas.
+O relógio não repete o mesmo aviso a cada execução. Aviso de Leggacy pode continuar
+pendente mesmo após a cobrança ser realizada, até retorno/encerramento do ciclo.
+
+`prepare` e `declare-sent` recebem o mesmo formato:
+
+```json
+{ "version": 1, "sectors": ["fin"], "memberIds": ["<UUID do membro>"] }
+```
+
+Os seletores são opcionais individualmente; a união deve conter ao menos um
+destinatário ativo com acesso habilitado a Processos no tenant. O servidor expande
+os setores no momento da chamada e deduplica membros, inclusive quem tem vários
+setores. Seleção individual estrangeira, suspensa, sem acesso ou inexistente gera
+`400`. Não são aceitos endereços livres nem configuração fixa de caixas por setor.
+
+`prepare` retorna `{alertId,version,subject,body,recipients,copyText}`. Não envia
+e-mail, não marca como enviado e não incrementa versão. `declare-sent` revalida os
+destinatários e grava o snapshot `{memberId,name,email}` de cada um, seletores,
+data do servidor e autor autenticado; retorna o aviso atualizado. A versão é a
+do **aviso**, independente da versão do processo ou da cobrança. Versão antiga,
+aviso resolvido ou envio já declarado geram `409`. Não há desfazer declaração.
+
+Detalhe do aviso: `id`, `processId`, `empresa`, `codigo`, `kind`, `followUpId`,
+`stageIndex` (base zero), `subject`, `body`, `defaultSectors`, `selectedSectors`,
+`selectedMemberIds`, `recipients`, `createdAt`, `sentAt`, `sentBy`, `resolvedAt`,
+`status`, `deliveryMode=manual`, `version`. `sent` significa declaração humana,
+sem confirmação de SMTP/entrega. Após resolução, um aviso declarado continua
+`sent`, com `resolvedAt` preenchido. Não declarado muda de `pending` para `resolved`.
+Conteúdo/destinatários históricos permanecem congelados. Textos não incluem valores
+financeiros ou observações privadas. Links apontam para
+`{FRONTEND_BASE_URL}/processos/{processId}`.
+
+Detalhe da cobrança: `id`, `processId`, `empresa`, `sendTaskId`, `returnTaskId`,
+`sentAt`, `dueOn`, `createdAt`, `state`, `completedAt`, `completedBy`, `resolvedAt`,
+`resolution` (`""|process_closed|return_or_reset`), `version`.
+
+Eventos: `followup_created`, `followup_closed` e `alert_created` com `trigger=clock`
+representam Sistema. `followup_done` registra contato humano. `alert_sent` registra
+a declaração com destinatários e é restrito à Diretoria, inclusive na paginação do
+histórico do processo. O envio automático de abertura,
+suas permissões e suas notificações permanecem no contrato da seção 17.7.
+
+Aplicar migrations `processes.0005` e `0006`. As novas relações também têm FKs
+compostas por tenant no PostgreSQL. O worker `processalerts` roda
+`reconcile_process_alerts --watch --poll-seconds 60`; sem `--watch`, executa uma
+varredura em lotes e termina, permitindo agendamento externo. Aceita
+`--organization <UUID>` e `--limit <quantidade>`. Não envia e-mails. A execução
+continua sem navegador aberto. Ativar o worker é necessário para a geração temporal;
+comandos do processo também encerram situações e geram as novas já elegíveis.
+
+Referência de implementação: prompt de cobranças da Leggacy e avisos manuais, recebido do backend em 03/11/2026.
