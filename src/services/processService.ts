@@ -1,9 +1,22 @@
-import { HttpClient, httpClient } from './httpClient'
+import { ApiError, HttpClient, httpClient } from './httpClient'
+import { getRetryAfterSeconds } from '../utils/apiErrors'
 import type { ApiResponse, QueryParameters } from './httpClient'
 import type {
+  PreparedProcessAlert,
+  ProcessAlert,
+  ProcessAlertFilters,
+  ProcessAlertPage,
+  ProcessAlertRecipientFilters,
+  ProcessAlertRecipientPage,
+  ProcessAlertSelection,
   ProcessCatalog,
   ProcessCreateInput,
+  ProcessEntriesFilters,
+  ProcessEntriesPage,
   ProcessFilters,
+  ProcessFollowUp,
+  ProcessFollowUpFilters,
+  ProcessFollowUpPage,
   ProcessIndicators,
   ProcessMonthlyReport,
   ProcessPage,
@@ -11,44 +24,103 @@ import type {
   ProcessResource,
   ProcessTaskTransition,
 } from '../types/processes'
+import {
+  normalizeProcessAlertFilters,
+  normalizeProcessAlertRecipientFilters,
+  normalizeProcessFollowUpFilters,
+  normalizeProcessEntriesFilters,
+  normalizeProcessFilters,
+  parseProcessCatalog,
+  parsePreparedProcessAlert,
+  parseProcessAlert,
+  parseProcessAlertPage,
+  parseProcessAlertRecipientPage,
+  parseProcessDetail,
+  parseProcessEntriesPage,
+  parseProcessFollowUp,
+  parseProcessFollowUpPage,
+  parseProcessIndicators,
+  parseProcessMonthlyReport,
+  parseProcessPage,
+  ProcessContractError,
+} from './processContract'
 
 const PROCESSES_ENDPOINT = '/api/v1/processes/'
+const FOLLOW_UPS_ENDPOINT = '/api/v1/process-follow-ups/'
+const ALERTS_ENDPOINT = '/api/v1/process-alerts/'
 
 export class ProcessService {
+  private cooldown: { error: ApiError; until: number } | null = null
+
   constructor(private readonly client: HttpClient) {}
 
+  private guarded<T>(
+    operation: () => Promise<ApiResponse<T>>,
+  ): Promise<ApiResponse<T>> {
+    if (this.cooldown && this.cooldown.until > Date.now())
+      return Promise.reject(this.cooldown.error)
+    this.cooldown = null
+    return operation().catch((error: unknown) => {
+      if (error instanceof ApiError && [429, 503].includes(error.status)) {
+        const seconds = getRetryAfterSeconds(error.retryAfter)
+        if (seconds !== null && seconds > 0)
+          this.cooldown = { error, until: Date.now() + seconds * 1000 }
+      }
+      throw error
+    })
+  }
+
+  private validated<T>(
+    operation: () => Promise<ApiResponse<unknown>>,
+    parse: (value: unknown, requestId?: string | null) => T,
+    paginationBaseUrl?: string,
+  ): Promise<ApiResponse<T>> {
+    return validateResponse(this.guarded(operation), parse, paginationBaseUrl)
+  }
+
   catalog(signal?: AbortSignal): Promise<ApiResponse<ProcessCatalog>> {
-    return this.client.get(`${PROCESSES_ENDPOINT}catalog/`, { signal })
+    return this.validated(
+      () => this.client.get(`${PROCESSES_ENDPOINT}catalog/`, { signal }),
+      parseProcessCatalog,
+    )
   }
 
   list(
     filters: ProcessFilters = {},
     signal?: AbortSignal,
   ): Promise<ApiResponse<ProcessPage>> {
-    return this.client.get(PROCESSES_ENDPOINT, {
-      query: processQuery(filters),
-      signal,
-    })
+    return this.validated(
+      () =>
+        this.client.get(PROCESSES_ENDPOINT, {
+          query: processQuery(filters),
+          signal,
+        }),
+      parseProcessPage,
+      this.client.baseUrl,
+    )
   }
 
-  async listAll(
-    filters: ProcessFilters = {},
+  entries(
+    id: string,
+    filters: ProcessEntriesFilters = {},
     signal?: AbortSignal,
-  ): Promise<ProcessResource[]> {
-    const results: ProcessResource[] = []
-    let response = await this.list(filters, signal)
-
-    while (true) {
-      results.push(...response.data.results)
-      if (!response.data.next) return results
-      response = await this.client.get<ProcessPage>(response.data.next, {
-        signal,
-      })
-    }
+  ): Promise<ApiResponse<ProcessEntriesPage>> {
+    return this.validated(
+      () =>
+        this.client.get(`${processPath(id)}entries/`, {
+          query: normalizeProcessEntriesFilters(filters),
+          signal,
+        }),
+      parseProcessEntriesPage,
+      this.client.baseUrl,
+    )
   }
 
   get(id: string, signal?: AbortSignal): Promise<ApiResponse<ProcessResource>> {
-    return this.client.get(processPath(id), { signal })
+    return this.validated(
+      () => this.client.get(processPath(id), { signal }),
+      parseProcessDetail,
+    )
   }
 
   /** A mesma abertura deve reutilizar sua chave e corpo após falha de rede. */
@@ -59,22 +131,30 @@ export class ProcessService {
     if (!/^[A-Za-z0-9._:-]{1,128}$/.test(idempotencyKey)) {
       throw new Error('A chave de abertura do processo é inválida.')
     }
-    return this.client.post(PROCESSES_ENDPOINT, input, { idempotencyKey })
+    return this.validated(
+      () => this.client.post(PROCESSES_ENDPOINT, input, { idempotencyKey }),
+      parseProcessDetail,
+    )
   }
 
   update(
     id: string,
     input: ProcessPatchInput,
   ): Promise<ApiResponse<ProcessResource>> {
-    return this.client.patch(processPath(id), input)
+    return this.validated(
+      () => this.client.patch(processPath(id), input),
+      parseProcessDetail,
+    )
   }
 
   remove(id: string, version: number): Promise<ApiResponse<void>> {
     // O contrato de Processos usa version no JSON, inclusive em DELETE.
-    return this.client.request(processPath(id), {
-      method: 'DELETE',
-      json: { version },
-    })
+    return this.guarded(() =>
+      this.client.request(processPath(id), {
+        method: 'DELETE',
+        json: { version },
+      }),
+    )
   }
 
   transitionTask(
@@ -83,9 +163,13 @@ export class ProcessService {
     version: number,
     state: ProcessTaskTransition,
   ): Promise<ApiResponse<ProcessResource>> {
-    return this.client.post(
-      `${processPath(id)}tasks/${encodeURIComponent(taskId)}/transition/`,
-      { version, state },
+    return this.validated(
+      () =>
+        this.client.post(
+          `${processPath(id)}tasks/${encodeURIComponent(taskId)}/transition/`,
+          { version, state },
+        ),
+      parseProcessDetail,
     )
   }
 
@@ -94,44 +178,175 @@ export class ProcessService {
     version: number,
     text: string,
   ): Promise<ApiResponse<ProcessResource>> {
-    return this.client.post(`${processPath(id)}notes/`, { version, text })
+    return this.validated(
+      () => this.client.post(`${processPath(id)}notes/`, { version, text }),
+      parseProcessDetail,
+    )
   }
 
   cancel(id: string, version: number): Promise<ApiResponse<ProcessResource>> {
-    return this.client.post(`${processPath(id)}cancel/`, { version })
+    return this.validated(
+      () => this.client.post(`${processPath(id)}cancel/`, { version }),
+      parseProcessDetail,
+    )
   }
 
   reopen(id: string, version: number): Promise<ApiResponse<ProcessResource>> {
-    return this.client.post(`${processPath(id)}reopen/`, { version })
+    return this.validated(
+      () => this.client.post(`${processPath(id)}reopen/`, { version }),
+      parseProcessDetail,
+    )
   }
 
   retryNotifications(
     id: string,
     version: number,
   ): Promise<ApiResponse<ProcessResource>> {
-    return this.client.post(`${processPath(id)}notifications/retry/`, {
-      version,
-    })
+    return this.validated(
+      () =>
+        this.client.post(`${processPath(id)}notifications/retry/`, {
+          version,
+        }),
+      parseProcessDetail,
+    )
   }
 
   indicators(
     filters: ProcessFilters = {},
     signal?: AbortSignal,
   ): Promise<ApiResponse<ProcessIndicators>> {
-    return this.client.get(`${PROCESSES_ENDPOINT}indicators/`, {
-      query: processQuery(filters),
-      signal,
-    })
+    return this.validated(
+      () =>
+        this.client.get(`${PROCESSES_ENDPOINT}indicators/`, {
+          query: processQuery(filters),
+          signal,
+        }),
+      parseProcessIndicators,
+    )
   }
 
   monthlyReport(
     month: string,
     signal?: AbortSignal,
   ): Promise<ApiResponse<ProcessMonthlyReport>> {
-    return this.client.get(`${PROCESSES_ENDPOINT}reports/monthly/`, {
-      query: { month },
-      signal,
-    })
+    return this.validated(
+      () =>
+        this.client.get(`${PROCESSES_ENDPOINT}reports/monthly/`, {
+          query: { month },
+          signal,
+        }),
+      parseProcessMonthlyReport,
+    )
+  }
+
+  followUps(
+    filters: ProcessFollowUpFilters = {},
+    signal?: AbortSignal,
+  ): Promise<ApiResponse<ProcessFollowUpPage>> {
+    return this.validated(
+      () =>
+        this.client.get(FOLLOW_UPS_ENDPOINT, {
+          query: { ...normalizeProcessFollowUpFilters(filters) },
+          signal,
+        }),
+      parseProcessFollowUpPage,
+      this.client.baseUrl,
+    )
+  }
+
+  followUp(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<ApiResponse<ProcessFollowUp>> {
+    return this.validated(
+      () =>
+        this.client.get(`${FOLLOW_UPS_ENDPOINT}${encodeURIComponent(id)}/`, {
+          signal,
+        }),
+      parseProcessFollowUp,
+    )
+  }
+
+  completeFollowUp(
+    id: string,
+    version: number,
+  ): Promise<ApiResponse<ProcessFollowUp>> {
+    return this.validated(
+      () =>
+        this.client.post(
+          `${FOLLOW_UPS_ENDPOINT}${encodeURIComponent(id)}/complete/`,
+          { version },
+        ),
+      parseProcessFollowUp,
+    )
+  }
+
+  alerts(
+    filters: ProcessAlertFilters = {},
+    signal?: AbortSignal,
+  ): Promise<ApiResponse<ProcessAlertPage>> {
+    return this.validated(
+      () =>
+        this.client.get(ALERTS_ENDPOINT, {
+          query: { ...normalizeProcessAlertFilters(filters) },
+          signal,
+        }),
+      parseProcessAlertPage,
+      this.client.baseUrl,
+    )
+  }
+
+  alert(id: string, signal?: AbortSignal): Promise<ApiResponse<ProcessAlert>> {
+    return this.validated(
+      () =>
+        this.client.get(`${ALERTS_ENDPOINT}${encodeURIComponent(id)}/`, {
+          signal,
+        }),
+      parseProcessAlert,
+    )
+  }
+
+  alertRecipientOptions(
+    filters: ProcessAlertRecipientFilters = {},
+    signal?: AbortSignal,
+  ): Promise<ApiResponse<ProcessAlertRecipientPage>> {
+    return this.validated(
+      () =>
+        this.client.get(`${ALERTS_ENDPOINT}recipient-options/`, {
+          query: { ...normalizeProcessAlertRecipientFilters(filters) },
+          signal,
+        }),
+      parseProcessAlertRecipientPage,
+      this.client.baseUrl,
+    )
+  }
+
+  prepareAlert(
+    id: string,
+    input: ProcessAlertSelection,
+  ): Promise<ApiResponse<PreparedProcessAlert>> {
+    return this.validated(
+      () =>
+        this.client.post(
+          `${ALERTS_ENDPOINT}${encodeURIComponent(id)}/prepare/`,
+          input,
+        ),
+      parsePreparedProcessAlert,
+    )
+  }
+
+  declareAlertSent(
+    id: string,
+    input: ProcessAlertSelection,
+  ): Promise<ApiResponse<ProcessAlert>> {
+    return this.validated(
+      () =>
+        this.client.post(
+          `${ALERTS_ENDPOINT}${encodeURIComponent(id)}/declare-sent/`,
+          input,
+        ),
+      parseProcessAlert,
+    )
   }
 }
 
@@ -142,14 +357,31 @@ function processPath(id: string): string {
 }
 
 function processQuery(filters: ProcessFilters): QueryParameters {
-  return {
-    page: filters.page,
-    tipo: filters.tipo,
-    status: filters.status,
-    setor: filters.setor,
-    q: filters.q,
-    late: filters.late,
-    waiting: filters.waiting,
-    month: filters.month,
+  return { ...normalizeProcessFilters(filters) }
+}
+
+async function validateResponse<T>(
+  response: Promise<ApiResponse<unknown>>,
+  parse: (value: unknown, requestId?: string | null) => T,
+  paginationBaseUrl?: string,
+): Promise<ApiResponse<T>> {
+  const result = await response
+  const data = parse(result.data, result.requestId)
+  if (paginationBaseUrl) {
+    const pagination = data as { next: string | null; previous: string | null }
+    for (const field of ['next', 'previous'] as const) {
+      if (!pagination[field]) continue
+      try {
+        const target = new URL(pagination[field], paginationBaseUrl)
+        if (target.origin !== new URL(paginationBaseUrl).origin)
+          throw new Error('origin')
+      } catch {
+        throw new ProcessContractError(
+          `response.${field} (origem de paginação inválida)`,
+          result.requestId,
+        )
+      }
+    }
   }
+  return { ...result, data }
 }

@@ -1,0 +1,61 @@
+.processes-module .process-followups {
+  margin-top: 16px;
+}
+.processes-module .process-followups h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.processes-module .process-followups > .note,
+.processes-module .process-followups > .err-msg,
+.processes-module .process-followups > [role='status'],
+.processes-module .process-followups > nav {
+  margin: 12px 16px;
+}
+.processes-module .process-followups-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 16px;
+  font-size: 12px;
+}
+.processes-module .process-followups-filter select {
+  width: auto;
+}
+.processes-module .process-followup {
+  padding: 16px;
+  border-top: 1px solid var(--divider);
+  overflow-wrap: anywhere;
+}
+.processes-module .process-followup p {
+  margin: 8px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.processes-module .process-followup > small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.processes-module .process-followup-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.processes-module .process-leggacy-tracking {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--divider);
+}
+.processes-module .process-leggacy-tracking p {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+.processes-module .process-leggacy-tracking.follow-up-due {
+  background: var(--act-bg);
+  color: var(--act-text);
+}

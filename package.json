@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "preview:features": "vite --config vite.preview.config.ts",
+    "preview:companies": "vite --config vite.companies-preview.config.ts",
+    "build:preview:companies": "vite build --config vite.companies-preview.config.ts",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

@@ -1,56 +1,62 @@
-import type { ProcessResource, ProcessSector } from '../types/processes'
+﻿import type { ProcessFilters, ProcessStatus } from '../types/processes'
 
+/** Navigation maps directly to the persisted status. It has no workflow rules. */
 export const PROCESS_VIEWS: Record<
   string,
-  { title: string; description: string }
+  {
+    title: string
+    description: string
+    statuses?: readonly ProcessStatus[]
+  }
 > = {
   ativos: {
+    title: 'Abertos',
+    description: 'Em andamento, aguardando liberação e atrasados.',
+    statuses: ['andamento', 'agendado', 'atrasado'],
+  },
+  andamento: {
     title: 'Em andamento',
-    description: 'Processos abertos, da etapa atual até a conclusão.',
+    description: 'Processos em andamento.',
+    statuses: ['andamento'],
   },
   atrasados: {
     title: 'Atrasados',
-    description: 'Processos em andamento com o prazo vencido.',
+    description: 'Processos classificados como atrasados pelo servidor.',
+    statuses: ['atrasado'],
   },
   agendados: {
-    title: 'Agendados',
-    description: 'Processos aguardando a data de liberação da próxima etapa.',
+    title: 'Aguardando liberação',
+    description: 'Processos aguardando a liberação da próxima etapa.',
+    statuses: ['agendado'],
   },
   concluidos: {
     title: 'Concluídos',
-    description: 'Processos com todas as etapas finalizadas.',
+    description: 'Processos concluídos.',
+    statuses: ['concluido'],
   },
   encerrados: {
     title: 'Cancelados',
-    description:
-      'Processos cancelados, que podem ser reabertos pela Diretoria.',
+    description: 'Processos cancelados.',
+    statuses: ['cancelado'],
   },
   todos: {
     title: 'Todos os processos',
-    description: 'Histórico completo, em todas as situações.',
+    description: 'Processos em todas as situações.',
+  },
+  responsabilidade: {
+    title: 'Responsabilidade',
+    description:
+      'Processos sob responsabilidade do setor, incluindo os que aguardam liberação.',
   },
   fila: {
     title: 'Minha fila',
-    description: 'Processos com tarefa do seu setor na etapa atual.',
+    description: 'Ações liberadas para execução pelo seu setor.',
   },
 }
 
-export function inProcessView(
-  process: ProcessResource,
+export function processViewFilters(
   view: string,
-  sector?: ProcessSector,
-) {
-  if (view === 'ativos') return process.status === 'andamento'
-  if (view === 'atrasados') return process.analysis.late
-  if (view === 'agendados') return process.analysis.waiting
-  if (view === 'concluidos') return process.status === 'concluido'
-  if (view === 'encerrados') return process.status === 'cancelado'
-  if (view === 'fila')
-    return (
-      !!sector &&
-      process.status === 'andamento' &&
-      !process.analysis.waiting &&
-      process.analysis.pendingSectors.includes(sector)
-    )
-  return true
+): Pick<ProcessFilters, 'status'> {
+  const status = PROCESS_VIEWS[view]?.statuses
+  return status ? { status } : {}
 }

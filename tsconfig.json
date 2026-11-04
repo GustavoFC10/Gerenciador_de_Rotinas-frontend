@@ -21,6 +21,7 @@
     "src",
     "vite.config.ts",
     "vite.preview.config.ts",
+    "vite.companies-preview.config.ts",
     "eslint.config.ts"
   ]
 }

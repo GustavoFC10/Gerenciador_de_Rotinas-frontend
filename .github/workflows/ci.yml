@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - develop
+      - staging
 
 permissions:
   contents: read
@@ -27,6 +27,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          # react-router requires Node >=22.22.0; avoid an older runner cache.
+          check-latest: true
           cache: npm
 
       - name: Install dependencies

@@ -83,6 +83,20 @@ export class ApiNetworkError extends Error {
   }
 }
 
+/** A successful HTTP response can still contain an invalid JSON document. */
+export class ApiResponseError extends Error {
+  constructor(
+    readonly requestId: string,
+    options?: ErrorOptions,
+  ) {
+    super(
+      'A API retornou uma resposta inválida. Informe o código de atendimento ao suporte.',
+      options,
+    )
+    this.name = 'ApiResponseError'
+  }
+}
+
 export class HttpClient {
   readonly baseUrl: string
 
@@ -194,8 +208,17 @@ export class HttpClient {
       })
     }
 
+    let data: T
+    try {
+      data = await readResponseBody<T>(response)
+    } catch (error) {
+      if (error instanceof SyntaxError)
+        throw new ApiResponseError(responseRequestId, { cause: error })
+      throw error
+    }
+
     return {
-      data: await readResponseBody<T>(response),
+      data,
       status: response.status,
       etag: response.headers.get('ETag'),
       requestId: responseRequestId,

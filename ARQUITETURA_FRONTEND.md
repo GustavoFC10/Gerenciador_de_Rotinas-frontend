@@ -316,12 +316,31 @@ Uma evolucao natural seria extrair do `App.tsx` os fluxos de mutacao e selecao c
   relatórios e tentativas de notificações. As consultas usam chaves próprias em
   `processQueryKeys`; alterações usam a versão recebida, e a abertura reutiliza a
   mesma chave de idempotência quando a resposta não pode ser confirmada.
+- Na revisão 2, `processContract` valida DTOs em execução e distingue resumo,
+  detalhe e entradas paginadas. Hooks próprios carregam páginas e filtros no
+  servidor; as chaves incluem contrato, organização e membership. Status e
+  indicadores vêm do backend. Atualizações invalidam coleções sem fundir detalhe
+  e listas. A entrega e os requisitos de publicação coordenada estão em
+  `REORGANIZACAO_PROCESSOS_FRONTEND.md`.
 - `pages/processes` e `components/processes` adaptam a referência
   `processos-jaralcon.html` para React/TypeScript. Etapas, permissões e liberação
   após espera são fornecidas pelo servidor. O CSS é isolado em `.processes-module`
   e usa os tokens dos temas Claro e Escuro da aplicação.
 - O backend envia os e-mails na abertura. A interface mostra os estados reais e
   permite à Diretoria tentar novamente apenas os envios elegíveis.
+- As cobranças complementares da Leggacy aparecem na ficha e na fila de
+  Financeiro/Diretoria, sem participar do workflow. `useProcessCommunications`
+  consulta cobranças, avisos e membros elegíveis em páginas independentes,
+  isoladas por organização e membership, com atualização por foco e a cada
+  60 segundos enquanto a tela estiver visível. As mutações de processos invalidam
+  também essas situações e seus contadores.
+- `/processos/avisos` é reservada à Diretoria (`permissions.create`). A seleção
+  por setor/membro é resolvida no servidor; preparar e copiar não enviam e-mail.
+  A declaração posterior usa a versão do aviso e registra os destinatários
+  históricos. Alterar a seleção ou receber conflito exige preparar/copiar de novo.
+  Esse fluxo é independente das notificações automáticas de abertura. O backend
+  requer migrations `processes.0005`/`0006` e o worker `processalerts`; a SPA não
+  cria ciclos nem executa agendamento. Contrato detalhado: `ENDPOINTS.md`, §17.9.
 - `processReportPdf` exporta o relatório mensal com a identidade visual original,
   usando uma cópia local do jsPDF e sua licença em `public/vendor`.
 

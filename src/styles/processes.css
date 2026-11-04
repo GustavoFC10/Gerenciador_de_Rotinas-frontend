@@ -1187,6 +1187,20 @@
   min-width: 180px;
   cursor: pointer;
 }
+.processes-module .filters > label:not(.search) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.processes-module .filters select[multiple] {
+  min-height: 136px;
+  padding: 6px;
+}
+.processes-module .filters select[multiple] option {
+  padding: 4px 8px;
+}
 .processes-module .summary {
   display: flex;
   flex-wrap: wrap;
@@ -3819,7 +3833,8 @@
   background: var(--err-dot);
 }
 .processes-module .group-dot.progress,
-.processes-module .process-view-ativos {
+.processes-module .process-view-ativos,
+.processes-module .process-view-andamento {
   background: var(--prog-dot);
 }
 .processes-module .group-dot.scheduled,

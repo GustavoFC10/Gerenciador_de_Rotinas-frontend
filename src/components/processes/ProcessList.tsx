@@ -1,226 +1,66 @@
-import { useState } from 'react'
-import type {
+﻿import type {
   ProcessCatalog,
-  ProcessResource,
+  ProcessFilters,
+  ProcessIndicators,
+  ProcessPage,
   ProcessSector,
+  ProcessStatus,
 } from '../../types/processes'
-import { normalizeSearch } from '../../utils/normalizeSearch'
 import {
   PROCESS_SECTORS,
-  monthLabel,
-  processAge,
-  processDaysLate,
-  processDaysUntilDue,
-  processMonth,
+  PROCESS_STATUS_PRESENTATION,
 } from '../../utils/processPresentation'
-import { PROCESS_VIEWS, inProcessView } from '../../utils/processFilters'
+import { PROCESS_VIEWS } from '../../utils/processFilters'
 import ProcessIcon from './ProcessIcon'
 import ProcessSummaryRow from './ProcessSummaryRow'
 
 interface Props {
-  processes: ProcessResource[]
+  data: ProcessPage
   catalog: ProcessCatalog
+  indicators: ProcessIndicators
+  filters: ProcessFilters
   sector?: ProcessSector
   view: string
-  type: string
-  search: string
   timeZone: string
-  onSearch: (value: string) => void
-  onType: (value: string) => void
+  onFilters: (patch: Record<string, string | string[]>) => void
+  onClear: () => void
   onOpen: (id: string) => void
   onCreate: () => void
+  onWaiting: () => void
 }
 
 export default function ProcessList({
-  processes,
+  data,
   catalog,
+  indicators,
+  filters,
   sector,
   view,
-  type,
-  search,
   timeZone,
-  onSearch,
-  onType,
+  onFilters,
+  onClear,
   onOpen,
   onCreate,
+  onWaiting,
 }: Props) {
-  const [pendingSector, setPendingSector] = useState('')
-  const [collapsed, setCollapsed] = useState(new Set<string>(['encerrados']))
   const metadata = PROCESS_VIEWS[view] ?? PROCESS_VIEWS.todos
-  const scope = processes.filter(
-    (process) =>
-      inProcessView(process, view, sector) &&
-      (!pendingSector ||
-        process.analysis.pendingSectors.includes(
-          pendingSector as ProcessSector,
-        )),
+  const statuses = filters.status ?? []
+  const hasFilters = !!(
+    statuses.length ||
+    filters.tipo ||
+    filters.q ||
+    filters.month ||
+    filters.responsibleSector ||
+    filters.queueSector
   )
-  const query = normalizeSearch(search.trim())
-  const list = scope.filter(
-    (process) =>
-      (!type || process.tipo === type) &&
-      (!query ||
-        normalizeSearch(
-          [process.empresa, process.cnpj, process.codigo, process.protocolo]
-            .filter(Boolean)
-            .join(' '),
-        ).includes(query) ||
-        (query.replace(/\D/g, '').length >= 3 &&
-          (process.cnpj ?? '')
-            .replace(/\D/g, '')
-            .includes(query.replace(/\D/g, '')))),
-  )
-  const stats = scope.filter((process) => !type || process.tipo === type)
-  const late = stats.filter((process) => process.analysis.late)
-  const active = stats.filter((process) => process.status === 'andamento')
-  const month = processMonth(timeZone)
-  const lateDays = late.map((process) => processDaysLate(process, timeZone))
-  const completed = stats.filter((process) => process.status === 'concluido')
-  const dueSoon = active.filter((process) => {
-    const days = processDaysUntilDue(process, timeZone)
-    return days != null && days >= 0 && days <= 7
-  })
-  const departmentBreakdown = (label: string, items: ProcessResource[]) => (
-    <div className="scard">
-      <span>{label}</span>
-      <div className="dsplit">
-        {(Object.keys(PROCESS_SECTORS) as ProcessSector[]).map((key) => (
-          <div key={key}>
-            <span className={`dot ${key}`} />
-            {PROCESS_SECTORS[key]}
-            <em className="num">
-              {
-                items.filter((process) =>
-                  process.analysis.pendingSectors.includes(key),
-                ).length
-              }
-            </em>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-  const metric = (
-    label: string,
-    value: number | string,
-    description: string,
-    tone = '',
-  ) => (
-    <div className={`scard ${tone}`}>
-      <span>{label}</span>
-      <b className="num">{value}</b>
-      <small>{description}</small>
-    </div>
-  )
-  const groups: Array<{
-    id: string
-    title: string
-    tone: string
-    items: ProcessResource[]
-  }> =
-    view === 'atrasados'
-      ? [
-          {
-            id: 'g30',
-            title: 'Mais de 30 dias de atraso',
-            tone: 'error',
-            items: list.filter(
-              (process) => processDaysLate(process, timeZone) > 30,
-            ),
-          },
-          {
-            id: 'g8',
-            title: 'De 8 a 30 dias',
-            tone: 'error',
-            items: list.filter(
-              (process) =>
-                processDaysLate(process, timeZone) >= 8 &&
-                processDaysLate(process, timeZone) <= 30,
-            ),
-          },
-          {
-            id: 'g7',
-            title: 'Até 7 dias',
-            tone: 'progress',
-            items: list.filter(
-              (process) => processDaysLate(process, timeZone) < 8,
-            ),
-          },
-        ]
-      : view === 'concluidos'
-        ? [
-            ...new Set(
-              list.map((process) =>
-                processMonth(timeZone, new Date(process.concluidoEm!)),
-              ),
-            ),
-          ]
-            .sort()
-            .reverse()
-            .map((key) => ({
-              id: key,
-              title: monthLabel(key),
-              tone: 'completed',
-              items: list.filter(
-                (process) =>
-                  processMonth(timeZone, new Date(process.concluidoEm!)) ===
-                  key,
-              ),
-            }))
-        : [
-            {
-              id: 'atrasados',
-              title: 'Atrasados',
-              tone: 'error',
-              items: list.filter((process) => process.analysis.late),
-            },
-            {
-              id: 'andamento',
-              title: 'Em andamento',
-              tone: 'progress',
-              items: list.filter(
-                (process) =>
-                  process.status === 'andamento' &&
-                  !process.analysis.late &&
-                  !process.analysis.waiting,
-              ),
-            },
-            {
-              id: 'agendados',
-              title: 'Agendados · aguardando a data da próxima etapa',
-              tone: 'scheduled',
-              items: list
-                .filter((process) => process.analysis.waiting)
-                .sort((a, b) =>
-                  (a.analysis.releaseDate ?? '').localeCompare(
-                    b.analysis.releaseDate ?? '',
-                  ),
-                ),
-            },
-            {
-              id: 'concluidos',
-              title: 'Concluídos',
-              tone: 'completed',
-              items: list.filter((process) => process.status === 'concluido'),
-            },
-            {
-              id: 'encerrados',
-              title: 'Cancelados',
-              tone: 'pending',
-              items: list.filter((process) => process.status === 'cancelado'),
-            },
-          ]
-
+  const setStatuses = (status: readonly ProcessStatus[]) =>
+    onFilters({ situacao: 'todos', status: [...status] })
   return (
     <>
       <div className="lhead">
         <div className="tt">
           <h1>{metadata.title}</h1>
-          <p>
-            {view === 'fila' && sector
-              ? `Processos com tarefa do ${PROCESS_SECTORS[sector]} na etapa atual.`
-              : metadata.description}
-          </p>
+          <p>{metadata.description}</p>
         </div>
         {catalog.permissions.create && (
           <button className="btn primary" onClick={onCreate}>
@@ -229,135 +69,20 @@ export default function ProcessList({
           </button>
         )}
       </div>
+      <p className="meta">
+        Indicadores de todos os resultados dos filtros atuais.
+      </p>
       <div className="scards">
-        {view === 'atrasados' ? (
-          <>
-            {metric(
-              'Atrasados',
-              late.length,
-              'processos com prazo vencido',
-              'error',
-            )}
-            {metric(
-              'Atraso médio',
-              lateDays.length
-                ? `${Math.round(lateDays.reduce((sum, days) => sum + days, 0) / lateDays.length)} d`
-                : '—',
-              'desde o vencimento',
-            )}
-            {metric(
-              'Maior atraso',
-              lateDays.length ? `${Math.max(...lateDays)} d` : '—',
-              'processo mais antigo',
-            )}
-            {departmentBreakdown('Travados em', late)}
-          </>
-        ) : view === 'concluidos' ? (
-          <>
-            {metric(
-              'Concluídos no mês',
-              completed.filter(
-                (process) =>
-                  processMonth(timeZone, new Date(process.concluidoEm!)) ===
-                  month,
-              ).length,
-              monthLabel(month),
-              'completed',
-            )}
-            {metric(
-              'Concluídos no ano',
-              completed.filter((process) =>
-                processMonth(
-                  timeZone,
-                  new Date(process.concluidoEm!),
-                ).startsWith(month.slice(0, 4)),
-              ).length,
-              month.slice(0, 4),
-            )}
-            {metric(
-              'Tempo médio',
-              completed.length
-                ? `${Math.round(completed.reduce((sum, process) => sum + processAge(process), 0) / completed.length)} d`
-                : '—',
-              'da abertura à conclusão',
-            )}
-            {metric('Total concluído', completed.length, 'desde o início')}
-          </>
-        ) : view === 'ativos' || view === 'fila' ? (
-          <>
-            {metric(
-              view === 'fila'
-                ? `Aguardando ${sector ? PROCESS_SECTORS[sector] : 'seu setor'}`
-                : 'Em andamento',
-              active.length,
-              view === 'fila'
-                ? 'tarefas do seu setor na etapa atual'
-                : 'processos abertos',
-            )}
-            {metric(
-              'Atrasados',
-              late.length,
-              'prazo vencido',
-              late.length ? 'error' : '',
-            )}
-            {metric(
-              'Vencem em 7 dias',
-              dueSoon.length,
-              'atenção ao prazo',
-              dueSoon.length ? 'progress' : '',
-            )}
-            {view === 'ativos' &&
-              departmentBreakdown('Pendências por setor', active)}
-          </>
-        ) : view === 'encerrados' ? (
-          metric('Cancelados', stats.length, 'podem ser reabertos')
-        ) : (
-          <>
-            {metric(
-              view === 'fila' ? 'Aguardando seu setor' : 'Total',
-              stats.length,
-              'processos nesta situação',
-            )}
-            {metric('Em andamento', active.length, 'abertos agora', 'progress')}
-            {metric(
-              'Atrasados',
-              late.length,
-              'prazo vencido',
-              late.length ? 'error' : '',
-            )}
-            {metric(
-              view === 'agendados' ? 'Agendados' : 'Concluídos',
-              view === 'agendados'
-                ? stats.filter((process) => process.analysis.waiting).length
-                : completed.length,
-              view === 'agendados'
-                ? 'aguardando a próxima etapa'
-                : 'finalizados',
-            )}
-          </>
-        )}
-      </div>
-      <div className="chips" role="group" aria-label="Tipo de processo">
-        <button
-          className="chip"
-          aria-pressed={!type}
-          onClick={() => onType('')}
-        >
-          Todos os tipos<span className="n">{scope.length}</span>
-        </button>
-        {catalog.types.map((item) => (
-          <button
-            key={item.id}
-            className="chip"
-            aria-pressed={type === item.id}
-            onClick={() => onType(item.id)}
-          >
-            <ProcessIcon name={item.icon} size={16} />
-            {item.nome}
-            <span className="n">
-              {scope.filter((process) => process.tipo === item.id).length}
-            </span>
-          </button>
+        {[
+          ['Total', indicators.total],
+          ['Abertos', indicators.active],
+          ['Aguardando liberação', indicators.waiting],
+          ['Atrasados', indicators.late],
+        ].map(([label, value]) => (
+          <div className="scard" key={label}>
+            <span>{label}</span>
+            <b className="num">{value}</b>
+          </div>
         ))}
       </div>
       <div className="filters">
@@ -365,101 +90,204 @@ export default function ProcessList({
           <span className="sr-only">Buscar nesta lista</span>
           <input
             type="search"
-            value={search}
-            onChange={(event) => onSearch(event.target.value)}
-            placeholder="Buscar empresa, CNPJ ou protocolo nesta lista"
+            value={filters.q ?? ''}
+            onChange={(event) => onFilters({ q: event.target.value })}
+            placeholder="Buscar empresa, CNPJ ou protocolo"
           />
         </label>
-        {view !== 'fila' && (
+        <select
+          className="input"
+          aria-label="Tipo de processo"
+          value={filters.tipo ?? ''}
+          onChange={(event) => onFilters({ tipo: event.target.value })}
+        >
+          <option value="">Todos os tipos</option>
+          {catalog.types.map((type) => (
+            <option key={type.id} value={type.id}>
+              {type.nome}
+            </option>
+          ))}
+        </select>
+        <select
+          className="input"
+          aria-label="Setor responsável"
+          value={filters.responsibleSector ?? ''}
+          onChange={(event) =>
+            onFilters({
+              responsibleSector: event.target.value,
+              ...(view === 'responsabilidade' ? { situacao: 'todos' } : {}),
+            })
+          }
+        >
+          <option value="">Qualquer responsável</option>
+          {Object.entries(PROCESS_SECTORS).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <label>
+          Mês de abertura
+          <input
+            className="input"
+            type="month"
+            value={filters.month ?? ''}
+            onChange={(event) => onFilters({ month: event.target.value })}
+          />
+        </label>
+        <label>
+          Situações
           <select
             className="input"
-            aria-label="Pendente com"
-            value={pendingSector}
-            onChange={(event) => setPendingSector(event.target.value)}
+            multiple
+            aria-label="Situações"
+            value={[...statuses]}
+            onChange={(event) =>
+              setStatuses(
+                [...event.target.selectedOptions].map(
+                  (option) => option.value as ProcessStatus,
+                ),
+              )
+            }
           >
-            <option value="">Qualquer departamento</option>
-            {catalog.permissions.executeSectors.map((key) => (
+            {Object.entries(PROCESS_STATUS_PRESENTATION).map(([key, item]) => (
               <option key={key} value={key}>
-                Pendente com {PROCESS_SECTORS[key]}
+                {item.label}
               </option>
             ))}
           </select>
-        )}
+        </label>
       </div>
-      <p className="list-count" role="status">
-        {list.length}{' '}
-        {list.length === 1 ? 'processo encontrado' : 'processos encontrados'}
-      </p>
-      {!list.length ? (
-        <section className="panel">
-          <div className="empty">
-            <div className="ico-sq">
-              <ProcessIcon name="check" />
-            </div>
-            <h3>
-              {view === 'fila' ? 'Tudo em dia' : 'Nenhum processo encontrado'}
-            </h3>
-            <p>
-              {query || type || pendingSector
-                ? 'Ajuste os filtros para encontrar outros processos.'
-                : 'Os processos desta situação aparecerão aqui.'}
-            </p>
-            {(query || type || pendingSector) && (
-              <button
-                className="btn"
-                onClick={() => {
-                  onSearch('')
-                  onType('')
-                  setPendingSector('')
-                }}
-              >
-                Limpar filtros
+      {hasFilters && (
+        <div className="chips" aria-label="Filtros ativos">
+          {statuses.map((status) => (
+            <button
+              className="chip"
+              key={status}
+              onClick={() =>
+                setStatuses(statuses.filter((value) => value !== status))
+              }
+              aria-label={`Remover filtro ${PROCESS_STATUS_PRESENTATION[status].label}`}
+            >
+              {PROCESS_STATUS_PRESENTATION[status].label} ×
+            </button>
+          ))}
+          {filters.q && (
+            <button className="chip" onClick={() => onFilters({ q: '' })}>
+              Busca: {filters.q} ×
+            </button>
+          )}
+          {filters.tipo && (
+            <button className="chip" onClick={() => onFilters({ tipo: '' })}>
+              {catalog.types.find((type) => type.id === filters.tipo)?.nome} ×
+            </button>
+          )}
+          {filters.month && (
+            <button className="chip" onClick={() => onFilters({ month: '' })}>
+              Abertura: {filters.month} ×
+            </button>
+          )}
+          {filters.responsibleSector && (
+            <button
+              className="chip"
+              onClick={() =>
+                onFilters({
+                  responsibleSector: '',
+                  ...(view === 'responsabilidade' ? { situacao: 'todos' } : {}),
+                })
+              }
+            >
+              Responsável: {PROCESS_SECTORS[filters.responsibleSector]} ×
+            </button>
+          )}
+          {filters.queueSector && (
+            <span className="chip">
+              Fila: {PROCESS_SECTORS[filters.queueSector]}{' '}
+              <button aria-label="Remover filtro de fila" onClick={onClear}>
+                ×
               </button>
-            )}
-          </div>
+            </span>
+          )}
+          <button className="chip" onClick={onClear}>
+            Limpar filtros
+          </button>
+        </div>
+      )}
+      <p className="list-count" role="status">
+        {data.count}{' '}
+        {data.count === 1 ? 'processo encontrado' : 'processos encontrados'} ·
+        página {filters.page ?? 1}
+      </p>
+      {!data.results.length ? (
+        <section className="panel empty">
+          <h2>
+            {hasFilters
+              ? 'Nenhum resultado nos filtros'
+              : 'Nenhum processo cadastrado'}
+          </h2>
+          <p>
+            {view === 'fila'
+              ? 'Não há ação liberada para este setor. Processos aguardando liberação podem continuar sob sua responsabilidade.'
+              : hasFilters
+                ? 'Ajuste ou remova os filtros para consultar outros processos.'
+                : 'Os processos cadastrados aparecerão aqui.'}
+          </p>
+          {view === 'fila' && (
+            <button className="btn" onClick={onWaiting}>
+              Ver aguardando liberação
+            </button>
+          )}
+          {hasFilters && (
+            <button className="btn" onClick={onClear}>
+              Limpar filtros
+            </button>
+          )}
         </section>
       ) : (
-        groups
-          .filter((group) => group.items.length)
-          .map((group) => (
-            <section key={group.id} className={`panel lgroup ${group.tone}`}>
-              <button
-                className="group-h"
-                aria-expanded={!collapsed.has(group.id)}
-                onClick={() =>
-                  setCollapsed((current) => {
-                    const next = new Set(current)
-                    if (next.has(group.id)) next.delete(group.id)
-                    else next.add(group.id)
-                    return next
-                  })
-                }
-              >
-                <ProcessIcon
-                  name={collapsed.has(group.id) ? 'chevr' : 'chev'}
-                  size={16}
-                />
-                <span className={`dot group-dot ${group.tone}`} />
-                <h2>{group.title}</h2>
-                <span className="pill">{group.items.length}</span>
-              </button>
-              {!collapsed.has(group.id) &&
-                [...group.items]
-                  .sort((a, b) =>
-                    group.id === 'concluidos' || view === 'concluidos'
-                      ? (b.concluidoEm ?? '').localeCompare(a.concluidoEm ?? '')
-                      : (a.prazo ?? '9').localeCompare(b.prazo ?? '9') ||
-                        b.atualizadoEm.localeCompare(a.atualizadoEm),
-                  )
-                  .map((process) => (
-                    <ProcessSummaryRow
-                      key={process.id}
-                      {...{ process, catalog, onOpen, sector, timeZone }}
-                    />
-                  ))}
-            </section>
-          ))
+        <section className="panel">
+          {data.results.map((process) => (
+            <ProcessSummaryRow
+              key={process.id}
+              {...{ process, catalog, onOpen, sector, timeZone }}
+            />
+          ))}
+        </section>
       )}
+      <nav className="process-actions" aria-label="Paginação de processos">
+        <button
+          className="btn"
+          disabled={!data.previous}
+          onClick={() =>
+            onFilters({ page: String(Math.max(1, (filters.page ?? 1) - 1)) })
+          }
+        >
+          Página anterior
+        </button>
+        <span>
+          Página {filters.page ?? 1} de{' '}
+          {Math.max(1, Math.ceil(data.count / (filters.pageSize ?? 50)))}
+        </span>
+        <button
+          className="btn"
+          disabled={!data.next}
+          onClick={() => onFilters({ page: String((filters.page ?? 1) + 1) })}
+        >
+          Próxima página
+        </button>
+        <label>
+          Por página{' '}
+          <select
+            className="input"
+            aria-label="Processos por página"
+            value={filters.pageSize ?? 50}
+            onChange={(event) => onFilters({ pageSize: event.target.value })}
+          >
+            {[10, 25, 50, 100].map((size) => (
+              <option key={size}>{size}</option>
+            ))}
+          </select>
+        </label>
+      </nav>
     </>
   )
 }

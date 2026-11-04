@@ -64,7 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const refreshSession = useCallback(async () => {
-    setAuthState(await authService.refreshSession())
+    const nextAuthState = await authService.refreshSession()
+    // A session refresh may revoke fields or change the membership without
+    // changing the user. Cancel responses before exposing the new access.
+    await queryClient.cancelQueries()
+    queryClient.clear()
+    setAuthState(nextAuthState)
   }, [])
 
   const session = authState?.session ?? null
