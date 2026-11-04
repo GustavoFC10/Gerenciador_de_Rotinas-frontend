@@ -118,9 +118,12 @@ function setInput(input: HTMLInputElement, value: string) {
 }
 
 function field(label: string) {
-  return [...host.querySelectorAll<HTMLLabelElement>('label')]
-    .find((item) => item.textContent?.includes(label))
-    ?.querySelector<HTMLInputElement>('input')!
+  const labelElement = [
+    ...host.querySelectorAll<HTMLLabelElement>('label'),
+  ].find((item) => item.textContent?.includes(label))
+  const input = labelElement?.querySelector<HTMLInputElement>('input')
+  if (!input) throw new Error(`Campo não encontrado: ${label}`)
+  return input
 }
 
 describe('módulo independente de Empresas', () => {
