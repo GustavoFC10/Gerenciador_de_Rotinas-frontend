@@ -1,4 +1,5 @@
 import type { OrganizationMemberResource } from '../services/organizationMemberService'
+import type { ClientCompanyResource } from '../services/companyService'
 import workflows from './workflows.json'
 import {
   communicationMembers,
@@ -128,6 +129,7 @@ export const previewPersonas = [
 ]
 
 interface PreviewState {
+  clientCompanies?: ClientCompanyResource[]
   members?: Record<string, OrganizationMemberResource>
   schema: 2
   actor: string
@@ -158,6 +160,34 @@ const date = (days = 0) => {
 }
 const month = (value = now()) => value.slice(0, 7)
 const stamp = (days: number) => `${date(days)}T12:00:00-03:00`
+function seedClientCompanies(): ClientCompanyResource[] {
+  return [
+    'Aurora Comércio de Alimentos',
+    'Ateliê Horizonte',
+    'Clínica Bem Viver',
+    'Solar Engenharia',
+    'Oficina Caminho Novo',
+    'Livraria Ipê',
+    'Café Estação',
+    'Papelaria Primavera',
+    'Studio Essência',
+    'Mercado das Flores',
+    'Tecnologia Horizonte',
+  ].map((name, index) => ({
+    id: `00000000-0000-4000-8001-${String(index + 1).padStart(12, '0')}`,
+    code: `EMP-${String(index + 1).padStart(3, '0')}`,
+    name,
+    legalName: `${name} Ltda.`,
+    cnpj: `12.345.678/0001-${String(95 + index).padStart(2, '0')}`,
+    email: `empresa${index + 1}@preview.example`,
+    mobilePhone: '11999990000',
+    taxRegime: 'Simples Nacional',
+    version: 1,
+    archivedAt: null,
+    createdAt: stamp(-100),
+    updatedAt: stamp(-1),
+  }))
+}
 const previousMonth = (value: string, offset: number) => {
   const d = new Date(`${value}-15T12:00:00Z`)
   d.setUTCMonth(d.getUTCMonth() + offset)
@@ -565,6 +595,7 @@ function seed(): PreviewState {
     schema: 2,
     actor: 'demo-diretoria',
     authenticated: true,
+    clientCompanies: seedClientCompanies(),
     processes,
     openings: {},
     routineStates: {},
@@ -619,6 +650,7 @@ export class PreviewBackend {
         previewPersonas.some((p) => p.id === saved.actor)
           ? saved
           : seed()
+      this.state.clientCompanies ??= seedClientCompanies()
     } catch {
       this.state = seed()
     }
@@ -1552,6 +1584,41 @@ export class PreviewBackend {
           sectors,
           permissions,
         })
+      if (path === 'processes/company-options' && method === 'GET') {
+        const invalid = queryError(url, ['search', 'page', 'pageSize'])
+        if (invalid) return error(400, invalid)
+        const search =
+          url.searchParams.get('search')?.trim().toLocaleLowerCase('pt-BR') ??
+          ''
+        if (search.length > 200)
+          return error(400, 'A busca permite até 200 caracteres.')
+        const companies = (this.state.clientCompanies ?? seedClientCompanies())
+          .filter((company) => !company.archivedAt)
+          .filter((company) =>
+            [company.code, company.name, company.legalName, company.cnpj]
+              .join(' ')
+              .toLocaleLowerCase('pt-BR')
+              .includes(search),
+          )
+          .map(({ id, code, name, legalName, cnpj }) => ({
+            id,
+            code,
+            name,
+            legalName,
+            cnpj,
+            status: 'active' as const,
+          }))
+        const optionsUrl = new URL(url)
+        if (!optionsUrl.searchParams.has('pageSize'))
+          optionsUrl.searchParams.set('pageSize', '20')
+        const result = paginated(companies, optionsUrl)
+        if (
+          Number(optionsUrl.searchParams.get('page') ?? 1) > 1 &&
+          !result.results.length
+        )
+          return error(404, 'Página não encontrada.')
+        return json(result)
+      }
       if (path === 'processes/reports/monthly') {
         if (!permissions.viewMovements)
           return error(403, 'Relatórios restritos à Diretoria e ao Financeiro.')
@@ -1631,11 +1698,14 @@ export class PreviewBackend {
       if (path === 'processes' && method === 'POST') {
         if (!permissions.create)
           return error(403, 'Somente a Diretoria abre processos.')
+        const creationFields = editableFields.filter(
+          (field) => field !== 'empresa' && field !== 'cnpj',
+        )
         if (
           Object.keys(body).some(
             (key) =>
               key !== 'tipo' &&
-              !(editableFields as readonly string[]).includes(key),
+              !(creationFields as readonly string[]).includes(key),
           )
         )
           return error(
@@ -1651,13 +1721,20 @@ export class PreviewBackend {
             ? json(this.project(existing))
             : error(409, 'A chave de abertura já foi usada para outros dados.')
         }
-        const input = body as unknown as ProcessCreateInput
+        const input = body as unknown as Omit<
+          ProcessCreateInput,
+          'empresa' | 'cnpj'
+        >
         const type = types.find((t) => t.id === input.tipo)
-        if (!type || !input.empresa?.trim())
-          return error(400, 'Escolha o tipo e informe a empresa.')
+        const company = (this.state.clientCompanies ?? []).find(
+          (item) => item.id === input.companyId && !item.archivedAt,
+        )
+        if (!type || !company)
+          return error(400, 'Escolha o tipo e uma empresa ativa cadastrada.')
         const process: PreviewProcess = {
-          companyId: null,
-          cnpj: '',
+          companyId: company.id,
+          empresa: company.name,
+          cnpj: company.cnpj,
           protocolo: '',
           prazo: null,
           ...input,
@@ -2006,13 +2083,14 @@ export class PreviewBackend {
         return json(this.project(process), 200, process.version)
       }
     }
-    return this.routines(path, method, body, url, json, error)
+    return this.routines(path, method, body, headers, url, json, error)
   }
 
   private routines(
     path: string,
     method: string,
     body: Body,
+    headers: Headers,
     url: URL,
     json: (data: unknown, status?: number, version?: number) => Response,
     error: (status: number, detail: string) => Response,
@@ -2023,22 +2101,7 @@ export class PreviewBackend {
         next: null,
         results: departments,
       })
-    const companies = [
-      'Aurora Alimentos',
-      'Clínica Bem Viver',
-      'Solar Engenharia',
-    ].map((name, index) => ({
-      id: `demo-company-${index}`,
-      code: `00${index + 1}`,
-      name,
-      legalName: `${name} Ltda.`,
-      cnpj: '12.345.678/0001-95',
-      email: 'cliente@preview.example',
-      mobilePhone: '11999990000',
-      taxRegime: 'Simples Nacional',
-      archivedAt: null,
-      createdAt: stamp(-100),
-    }))
+    const companies = this.state.clientCompanies ?? seedClientCompanies()
     const routines = ['Apuração de impostos', 'Entrega de declarações'].map(
       (name, index) => ({
         id: `demo-routine-${index}`,
@@ -2058,8 +2121,60 @@ export class PreviewBackend {
         },
       }),
     )
-    if (path === 'client-companies')
-      return json({ count: companies.length, next: null, results: companies })
+    if (path === 'client-companies') {
+      if (method === 'GET') {
+        const includeArchived =
+          url.searchParams.get('includeArchived') === 'true'
+        const results = companies.filter(
+          (company) => includeArchived || !company.archivedAt,
+        )
+        return json({
+          count: results.length,
+          next: null,
+          previous: null,
+          results,
+        })
+      }
+      if (method !== 'POST')
+        return error(405, 'Operação indisponível para empresas.')
+      if (!['owner', 'admin'].includes(this.actor.role))
+        return error(403, 'Somente administradores cadastram empresas.')
+      if (
+        Object.keys(body).some(
+          (key) =>
+            ![
+              'code',
+              'name',
+              'legalName',
+              'cnpj',
+              'email',
+              'mobilePhone',
+              'taxRegime',
+            ].includes(key),
+        )
+      )
+        return error(400, 'O cadastro contém campos não aceitos.')
+      const name = String(body.name ?? '').trim()
+      if (!name) return error(400, 'Informe o nome da empresa.')
+      const company: ClientCompanyResource = {
+        id: crypto.randomUUID(),
+        code: String(body.code ?? '').trim() || null,
+        name,
+        legalName: String(body.legalName ?? '').trim(),
+        cnpj: String(body.cnpj ?? '').trim(),
+        email: String(body.email ?? '').trim(),
+        mobilePhone: String(body.mobilePhone ?? '').trim(),
+        taxRegime: String(body.taxRegime ?? '').trim(),
+        version: 1,
+        archivedAt: null,
+        createdAt: now(),
+        updatedAt: now(),
+      }
+      companies.unshift(company)
+      this.state.clientCompanies = companies
+      this.save()
+      return json(company, 201, company.version)
+    }
     if (path === 'routines')
       return json({ count: routines.length, next: null, results: routines })
     const screen = {
@@ -2185,10 +2300,70 @@ export class PreviewBackend {
       path.endsWith('/tasks')
     )
       return json({ count: 0, next: null, previous: null, results: [] })
-    if (/^client-companies\/[^/]+$/.test(path))
-      return json(
-        companies.find((c) => c.id === path.split('/')[1]) ?? companies[0],
-      )
+    const companyMatch = /^client-companies\/([^/]+)(\/restore)?$/.exec(path)
+    if (companyMatch) {
+      const company = companies.find((item) => item.id === companyMatch[1])
+      if (!company) return error(404, 'Empresa não encontrada.')
+      if (method === 'GET' && !companyMatch[2])
+        return json(company, 200, company.version)
+      if (!['owner', 'admin'].includes(this.actor.role))
+        return error(403, 'Somente administradores editam empresas.')
+      const expected = `"${company.version}"`
+      if (headers.get('If-Match') !== expected)
+        return error(
+          409,
+          'A empresa foi atualizada. Recarregue e tente novamente.',
+        )
+      if (companyMatch[2] && method === 'POST') {
+        company.archivedAt = null
+        company.version++
+        company.updatedAt = now()
+        this.save()
+        return json(company, 200, company.version)
+      }
+      if (method === 'PATCH') {
+        if (
+          Object.keys(body).some(
+            (key) =>
+              ![
+                'code',
+                'name',
+                'legalName',
+                'cnpj',
+                'email',
+                'mobilePhone',
+                'taxRegime',
+              ].includes(key),
+          )
+        )
+          return error(400, 'A edição contém campos não aceitos.')
+        if ('name' in body && !String(body.name ?? '').trim())
+          return error(400, 'Informe o nome da empresa.')
+        if ('code' in body)
+          company.code = String(body.code ?? '').trim() || null
+        if ('name' in body) company.name = String(body.name).trim()
+        if ('legalName' in body)
+          company.legalName = String(body.legalName ?? '').trim()
+        if ('cnpj' in body) company.cnpj = String(body.cnpj ?? '').trim()
+        if ('email' in body) company.email = String(body.email ?? '').trim()
+        if ('mobilePhone' in body)
+          company.mobilePhone = String(body.mobilePhone ?? '').trim()
+        if ('taxRegime' in body)
+          company.taxRegime = String(body.taxRegime ?? '').trim()
+        company.version++
+        company.updatedAt = now()
+        this.save()
+        return json(company, 200, company.version)
+      }
+      if (method === 'DELETE') {
+        company.archivedAt = now()
+        company.version++
+        company.updatedAt = now()
+        this.save()
+        return json(null, 204, company.version)
+      }
+      return error(405, 'Operação indisponível para empresas.')
+    }
     if (path.startsWith('files/'))
       return error(
         400,

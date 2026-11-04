@@ -6,6 +6,7 @@ import {
 } from './processCommunicationsFixtures'
 import {
   parseProcessCatalog,
+  parseProcessCompanyOptionsPage,
   parsePreparedProcessAlert,
   parseProcessAlert,
   parseProcessAlertPage,
@@ -75,6 +76,44 @@ describe('isolated feature preview', () => {
       backend.modules(invitation.memberId).map((item) => item.module),
     ).toEqual(['routines'])
   })
+  it('creates and edits general company records through the module API', async () => {
+    const backend = new PreviewBackend()
+    const initial = await json(
+      backend,
+      'client-companies/?includeArchived=false',
+    )
+    expect(initial.results.length).toBeGreaterThan(0)
+    const createdResponse = await backend.handle(
+      url('client-companies/'),
+      'POST',
+      {
+        name: 'Empresa do módulo',
+        legalName: 'Empresa do módulo Ltda.',
+        cnpj: '12345678000195',
+      },
+    )
+    expect(createdResponse.status).toBe(201)
+    const created = await createdResponse.json()
+    const updatedResponse = await backend.handle(
+      url(`client-companies/${created.id}/`),
+      'PATCH',
+      { name: 'Empresa atualizada' },
+      new Headers({ 'If-Match': '"1"' }),
+    )
+    expect(updatedResponse.status).toBe(200)
+    expect(await updatedResponse.json()).toMatchObject({
+      id: created.id,
+      name: 'Empresa atualizada',
+      version: 2,
+    })
+    expect(
+      (
+        await backend.handle(url(`client-companies/${created.id}/`), 'PATCH', {
+          name: 'Edição desatualizada',
+        })
+      ).status,
+    ).toBe(409)
+  })
   it('does not partially save an invalid profile and allows explicitly disabling Rotinas for an owner', async () => {
     const backend = new PreviewBackend()
     const before = await json(backend, 'organization-members/demo-diretoria/')
@@ -122,6 +161,70 @@ describe('isolated feature preview', () => {
         indicators.byStatus.agendado +
         indicators.byStatus.atrasado,
     )
+  })
+  it('serves searchable, paginated active company options with the process contract', async () => {
+    const backend = new PreviewBackend()
+    const first = parseProcessCompanyOptionsPage(
+      await json(backend, 'processes/company-options/?pageSize=3'),
+    )
+    expect(first.count).toBeGreaterThan(3)
+    expect(first.results).toHaveLength(3)
+    expect(first.next).toContain('page=2')
+    expect(first.results[0]?.status).toBe('active')
+    const searched = parseProcessCompanyOptionsPage(
+      await json(
+        backend,
+        'processes/company-options/?search=Clínica&page=1&pageSize=20',
+      ),
+    )
+    expect(searched.count).toBe(1)
+    expect(searched.results[0]?.name).toBe('Clínica Bem Viver')
+    expect(
+      (
+        await backend.handle(
+          url('processes/company-options/?search=invalid&unknown=true'),
+        )
+      ).status,
+    ).toBe(400)
+  })
+
+  it('creates and edits general company records through the module API', async () => {
+    const backend = new PreviewBackend()
+    const initial = await json(
+      backend,
+      'client-companies/?includeArchived=false',
+    )
+    expect(initial.results.length).toBeGreaterThan(0)
+    const createdResponse = await backend.handle(
+      url('client-companies/'),
+      'POST',
+      {
+        name: 'Empresa do módulo',
+        legalName: 'Empresa do módulo Ltda.',
+        cnpj: '12345678000195',
+      },
+    )
+    expect(createdResponse.status).toBe(201)
+    const created = await createdResponse.json()
+    const updatedResponse = await backend.handle(
+      url(`client-companies/${created.id}/`),
+      'PATCH',
+      { name: 'Empresa atualizada' },
+      new Headers({ 'If-Match': '"1"' }),
+    )
+    expect(updatedResponse.status).toBe(200)
+    expect(await updatedResponse.json()).toMatchObject({
+      id: created.id,
+      name: 'Empresa atualizada',
+      version: 2,
+    })
+    expect(
+      (
+        await backend.handle(url(`client-companies/${created.id}/`), 'PATCH', {
+          name: 'Edição desatualizada',
+        })
+      ).status,
+    ).toBe(409)
   })
 
   it('serves responses accepted by the same contract decoder for all authorized personas', async () => {
@@ -434,7 +537,10 @@ describe('isolated feature preview', () => {
   })
   it('creates processes idempotently and rejects old edit versions', async () => {
     const backend = new PreviewBackend()
-    const payload = { tipo: 'abertura', empresa: 'Empresa fictícia' }
+    const payload = {
+      tipo: 'abertura',
+      companyId: '00000000-0000-4000-8001-000000000001',
+    }
     const headers = new Headers({ 'Idempotency-Key': 'preview-opening' })
     const first = await backend.handle(
       url('processes/'),
@@ -452,6 +558,9 @@ describe('isolated feature preview', () => {
     expect(first.status).toBe(201)
     expect(second.status).toBe(200)
     expect((await second.json()).id).toBe(created.id)
+    expect(created.companyId).toBe(payload.companyId)
+    expect(created.empresa).toBe('Aurora Comércio de Alimentos')
+    expect(created.cnpj).toBe('12.345.678/0001-95')
     const updated = await json(backend, `processes/${created.id}/`, 'PATCH', {
       version: 1,
       obs: 'Exemplo de edição',
@@ -465,6 +574,33 @@ describe('isolated feature preview', () => {
         })
       ).status,
     ).toBe(409)
+  })
+  it('rejects process creation with manual company fields or unknown company IDs', async () => {
+    const backend = new PreviewBackend()
+    const headers = new Headers({ 'Idempotency-Key': 'bad-opening' })
+    expect(
+      (
+        await backend.handle(
+          url('processes/'),
+          'POST',
+          { tipo: 'abertura', empresa: 'Digitada manualmente' },
+          headers,
+        )
+      ).status,
+    ).toBe(400)
+    expect(
+      (
+        await backend.handle(
+          url('processes/'),
+          'POST',
+          {
+            tipo: 'abertura',
+            companyId: '00000000-0000-4000-8000-000000000001',
+          },
+          headers,
+        )
+      ).status,
+    ).toBe(400)
   })
   it('keeps Regularidade private data hidden and does not infer Processos access for admins', async () => {
     const backend = new PreviewBackend()

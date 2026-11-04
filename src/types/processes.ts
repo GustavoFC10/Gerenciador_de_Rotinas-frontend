@@ -186,6 +186,23 @@ export interface ProcessCompanyReference {
   status: 'active' | 'archived'
 }
 
+export interface ProcessCompanyOption extends ProcessCompanyReference {
+  status: 'active'
+}
+
+export interface ProcessCompanyOptionsPage {
+  count: number
+  next: string | null
+  previous: string | null
+  results: ProcessCompanyOption[]
+}
+
+export interface ProcessCompanyOptionsFilters {
+  search?: string
+  page?: number
+  pageSize?: number
+}
+
 /** Campos privados omitidos pela API nunca devem ser substituídos por zero. */
 export interface ProcessSummaryDto {
   id: string

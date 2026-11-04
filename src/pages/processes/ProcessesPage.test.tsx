@@ -202,6 +202,23 @@ beforeEach(() => {
   vi.spyOn(processService, 'followUps').mockResolvedValue(
     response({ count: 0, next: null, previous: null, results: [] }),
   )
+  vi.spyOn(processService, 'companyOptions').mockResolvedValue(
+    response({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        {
+          id: '00000000-0000-4000-8000-000000000001',
+          code: 'EMP-01',
+          name: 'Empresa Nova',
+          legalName: 'Empresa Nova Ltda.',
+          cnpj: '12345678000195',
+          status: 'active',
+        },
+      ],
+    }),
+  )
   vi.spyOn(processService, 'get').mockImplementation(async (id) =>
     response(records.find((record) => record.id === id)!),
   )
@@ -267,15 +284,19 @@ const button = (label: string) =>
   [...host.querySelectorAll<HTMLButtonElement>('button')].find(
     (item) => item.textContent?.trim() === label,
   )!
-async function changeName(value: string) {
-  const input = document.querySelector<HTMLInputElement>(
-    '[role="dialog"] input[autocomplete="off"]',
+async function changeFormValue(
+  value: string,
+  selector = '[role="dialog"] input[autocomplete="off"]',
+) {
+  const input = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+    selector,
   )!
+  const prototype =
+    input instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype
   await act(async () => {
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      'value',
-    )!.set!.call(input, value)
+    Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(input, value)
     input.dispatchEvent(new Event('input', { bubbles: true }))
   })
 }
@@ -646,10 +667,13 @@ describe('ProcessesPage integration', () => {
     client.setQueryData(followUpsKey, { count: 1, results: [] })
     client.setQueryData(alertKey, { version: 1 })
     await act(async () => button('Editar').click())
-    await changeName('Empresa Atualizada')
+    await changeFormValue(
+      'Observação atualizada',
+      '[role="dialog"] textarea[id$="-obs"]',
+    )
     await submitForm()
     expect(host.querySelector('main')?.textContent).toContain(
-      'Empresa Atualizada',
+      'Observação atualizada',
     )
     expect(client.getQueryState(followUpsKey)?.isInvalidated).toBe(true)
     expect(client.getQueryState(alertKey)?.isInvalidated).toBe(true)
@@ -944,9 +968,17 @@ describe('ProcessesPage integration', () => {
     )
     await render('/processos?tipo=abertura')
     await act(async () =>
-      host.querySelector<HTMLButtonElement>('.top .primary')!.click(),
+      host
+        .querySelector<HTMLButtonElement>('button[aria-label="Novo processo"]')!
+        .click(),
     )
-    await changeName('Abertura no contexto anterior')
+    await waitFor(
+      () =>
+        document.querySelector<HTMLButtonElement>('.company-option') !== null,
+    )
+    await act(async () =>
+      document.querySelector<HTMLButtonElement>('.company-option')!.click(),
+    )
     await submitForm()
     expect(processService.create).toHaveBeenCalledTimes(1)
     await act(async () => root.render(<div>Outro contexto ativo</div>))
@@ -1136,7 +1168,10 @@ describe('ProcessesPage integration', () => {
     client.setQueryData(processQueryKeys.report(scope, '2026-10'), {
       gain: '19999.89',
     })
-    await changeName('Edição recusada pelo servidor')
+    await changeFormValue(
+      'Edição recusada pelo servidor',
+      '[role="dialog"] textarea[id$="-obs"]',
+    )
     await submitForm()
     await waitFor(
       () =>
@@ -1312,9 +1347,17 @@ describe('ProcessesPage integration', () => {
       .mockResolvedValueOnce(response(records[0]!))
     await render('/processos?tipo=abertura')
     await act(async () =>
-      host.querySelector<HTMLButtonElement>('.top .primary')!.click(),
+      host
+        .querySelector<HTMLButtonElement>('button[aria-label="Novo processo"]')!
+        .click(),
     )
-    await changeName('Empresa Nova')
+    await waitFor(
+      () =>
+        document.querySelector<HTMLButtonElement>('.company-option') !== null,
+    )
+    await act(async () =>
+      document.querySelector<HTMLButtonElement>('.company-option')!.click(),
+    )
     await submitForm()
     expect(
       document.querySelector('[role="dialog"] [role="status"]')?.textContent,
@@ -1323,6 +1366,10 @@ describe('ProcessesPage integration', () => {
     expect(create).toHaveBeenCalledTimes(2)
     expect(create.mock.calls[0]).toEqual(create.mock.calls[1])
     expect(create.mock.calls[0]?.[1]).toMatch(/^[\w-]{36}$/)
+    expect(create.mock.calls[0]?.[0]).toMatchObject({
+      companyId: '00000000-0000-4000-8000-000000000001',
+      empresa: 'Empresa Nova',
+    })
     expect(document.querySelector('[role="dialog"]')).toBeNull()
   })
 
@@ -1343,7 +1390,7 @@ describe('ProcessesPage integration', () => {
       .mockRejectedValue(conflict)
     await render('/processos/process-1')
     await act(async () => button('Editar').click())
-    await changeName('Meu ajuste')
+    await changeFormValue('Meu ajuste', '[role="dialog"] textarea[id$="-obs"]')
     const latest = {
       ...original,
       version: 5,
@@ -1357,7 +1404,7 @@ describe('ProcessesPage integration', () => {
     await submitForm()
     expect(update).toHaveBeenCalledWith(original.id, {
       version: 4,
-      empresa: 'Meu ajuste',
+      obs: 'Meu ajuste',
     })
     expect(document.querySelector('[role="dialog"]')).toBeNull()
     expect(host.querySelector('main')?.textContent).toContain(

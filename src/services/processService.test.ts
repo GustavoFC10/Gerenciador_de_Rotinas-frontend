@@ -19,6 +19,8 @@ describe('ProcessService revision 2', () => {
     const input = {
       tipo: 'abertura' as const,
       empresa: 'Empresa Exemplo',
+      companyId: '00000000-0000-4000-8000-000000000001',
+      cnpj: '12345678000195',
       honorario: '1200.00',
       reunAlinh: false,
     }
@@ -36,8 +38,63 @@ describe('ProcessService revision 2', () => {
       expect(new Headers(request?.headers).get('X-CSRFToken')).toBe(
         'csrf-token',
       )
-      expect(request?.body).toBe(JSON.stringify(input))
+      expect(request?.body).toBe(
+        JSON.stringify({
+          tipo: 'abertura',
+          companyId: '00000000-0000-4000-8000-000000000001',
+          honorario: '1200.00',
+          reunAlinh: false,
+        }),
+      )
+      expect(JSON.parse(String(request?.body))).not.toHaveProperty('empresa')
+      expect(JSON.parse(String(request?.body))).not.toHaveProperty('cnpj')
     }
+  })
+
+  it('busca opções de empresas com busca e paginação sem exigir CRUD', async () => {
+    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        count: 21,
+        next: '/api/v1/processes/company-options/?page=2',
+        previous: null,
+        results: [
+          {
+            id: '00000000-0000-4000-8000-000000000001',
+            code: 'EMP-01',
+            name: 'Empresa Exemplo',
+            legalName: 'Empresa Exemplo Ltda.',
+            cnpj: '12345678000195',
+            status: 'active',
+          },
+        ],
+      }),
+    )
+    const response = await createService(fetchImplementation).companyOptions({
+      search: ' Empresa ',
+      page: 1,
+      pageSize: 20,
+    })
+    const url = new URL(String(fetchImplementation.mock.calls[0]![0]))
+    expect(url.pathname).toBe('/api/v1/processes/company-options/')
+    expect(url.searchParams.get('search')).toBe('Empresa')
+    expect(url.searchParams.get('page')).toBe('1')
+    expect(url.searchParams.get('pageSize')).toBe('20')
+    expect(response.data.count).toBe(21)
+    expect(response.data.results[0]?.id).toBe(
+      '00000000-0000-4000-8000-000000000001',
+    )
+    expect(response.data.results[0]?.status).toBe('active')
+  })
+
+  it('exige companyId antes de enviar uma abertura', () => {
+    const fetchImplementation = vi.fn<typeof fetch>()
+    expect(() =>
+      createService(fetchImplementation).create(
+        { tipo: 'abertura', empresa: 'Empresa' },
+        'opening:valid-key',
+      ),
+    ).toThrow('Selecione uma empresa cadastrada')
+    expect(fetchImplementation).not.toHaveBeenCalled()
   })
 
   it('recusa chaves inválidas antes de enviar uma abertura', () => {

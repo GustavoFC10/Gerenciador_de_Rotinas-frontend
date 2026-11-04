@@ -6,6 +6,8 @@ import type {
   ProcessAlertRecipientFilters,
   ProcessAlertRecipientPage,
   ProcessCatalog,
+  ProcessCompanyOptionsFilters,
+  ProcessCompanyOptionsPage,
   ProcessEntriesFilters,
   ProcessEntriesPage,
   ProcessFilters,
@@ -383,6 +385,14 @@ const followUp = shape({
   version: positive,
 })
 const recipient = shape({ memberId: uuid, name: string, email: string })
+const companyOption = shape({
+  id: uuid,
+  code: nullable(string),
+  name: string,
+  legalName: string,
+  cnpj: string,
+  status: oneOf(['active']),
+})
 const alert = shape({
   id: uuid,
   processId: uuid,
@@ -496,6 +506,28 @@ export function parseProcessPage(
   requestId?: string | null,
 ): ProcessPage {
   return decode(value, page(shape(summaryFields, true)), requestId)
+}
+
+export function parseProcessCompanyOptionsPage(
+  value: unknown,
+  requestId?: string | null,
+): ProcessCompanyOptionsPage {
+  return decode(value, page(companyOption), requestId)
+}
+
+export function normalizeProcessCompanyOptionsFilters(
+  filters: ProcessCompanyOptionsFilters = {},
+): Required<ProcessCompanyOptionsFilters> {
+  const search = filters.search?.trim() ?? ''
+  if (search.length > 200)
+    throw new ProcessContractError('filters.search (máximo de 200 caracteres)')
+  const pageNumber = filters.page ?? 1
+  const pageSize = filters.pageSize ?? 20
+  if (!Number.isSafeInteger(pageNumber) || pageNumber < 1)
+    throw new ProcessContractError('filters.page')
+  if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100)
+    throw new ProcessContractError('filters.pageSize')
+  return { search, page: pageNumber, pageSize }
 }
 
 export function parseProcessEntriesPage(

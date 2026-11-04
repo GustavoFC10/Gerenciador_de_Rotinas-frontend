@@ -1212,6 +1212,7 @@ export default function ProcessesPage() {
           <ProcessForm
             key={form === 'edit' ? editingResource!.id : createKey.current}
             catalog={catalog}
+            scope={scope}
             process={form === 'edit' ? editingResource! : undefined}
             initialType={initialType}
             onSubmit={submit}
