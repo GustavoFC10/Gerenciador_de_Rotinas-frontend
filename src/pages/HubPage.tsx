@@ -9,7 +9,7 @@ import ModuleWorkspaceLayout from '../layouts/ModuleWorkspaceLayout'
 import type { AppModule } from '../types/modules'
 
 const destinations: {
-  module: AppModule | 'team'
+  module: AppModule | 'team' | 'companies'
   title: string
   description: string
   to: string
@@ -20,6 +20,13 @@ const destinations: {
     description:
       'Gerencie os colaboradores, convites, cargos e acessos aos módulos do escritório.',
     to: ROUTES.EMPLOYEES,
+  },
+  {
+    module: 'companies',
+    title: 'Empresas',
+    description:
+      'Cadastre e mantenha os dados gerais das empresas usados pelos módulos do escritório.',
+    to: ROUTES.COMPANY_REGISTRY,
   },
   {
     module: 'routines',
@@ -40,7 +47,9 @@ const destinations: {
 export default function HubPage() {
   const { activeMembership } = useAuth()
   const { modules, isLoading, error, refetch } = useModuleAccess()
-  const canManage = activeMembership?.role === 'owner'
+  const canManageTeam = activeMembership?.role === 'owner'
+  const canManageCompanies =
+    activeMembership?.role === 'owner' || activeMembership?.role === 'admin'
   return (
     <ModuleWorkspaceLayout>
       <header className="max-w-2xl">
@@ -74,7 +83,7 @@ export default function HubPage() {
             Tentar novamente
           </Button>
         </div>
-      ) : modules.length === 0 && !canManage ? (
+      ) : modules.length === 0 && !canManageTeam && !canManageCompanies ? (
         <div className="mt-8 rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-6">
           <h2 className="font-bold text-[var(--color-text-strong)]">
             Nenhum módulo disponível
@@ -87,12 +96,14 @@ export default function HubPage() {
       ) : null}
       <section
         aria-label="Módulos disponíveis"
-        className={`mt-8 grid gap-5 md:grid-cols-2 ${canManage ? 'xl:grid-cols-3' : ''}`}
+        className={`mt-8 grid gap-5 md:grid-cols-2 ${canManageTeam || canManageCompanies ? 'xl:grid-cols-3' : ''}`}
       >
         {destinations
           .filter((item) =>
             item.module === 'team'
-              ? canManage
+              ? canManageTeam
+              : item.module === 'companies'
+                ? canManageCompanies
               : modules.some((module) => module.module === item.module),
           )
           .map((item) => {
@@ -136,7 +147,11 @@ export default function HubPage() {
   )
 }
 
-function ModuleIcon({ module }: { module: AppModule | 'team' }) {
+function ModuleIcon({
+  module,
+}: {
+  module: AppModule | 'team' | 'companies'
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -152,6 +167,10 @@ function ModuleIcon({ module }: { module: AppModule | 'team' }) {
         <>
           <circle cx="9" cy="8" r="3" />
           <path d="M3 21v-3a6 6 0 0 1 12 0v3M17 5a3 3 0 0 1 0 6M21 21v-3a6 6 0 0 0-4-5.65" />
+        </>
+      ) : module === 'companies' ? (
+        <>
+          <path d="M3 21h18M5 21V7l7-4 7 4v14M9 10h.01M15 10h.01M9 14h.01M15 14h.01M10 21v-4h4v4" />
         </>
       ) : module === 'processes' ? (
         <>

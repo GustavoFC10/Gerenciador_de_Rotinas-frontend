@@ -10,6 +10,8 @@ import type {
   ProcessAlertRecipientPage,
   ProcessAlertSelection,
   ProcessCatalog,
+  ProcessCompanyOptionsFilters,
+  ProcessCompanyOptionsPage,
   ProcessCreateInput,
   ProcessEntriesFilters,
   ProcessEntriesPage,
@@ -27,10 +29,12 @@ import type {
 import {
   normalizeProcessAlertFilters,
   normalizeProcessAlertRecipientFilters,
+  normalizeProcessCompanyOptionsFilters,
   normalizeProcessFollowUpFilters,
   normalizeProcessEntriesFilters,
   normalizeProcessFilters,
   parseProcessCatalog,
+  parseProcessCompanyOptionsPage,
   parsePreparedProcessAlert,
   parseProcessAlert,
   parseProcessAlertPage,
@@ -100,6 +104,26 @@ export class ProcessService {
     )
   }
 
+  companyOptions(
+    filters: ProcessCompanyOptionsFilters = {},
+    signal?: AbortSignal,
+  ): Promise<ApiResponse<ProcessCompanyOptionsPage>> {
+    const normalized = normalizeProcessCompanyOptionsFilters(filters)
+    return this.validated(
+      () =>
+        this.client.get(`${PROCESSES_ENDPOINT}company-options/`, {
+          query: {
+            ...(normalized.search ? { search: normalized.search } : {}),
+            page: normalized.page,
+            pageSize: normalized.pageSize,
+          },
+          signal,
+        }),
+      parseProcessCompanyOptionsPage,
+      this.client.baseUrl,
+    )
+  }
+
   entries(
     id: string,
     filters: ProcessEntriesFilters = {},
@@ -131,8 +155,13 @@ export class ProcessService {
     if (!/^[A-Za-z0-9._:-]{1,128}$/.test(idempotencyKey)) {
       throw new Error('A chave de abertura do processo é inválida.')
     }
+    if (!input.companyId)
+      throw new Error('Selecione uma empresa cadastrada para abrir o processo.')
+    const { empresa: _empresa, cnpj: _cnpj, ...payload } = input
+    void _empresa
+    void _cnpj
     return this.validated(
-      () => this.client.post(PROCESSES_ENDPOINT, input, { idempotencyKey }),
+      () => this.client.post(PROCESSES_ENDPOINT, payload, { idempotencyKey }),
       parseProcessDetail,
     )
   }

@@ -23,6 +23,9 @@ vi.mock('./pages/processes/ProcessesPage', () => ({
 vi.mock('./pages/EmployeesPage', () => ({
   default: () => <main data-team-module>Equipe independente</main>,
 }))
+vi.mock('./pages/CompaniesModulePage', () => ({
+  default: () => <main data-companies-module>Empresas independentes</main>,
+}))
 vi.mock('./pages/ProfilePage', () => ({
   default: () => <main>Perfil compartilhado</main>,
 }))
@@ -167,6 +170,21 @@ describe('App module routing', () => {
         await new Promise((resolve) => setTimeout(resolve, 10))
       })
     expect(host.querySelector('[data-team-module]')).not.toBeNull()
+    expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
+  })
+  it('opens Empresas for an administrator without operational modules', async () => {
+    await renderApp('/cadastro-empresas', [], 'admin')
+    for (let i = 0; i < 100 && !host.querySelector('[data-companies-module]'); i++)
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      })
+    expect(host.querySelector('[data-companies-module]')).not.toBeNull()
+    expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
+  })
+  it('blocks direct Empresas access for a regular member', async () => {
+    await renderApp('/cadastro-empresas', [processes], 'member')
+    expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
+    expect(host.querySelector('[data-companies-module]')).toBeNull()
     expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
   })
   it.each(['admin', 'member'] as const)(

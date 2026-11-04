@@ -5,6 +5,7 @@ import type {
   ProcessFollowUpFilters,
   ProcessAlertFilters,
   ProcessAlertRecipientFilters,
+  ProcessCompanyOptionsFilters,
 } from '../types/processes'
 import { PROCESS_CONTRACT_VERSION } from '../types/processes'
 import {
@@ -19,6 +20,24 @@ export const processQueryKeys = {
     [...queryKeys.scope(scope), 'processes', PROCESS_CONTRACT_VERSION] as const,
   catalog: (scope: OrganizationQueryScope) =>
     [...processQueryKeys.root(scope), 'catalog'] as const,
+  companyOptions: (
+    scope: OrganizationQueryScope,
+    filters?: ProcessCompanyOptionsFilters,
+  ) =>
+    [
+      ...processQueryKeys.root(scope),
+      'company-options',
+      ...(filters === undefined
+        ? []
+        : [
+            {
+              ...filters,
+              search: filters.search?.trim() ?? '',
+              page: filters.page ?? 1,
+              pageSize: filters.pageSize ?? 20,
+            },
+          ]),
+    ] as const,
   list: (scope: OrganizationQueryScope, filters?: ProcessFilters) =>
     [
       ...processQueryKeys.root(scope),

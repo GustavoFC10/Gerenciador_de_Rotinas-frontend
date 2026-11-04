@@ -5,6 +5,7 @@ import { processService } from '../services/processService'
 import { ProcessContractError } from '../services/processContract'
 import type {
   ProcessCatalog,
+  ProcessCompanyOptionsFilters,
   ProcessFilters,
   ProcessIndicators,
   ProcessPage,
@@ -37,6 +38,22 @@ export function useProcessCatalog(
     queryKey: processQueryKeys.catalog(scope),
     queryFn: ({ signal }) =>
       processService.catalog(signal).then((response) => response.data),
+  })
+}
+
+export function useProcessCompanyOptions(
+  scope: OrganizationQueryScope,
+  filters: ProcessCompanyOptionsFilters,
+  enabled: boolean,
+) {
+  return useQuery({
+    ...options,
+    enabled,
+    queryKey: processQueryKeys.companyOptions(scope, filters),
+    queryFn: ({ signal }) =>
+      processService
+        .companyOptions(filters, signal)
+        .then((response) => response.data),
   })
 }
 

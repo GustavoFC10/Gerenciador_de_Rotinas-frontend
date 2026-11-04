@@ -36,6 +36,7 @@ import { isRoutinesAdmin } from './utils/permissions'
 
 const TeamModulePage = lazy(() => import('./pages/TeamModulePage'))
 const ProcessesPage = lazy(() => import('./pages/processes/ProcessesPage'))
+const CompaniesModulePage = lazy(() => import('./pages/CompaniesModulePage'))
 
 function App() {
   const { activeMembership, isAuthenticated, isInitializing, session } =
@@ -117,6 +118,19 @@ function ModuleRouter({
         <ProfilePage />
       </ModuleWorkspaceLayout>
     )
+
+  if (
+    location.pathname === ROUTES.COMPANY_REGISTRY ||
+    location.pathname.startsWith(`${ROUTES.COMPANY_REGISTRY}/`)
+  ) {
+    return ['owner', 'admin'].includes(activeMembership.role) ? (
+      <Suspense fallback={<LoadingState message="Carregando Empresas…" />}>
+        <CompaniesModulePage />
+      </Suspense>
+    ) : (
+      <Navigate to={ROUTES.HUB} replace />
+    )
+  }
 
   if (
     location.pathname === ROUTES.EMPLOYEES ||
