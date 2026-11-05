@@ -1,15 +1,16 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 
 import Button from '../components/ui/Button'
 import { ROUTES } from '../constants/routes'
 import { useAuth } from '../hooks/useAuth'
 import { authService } from '../services/authService'
 
-function AcceptInvitationPage() {
+function AcceptInvitationPage({ existingAccount = false }) {
   const { isAuthenticated, refreshSession } = useAuth()
+  const location = useLocation()
   const navigate = useNavigate()
-  const token = new URLSearchParams(window.location.hash.slice(1)).get('token')
+  const token = new URLSearchParams(location.hash.slice(1)).get('token')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [error, setError] = useState('')
@@ -24,12 +25,16 @@ function AcceptInvitationPage() {
       return
     }
 
-    if (!password || !passwordConfirm) {
-      setError('Informe e confirme sua senha.')
+    if (!password || (!existingAccount && !passwordConfirm)) {
+      setError(
+        existingAccount
+          ? 'Informe sua senha atual.'
+          : 'Informe e confirme sua senha.',
+      )
       return
     }
 
-    if (password !== passwordConfirm) {
+    if (!existingAccount && password !== passwordConfirm) {
       setError('As senhas informadas não coincidem.')
       return
     }
@@ -41,14 +46,14 @@ function AcceptInvitationPage() {
       await authService.acceptInvitation({
         token,
         password,
-        passwordConfirm,
+        passwordConfirm: existingAccount ? password : passwordConfirm,
       })
 
       if (isAuthenticated) {
         await refreshSession().catch(() => undefined)
       }
 
-      window.history.replaceState(null, '', window.location.pathname)
+      void navigate({ pathname: location.pathname }, { replace: true })
       setPassword('')
       setPasswordConfirm('')
       setIsAccepted(true)
@@ -81,7 +86,9 @@ function AcceptInvitationPage() {
             <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
               {isAuthenticated
                 ? 'A associação foi adicionada à sua conta.'
-                : 'Entre com seu e-mail e a senha que você acabou de definir.'}
+                : existingAccount
+                  ? 'Entre com seu e-mail e sua senha atual.'
+                  : 'Entre com seu e-mail e a senha que você acabou de definir.'}
             </p>
             <Button
               tone="primary"
@@ -100,11 +107,14 @@ function AcceptInvitationPage() {
                 Convite para a área de trabalho
               </p>
               <h1 className="mt-2 text-2xl font-black tracking-tight text-[var(--color-text-strong)] sm:text-3xl">
-                Defina ou confirme sua senha
+                {existingAccount
+                  ? 'Confirme sua senha atual'
+                  : 'Defina sua senha'}
               </h1>
               <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-                Informe sua senha para concluir seu acesso. Se já tem uma conta,
-                use sua senha atual.
+                {existingAccount
+                  ? 'Use a senha da sua conta para aceitar o convite.'
+                  : 'Crie uma senha e confirme para concluir seu acesso.'}
               </p>
             </header>
 
@@ -122,39 +132,49 @@ function AcceptInvitationPage() {
                 noValidate
               >
                 <label className="block text-sm font-semibold text-[var(--color-text-muted)]">
-                  <span className="mb-1.5 block">Senha</span>
+                  <span className="mb-1.5 block">
+                    {existingAccount ? 'Senha atual' : 'Senha'}
+                  </span>
                   <input
                     type="password"
                     name="password"
-                    autoComplete="new-password"
+                    autoComplete={
+                      existingAccount ? 'current-password' : 'new-password'
+                    }
                     value={password}
                     onChange={(event) => {
                       setPassword(event.target.value)
                       setError('')
                     }}
-                    placeholder="Informe sua senha"
+                    placeholder={
+                      existingAccount
+                        ? 'Informe sua senha atual'
+                        : 'Informe sua senha'
+                    }
                     required
                     autoFocus
                     className="w-full rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2.5 text-sm text-[var(--color-control-text)] outline-none transition placeholder:text-[var(--color-control-placeholder)] focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)]"
                   />
                 </label>
 
-                <label className="block text-sm font-semibold text-[var(--color-text-muted)]">
-                  <span className="mb-1.5 block">Confirme sua senha</span>
-                  <input
-                    type="password"
-                    name="passwordConfirm"
-                    autoComplete="new-password"
-                    value={passwordConfirm}
-                    onChange={(event) => {
-                      setPasswordConfirm(event.target.value)
-                      setError('')
-                    }}
-                    placeholder="Repita sua senha"
-                    required
-                    className="w-full rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2.5 text-sm text-[var(--color-control-text)] outline-none transition placeholder:text-[var(--color-control-placeholder)] focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)]"
-                  />
-                </label>
+                {!existingAccount && (
+                  <label className="block text-sm font-semibold text-[var(--color-text-muted)]">
+                    <span className="mb-1.5 block">Confirme sua senha</span>
+                    <input
+                      type="password"
+                      name="passwordConfirm"
+                      autoComplete="new-password"
+                      value={passwordConfirm}
+                      onChange={(event) => {
+                        setPasswordConfirm(event.target.value)
+                        setError('')
+                      }}
+                      placeholder="Repita sua senha"
+                      required
+                      className="w-full rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2.5 text-sm text-[var(--color-control-text)] outline-none transition placeholder:text-[var(--color-control-placeholder)] focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)]"
+                    />
+                  </label>
+                )}
 
                 {error && (
                   <p
@@ -172,6 +192,23 @@ function AcceptInvitationPage() {
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Aceitando convite...' : 'Aceitar convite'}
+                </Button>
+
+                <Button
+                  className="w-full"
+                  disabled={isSubmitting}
+                  onClick={() =>
+                    navigate({
+                      pathname: existingAccount
+                        ? ROUTES.ACCEPT_INVITATION
+                        : ROUTES.ACCEPT_INVITATION_EXISTING_ACCOUNT,
+                      hash: location.hash,
+                    })
+                  }
+                >
+                  {existingAccount
+                    ? 'Ainda não tenho uma conta'
+                    : 'Já tenho uma conta'}
                 </Button>
               </form>
             )}

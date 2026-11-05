@@ -1,16 +1,17 @@
 /** @vitest-environment happy-dom */
 
 import { act } from 'react'
-import { createRoot } from 'react-dom/client'
+import { createRoot, type Root } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, useLocation } from 'react-router'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 import { ROUTES } from './constants/routes'
 import { AuthContext } from './contexts/authContextDefinition'
 import type { AuthContextValue } from './contexts/authContextDefinition'
+import { authService } from './services/authService'
 import { internalOrganizationService } from './services/internalOrganizationService'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -44,17 +45,205 @@ describe('App', () => {
     )
 
     const markup = renderToStaticMarkup(
-      <MemoryRouter initialEntries={[ROUTES.ACCEPT_INVITATION]}>
+      <MemoryRouter
+        initialEntries={[window.location.pathname + window.location.hash]}
+      >
         <AuthContext.Provider value={authValue}>
           <App />
         </AuthContext.Provider>
       </MemoryRouter>,
     )
 
-    expect(markup).toContain('Defina ou confirme sua senha')
+    expect(markup).toContain('Defina sua senha')
     expect(markup).toContain('name="password"')
     expect(markup).toContain('name="passwordConfirm"')
     expect(markup).not.toContain('name="email"')
+    expect(markup).toContain('Já tenho uma conta')
+  })
+
+  describe('invitation acceptance', () => {
+    let host: HTMLDivElement
+    let root: Root
+
+    beforeEach(() => {
+      host = document.createElement('div')
+      document.body.appendChild(host)
+      root = createRoot(host)
+    })
+
+    afterEach(async () => {
+      await act(async () => root.unmount())
+      host.remove()
+      vi.restoreAllMocks()
+    })
+
+    async function renderInvitation(path = ROUTES.ACCEPT_INVITATION as string) {
+      await act(async () => {
+        root.render(
+          <MemoryRouter initialEntries={[`${path}#token=invitation-token`]}>
+            <AuthContext.Provider value={authValue}>
+              <App />
+              <LocationProbe />
+            </AuthContext.Provider>
+          </MemoryRouter>,
+        )
+      })
+    }
+
+    async function changeField(name: string, value: string) {
+      await act(async () => {
+        const input = host.querySelector<HTMLInputElement>(`[name="${name}"]`)!
+        Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          'value',
+        )!.set!.call(input, value)
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      })
+    }
+
+    async function clickButton(label: string) {
+      await act(async () => {
+        const button = Array.from(host.querySelectorAll('button')).find(
+          (element) => element.textContent === label,
+        )!
+        button.click()
+      })
+    }
+
+    async function submitInvitation() {
+      await act(async () => {
+        host
+          .querySelector('form')!
+          .dispatchEvent(
+            new Event('submit', { bubbles: true, cancelable: true }),
+          )
+      })
+    }
+
+    it('preserves the token between screens and submits the existing password in both fields', async () => {
+      const acceptInvitation = vi
+        .spyOn(authService, 'acceptInvitation')
+        .mockResolvedValue(undefined)
+      await renderInvitation()
+      await changeField('password', 'draft-password')
+      await clickButton('Já tenho uma conta')
+
+      expect(host.querySelector('[data-location]')?.textContent).toBe(
+        `${ROUTES.ACCEPT_INVITATION_EXISTING_ACCOUNT}#token=invitation-token`,
+      )
+      expect(host.querySelectorAll('input[type="password"]')).toHaveLength(1)
+      expect(
+        host.querySelector<HTMLInputElement>('[name="password"]')?.value,
+      ).toBe('')
+      expect(
+        host.querySelector('[name="password"]')?.getAttribute('autocomplete'),
+      ).toBe('current-password')
+
+      await clickButton('Ainda não tenho uma conta')
+      expect(host.querySelector('[name="passwordConfirm"]')).not.toBeNull()
+      expect(host.querySelector('[data-location]')?.textContent).toBe(
+        `${ROUTES.ACCEPT_INVITATION}#token=invitation-token`,
+      )
+      await clickButton('Já tenho uma conta')
+      await submitInvitation()
+      expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+        'Informe sua senha atual.',
+      )
+      expect(acceptInvitation).not.toHaveBeenCalled()
+
+      await changeField('password', 'current-password')
+      await submitInvitation()
+
+      expect(acceptInvitation).toHaveBeenCalledExactlyOnceWith({
+        token: 'invitation-token',
+        password: 'current-password',
+        passwordConfirm: 'current-password',
+      })
+      expect(host.textContent).toContain('Convite aceito')
+      expect(host.textContent).toContain(
+        'Entre com seu e-mail e sua senha atual.',
+      )
+      expect(host.querySelector('[data-location]')?.textContent).toBe(
+        ROUTES.ACCEPT_INVITATION_EXISTING_ACCOUNT,
+      )
+      expect(host.querySelector('input[type="password"]')).toBeNull()
+    })
+
+    it('still requires matching passwords when creating an account', async () => {
+      const acceptInvitation = vi
+        .spyOn(authService, 'acceptInvitation')
+        .mockResolvedValue(undefined)
+      await renderInvitation()
+      await changeField('password', 'new-password')
+      await changeField('passwordConfirm', 'different-password')
+      await submitInvitation()
+
+      expect(acceptInvitation).not.toHaveBeenCalled()
+      expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+        'As senhas informadas não coincidem.',
+      )
+
+      await changeField('passwordConfirm', 'new-password')
+      await submitInvitation()
+
+      expect(acceptInvitation).toHaveBeenCalledExactlyOnceWith({
+        token: 'invitation-token',
+        password: 'new-password',
+        passwordConfirm: 'new-password',
+      })
+      expect(host.textContent).toContain('Convite aceito')
+      expect(host.querySelector('[data-location]')?.textContent).toBe(
+        ROUTES.ACCEPT_INVITATION,
+      )
+    })
+
+    it('allows retrying an existing-account invitation after an API error', async () => {
+      const acceptInvitation = vi
+        .spyOn(authService, 'acceptInvitation')
+        .mockRejectedValueOnce(new Error('Senha incorreta.'))
+        .mockResolvedValueOnce(undefined)
+      await renderInvitation(ROUTES.ACCEPT_INVITATION_EXISTING_ACCOUNT)
+      await changeField('password', 'wrong-password')
+      await submitInvitation()
+
+      expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+        'Senha incorreta.',
+      )
+      expect(host.querySelector('[data-location]')?.textContent).toContain(
+        '#token=invitation-token',
+      )
+
+      await changeField('password', 'correct-password')
+      await submitInvitation()
+
+      expect(acceptInvitation).toHaveBeenLastCalledWith({
+        token: 'invitation-token',
+        password: 'correct-password',
+        passwordConfirm: 'correct-password',
+      })
+      expect(host.textContent).toContain('Convite aceito')
+    })
+
+    it.each([
+      ROUTES.ACCEPT_INVITATION,
+      ROUTES.ACCEPT_INVITATION_EXISTING_ACCOUNT,
+    ])(
+      'rejects missing tokens at %s before authentication initializes',
+      (path) => {
+        const markup = renderToStaticMarkup(
+          <MemoryRouter initialEntries={[path]}>
+            <AuthContext.Provider value={authValue}>
+              <App />
+            </AuthContext.Provider>
+          </MemoryRouter>,
+        )
+
+        expect(markup).toContain(
+          'O link de convite não contém um token válido.',
+        )
+        expect(markup).not.toContain('<form')
+      },
+    )
   })
 
   it('renders the internal skeleton before requiring an active membership', () => {
@@ -137,7 +326,12 @@ describe('App', () => {
 function LocationProbe() {
   const location = useLocation()
 
-  return <output data-location>{location.pathname}</output>
+  return (
+    <output data-location>
+      {location.pathname}
+      {location.hash}
+    </output>
+  )
 }
 
 const internalAuthValue: AuthContextValue = {
