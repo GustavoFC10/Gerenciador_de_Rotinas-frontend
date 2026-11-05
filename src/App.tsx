@@ -43,8 +43,18 @@ function App() {
     useAuth()
   const location = useLocation()
 
-  if (location.pathname === ROUTES.ACCEPT_INVITATION) {
-    return <AcceptInvitationPage />
+  if (
+    location.pathname === ROUTES.ACCEPT_INVITATION ||
+    location.pathname === ROUTES.ACCEPT_INVITATION_EXISTING_ACCOUNT
+  ) {
+    return (
+      <AcceptInvitationPage
+        key={location.pathname}
+        existingAccount={
+          location.pathname === ROUTES.ACCEPT_INVITATION_EXISTING_ACCOUNT
+        }
+      />
+    )
   }
 
   if (isInitializing) {

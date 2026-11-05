@@ -1,6 +1,7 @@
 export const ROUTES = {
   LOGIN: '/login',
   ACCEPT_INVITATION: '/accept-invitation',
+  ACCEPT_INVITATION_EXISTING_ACCOUNT: '/accept-invitation/existing-account',
   INTERNAL: '/internal',
   INTERNAL_ORGANIZATIONS: '/internal/organizations',
   INTERNAL_ORGANIZATION_CREATE: '/internal/organizations/new',
