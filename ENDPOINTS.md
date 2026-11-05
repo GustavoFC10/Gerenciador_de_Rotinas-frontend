@@ -2424,13 +2424,16 @@ consultados novamente; acesso revogado resulta em `skipped`.
 O endereço de cada destinatário é o e-mail do vínculo já utilizado no sistema de
 Rotinas (`OrganizationMember.email`); não é necessário cadastrar outro e-mail.
 
-Conteúdo: organização, código, tipo, empresa, CNPJ, protocolo, prazo, abertura e
-autor; lista de tarefas dos setores em que o destinatário pode atuar. Valores
-estruturados são incluídos somente para Diretoria/Financeiro. Textos livres,
-notas e histórico não entram no e-mail. O assunto contém somente o código do
-processo. Envio usa o backend Django já configurado (`DEFAULT_FROM_EMAIL`, SMTP).
-O corpo usa o template `processes/emails/opened.txt`, com saudação, nome do tipo,
-setores por extenso e abertura no fuso da organização. Não há credenciais ou
+Conteúdo resumido: saudação, empresa e organização, tipo, código, autor e prazo
+em `DD/MM/AAAA` quando definido. Um resumo financeiro com os valores informados
+é incluído somente para Diretoria/Financeiro. Campos sem valor não aparecem.
+Não inclui etapas, listas de tarefas, CNPJ, protocolo, textos livres, notas,
+histórico ou mensagem sobre permissões no rodapé. O assunto contém somente o
+código do processo. O link direto usa `FRONTEND_BASE_URL/processos/{id}`, sem
+tokens nem dados financeiros na URL; o acesso continua exigindo autenticação e
+permissão na organização do processo.
+Envio usa o backend Django já configurado (`DEFAULT_FROM_EMAIL`, SMTP).
+O corpo usa o template `processes/emails/opened.txt`. Não há credenciais ou
 remetente separados para Processos: `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`,
 `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_TIMEOUT` e
 `DEFAULT_FROM_EMAIL` são compartilhados com os demais e-mails do sistema.
