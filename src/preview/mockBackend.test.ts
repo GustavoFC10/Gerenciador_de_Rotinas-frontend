@@ -536,7 +536,8 @@ describe('isolated feature preview', () => {
     const backend = new PreviewBackend()
     const payload = {
       tipo: 'abertura',
-      companyId: '00000000-0000-4000-8001-000000000001',
+      empresa: 'Empresa em abertura',
+      cnpj: '12345678000195',
     }
     const headers = new Headers({ 'Idempotency-Key': 'preview-opening' })
     const first = await backend.handle(
@@ -555,9 +556,11 @@ describe('isolated feature preview', () => {
     expect(first.status).toBe(201)
     expect(second.status).toBe(200)
     expect((await second.json()).id).toBe(created.id)
-    expect(created.companyId).toBe(payload.companyId)
-    expect(created.empresa).toBe('Aurora Comércio de Alimentos')
-    expect(created.cnpj).toBe('12.345.678/0001-95')
+    expect(created.companyId).toBeNull()
+    expect(created.companyReference).toBeNull()
+    expect(created.companyLinkRequired).toBe(false)
+    expect(created.empresa).toBe(payload.empresa)
+    expect(created.cnpj).toBe(payload.cnpj)
     const updated = await json(backend, `processes/${created.id}/`, 'PATCH', {
       version: 1,
       obs: 'Exemplo de edição',
@@ -572,7 +575,7 @@ describe('isolated feature preview', () => {
       ).status,
     ).toBe(409)
   })
-  it('rejects process creation with manual company fields or unknown company IDs', async () => {
+  it('rejects manual company fields for other process types and company IDs for company openings', async () => {
     const backend = new PreviewBackend()
     const headers = new Headers({ 'Idempotency-Key': 'bad-opening' })
     expect(
@@ -580,7 +583,7 @@ describe('isolated feature preview', () => {
         await backend.handle(
           url('processes/'),
           'POST',
-          { tipo: 'abertura', empresa: 'Digitada manualmente' },
+          { tipo: 'reativacao', empresa: 'Digitada manualmente' },
           headers,
         )
       ).status,

@@ -248,6 +248,19 @@ curl.exe -X POST "$BASE_URL/api/v1/auth/invitations/accept/" `
 
 O sucesso retorna `204`.
 
+Falhas retornam `400` com mensagens específicas em `errors.token`: convite inválido,
+revogado, expirado, já utilizado, organização inativa ou perfil indisponível.
+Uma senha incorreta com convite utilizável retorna `errors.password`:
+`Senha incorreta. Use a senha atual da conta que recebeu o convite.`
+O frontend deve exibir a mensagem do campo retornado, sem substituí-la por um
+texto genérico de convite inválido.
+
+Cada reemissão revoga o token anterior. Um token revogado retorna, independentemente
+da senha, `errors.token` com `Este convite foi revogado. Use o link do e-mail mais
+recente ou solicite um novo convite.` Sua senha não é conferida nesse caso.
+Use somente o link do e-mail mais recente. Ter conta em outra organização não
+revoga o convite nem impede o vínculo com a nova organização.
+
 ### `POST /api/v1/auth/password-reset/request/`
 
 Solicita recuperação de senha. A resposta é sempre genérica para não revelar se o
@@ -2218,21 +2231,28 @@ Os nomes do HTML foram mantidos nos dados do processo. Valores monetários são
 strings decimais em BRL com duas casas, até 14 dígitos no total e sem valores
 negativos. Datas usam `YYYY-MM-DD`; timestamps usam ISO 8601 com fuso.
 
-| Grupo                | Campos aceitos                                                                                                                                                                                                      |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Identificação        | `tipo` (obrigatório e imutável), `empresa` (obrigatório, até 200), `companyId` (UUID opcional de empresa ativa do mesmo tenant), `cnpj` (opcional, valida dígitos verificadores e normaliza), `protocolo` (até 160) |
-| Datas e observações  | `prazo` (data ou null), `inicioInat` (data ou null), `obs` (até 5000)                                                                                                                                               |
-| Custos               | `custo`, `pagador` (`cliente` ou `jaralcon`), `parcelas` (1–360)                                                                                                                                                    |
-| Honorários           | `honorario` (contábil), `honCobranca` (início da cobrança), `trab` (booleano), `trabQtd` (1–100000), `trabValor` (valor por funcionário), `honAnterior`, `honPerdido`                                               |
-| Alteração contratual | `altItens` (sem repetição: `societario`, `capital`, `bens`, `endereco`, `razao`, `atividades`, `outros`), `altDesc` (até 3000)                                                                                      |
-| Motivo               | `motivo` (`encerramento`, `honorarios`, `atendimento`, `concorrente`, `inadimplencia`, `venda`, `reducao`, `outros`), `motivoObs` (até 1500)                                                                        |
-| Regime               | `regime` (`simples`, `presumido`, `real`), `regimeObs` (até 3000)                                                                                                                                                   |
-| Saída                | `contato` (até 500), `novoContador` (booleano), `contadorNome` (até 200), `contadorContato` (até 500)                                                                                                               |
-| Opções               | `reatJunta`, `reunAlinh`, `reunAcomp` (booleanos)                                                                                                                                                                   |
+| Grupo                | Campos aceitos                                                                                                                                                                                                                                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identificação        | `tipo` (obrigatório e imutável). Em `abertura`: `empresa` obrigatório (até 200) e `cnpj` opcional, validado e normalizado; não enviar `companyId`. Nos demais tipos: `companyId` obrigatório de empresa ativa do mesmo tenant, com nome/CNPJ copiados pelo servidor; não enviar `empresa`/`cnpj`. `protocolo` até 160. |
+| Datas e observações  | `prazo` (data ou null), `inicioInat` (data ou null), `obs` (até 5000)                                                                                                                                                                                                                                                  |
+| Custos               | `custo`, `pagador` (`cliente` ou `jaralcon`), `parcelas` (1–360)                                                                                                                                                                                                                                                       |
+| Honorários           | `honorario` (contábil), `honCobranca` (início da cobrança), `trab` (booleano), `trabQtd` (1–100000), `trabValor` (valor por funcionário), `honAnterior`, `honPerdido`                                                                                                                                                  |
+| Alteração contratual | `altItens` (sem repetição: `societario`, `capital`, `bens`, `endereco`, `razao`, `atividades`, `outros`), `altDesc` (até 3000)                                                                                                                                                                                         |
+| Motivo               | `motivo` (`encerramento`, `honorarios`, `atendimento`, `concorrente`, `inadimplencia`, `venda`, `reducao`, `outros`), `motivoObs` (até 1500)                                                                                                                                                                           |
+| Regime               | `regime` (`simples`, `presumido`, `real`), `regimeObs` (até 3000)                                                                                                                                                                                                                                                      |
+| Saída                | `contato` (até 500), `novoContador` (booleano), `contadorNome` (até 200), `contadorContato` (até 500)                                                                                                                                                                                                                  |
+| Opções               | `reatJunta`, `reunAlinh`, `reunAcomp` (booleanos)                                                                                                                                                                                                                                                                      |
 
 Campos específicos são aceitos somente nos tipos aplicáveis. Ausência permite
 definir dados depois; `null` é aceito em datas, valores, pagador, parcelas, regime,
-motivo e companyId. Use string vazia para limpar texto. `empresa` nunca é vazia.
+motivo. `companyId` não aceita null. Use string vazia para limpar texto.
+Em `abertura`, `empresa` nunca é vazia e `cnpj` pode ficar vazio enquanto não emitido.
+Não é necessário criar uma empresa no cadastro central para iniciar esse tipo.
+As respostas retornam `companyId=null`, `companyReference=null` e
+`companyLinkRequired=false`. O PATCH permite corrigir `empresa`/`cnpj` nessa abertura
+sem vínculo, com `version` e auditoria. Não há associação automática por nome/CNPJ
+nem uso do comando `company-link` para `abertura`. Nos demais tipos, o PATCH comum
+preserva a identificação histórica; correção de vínculo usa `company-link`.
 
 | `tipo`        | Significado e particularidades                                                               |
 | ------------- | -------------------------------------------------------------------------------------------- |

@@ -371,6 +371,9 @@ paths:
       operationId: auth_invitations_accept_create
       description: Aceita um convite de uso único. Para uma identidade nova, password
         define a senha; para uma identidade já existente, confirma a senha atual.
+        400 identifica convite inválido, revogado, expirado ou utilizado em errors.token;
+        senha incorreta em convite utilizável retorna errors.password. Um convite
+        revogado é recusado antes de conferir a senha; cada reemissão revoga o anterior.
       parameters:
       - in: header
         name: X-CSRFToken
@@ -412,6 +415,27 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                ConviteRevogado:
+                  value:
+                    type: about:blank
+                    title: Requisição inválida
+                    status: 400
+                    errors:
+                      token:
+                      - Este convite foi revogado. Use o link do e-mail mais recente
+                        ou solicite um novo convite.
+                  summary: Convite revogado
+                SenhaIncorretaEmConviteUtilizável:
+                  value:
+                    type: about:blank
+                    title: Requisição inválida
+                    status: 400
+                    errors:
+                      password:
+                      - Senha incorreta. Use a senha atual da conta que recebeu o
+                        convite.
+                  summary: Senha incorreta em convite utilizável
           description: ''
           headers:
             X-Request-ID:
@@ -10961,12 +10985,14 @@ paths:
           description: ''
     post:
       operationId: processes_create
-      description: Diretoria. Cria processo e notificações atomicamente para os membros
-        ativos com acesso a Processos na organização. Usa remetente/SMTP compartilhados
-        com Rotinas; o conteúdo respeita as permissões financeiras. Envio após commit
-        e recuperação por worker. Replay retorna 200 sem novos e-mails; corpo diferente,
-        409. Falha de e-mail não desfaz a criação. Consulte notifications ou GET notifications/
-        para acompanhar a entrega.
+      description: Para tipo abertura, enviar empresa e cnpj opcional, sem companyId
+        nem cadastro prévio. Nos demais tipos, companyId é obrigatório e nome/CNPJ
+        são copiados do cadastro. Diretoria. Cria processo e notificações atomicamente
+        para os membros ativos com acesso a Processos na organização. Usa remetente/SMTP
+        compartilhados com Rotinas; o conteúdo respeita as permissões financeiras.
+        Envio após commit e recuperação por worker. Replay retorna 200 sem novos e-mails;
+        corpo diferente, 409. Falha de e-mail não desfaz a criação. Consulte notifications
+        ou GET notifications/ para acompanhar a entrega.
       parameters:
       - in: header
         name: Idempotency-Key
@@ -11249,6 +11275,8 @@ paths:
           description: ''
     patch:
       operationId: processes_partial_update
+      description: Diretoria. Nome e CNPJ só podem ser editados em abertura sem vínculo
+        cadastral. Demais tipos preservam o snapshot da empresa.
       parameters:
       - in: header
         name: X-CSRFToken
@@ -11659,7 +11687,8 @@ paths:
       operationId: processes_company_link_create
       description: Diretoria. Vincula ou corrige a empresa canônica com justificativa
         e versão. Preserva nome/CNPJ históricos; não altera o cadastro nem concede
-        acesso a Empresas.
+        acesso a Empresas. Não disponível para tipo abertura, que usa identificação
+        livre.
       parameters:
       - in: header
         name: X-CSRFToken
@@ -18384,6 +18413,16 @@ components:
           type: boolean
         reunAcomp:
           type: boolean
+        empresa:
+          type: string
+          description: Somente abertura sem vínculo cadastral. Nome obrigatório na
+            criação.
+          maxLength: 200
+        cnpj:
+          type: string
+          description: Somente abertura sem vínculo cadastral. Opcional enquanto não
+            emitido; validado e normalizado quando informado.
+          maxLength: 18
         version:
           type: integer
           minimum: 1
@@ -18668,13 +18707,24 @@ components:
           type: boolean
         reunAcomp:
           type: boolean
+        empresa:
+          type: string
+          description: Somente abertura sem vínculo cadastral. Nome obrigatório na
+            criação.
+          maxLength: 200
+        cnpj:
+          type: string
+          description: Somente abertura sem vínculo cadastral. Opcional enquanto não
+            emitido; validado e normalizado quando informado.
+          maxLength: 18
         tipo:
           $ref: '#/components/schemas/TipoEnum'
         companyId:
           type: string
           format: uuid
+          description: Obrigatório nos demais tipos; não enviar em abertura, que usa
+            empresa e cnpj livres.
       required:
-      - companyId
       - tipo
       additionalProperties: false
     ProcessEntry:

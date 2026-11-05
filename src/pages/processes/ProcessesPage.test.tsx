@@ -972,12 +972,9 @@ describe('ProcessesPage integration', () => {
         .querySelector<HTMLButtonElement>('button[aria-label="Novo processo"]')!
         .click(),
     )
-    await waitFor(
-      () =>
-        document.querySelector<HTMLButtonElement>('.company-option') !== null,
-    )
-    await act(async () =>
-      document.querySelector<HTMLButtonElement>('.company-option')!.click(),
+    await changeFormValue(
+      'Empresa Nova',
+      '[role="dialog"] input[id$="-empresa"]',
     )
     await submitForm()
     expect(processService.create).toHaveBeenCalledTimes(1)
@@ -1351,12 +1348,9 @@ describe('ProcessesPage integration', () => {
         .querySelector<HTMLButtonElement>('button[aria-label="Novo processo"]')!
         .click(),
     )
-    await waitFor(
-      () =>
-        document.querySelector<HTMLButtonElement>('.company-option') !== null,
-    )
-    await act(async () =>
-      document.querySelector<HTMLButtonElement>('.company-option')!.click(),
+    await changeFormValue(
+      'Empresa Nova',
+      '[role="dialog"] input[id$="-empresa"]',
     )
     await submitForm()
     expect(
@@ -1367,9 +1361,9 @@ describe('ProcessesPage integration', () => {
     expect(create.mock.calls[0]).toEqual(create.mock.calls[1])
     expect(create.mock.calls[0]?.[1]).toMatch(/^[\w-]{36}$/)
     expect(create.mock.calls[0]?.[0]).toMatchObject({
-      companyId: '00000000-0000-4000-8000-000000000001',
       empresa: 'Empresa Nova',
     })
+    expect(create.mock.calls[0]?.[0]).not.toHaveProperty('companyId')
     expect(document.querySelector('[role="dialog"]')).toBeNull()
   })
 
