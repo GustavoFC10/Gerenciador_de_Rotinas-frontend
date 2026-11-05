@@ -248,6 +248,19 @@ curl.exe -X POST "$BASE_URL/api/v1/auth/invitations/accept/" `
 
 O sucesso retorna `204`.
 
+Falhas retornam `400` com mensagens específicas em `errors.token`: convite inválido,
+revogado, expirado, já utilizado, organização inativa ou perfil indisponível.
+Uma senha incorreta com convite utilizável retorna `errors.password`:
+`Senha incorreta. Use a senha atual da conta que recebeu o convite.`
+O frontend deve exibir a mensagem do campo retornado, sem substituí-la por um
+texto genérico de convite inválido.
+
+Cada reemissão revoga o token anterior. Um token revogado retorna, independentemente
+da senha, `errors.token` com `Este convite foi revogado. Use o link do e-mail mais
+recente ou solicite um novo convite.` Sua senha não é conferida nesse caso.
+Use somente o link do e-mail mais recente. Ter conta em outra organização não
+revoga o convite nem impede o vínculo com a nova organização.
+
 ### `POST /api/v1/auth/password-reset/request/`
 
 Solicita recuperação de senha. A resposta é sempre genérica para não revelar se o
