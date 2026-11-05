@@ -64,6 +64,7 @@ export default function ProcessForm({
   }
   useOverlayDialog(dialogRef, close)
   const type = catalog.types.find((type) => type.id === typeId)
+  const isCompanyOpening = typeId === 'abertura'
   const companyOptions = useProcessCompanyOptions(
     scope,
     {
@@ -71,17 +72,27 @@ export default function ProcessForm({
       page: companyPage,
       pageSize: 20,
     },
-    !process && !locked,
+    !process && !!typeId && !isCompanyOpening && !locked,
   )
   const update = (patch: Partial<ProcessCreateInput>) =>
     setValue((previous) => ({ ...previous, ...patch }))
+  function selectType(nextTypeId: ProcessTypeId) {
+    setTypeId(nextTypeId)
+    update({
+      tipo: nextTypeId,
+      ...(isCompanyOpening !== (nextTypeId === 'abertura')
+        ? { companyId: null, empresa: '', cnpj: '' }
+        : {}),
+    })
+    setError('')
+  }
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (submittingRef.current) return
     setError('')
     try {
       if (!type) throw new Error('Escolha o tipo de processo.')
-      if (!process && !value.companyId)
+      if (!process && !isCompanyOpening && !value.companyId)
         throw new Error(
           'Selecione uma empresa cadastrada para abrir o processo.',
         )
@@ -197,8 +208,7 @@ export default function ProcessForm({
                               catalog.types.length
                       const next = catalog.types[nextIndex]
                       if (!next) return
-                      setTypeId(next.id)
-                      update({ tipo: next.id })
+                      selectType(next.id)
                       const options =
                         event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
                           '[role="radio"]',
@@ -206,11 +216,13 @@ export default function ProcessForm({
                       options?.[nextIndex]?.focus()
                     }}
                     onClick={(event) => {
-                      setTypeId(type.id)
-                      update({ tipo: type.id })
-                      setError('')
+                      selectType(type.id)
                       if (event.detail > 0)
-                        document.getElementById(`${id}-empresa-search`)?.focus()
+                        document
+                          .getElementById(
+                            `${id}-${type.id === 'abertura' ? 'empresa' : 'empresa-search'}`,
+                          )
+                          ?.focus()
                     }}
                   >
                     <span className="ico-sq">
@@ -227,7 +239,23 @@ export default function ProcessForm({
               </div>
             </div>
           )}
-          {process ? (
+          {isCompanyOpening ? (
+            <div className="field">
+              <label htmlFor={`${id}-empresa`}>
+                Nome da empresa <span className="req">obrigatório</span>
+              </label>
+              <input
+                className="input"
+                id={`${id}-empresa`}
+                value={value.empresa}
+                onChange={(event) => update({ empresa: event.target.value })}
+                required
+                maxLength={200}
+                placeholder="Informe o nome da empresa"
+                disabled={locked}
+              />
+            </div>
+          ) : process ? (
             <div className="field">
               <label htmlFor={`${id}-empresa`}>Empresa</label>
               <input
@@ -371,7 +399,24 @@ export default function ProcessForm({
             </div>
           )}
           <div className="grid2">
-            {!process && <div />}
+            {isCompanyOpening ? (
+              <div className="field">
+                <label htmlFor={`${id}-cnpj`}>
+                  CNPJ <span>(opcional)</span>
+                </label>
+                <input
+                  className="input"
+                  id={`${id}-cnpj`}
+                  value={value.cnpj ?? ''}
+                  onChange={(event) => update({ cnpj: event.target.value })}
+                  maxLength={18}
+                  placeholder="00.000.000/0000-00"
+                  disabled={locked}
+                />
+              </div>
+            ) : !process ? (
+              <div />
+            ) : null}
             <div className="field">
               <label htmlFor={`${id}-date`}>
                 {PROCESS_START_LABELS[typeId] ?? 'Prazo'}{' '}

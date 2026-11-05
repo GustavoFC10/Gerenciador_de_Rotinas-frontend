@@ -195,7 +195,8 @@ export function normalizeProcessInput(
     obs: input.obs?.trim() ?? '',
   }
   if (!result.empresa) throw new Error('Informe a empresa ou o cliente.')
-  if (input.companyId) result.companyId = input.companyId
+  if (type.id !== 'abertura' && input.companyId)
+    result.companyId = input.companyId
   if (PROCESS_START_LABELS[type.id])
     result.inicioInat = input.inicioInat || null
   else result.prazo = input.prazo || null

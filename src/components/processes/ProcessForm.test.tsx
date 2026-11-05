@@ -10,121 +10,123 @@ import { processTestCatalog } from './processTestFixtures'
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 describe('ProcessForm', () => {
-  it('keeps the complete draft after a network failure and allows submitting again', async () => {
-    const host = document.createElement('div')
-    host.id = 'root'
-    document.body.append(host)
-    const root = createRoot(host)
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    })
-    const close = vi.fn()
-    const submit = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('Conexão interrompida'))
-      .mockResolvedValueOnce(undefined)
-    vi.spyOn(processService, 'companyOptions').mockResolvedValue({
-      data: {
-        count: 1,
-        next: null,
-        previous: null,
-        results: [
-          {
-            id: '00000000-0000-4000-8000-000000000001',
-            code: 'EMP-01',
-            name: 'Empresa Teste',
-            legalName: 'Empresa Teste Ltda.',
-            cnpj: '12345678000195',
-            status: 'active',
-          },
-        ],
-      },
-      status: 200,
-      headers: new Headers(),
-      etag: null,
-      requestId: null,
-    })
-    try {
-      await act(async () =>
-        root.render(
-          <QueryClientProvider client={queryClient}>
-            <ProcessForm
-              catalog={processTestCatalog}
-              scope={{ organizationId: 'org-1', membershipId: 'member-1' }}
-              initialType="abertura"
-              onSubmit={submit}
-              onClose={close}
-            />
-          </QueryClientProvider>,
-        ),
-      )
-      expect(host.inert).toBe(true)
-      const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
-      expect(host.contains(dialog)).toBe(false)
-      const name = dialog.querySelector<HTMLInputElement>(
-        'input[type="search"]',
-      )!
-      await act(async () => {
-        Object.getOwnPropertyDescriptor(
-          HTMLInputElement.prototype,
-          'value',
-        )!.set!.call(name, 'Empresa')
-        name.dispatchEvent(new Event('input', { bubbles: true }))
+  it.each(['12345678000195', ''])(
+    'opens a company with manual fields and keeps the draft after a network failure (CNPJ: %s)',
+    async (cnpjValue) => {
+      const host = document.createElement('div')
+      host.id = 'root'
+      document.body.append(host)
+      const root = createRoot(host)
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
       })
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 10))
+      const close = vi.fn()
+      const submit = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('Conexão interrompida'))
+        .mockResolvedValueOnce(undefined)
+      vi.spyOn(processService, 'companyOptions').mockResolvedValue({
+        data: {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              id: '00000000-0000-4000-8000-000000000001',
+              code: 'EMP-01',
+              name: 'Empresa Teste',
+              legalName: 'Empresa Teste Ltda.',
+              cnpj: '12345678000195',
+              status: 'active',
+            },
+          ],
+        },
+        status: 200,
+        headers: new Headers(),
+        etag: null,
+        requestId: null,
       })
-      const company = [
-        ...dialog.querySelectorAll<HTMLButtonElement>('.company-option'),
-      ].find((option) => option.textContent?.includes('Empresa Teste'))!
-      await act(async () => company.click())
-      expect(dialog.querySelector('.company-selected')?.textContent).toContain(
-        'Empresa Teste',
-      )
-      const form = dialog.querySelector('form')!
-      await act(async () =>
-        form.dispatchEvent(
-          new Event('submit', { bubbles: true, cancelable: true }),
-        ),
-      )
-      expect(submit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tipo: 'abertura',
-          empresa: 'Empresa Teste',
-          companyId: '00000000-0000-4000-8000-000000000001',
-          cnpj: '12345678000195',
-          reunAlinh: true,
-          reunAcomp: true,
-          custo: null,
-        }),
-      )
-      expect(dialog.querySelector('[role="alert"]')?.textContent).toContain(
-        'Conexão interrompida',
-      )
-      expect(name.value).toBe('Empresa Teste')
-      expect(name.disabled).toBe(true)
-      expect(dialog.querySelector('[role="status"]')?.textContent).toContain(
-        'sem duplicar os e-mails',
-      )
-      await act(async () =>
-        document.dispatchEvent(
-          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-        ),
-      )
-      expect(close).not.toHaveBeenCalled()
-      await act(async () =>
-        form.dispatchEvent(
-          new Event('submit', { bubbles: true, cancelable: true }),
-        ),
-      )
-      expect(submit).toHaveBeenCalledTimes(2)
-      expect(submit.mock.calls[0]?.[0]).toEqual(submit.mock.calls[1]?.[0])
-    } finally {
-      await act(async () => root.unmount())
-      expect(host.inert).toBe(false)
-      host.remove()
-      queryClient.clear()
-      vi.restoreAllMocks()
-    }
-  })
+      try {
+        await act(async () =>
+          root.render(
+            <QueryClientProvider client={queryClient}>
+              <ProcessForm
+                catalog={processTestCatalog}
+                scope={{ organizationId: 'org-1', membershipId: 'member-1' }}
+                initialType="abertura"
+                onSubmit={submit}
+                onClose={close}
+              />
+            </QueryClientProvider>,
+          ),
+        )
+        expect(host.inert).toBe(true)
+        const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
+        expect(host.contains(dialog)).toBe(false)
+        expect(processService.companyOptions).not.toHaveBeenCalled()
+        expect(dialog.querySelector('input[type="search"]')).toBeNull()
+        const name = dialog.querySelector<HTMLInputElement>(
+          'input[id$="-empresa"]',
+        )!
+        const cnpj =
+          dialog.querySelector<HTMLInputElement>('input[id$="-cnpj"]')!
+        await act(async () => {
+          const setValue = Object.getOwnPropertyDescriptor(
+            HTMLInputElement.prototype,
+            'value',
+          )!.set!
+          setValue.call(name, 'Empresa Teste')
+          name.dispatchEvent(new Event('input', { bubbles: true }))
+          setValue.call(cnpj, cnpjValue)
+          cnpj.dispatchEvent(new Event('input', { bubbles: true }))
+        })
+        const form = dialog.querySelector('form')!
+        await act(async () =>
+          form.dispatchEvent(
+            new Event('submit', { bubbles: true, cancelable: true }),
+          ),
+        )
+        expect(submit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            tipo: 'abertura',
+            empresa: 'Empresa Teste',
+            cnpj: cnpjValue,
+            reunAlinh: true,
+            reunAcomp: true,
+            custo: null,
+          }),
+        )
+        expect(submit.mock.calls[0]?.[0]).not.toHaveProperty('companyId')
+        expect(dialog.querySelector('[role="alert"]')?.textContent).toContain(
+          'Conexão interrompida',
+        )
+        expect(name.value).toBe('Empresa Teste')
+        expect(name.disabled).toBe(true)
+        expect(cnpj.value).toBe(cnpjValue)
+        expect(cnpj.disabled).toBe(true)
+        expect(dialog.querySelector('[role="status"]')?.textContent).toContain(
+          'sem duplicar os e-mails',
+        )
+        await act(async () =>
+          document.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+          ),
+        )
+        expect(close).not.toHaveBeenCalled()
+        await act(async () =>
+          form.dispatchEvent(
+            new Event('submit', { bubbles: true, cancelable: true }),
+          ),
+        )
+        expect(submit).toHaveBeenCalledTimes(2)
+        expect(submit.mock.calls[0]?.[0]).toEqual(submit.mock.calls[1]?.[0])
+      } finally {
+        await act(async () => root.unmount())
+        expect(host.inert).toBe(false)
+        host.remove()
+        queryClient.clear()
+        vi.restoreAllMocks()
+      }
+    },
+  )
 })

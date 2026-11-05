@@ -2218,51 +2218,58 @@ Os nomes do HTML foram mantidos nos dados do processo. Valores monetários são
 strings decimais em BRL com duas casas, até 14 dígitos no total e sem valores
 negativos. Datas usam `YYYY-MM-DD`; timestamps usam ISO 8601 com fuso.
 
-| Grupo                | Campos aceitos                                                                                                                                                                                                      |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Identificação        | `tipo` (obrigatório e imutável), `empresa` (obrigatório, até 200), `companyId` (UUID opcional de empresa ativa do mesmo tenant), `cnpj` (opcional, valida dígitos verificadores e normaliza), `protocolo` (até 160) |
-| Datas e observações  | `prazo` (data ou null), `inicioInat` (data ou null), `obs` (até 5000)                                                                                                                                               |
-| Custos               | `custo`, `pagador` (`cliente` ou `jaralcon`), `parcelas` (1–360)                                                                                                                                                    |
-| Honorários           | `honorario` (contábil), `honCobranca` (início da cobrança), `trab` (booleano), `trabQtd` (1–100000), `trabValor` (valor por funcionário), `honAnterior`, `honPerdido`                                               |
-| Alteração contratual | `altItens` (sem repetição: `societario`, `capital`, `bens`, `endereco`, `razao`, `atividades`, `outros`), `altDesc` (até 3000)                                                                                      |
-| Motivo               | `motivo` (`encerramento`, `honorarios`, `atendimento`, `concorrente`, `inadimplencia`, `venda`, `reducao`, `outros`), `motivoObs` (até 1500)                                                                        |
-| Regime               | `regime` (`simples`, `presumido`, `real`), `regimeObs` (até 3000)                                                                                                                                                   |
-| Saída                | `contato` (até 500), `novoContador` (booleano), `contadorNome` (até 200), `contadorContato` (até 500)                                                                                                               |
-| Opções               | `reatJunta`, `reunAlinh`, `reunAcomp` (booleanos)                                                                                                                                                                   |
+| Grupo | Campos aceitos |
+| --- | --- |
+| Identificação | `tipo` (obrigatório e imutável). Em `abertura`: `empresa` obrigatório (até 200) e `cnpj` opcional, validado e normalizado; não enviar `companyId`. Nos demais tipos: `companyId` obrigatório de empresa ativa do mesmo tenant, com nome/CNPJ copiados pelo servidor; não enviar `empresa`/`cnpj`. `protocolo` até 160. |
+| Datas e observações | `prazo` (data ou null), `inicioInat` (data ou null), `obs` (até 5000) |
+| Custos | `custo`, `pagador` (`cliente` ou `jaralcon`), `parcelas` (1–360) |
+| Honorários | `honorario` (contábil), `honCobranca` (início da cobrança), `trab` (booleano), `trabQtd` (1–100000), `trabValor` (valor por funcionário), `honAnterior`, `honPerdido` |
+| Alteração contratual | `altItens` (sem repetição: `societario`, `capital`, `bens`, `endereco`, `razao`, `atividades`, `outros`), `altDesc` (até 3000) |
+| Motivo | `motivo` (`encerramento`, `honorarios`, `atendimento`, `concorrente`, `inadimplencia`, `venda`, `reducao`, `outros`), `motivoObs` (até 1500) |
+| Regime | `regime` (`simples`, `presumido`, `real`), `regimeObs` (até 3000) |
+| Saída | `contato` (até 500), `novoContador` (booleano), `contadorNome` (até 200), `contadorContato` (até 500) |
+| Opções | `reatJunta`, `reunAlinh`, `reunAcomp` (booleanos) |
 
 Campos específicos são aceitos somente nos tipos aplicáveis. Ausência permite
 definir dados depois; `null` é aceito em datas, valores, pagador, parcelas, regime,
-motivo e companyId. Use string vazia para limpar texto. `empresa` nunca é vazia.
+motivo. `companyId` não aceita null. Use string vazia para limpar texto.
+Em `abertura`, `empresa` nunca é vazia e `cnpj` pode ficar vazio enquanto não emitido.
+Não é necessário criar uma empresa no cadastro central para iniciar esse tipo.
+As respostas retornam `companyId=null`, `companyReference=null` e
+`companyLinkRequired=false`. O PATCH permite corrigir `empresa`/`cnpj` nessa abertura
+sem vínculo, com `version` e auditoria. Não há associação automática por nome/CNPJ
+nem uso do comando `company-link` para `abertura`. Nos demais tipos, o PATCH comum
+preserva a identificação histórica; correção de vínculo usa `company-link`.
 
-| `tipo`        | Significado e particularidades                                                               |
-| ------------- | -------------------------------------------------------------------------------------------- |
-| `abertura`    | Abertura; custo, honorário, regime, reuniões                                                 |
-| `mei`         | Transformação MEI → ME; custo, honorário, regime, reuniões                                   |
-| `outro`       | Cliente de outro escritório; honorário, regime, reuniões                                     |
-| `alteracao`   | Alteração contratual; exige itens, descrição, custo, pagador e parcelas na abertura e edição |
-| `inatividade` | **Paralisação**; exige `honPerdido`, usa `inicioInat` em lugar de prazo                      |
-| `inativa`     | **Inatividade**; honorário reduzido, `honAnterior`, `inicioInat` em lugar de prazo           |
-| `reativacao`  | Honorário, reuniões e etapa opcional controlada por `reatJunta`                              |
-| `baixa`       | Baixa; exige `honPerdido`, tem custo e motivo                                                |
-| `saida`       | Saída; exige `honPerdido`; se `novoContador=true`, exige nome e contato do contador          |
-| `exclusao`    | Exclusão de cliente; exige `honPerdido`, tem motivo                                          |
+| `tipo` | Significado e particularidades |
+| --- | --- |
+| `abertura` | Abertura; custo, honorário, regime, reuniões |
+| `mei` | Transformação MEI → ME; custo, honorário, regime, reuniões |
+| `outro` | Cliente de outro escritório; honorário, regime, reuniões |
+| `alteracao` | Alteração contratual; exige itens, descrição, custo, pagador e parcelas na abertura e edição |
+| `inatividade` | **Paralisação**; exige `honPerdido`, usa `inicioInat` em lugar de prazo |
+| `inativa` | **Inatividade**; honorário reduzido, `honAnterior`, `inicioInat` em lugar de prazo |
+| `reativacao` | Honorário, reuniões e etapa opcional controlada por `reatJunta` |
+| `baixa` | Baixa; exige `honPerdido`, tem custo e motivo |
+| `saida` | Saída; exige `honPerdido`; se `novoContador=true`, exige nome e contato do contador |
+| `exclusao` | Exclusão de cliente; exige `honPerdido`, tem motivo |
 
 Exemplo de abertura (enviar sessão, CSRF e `Idempotency-Key`):
 
 ```json
 {
-  "tipo": "abertura",
-  "empresa": "Empresa Exemplo",
-  "protocolo": "PROTO-2026-001",
-  "prazo": "2026-11-30",
-  "custo": "500.00",
-  "pagador": "cliente",
-  "parcelas": 2,
-  "honorario": "1200.00",
-  "honCobranca": "2026-12-01",
-  "regime": "simples",
-  "reunAlinh": true,
-  "reunAcomp": true
+  "tipo":"abertura",
+  "empresa":"Empresa Exemplo",
+  "protocolo":"PROTO-2026-001",
+  "prazo":"2026-11-30",
+  "custo":"500.00",
+  "pagador":"cliente",
+  "parcelas":2,
+  "honorario":"1200.00",
+  "honCobranca":"2026-12-01",
+  "regime":"simples",
+  "reunAlinh":true,
+  "reunAcomp":true
 }
 ```
 

@@ -1724,8 +1724,10 @@ export class PreviewBackend {
       if (path === 'processes' && method === 'POST') {
         if (!permissions.create)
           return error(403, 'Somente a Diretoria abre processos.')
-        const creationFields = editableFields.filter(
-          (field) => field !== 'empresa' && field !== 'cnpj',
+        const creationFields = editableFields.filter((field) =>
+          body.tipo === 'abertura'
+            ? field !== 'companyId'
+            : field !== 'empresa' && field !== 'cnpj',
         )
         if (
           Object.keys(body).some(
@@ -1747,32 +1749,39 @@ export class PreviewBackend {
             ? json(this.project(existing))
             : error(409, 'A chave de abertura já foi usada para outros dados.')
         }
-        const input = body as unknown as Omit<
-          ProcessCreateInput,
-          'empresa' | 'cnpj'
-        >
+        const input = body as unknown as ProcessCreateInput
         const type = types.find((t) => t.id === input.tipo)
-        const company = (this.state.clientCompanies ?? []).find(
-          (item) => item.id === input.companyId && !item.archivedAt,
+        const isCompanyOpening = input.tipo === 'abertura'
+        const company = isCompanyOpening
+          ? undefined
+          : (this.state.clientCompanies ?? []).find(
+              (item) => item.id === input.companyId && !item.archivedAt,
+            )
+        if (
+          isCompanyOpening &&
+          (typeof input.empresa !== 'string' || !input.empresa.trim())
         )
-        if (!type || !company)
+          return error(400, 'Informe o nome da empresa.')
+        if (!type || (!isCompanyOpening && !company))
           return error(400, 'Escolha o tipo e uma empresa ativa cadastrada.')
         const process: PreviewProcess = {
-          companyId: company.id,
-          companyLinkRequired: true,
-          companyReference: {
-            id: company.id,
-            code: company.code,
-            name: company.name,
-            legalName: company.legalName,
-            cnpj: company.cnpj,
-            status: company.status,
-          },
-          empresa: company.name,
-          cnpj: company.cnpj,
           protocolo: '',
           prazo: null,
           ...input,
+          companyId: company?.id ?? null,
+          companyLinkRequired: !isCompanyOpening,
+          companyReference: company
+            ? {
+                id: company.id,
+                code: company.code,
+                name: company.name,
+                legalName: company.legalName,
+                cnpj: company.cnpj,
+                status: company.status,
+              }
+            : null,
+          empresa: company?.name ?? input.empresa.trim(),
+          cnpj: company?.cnpj ?? input.cnpj?.trim() ?? '',
           id: crypto.randomUUID(),
           organizationId: organization.id,
           codigo: `${type.sigla}-DEMO-${String(processes.length + 1).padStart(3, '0')}`,

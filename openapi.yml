@@ -10961,12 +10961,14 @@ paths:
           description: ''
     post:
       operationId: processes_create
-      description: Diretoria. Cria processo e notificações atomicamente para os membros
-        ativos com acesso a Processos na organização. Usa remetente/SMTP compartilhados
-        com Rotinas; o conteúdo respeita as permissões financeiras. Envio após commit
-        e recuperação por worker. Replay retorna 200 sem novos e-mails; corpo diferente,
-        409. Falha de e-mail não desfaz a criação. Consulte notifications ou GET notifications/
-        para acompanhar a entrega.
+      description: Para tipo abertura, enviar empresa e cnpj opcional, sem companyId
+        nem cadastro prévio. Nos demais tipos, companyId é obrigatório e nome/CNPJ
+        são copiados do cadastro. Diretoria. Cria processo e notificações atomicamente
+        para os membros ativos com acesso a Processos na organização. Usa remetente/SMTP
+        compartilhados com Rotinas; o conteúdo respeita as permissões financeiras.
+        Envio após commit e recuperação por worker. Replay retorna 200 sem novos e-mails;
+        corpo diferente, 409. Falha de e-mail não desfaz a criação. Consulte notifications
+        ou GET notifications/ para acompanhar a entrega.
       parameters:
       - in: header
         name: Idempotency-Key
@@ -11249,6 +11251,8 @@ paths:
           description: ''
     patch:
       operationId: processes_partial_update
+      description: Diretoria. Nome e CNPJ só podem ser editados em abertura sem vínculo
+        cadastral. Demais tipos preservam o snapshot da empresa.
       parameters:
       - in: header
         name: X-CSRFToken
@@ -11659,7 +11663,8 @@ paths:
       operationId: processes_company_link_create
       description: Diretoria. Vincula ou corrige a empresa canônica com justificativa
         e versão. Preserva nome/CNPJ históricos; não altera o cadastro nem concede
-        acesso a Empresas.
+        acesso a Empresas. Não disponível para tipo abertura, que usa identificação
+        livre.
       parameters:
       - in: header
         name: X-CSRFToken
@@ -18384,6 +18389,16 @@ components:
           type: boolean
         reunAcomp:
           type: boolean
+        empresa:
+          type: string
+          description: Somente abertura sem vínculo cadastral. Nome obrigatório na
+            criação.
+          maxLength: 200
+        cnpj:
+          type: string
+          description: Somente abertura sem vínculo cadastral. Opcional enquanto não
+            emitido; validado e normalizado quando informado.
+          maxLength: 18
         version:
           type: integer
           minimum: 1
@@ -18668,13 +18683,24 @@ components:
           type: boolean
         reunAcomp:
           type: boolean
+        empresa:
+          type: string
+          description: Somente abertura sem vínculo cadastral. Nome obrigatório na
+            criação.
+          maxLength: 200
+        cnpj:
+          type: string
+          description: Somente abertura sem vínculo cadastral. Opcional enquanto não
+            emitido; validado e normalizado quando informado.
+          maxLength: 18
         tipo:
           $ref: '#/components/schemas/TipoEnum'
         companyId:
           type: string
           format: uuid
+          description: Obrigatório nos demais tipos; não enviar em abertura, que usa
+            empresa e cnpj livres.
       required:
-      - companyId
       - tipo
       additionalProperties: false
     ProcessEntry:

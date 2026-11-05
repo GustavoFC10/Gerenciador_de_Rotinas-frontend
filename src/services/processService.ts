@@ -155,11 +155,15 @@ export class ProcessService {
     if (!/^[A-Za-z0-9._:-]{1,128}$/.test(idempotencyKey)) {
       throw new Error('A chave de abertura do processo é inválida.')
     }
-    if (!input.companyId)
+    if (input.tipo === 'abertura' && !input.empresa.trim())
+      throw new Error('Informe o nome da empresa.')
+    if (input.tipo !== 'abertura' && !input.companyId)
       throw new Error('Selecione uma empresa cadastrada para abrir o processo.')
-    const { empresa: _empresa, cnpj: _cnpj, ...payload } = input
-    void _empresa
-    void _cnpj
+    const { empresa, cnpj, companyId, ...fields } = input
+    const payload =
+      input.tipo === 'abertura'
+        ? { ...fields, empresa: empresa.trim(), cnpj: cnpj?.trim() ?? '' }
+        : { ...fields, companyId }
     return this.validated(
       () => this.client.post(PROCESSES_ENDPOINT, payload, { idempotencyKey }),
       parseProcessDetail,

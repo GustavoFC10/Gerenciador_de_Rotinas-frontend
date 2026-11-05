@@ -41,13 +41,13 @@ describe('ProcessService revision 2', () => {
       expect(request?.body).toBe(
         JSON.stringify({
           tipo: 'abertura',
-          companyId: '00000000-0000-4000-8000-000000000001',
           honorario: '1200.00',
           reunAlinh: false,
+          empresa: 'Empresa Exemplo',
+          cnpj: '12345678000195',
         }),
       )
-      expect(JSON.parse(String(request?.body))).not.toHaveProperty('empresa')
-      expect(JSON.parse(String(request?.body))).not.toHaveProperty('cnpj')
+      expect(JSON.parse(String(request?.body))).not.toHaveProperty('companyId')
     }
   })
 
@@ -86,15 +86,60 @@ describe('ProcessService revision 2', () => {
     expect(response.data.results[0]?.status).toBe('active')
   })
 
-  it('exige companyId antes de enviar uma abertura', () => {
+  it('exige companyId nos demais tipos de processo', () => {
     const fetchImplementation = vi.fn<typeof fetch>()
     expect(() =>
       createService(fetchImplementation).create(
-        { tipo: 'abertura', empresa: 'Empresa' },
+        { tipo: 'reativacao', empresa: 'Empresa' },
         'opening:valid-key',
       ),
     ).toThrow('Selecione uma empresa cadastrada')
     expect(fetchImplementation).not.toHaveBeenCalled()
+  })
+
+  it('envia somente a referência da empresa nos demais tipos de processo', async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse(makeProcessTestResource()))
+    await createService(fetchImplementation).create(
+      {
+        tipo: 'reativacao',
+        empresa: 'Empresa cadastrada',
+        cnpj: '12345678000195',
+        companyId: '00000000-0000-4000-8000-000000000001',
+      },
+      'opening:linked-company',
+    )
+
+    expect(
+      JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body)),
+    ).toEqual({
+      tipo: 'reativacao',
+      companyId: '00000000-0000-4000-8000-000000000001',
+    })
+  })
+
+  it('permite abertura sem CNPJ e exige o nome da empresa', async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse(makeProcessTestResource()))
+    const service = createService(fetchImplementation)
+    expect(() =>
+      service.create({ tipo: 'abertura', empresa: '   ' }, 'opening:no-name'),
+    ).toThrow('Informe o nome da empresa')
+    expect(fetchImplementation).not.toHaveBeenCalled()
+
+    await service.create(
+      { tipo: 'abertura', empresa: ' Nova empresa ' },
+      'opening:no-cnpj',
+    )
+    expect(
+      JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body)),
+    ).toEqual({
+      tipo: 'abertura',
+      empresa: 'Nova empresa',
+      cnpj: '',
+    })
   })
 
   it('recusa chaves inválidas antes de enviar uma abertura', () => {
