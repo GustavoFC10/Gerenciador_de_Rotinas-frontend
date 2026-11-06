@@ -6,6 +6,7 @@ const presentation: Record<string, { icon: string; name: string }> = {
   abertura: { icon: 'building', name: 'Abertura' },
   mei: { icon: 'up', name: 'MEI' },
   outro: { icon: 'users', name: 'Outro escritório' },
+  outros: { icon: 'list', name: 'Outros' },
   alteracao: { icon: 'pen', name: 'Alteração' },
   inatividade: { icon: 'pause', name: 'Paralisação' },
   inativa: { icon: 'moon', name: 'Inatividade' },

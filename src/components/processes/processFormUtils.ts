@@ -151,7 +151,10 @@ export function processInputFromResource(
   return {
     tipo: process.tipo,
     empresa: process.empresa,
-    companyId: process.companyId,
+    descricaoProcesso: process.descricaoProcesso,
+    valorProcesso: process.valorProcesso,
+    departamentoSolicitado: process.departamentoSolicitado,
+    acionarLeggacy: process.acionarLeggacy,
     cnpj: process.cnpj ?? '',
     protocolo: process.protocolo ?? '',
     prazo: process.prazo ?? null,
@@ -183,20 +186,59 @@ export function processInputFromResource(
   }
 }
 
+export function processDraftForType(input: ProcessInput, type: ProcessCatalogType): ProcessInput {
+  const keys = type.id === 'outros'
+    ? ['empresa', 'descricaoProcesso', 'valorProcesso', 'departamentoSolicitado', 'acionarLeggacy']
+    : ['empresa', 'cnpj', 'protocolo', 'obs', PROCESS_START_LABELS[type.id] ? 'inicioInat' : 'prazo',
+      ...(processHasCost(type) ? ['custo', 'pagador', 'parcelas'] : []),
+      ...(processHasField(type, 'honorario') ? ['honorario', 'honCobranca', 'trab', 'trabQtd', 'trabValor'] : []),
+      ...(processHasField(type, 'regime') ? ['regime', 'regimeObs'] : []),
+      ...(type.id === 'inativa' ? ['honAnterior'] : []),
+      ...(DIRECT_LOSS_TYPES.includes(type.id) ? ['honPerdido'] : []),
+      ...(LOSS_TYPES.includes(type.id) ? ['motivo', 'motivoObs'] : []),
+      ...(type.id === 'alteracao' ? ['altItens', 'altDesc'] : []),
+      ...(type.id === 'saida' ? ['contato', 'novoContador', 'contadorNome', 'contadorContato'] : []),
+      ...(type.id === 'reativacao' ? ['reatJunta'] : []),
+      ...(processHasMeeting(type, 'alinhamento') ? ['reunAlinh'] : []),
+      ...(processHasMeeting(type, 'acompanhamento') ? ['reunAcomp'] : []),
+    ]
+  return { ...Object.fromEntries(Object.entries(input).filter(([key]) => keys.includes(key))), tipo: type.id, empresa: input.empresa }
+}
+
 export function normalizeProcessInput(
   input: ProcessInput,
   type: ProcessCatalogType,
+  { allowOmittedValue = false }: { allowOmittedValue?: boolean } = {},
 ): ProcessInput {
+  const empresa = input.empresa.trim()
+  if (!empresa || empresa.length > 200)
+    throw new Error('Informe o nome da empresa com até 200 caracteres.')
+  if (type.id === 'outros') {
+    const descricaoProcesso = input.descricaoProcesso?.trim() ?? ''
+    if (!descricaoProcesso || descricaoProcesso.length > 3000)
+      throw new Error('Informe a descrição do processo com até 3000 caracteres.')
+    if (!['fin', 'reg'].includes(input.departamentoSolicitado ?? ''))
+      throw new Error('Selecione o departamento solicitado.')
+    if (typeof input.acionarLeggacy !== 'boolean')
+      throw new Error('Informe se deseja acionar a Leggacy: Sim ou Não.')
+    const valorProcesso = normalizeProcessMoney(input.valorProcesso)
+    if (valorProcesso === null && !allowOmittedValue)
+      throw new Error('Informe o valor do processo, inclusive quando for zero.')
+    return {
+      tipo: 'outros', empresa, descricaoProcesso,
+      departamentoSolicitado: input.departamentoSolicitado,
+      acionarLeggacy: input.acionarLeggacy,
+      ...(valorProcesso !== null ? { valorProcesso } : {}),
+    }
+  }
   const result: ProcessInput = {
     tipo: type.id,
-    empresa: input.empresa.trim(),
+    empresa,
     cnpj: input.cnpj?.trim() ?? '',
     protocolo: input.protocolo?.trim() ?? '',
     obs: input.obs?.trim() ?? '',
   }
   if (!result.empresa) throw new Error('Informe a empresa ou o cliente.')
-  if (type.id !== 'abertura' && input.companyId)
-    result.companyId = input.companyId
   if (PROCESS_START_LABELS[type.id])
     result.inicioInat = input.inicioInat || null
   else result.prazo = input.prazo || null
@@ -277,6 +319,8 @@ export function changedProcessFields(
     Object.entries(input).filter(
       ([key, value]) =>
         key !== 'tipo' &&
+        key !== 'companyId' &&
+        !(key === 'valorProcesso' && process.valorProcesso === undefined) &&
         JSON.stringify(value ?? null) !==
           JSON.stringify(
             baseline[key as keyof ProcessInput] ??

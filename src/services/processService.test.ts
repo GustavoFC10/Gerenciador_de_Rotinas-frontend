@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   makeProcessTestResource,
   processTestCatalog,
+  processTestExtraIndicators,
+  processTestLeggacyMetrics,
 } from '../components/processes/processTestFixtures'
 import type { ProcessFilters, ProcessSummary } from '../types/processes'
 import { ApiError, HttpClient } from './httpClient'
@@ -9,6 +11,57 @@ import { ProcessContractError } from './processContract'
 import { ProcessService } from './processService'
 
 describe('ProcessService revision 2', () => {
+  it('uses the returned deletion ETag for restore with CSRF and no request for the deleted detail', async () => {
+    const fetchImplementation = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 204, headers: { ETag: '"8"' } }))
+      .mockResolvedValueOnce(jsonResponse(makeProcessTestResource({ version: 9 })))
+    const service = createService(fetchImplementation)
+    expect((await service.remove('process-1', 4)).etag).toBe('"8"')
+    const restored = await service.restore('process-1', 8)
+    expect(restored.data.version).toBe(9)
+    const [url, request] = fetchImplementation.mock.calls[1]!
+    expect(String(url)).toMatch(/\/processes\/process-1\/restore\/$/)
+    expect(request?.method).toBe('POST')
+    expect(JSON.parse(String(request?.body))).toEqual({ version: 8 })
+    expect(new Headers(request?.headers).get('X-CSRFToken')).toBe('csrf-token')
+    expect(fetchImplementation).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([403, 404, 409, 429, 503])('preserves restore HTTP %s without automatic mutation retries', async status => {
+    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ status, title: 'Falha' }), { status, headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '12' } }))
+    await expect(createService(fetchImplementation).restore('process-1', 8)).rejects.toMatchObject({ status, retryAfter: '12' })
+    expect(fetchImplementation).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends urgency and projection filters to the server and fetches global operational metrics', async () => {
+    const fetchImplementation = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ count: 1, next: null, previous: null, results: [{ ...summaryFixture(), nextTask: { id: 't1', sector: 'fin', text: 'Atividade', stageTitle: 'Etapa' }, pendingTaskCount: 2 }] }))
+      .mockResolvedValueOnce(jsonResponse({ count: 0, next: null, previous: null, results: [] }))
+      .mockResolvedValueOnce(jsonResponse(processTestLeggacyMetrics))
+    const service = createService(fetchImplementation)
+    await service.list({ queueSector: 'fin', taskSector: 'fin', ordering: 'urgency', pageSize: 8 })
+    await service.list({ otherSector: 'fin', ordering: 'urgency', pageSize: 6 })
+    await service.leggacyMetrics()
+    const first = new URL(String(fetchImplementation.mock.calls[0]![0]))
+    expect(first.searchParams.get('taskSector')).toBe('fin')
+    expect(first.searchParams.get('ordering')).toBe('urgency')
+    const second = new URL(String(fetchImplementation.mock.calls[1]![0]))
+    expect(second.searchParams.get('otherSector')).toBe('fin')
+    expect(second.searchParams.has('queueSector')).toBe(false)
+    const metrics = new URL(String(fetchImplementation.mock.calls[2]![0]))
+    expect(metrics.pathname).toBe('/api/v1/processes/leggacy-metrics/')
+    expect(metrics.searchParams.has('status')).toBe(false)
+    expect(metrics.searchParams.has('taskSector')).toBe(false)
+    expect(() => service.list({ queueSector: 'fin', otherSector: 'fin' })).toThrow('Não combine')
+    expect(() => service.list({ ordering: 'invalid' } as unknown as ProcessFilters)).toThrow('ordering')
+  })
+
+  it('sends only the six Outros fields even if a draft contains older type fields', async () => {
+    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(makeProcessTestResource({ tipo: 'outros' })))
+    await createService(fetchImplementation).create({ tipo: 'outros', empresa: 'Empresa', descricaoProcesso: 'Atividade', valorProcesso: '0.00', departamentoSolicitado: 'reg', acionarLeggacy: false, cnpj: '123', honorario: '150.00', regime: 'simples' }, 'outros:create')
+    expect(JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body))).toEqual({ tipo: 'outros', empresa: 'Empresa', descricaoProcesso: 'Atividade', valorProcesso: '0.00', departamentoSolicitado: 'reg', acionarLeggacy: false })
+  })
+
   it('repete abertura com a mesma chave e preserva CSRF, corpo, versão e metadados', async () => {
     const detail = makeProcessTestResource()
     const fetchImplementation = vi
@@ -38,8 +91,8 @@ describe('ProcessService revision 2', () => {
       expect(new Headers(request?.headers).get('X-CSRFToken')).toBe(
         'csrf-token',
       )
-      expect(request?.body).toBe(
-        JSON.stringify({
+      expect(JSON.parse(String(request?.body))).toEqual(
+        ({
           tipo: 'abertura',
           honorario: '1200.00',
           reunAlinh: false,
@@ -51,73 +104,17 @@ describe('ProcessService revision 2', () => {
     }
   })
 
-  it('busca opções de empresas com busca e paginação sem exigir CRUD', async () => {
-    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
-      jsonResponse({
-        count: 21,
-        next: '/api/v1/processes/company-options/?page=2',
-        previous: null,
-        results: [
-          {
-            id: '00000000-0000-4000-8000-000000000001',
-            code: 'EMP-01',
-            name: 'Empresa Exemplo',
-            legalName: 'Empresa Exemplo Ltda.',
-            cnpj: '12345678000195',
-            status: 'active',
-          },
-        ],
-      }),
-    )
-    const response = await createService(fetchImplementation).companyOptions({
-      search: ' Empresa ',
-      page: 1,
-      pageSize: 20,
-    })
-    const url = new URL(String(fetchImplementation.mock.calls[0]![0]))
-    expect(url.pathname).toBe('/api/v1/processes/company-options/')
-    expect(url.searchParams.get('search')).toBe('Empresa')
-    expect(url.searchParams.get('page')).toBe('1')
-    expect(url.searchParams.get('pageSize')).toBe('20')
-    expect(response.data.count).toBe(21)
-    expect(response.data.results[0]?.id).toBe(
-      '00000000-0000-4000-8000-000000000001',
-    )
-    expect(response.data.results[0]?.status).toBe('active')
-  })
-
-  it('exige companyId nos demais tipos de processo', () => {
-    const fetchImplementation = vi.fn<typeof fetch>()
-    expect(() =>
-      createService(fetchImplementation).create(
-        { tipo: 'reativacao', empresa: 'Empresa' },
-        'opening:valid-key',
-      ),
-    ).toThrow('Selecione uma empresa cadastrada')
-    expect(fetchImplementation).not.toHaveBeenCalled()
-  })
-
-  it('envia somente a referência da empresa nos demais tipos de processo', async () => {
-    const fetchImplementation = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(jsonResponse(makeProcessTestResource()))
-    await createService(fetchImplementation).create(
-      {
-        tipo: 'reativacao',
-        empresa: 'Empresa cadastrada',
-        cnpj: '12345678000195',
-        companyId: '00000000-0000-4000-8000-000000000001',
-      },
-      'opening:linked-company',
-    )
-
-    expect(
-      JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body)),
-    ).toEqual({
-      tipo: 'reativacao',
-      companyId: '00000000-0000-4000-8000-000000000001',
-    })
-  })
+  it.each(['abertura','mei','outro','alteracao','inatividade','inativa','reativacao','baixa','saida','exclusao'] as const)(
+    'uses free name/CNPJ for %s without a registry request', async tipo => {
+      const fetchImplementation = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse(makeProcessTestResource({ tipo })))
+      const service = createService(fetchImplementation)
+      await service.create({ tipo, empresa: ' Empresa livre ', cnpj: '00.ABC.123/0001-00' }, 'free-identity')
+      expect(fetchImplementation).toHaveBeenCalledTimes(1)
+      expect(JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body))).toEqual({ tipo, empresa: 'Empresa livre', cnpj: '00.ABC.123/0001-00' })
+      await service.update('process-1', { version: 4, empresa: 'Novo nome', cnpj: '' })
+      expect(JSON.parse(String(fetchImplementation.mock.calls[1]?.[1]?.body))).toEqual({ version: 4, empresa: 'Novo nome', cnpj: '' })
+    },
+  )
 
   it('permite abertura sem CNPJ e exige o nome da empresa', async () => {
     const fetchImplementation = vi
@@ -299,6 +296,7 @@ describe('ProcessService revision 2', () => {
 
   it('consulta indicadores filtrados com os cinco estados, inclusive zero', async () => {
     const indicators = {
+      ...processTestExtraIndicators,
       total: 3,
       active: 2,
       completed: 1,

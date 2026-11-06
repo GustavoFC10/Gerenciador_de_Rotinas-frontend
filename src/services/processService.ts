@@ -10,8 +10,7 @@ import type {
   ProcessAlertRecipientPage,
   ProcessAlertSelection,
   ProcessCatalog,
-  ProcessCompanyOptionsFilters,
-  ProcessCompanyOptionsPage,
+  ProcessLeggacyMetric,
   ProcessCreateInput,
   ProcessEntriesFilters,
   ProcessEntriesPage,
@@ -29,12 +28,11 @@ import type {
 import {
   normalizeProcessAlertFilters,
   normalizeProcessAlertRecipientFilters,
-  normalizeProcessCompanyOptionsFilters,
   normalizeProcessFollowUpFilters,
   normalizeProcessEntriesFilters,
   normalizeProcessFilters,
   parseProcessCatalog,
-  parseProcessCompanyOptionsPage,
+  parseProcessLeggacyMetrics,
   parsePreparedProcessAlert,
   parseProcessAlert,
   parseProcessAlertPage,
@@ -99,27 +97,7 @@ export class ProcessService {
           query: processQuery(filters),
           signal,
         }),
-      parseProcessPage,
-      this.client.baseUrl,
-    )
-  }
-
-  companyOptions(
-    filters: ProcessCompanyOptionsFilters = {},
-    signal?: AbortSignal,
-  ): Promise<ApiResponse<ProcessCompanyOptionsPage>> {
-    const normalized = normalizeProcessCompanyOptionsFilters(filters)
-    return this.validated(
-      () =>
-        this.client.get(`${PROCESSES_ENDPOINT}company-options/`, {
-          query: {
-            ...(normalized.search ? { search: normalized.search } : {}),
-            page: normalized.page,
-            pageSize: normalized.pageSize,
-          },
-          signal,
-        }),
-      parseProcessCompanyOptionsPage,
+      (value, requestId) => parseProcessPage(value, requestId, filters.taskSector),
       this.client.baseUrl,
     )
   }
@@ -155,15 +133,19 @@ export class ProcessService {
     if (!/^[A-Za-z0-9._:-]{1,128}$/.test(idempotencyKey)) {
       throw new Error('A chave de abertura do processo é inválida.')
     }
-    if (input.tipo === 'abertura' && !input.empresa.trim())
+    if (!input.empresa.trim() || input.empresa.trim().length > 200)
       throw new Error('Informe o nome da empresa.')
-    if (input.tipo !== 'abertura' && !input.companyId)
-      throw new Error('Selecione uma empresa cadastrada para abrir o processo.')
-    const { empresa, cnpj, companyId, ...fields } = input
-    const payload =
-      input.tipo === 'abertura'
-        ? { ...fields, empresa: empresa.trim(), cnpj: cnpj?.trim() ?? '' }
-        : { ...fields, companyId }
+    const fields = Object.fromEntries(Object.entries(input).filter(([key]) => key !== 'companyId'))
+    const payload = input.tipo === 'outros'
+      ? {
+          tipo: input.tipo,
+          empresa: input.empresa.trim(),
+          descricaoProcesso: input.descricaoProcesso?.trim(),
+          valorProcesso: input.valorProcesso,
+          departamentoSolicitado: input.departamentoSolicitado,
+          acionarLeggacy: input.acionarLeggacy,
+        }
+      : { ...fields, empresa: input.empresa.trim(), cnpj: input.cnpj?.trim() ?? '' }
     return this.validated(
       () => this.client.post(PROCESSES_ENDPOINT, payload, { idempotencyKey }),
       parseProcessDetail,
@@ -175,7 +157,9 @@ export class ProcessService {
     input: ProcessPatchInput,
   ): Promise<ApiResponse<ProcessResource>> {
     return this.validated(
-      () => this.client.patch(processPath(id), input),
+      () => this.client.patch(processPath(id), Object.fromEntries(
+        Object.entries(input).filter(([key]) => key !== 'companyId'),
+      )),
       parseProcessDetail,
     )
   }
@@ -187,6 +171,22 @@ export class ProcessService {
         method: 'DELETE',
         json: { version },
       }),
+    )
+  }
+
+  restore(id: string, version: number): Promise<ApiResponse<ProcessResource>> {
+    if (!Number.isSafeInteger(version) || version < 1)
+      throw new Error('Versão de restauração inválida.')
+    return this.validated(
+      () => this.client.post(`${processPath(id)}restore/`, { version }),
+      parseProcessDetail,
+    )
+  }
+
+  leggacyMetrics(filters: ProcessFilters = {}, signal?: AbortSignal): Promise<ApiResponse<ProcessLeggacyMetric[]>> {
+    return this.validated(
+      () => this.client.get(`${PROCESSES_ENDPOINT}leggacy-metrics/`, { query: processQuery(filters), signal }),
+      parseProcessLeggacyMetrics,
     )
   }
 

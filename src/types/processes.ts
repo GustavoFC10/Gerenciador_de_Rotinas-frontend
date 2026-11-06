@@ -5,6 +5,7 @@ export type ProcessTypeId =
   | 'abertura'
   | 'mei'
   | 'outro'
+  | 'outros'
   | 'alteracao'
   | 'inatividade'
   | 'inativa'
@@ -43,8 +44,11 @@ export type ProcessReason =
 /** Valores em BRL permanecem decimais em string para preservar sua precisão. */
 export interface ProcessFields {
   empresa: string
-  companyId?: string | null
   cnpj?: string
+  descricaoProcesso?: string
+  valorProcesso?: string
+  departamentoSolicitado?: 'fin' | 'reg'
+  acionarLeggacy?: boolean
   protocolo?: string
   prazo?: string | null
   inicioInat?: string | null
@@ -186,21 +190,11 @@ export interface ProcessCompanyReference {
   status: 'active' | 'archived'
 }
 
-export interface ProcessCompanyOption extends ProcessCompanyReference {
-  status: 'active'
-}
-
-export interface ProcessCompanyOptionsPage {
-  count: number
-  next: string | null
-  previous: string | null
-  results: ProcessCompanyOption[]
-}
-
-export interface ProcessCompanyOptionsFilters {
-  search?: string
-  page?: number
-  pageSize?: number
+export interface ProcessNextTask {
+  id: string
+  sector: ProcessSector
+  text: string
+  stageTitle: string
 }
 
 /** Campos privados omitidos pela API nunca devem ser substituídos por zero. */
@@ -229,6 +223,8 @@ export interface ProcessSummaryDto {
   workflowVersion: number
   analysis: ProcessAnalysis
   permissions: ProcessPermissions
+  nextTask?: ProcessNextTask | null
+  pendingTaskCount?: number
 }
 
 /** The collection never contains business fields, tasks, or audit arrays. */
@@ -252,6 +248,9 @@ export interface ProcessFilters {
   status?: readonly ProcessStatus[]
   responsibleSector?: ProcessSector
   queueSector?: ProcessSector
+  otherSector?: ProcessSector
+  taskSector?: ProcessSector
+  ordering?: 'recent' | 'urgency'
   q?: string
   month?: string
 }
@@ -283,9 +282,25 @@ export interface ProcessIndicators {
   cancelled: number
   late: number
   waiting: number
+  dueSoon: number
+  completedThisMonth: number
+  completedThisYear: number
+  averageOverdueDays: number | null
+  maxOverdueDays: number | null
+  averageCompletionDays: number | null
+  averageOpenAgeDays: number | null
   byStatus: Record<ProcessStatus, number>
   bySector: Partial<Record<ProcessSector, number>>
   byType: Partial<Record<ProcessTypeId, number>>
+}
+
+export interface ProcessLeggacyMetric {
+  tipo: 'abertura' | 'alteracao' | 'baixa'
+  completedCount: number
+  waitingCount: number
+  averageDays: number | null
+  minDays: number | null
+  maxDays: number | null
 }
 
 export interface ProcessMovementItem {

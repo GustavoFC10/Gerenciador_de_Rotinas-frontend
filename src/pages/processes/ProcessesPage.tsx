@@ -22,6 +22,7 @@ import {
   useProcessList,
   useProcessIndicators,
   useProcessDetail,
+  useProcessLeggacyMetrics,
 } from '../../hooks/useProcessQueries'
 import {
   processQueryKeys,
@@ -41,7 +42,7 @@ import type {
   ProcessStatus,
 } from '../../types/processes'
 import { getErrorPresentation } from '../../utils/apiErrors'
-import { PROCESS_SECTORS, processMonth } from '../../utils/processPresentation'
+import { PROCESS_SECTORS, processMonth, processVersionFromEtag } from '../../utils/processPresentation'
 import '../../styles/processes.css'
 
 const emptyIndicators: ProcessIndicators = {
@@ -51,6 +52,13 @@ const emptyIndicators: ProcessIndicators = {
   cancelled: 0,
   late: 0,
   waiting: 0,
+  dueSoon: 0,
+  completedThisMonth: 0,
+  completedThisYear: 0,
+  averageOverdueDays: null,
+  maxOverdueDays: null,
+  averageCompletionDays: null,
+  averageOpenAgeDays: null,
   bySector: {},
   byType: {},
   byStatus: {
@@ -70,7 +78,7 @@ const loadingPage: ProcessPage = {
 
 export default function ProcessesPage() {
   const { activeMembership, logout, refreshSession } = useAuth()
-  const { notify } = useNotifications()
+  const { notify, dismiss } = useNotifications()
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -110,6 +118,9 @@ export default function ProcessesPage() {
     error: unknown
   } | null>(null)
   const createKey = useRef('')
+  const createAttempt = useRef<{ body: string; key: string } | null>(null)
+  const undoNotifications = useRef(new Set<string>())
+  const deletedDetailContext = useRef<string | null>(null)
   const navigationRef = useRef<HTMLElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
@@ -167,6 +178,9 @@ export default function ProcessesPage() {
         }
       : {}),
     ...(view === 'fila' && chosenSector ? { queueSector: chosenSector } : {}),
+    ...(view === 'fila' && chosenSector ? { taskSector: chosenSector } : {}),
+    ...(view === 'outrosSetores' && chosenSector ? { otherSector: chosenSector } : {}),
+    ordering: (searchParams.get('ordering') ?? (view === 'fila' || view === 'outrosSetores' ? 'urgency' : 'recent')) as ProcessFilters['ordering'],
     page: Number(searchParams.get('page') ?? 1),
     pageSize: Number(searchParams.get('pageSize') ?? 50),
   }
@@ -183,6 +197,7 @@ export default function ProcessesPage() {
       'q',
       'month',
       'responsibleSector',
+      'ordering',
       'page',
       'pageSize',
     ])
@@ -196,22 +211,24 @@ export default function ProcessesPage() {
   const listQuery = useProcessList(
     scope,
     filters,
-    ready && !filterError && isList && (view !== 'fila' || !!chosenSector),
+    ready && !filterError && isList,
   )
   const indicatorsQuery = useProcessIndicators(scope, {}, ready)
+  const filteredIndicatorsQuery = useProcessIndicators(scope, filters, ready && isList && !filterError)
+  const metricsQuery = useProcessLeggacyMetrics(scope, ready && !page)
   const queueQuery = useProcessList(
     scope,
-    { queueSector: chosenSector, pageSize: 8 },
-    ready && !page && !!chosenSector,
+    { ...(chosenSector ? { queueSector: chosenSector, taskSector: chosenSector } : { status: ['andamento', 'atrasado'] as const }), ordering: 'urgency', pageSize: 8 },
+    ready && !page,
   )
   const scheduledQuery = useProcessList(
     scope,
-    { status: ['agendado'], pageSize: 6 },
+    { status: ['agendado'], ordering: 'urgency', pageSize: 6 },
     ready && !page,
   )
   const executionQuery = useProcessList(
     scope,
-    { status: ['andamento', 'atrasado'], pageSize: 6 },
+    { ...(chosenSector ? { otherSector: chosenSector } : { status: ['andamento', 'atrasado'] as const }), ordering: 'urgency', pageSize: 6 },
     ready && !page,
   )
   const detailContext = `${scope.organizationId}:${scope.membershipId}:${processId}`
@@ -220,7 +237,7 @@ export default function ProcessesPage() {
   const detailQuery = useProcessDetail(
     scope,
     processId,
-    ready && !retainedDetailError,
+    ready && !retainedDetailError && deletedDetailContext.current !== detailContext,
   )
   const detailError = retainedDetailError ?? detailQuery.error
   const detailUnavailable =
@@ -233,6 +250,7 @@ export default function ProcessesPage() {
     queueQuery.error ??
     scheduledQuery.error ??
     executionQuery.error
+    ?? filteredIndicatorsQuery.error ?? metricsQuery.error
 
   const clearAlertData = useCallback(() => {
     for (const key of [
@@ -272,6 +290,10 @@ export default function ProcessesPage() {
   )
 
   useEffect(() => {
+    if (deletedDetailContext.current !== detailContext) deletedDetailContext.current = null
+  }, [detailContext])
+
+  useEffect(() => {
     if (
       isApiError(pendingAlertsQuery.error) &&
       pendingAlertsQuery.error.status === 403
@@ -305,6 +327,7 @@ export default function ProcessesPage() {
     setScopeDenial({ key: scopeContext, error: scopeQueryError })
     setForm(null)
     setEditingResource(null)
+    setSector(undefined)
     void queryClient.cancelQueries({ queryKey: processQueryKeys.root(scope) })
     queryClient.removeQueries({ queryKey: processQueryKeys.root(scope) })
     if (scopeQueryError.status === 403)
@@ -315,6 +338,12 @@ export default function ProcessesPage() {
     if (canReadAlerts) return
     clearAlertData()
   }, [canReadAlerts, clearAlertData])
+
+  useEffect(() => {
+    if (catalog?.permissions.delete) return
+    for (const id of undoNotifications.current) dismiss(id)
+    undoNotifications.current.clear()
+  }, [catalog?.permissions.delete, dismiss])
 
   useEffect(() => {
     if (
@@ -332,14 +361,18 @@ export default function ProcessesPage() {
 
   useEffect(() => {
     activeScope.current = scope
+    const notices = undoNotifications.current
+    setSector(undefined)
     setForm(null)
     setEditingResource(null)
     return () => {
       activeScope.current = null
+      for (const id of notices) dismiss(id)
+      notices.clear()
       void queryClient.cancelQueries({ queryKey: processQueryKeys.root(scope) })
       queryClient.removeQueries({ queryKey: processQueryKeys.root(scope) })
     }
-  }, [scope, queryClient])
+  }, [scope, queryClient, dismiss])
 
   useEffect(() => {
     const restore = (
@@ -484,6 +517,7 @@ export default function ProcessesPage() {
       params.set('responsibleSector', filters.responsibleSector)
     if (searchParams.has('pageSize'))
       params.set('pageSize', String(filters.pageSize ?? 50))
+    if (searchParams.has('ordering')) params.set('ordering', filters.ordering ?? 'recent')
     navigate(
       `${ROUTES.PROCESSES}/${view === 'fila' ? 'fila' : 'lista'}${params.size ? `?${params}` : ''}`,
       { replace: true },
@@ -543,6 +577,7 @@ export default function ProcessesPage() {
     for (const key of [
       processQueryKeys.list(scope),
       processQueryKeys.indicators(scope),
+      processQueryKeys.leggacyMetrics(scope),
       processQueryKeys.entries(scope, process.id),
       processQueryKeys.report(scope, '').slice(0, -1),
       processQueryKeys.followUps(scope),
@@ -556,6 +591,7 @@ export default function ProcessesPage() {
   }
   function openCreate() {
     createKey.current = crypto.randomUUID()
+    createAttempt.current = null
     setInitialType(catalog?.types.find((item) => item.id === type)?.id)
     setFormAccess(catalogAccess)
     setForm('create')
@@ -610,7 +646,10 @@ export default function ProcessesPage() {
     }
     let response
     try {
-      response = await processService.create(input, createKey.current)
+      const body = JSON.stringify(input)
+      if (createAttempt.current?.body !== body)
+        createAttempt.current = { body, key: crypto.randomUUID() }
+      response = await processService.create(input, createAttempt.current.key)
     } catch (error) {
       if (
         activeScope.current === scope &&
@@ -638,21 +677,53 @@ export default function ProcessesPage() {
     })
   }
   async function remove() {
-    if (!detailQuery.data) return
-    await processService.remove(detailQuery.data.id, detailQuery.data.version)
+    if (!detailQuery.data?.permissions.delete) return
+    const id = detailQuery.data.id
+    const response = await processService.remove(id, detailQuery.data.version)
     if (activeScope.current !== scope) return
+    // Prevent an active observer from recreating the removed query before navigation commits.
+    deletedDetailContext.current = detailContext
+    await queryClient.cancelQueries({ queryKey: processQueryKeys.detail(scope, id) })
+    await queryClient.cancelQueries({ queryKey: processQueryKeys.entries(scope, id) })
     queryClient.removeQueries({
-      queryKey: processQueryKeys.detail(scope, detailQuery.data.id),
+      queryKey: processQueryKeys.detail(scope, id),
     })
-    await queryClient.invalidateQueries({
-      queryKey: processQueryKeys.root(scope),
-    })
+    queryClient.removeQueries({ queryKey: processQueryKeys.entries(scope, id) })
     closeProcess()
-    notify({
+    void queryClient.invalidateQueries({
+      queryKey: processQueryKeys.root(scope),
+      predicate: query => !query.queryKey.includes('detail') && !(query.queryKey.includes('entries') && query.queryKey.includes(id)),
+    })
+    const version = processVersionFromEtag(response.etag)
+    let used = false
+    let notificationId = ''
+    const undo = async () => {
+      if (used || activeScope.current !== scope || version === null) return
+      used = true
+      dismiss(notificationId)
+      undoNotifications.current.delete(notificationId)
+      try {
+        const restored = await processService.restore(id, version)
+        if (!changed(restored.data)) return
+        notify({ tone: 'success', title: 'Processo restaurado' })
+      } catch (error) {
+        if (activeScope.current !== scope) return
+        void queryClient.invalidateQueries({ queryKey: processQueryKeys.root(scope) })
+        notify({ tone: 'error', title: 'Não foi possível desfazer a exclusão',
+          message: isApiError(error) && error.status === 409
+            ? 'A versão ou o estado do processo mudou. Os dados foram recarregados; a restauração não será repetida automaticamente.'
+            : getErrorPresentation(error).message })
+      }
+    }
+    notificationId = notify({
       tone: 'success',
       title: 'Processo excluído',
       message: 'O histórico permanece preservado no sistema.',
+      duration: version === null ? undefined : 15000,
+      dedupeKey: `process-delete:${scopeContext}:${id}`,
+      ...(version !== null ? { action: { label: 'Desfazer', onClick: () => void undo() } } : {}),
     })
+    if (version !== null) undoNotifications.current.add(notificationId)
   }
   async function leave() {
     setIsLeaving(true)
@@ -672,10 +743,10 @@ export default function ProcessesPage() {
     catalogQuery.error ??
     (isList ? filterError : null) ??
     (!processId && page !== 'movimentacoes' && page !== 'avisos'
-      ? (indicatorsQuery.error ??
+      ? (indicatorsQuery.error ?? filteredIndicatorsQuery.error ??
         (isList
           ? listQuery.error
-          : (queueQuery.error ?? scheduledQuery.error ?? executionQuery.error)))
+          : (queueQuery.error ?? scheduledQuery.error ?? executionQuery.error ?? metricsQuery.error)))
       : null)
 
   return (
@@ -796,7 +867,7 @@ export default function ProcessesPage() {
                     aria-pressed={chosenSector === key}
                     onClick={() => {
                       setSector(key)
-                      if (view === 'fila') updateSearch({ page: '' })
+                      if (view === 'fila' || view === 'outrosSetores') updateSearch({ page: '' })
                       else if (view === 'responsabilidade')
                         updateSearch({ responsibleSector: key, page: '' })
                       setDepartmentMenu(false)
@@ -1030,7 +1101,7 @@ export default function ProcessesPage() {
               (indicatorsQuery.isPending ||
                 (!isList &&
                   (scheduledQuery.isPending ||
-                    executionQuery.isPending ||
+                    executionQuery.isPending || metricsQuery.isPending ||
                     (!!chosenSector && queueQuery.isPending))))) ? (
             <div className="panel empty" role="status">
               Carregando processos…
@@ -1125,18 +1196,10 @@ export default function ProcessesPage() {
               </div>
             )
           ) : isList ? (
-            view === 'fila' && !chosenSector ? (
-              <div className="panel empty">
-                <h1>Fila indisponível</h1>
-                <p>Seu acesso não autoriza execução em um setor.</p>
-                <button className="btn" onClick={() => openList('todos')}>
-                  Ver todos os processos
-                </button>
-              </div>
-            ) : (
               <>
                 <ProcessList
                   data={listQuery.data ?? loadingPage}
+                  indicators={filteredIndicatorsQuery.data}
                   catalog={catalog}
                   filters={filters}
                   sector={chosenSector}
@@ -1182,7 +1245,6 @@ export default function ProcessesPage() {
                     />
                   )}
               </>
-            )
           ) : (
             <ProcessOverview
               queue={queueQuery.data}
@@ -1190,11 +1252,15 @@ export default function ProcessesPage() {
               execution={executionQuery.data!}
               catalog={catalog}
               indicators={indicators}
+              leggacyMetrics={metricsQuery.data}
               sector={chosenSector}
               timeZone={timeZone}
               onOpen={openProcess}
               onList={openList}
               onSector={setSector}
+              onQueueSector={(key) => {
+                navigate(`${ROUTES.PROCESSES}/lista?situacao=responsabilidade&responsibleSector=${key}`)
+              }}
             />
           )}
         </main>

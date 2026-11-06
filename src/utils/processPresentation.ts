@@ -75,6 +75,19 @@ export function formatBRL(value: string | number | null | undefined) {
   return formatProcessMoney(value)
 }
 
+export function formatProcessDays(value: number | null | undefined) {
+  if (value == null) return '—'
+  if (value > 0 && value < 1) return 'Menos de 1 dia'
+  return `${value.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${value === 1 ? 'dia' : 'dias'}`
+}
+
+/** DELETE returns the version after deletion as a strong, quoted ETag. */
+export function processVersionFromEtag(etag: string | null | undefined): number | null {
+  if (!etag || !/^"[1-9]\d*"$/.test(etag)) return null
+  const version = Number(etag.slice(1, -1))
+  return Number.isSafeInteger(version) ? version : null
+}
+
 export function processAge(process: ProcessSummary) {
   return Math.max(
     0,
