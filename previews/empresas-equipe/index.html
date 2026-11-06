@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Empresas e Equipe · Estudo de interface</title>
+    <link rel="stylesheet" href="preview.css" />
+    <script src="preview.js" defer></script>
+  </head>
+  <body>
+    <a href="#directory" class="skip">Ir para os registros</a>
+    <aside class="study" aria-label="Controles da preview">
+      <div class="study-title">
+        <span class="study-dot"></span>
+        <div>
+          <strong>Estudo de interface</strong
+          ><span>Empresas + Equipe · dados fictícios</span>
+        </div>
+      </div>
+      <div class="layout-options" aria-label="Direção visual">
+        <button id="layout-table" data-layout="tabela">
+          <b>A</b> Diretório <span class="recommended">Recomendada</span>
+        </button>
+        <button id="layout-split" data-layout="ficha">
+          <b>B</b> Lista e ficha
+        </button>
+      </div>
+      <div class="study-actions">
+        <button id="comparison" class="text-button">Comparar</button
+        ><a href="PLANO.md" class="study-plan">Plano ↗</a
+        ><button
+          id="theme"
+          class="icon-button"
+          aria-label="Alternar tema"
+        ></button>
+      </div>
+    </aside>
+    <header class="workspace">
+      <div class="workspace-inner">
+        <div class="organization">
+          <span class="brand-mark">J</span>
+          <div><strong>Jaralcon</strong><span>Escritório contábil</span></div>
+        </div>
+        <nav class="module-nav" aria-label="Módulos em estudo">
+          <button id="module-companies" data-module="empresas"></button
+          ><button id="module-team" data-module="equipe"></button>
+        </nav>
+        <div class="workspace-user">
+          <span class="workspace-caption">Mariana Costa</span
+          ><span class="avatar small">MC</span>
+        </div>
+      </div>
+    </header>
+    <main id="directory" tabindex="-1">
+      <div class="breadcrumb">
+        <span class="breadcrumb-grid">▦</span> Áreas de trabalho <span>/</span>
+        <strong id="breadcrumb-module"></strong>
+      </div>
+      <header class="page-heading">
+        <div>
+          <div class="title-line">
+            <h1 id="page-title"></h1>
+            <span id="total-count" class="count"></span>
+          </div>
+          <p id="page-description"></p>
+        </div>
+        <button id="create" class="button primary"></button>
+      </header>
+      <section class="directory-shell" aria-label="Diretório de registros">
+        <div class="toolbar">
+          <label class="search"
+            ><span id="search-icon"></span
+            ><input id="search" type="search" autocomplete="off" /><kbd
+              >/</kbd
+            ></label
+          >
+          <div class="toolbar-right">
+            <select id="status" aria-label="Filtrar situação">
+              <option value="all">Todas as situações</option>
+              <option value="active">Ativos</option>
+              <option value="pending">Convites pendentes</option>
+              <option value="inactive">Inativos</option>
+              <option value="suspended">Suspensos</option></select
+            ><label class="sort-control"
+              ><span id="sort-icon"></span
+              ><select id="sort" aria-label="Ordenar registros">
+                <option value="name">Nome: A → Z</option>
+                <option value="code">Código crescente</option>
+              </select></label
+            >
+          </div>
+        </div>
+        <div class="directory-body">
+          <div class="records-area">
+            <div id="record-list"></div>
+            <footer class="list-footer">
+              <span id="results-count"></span
+              ><span class="list-hint"
+                >Selecione um registro para consultar</span
+              >
+            </footer>
+          </div>
+          <section
+            id="inline-detail"
+            class="inline-detail"
+            aria-label="Ficha selecionada"
+          ></section>
+        </div>
+      </section>
+      <p class="scope-note" id="scope-note"></p>
+    </main>
+    <div id="overlay" hidden></div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+      <div class="confirm-content">
+        <span id="confirm-icon"></span>
+        <h2 id="confirm-title"></h2>
+        <p id="confirm-description"></p>
+        <div class="confirm-actions">
+          <button class="button" id="confirm-cancel">Continuar editando</button
+          ><button class="button primary" id="confirm-ok">
+            Descartar alterações
+          </button>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="comparison-dialog" aria-labelledby="compare-title">
+      <div class="comparison-heading">
+        <div>
+          <span class="eyebrow">Duas estruturas, o mesmo sistema</span>
+          <h2 id="compare-title">Qual combina com seu trabalho?</h2>
+        </div>
+        <button
+          class="icon-button"
+          id="close-comparison"
+          aria-label="Fechar comparação"
+        >
+          ×
+        </button>
+      </div>
+      <div class="comparison-cards">
+        <article>
+          <div class="comparison-caption">
+            <b>A · Diretório</b><span class="recommended">Recomendada</span>
+          </div>
+          <img
+            src="images/empresas-a.png"
+            alt="Opção A: empresas em tabela com colunas alinhadas"
+          />
+          <h3>Encontrar e comparar</h3>
+          <p>
+            A lista ocupa toda a largura. Ao abrir um cadastro, a ficha desliza
+            pela direita. Mais espaço para comparar código, CNPJ, papel e
+            situação.
+          </p>
+          <button class="button primary" data-choose="tabela">
+            Explorar opção A
+          </button>
+        </article>
+        <article>
+          <div class="comparison-caption">
+            <b>B · Lista e ficha</b><span class="subtle">Alternativa</span>
+          </div>
+          <img
+            src="images/empresas-b.png"
+            alt="Opção B: lista compacta à esquerda com ficha fixa à direita"
+          />
+          <h3>Revisar em sequência</h3>
+          <p>
+            A ficha fica ao lado da lista. Facilita alternar entre registros;
+            mostra menos colunas de uma vez e precisa de mais largura.
+          </p>
+          <button class="button" data-choose="ficha">Explorar opção B</button>
+        </article>
+      </div>
+      <p class="comparison-footnote">
+        As duas opções usam os mesmos campos, ações, temas e editor de acessos.
+        No celular, a ficha ocupa a tela.
+      </p>
+    </dialog>
+  </body>
+</html>

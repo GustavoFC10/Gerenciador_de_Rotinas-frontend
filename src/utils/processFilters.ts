@@ -51,6 +51,12 @@ export const PROCESS_VIEWS: Record<
   fila: {
     title: 'Minha fila',
     description: 'Ações liberadas para execução pelo seu setor.',
+    statuses: ['andamento', 'atrasado'],
+  },
+  outrosSetores: {
+    title: 'Com outros setores',
+    description: 'Processos em execução sem pendências do setor selecionado.',
+    statuses: ['andamento', 'atrasado'],
   },
 }
 

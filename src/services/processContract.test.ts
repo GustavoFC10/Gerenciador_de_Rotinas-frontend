@@ -3,6 +3,8 @@ import openapi from '../../openapi.yml?raw'
 import {
   makeProcessTestResource,
   processTestCatalog,
+  processTestExtraIndicators,
+  processTestLeggacyMetrics,
 } from '../components/processes/processTestFixtures'
 import {
   normalizeProcessFilters,
@@ -10,6 +12,7 @@ import {
   parseProcessDetail,
   parseProcessEntriesPage,
   parseProcessIndicators,
+  parseProcessLeggacyMetrics,
   parseProcessPage,
   parseProcessSummary,
   ProcessContractError,
@@ -50,6 +53,56 @@ function summaryFixture(): Record<string, unknown> {
 }
 
 describe('Processos generated OpenAPI revision 2', () => {
+  it('accepts the eleven types, keeping outro and outros distinct in revision 2', () => {
+    const catalog = parseProcessCatalog(processTestCatalog)
+    expect(catalog.types).toHaveLength(11)
+    expect(catalog.types.find(type => type.id === 'outros')?.sigla).toBe('OTS')
+    expect(catalog.types.find(type => type.id === 'outro')?.nome).not.toBe('Outros')
+    for (const tipo of enumValues('ProcessCreateTipoEnum'))
+      expect(parseProcessSummary({ ...summaryFixture(), tipo }).tipo).toBe(tipo)
+  })
+
+  it('requires task projections only when taskSector was requested, including null/zero', () => {
+    const item = summaryFixture()
+    const page = (record: object) => ({ count: 1, next: null, previous: null, results: [record] })
+    expect(parseProcessPage(page(item)).results[0]).not.toHaveProperty('nextTask')
+    expect(() => parseProcessPage(page(item), null, 'fin')).toThrow('nextTask')
+    const nextTask = { id: 'ot1', sector: 'fin', text: 'Executar atividade', stageTitle: 'Atividade' }
+    expect(parseProcessPage(page({ ...item, nextTask, pendingTaskCount: 3 }), null, 'fin').results[0]?.pendingTaskCount).toBe(3)
+    expect(() => parseProcessPage(page({ ...item, nextTask, pendingTaskCount: 3 }))).toThrow('sem taskSector')
+    expect(() => parseProcessPage(page({ ...item, nextTask, pendingTaskCount: 3 }), null, 'reg')).toThrow()
+    expect(() => parseProcessSummary({ ...item, nextTask })).toThrow('pendingTaskCount')
+    expect(() => parseProcessSummary({ ...item, nextTask: null, pendingTaskCount: 1 })).toThrow('pendingTaskCount')
+    for (const status of ['agendado', 'concluido', 'cancelado']) {
+      expect(parseProcessPage(page({ ...item, status, nextTask: null, pendingTaskCount: 0 }), null, 'fin').results[0]?.nextTask).toBeNull()
+      expect(() => parseProcessPage(page({ ...item, status, nextTask, pendingTaskCount: 1 }), null, 'fin')).toThrow()
+    }
+  })
+
+  it('keeps the operational description public while rejecting an unauthorized Outros value', () => {
+    const detail = makeProcessTestResource({ tipo: 'outros', descricaoProcesso: 'Atividade operacional', departamentoSolicitado: 'reg', acionarLeggacy: true,
+      permissions: { ...processTestCatalog.permissions, viewFinancial: false, create: false } })
+    expect(parseProcessDetail(detail).descricaoProcesso).toBe('Atividade operacional')
+    expect(parseProcessDetail(detail)).not.toHaveProperty('valorProcesso')
+    expect(() => parseProcessDetail({ ...detail, valorProcesso: '0.00' })).toThrow('conteúdo confidencial')
+  })
+
+  it('validates extra aggregate fields without converting null to zero or supplying missing fields', () => {
+    const indicators = { ...processTestExtraIndicators, total: 0, active: 0, completed: 0, cancelled: 0, waiting: 0, late: 0,
+      byStatus: { andamento: 0, atrasado: 0, agendado: 0, concluido: 0, cancelado: 0 }, bySector: {}, byType: { outros: 0 } }
+    expect(parseProcessIndicators(indicators).averageCompletionDays).toBeNull()
+    expect(parseProcessIndicators({ ...indicators, averageCompletionDays: 0 }).averageCompletionDays).toBe(0)
+    for (const field of Object.keys(processTestExtraIndicators)) {
+      const incomplete = { ...indicators } as Record<string, unknown>
+      delete incomplete[field]
+      expect(() => parseProcessIndicators(incomplete), field).toThrow(ProcessContractError)
+    }
+    expect(parseProcessLeggacyMetrics(processTestLeggacyMetrics)[0]?.averageDays).toBeNull()
+    expect(() => parseProcessLeggacyMetrics([...processTestLeggacyMetrics, { ...processTestLeggacyMetrics[0], tipo: 'outros' }])).toThrow()
+    expect(() => parseProcessLeggacyMetrics(processTestLeggacyMetrics.slice(0, 2))).toThrow()
+    expect(() => parseProcessLeggacyMetrics(processTestLeggacyMetrics.map(item => ({ ...item, averageDays: -1 })))).toThrow()
+  })
+
   it('declara resumo paginado e histórico separado no endpoint v1', () => {
     expect(schemaBlock('PaginatedProcessSummaryList')).toContain(
       "$ref: '#/components/schemas/ProcessSummary'",
@@ -251,6 +304,7 @@ describe('Processos generated OpenAPI revision 2', () => {
       }),
     ).toEqual({
       status: ['agendado', 'atrasado'],
+      ordering: 'recent',
       q: 'Empresa',
       page: 1,
       pageSize: 50,

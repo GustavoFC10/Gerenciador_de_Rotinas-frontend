@@ -58,6 +58,24 @@ async function openMore() {
 }
 
 describe('ProcessList UX', () => {
+  it('labels collapsible groups as current-page counts while keeping API pagination and every record', async () => {
+    const results = [makeProcessTestResource({ id: 'a' }), makeProcessTestResource({ id: 'b', status: 'concluido', concluidoEm: '2026-11-01T01:00:00Z' }), makeProcessTestResource({ id: 'c', status: 'cancelado' })]
+    await render({ data: { count: 127, next: '?page=2', previous: null, results }, view: 'todos', filters: { ordering: 'urgency' } })
+    const grouping = host.querySelector<HTMLSelectElement>('select[aria-label="Agrupar resultados"]')!
+    await act(async () => { grouping.value = 'completion'; grouping.dispatchEvent(new Event('change', { bubbles: true })) })
+    expect(host.textContent).toContain('Grupos desta página')
+    expect(host.textContent).toContain('127 processos nesta lista')
+    expect(host.textContent).toContain('Exibindo 1–3 de 127')
+    expect(host.textContent).toContain('outubro de 2026')
+    expect(host.querySelectorAll('.process-group')).toHaveLength(3)
+    expect(host.querySelectorAll('[data-process-id]')).toHaveLength(3)
+    expect(button('Próxima página')?.disabled).toBe(false)
+    const group = host.querySelector<HTMLDetailsElement>('.process-group')!
+    group.open = false
+    expect(host.querySelectorAll('[data-process-id]')).toHaveLength(3)
+    expect(props.onFilters).not.toHaveBeenCalled()
+  })
+
   it('keeps search focus and raw spacing while a new query loads without reporting false zero results', async () => {
     await render({ filters: { q: 'Empresa' }, searchValue: 'Empresa' })
     const search = host.querySelector<HTMLInputElement>(

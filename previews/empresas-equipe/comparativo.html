@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Empresas e Equipe · Comparação das propostas</title>
+    <style>
+      :root {
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        color-scheme: light;
+        color: #192638;
+        background: #f5f7fa;
+        font-synthesis: none;
+        line-height: 1.6;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      a {
+        color: #2159cf;
+        text-underline-offset: 4px;
+      }
+      a:focus-visible {
+        outline: 3px solid #2563eb;
+        outline-offset: 5px;
+        border-radius: 3px;
+      }
+      .skip {
+        position: absolute;
+        top: -100px;
+        left: 20px;
+        z-index: 2;
+        padding: 12px 18px;
+        background: #fff;
+      }
+      .skip:focus {
+        top: 10px;
+      }
+      .masthead {
+        background: #fff;
+        border-bottom: 1px solid #e4e9f0;
+      }
+      .masthead-inner {
+        max-width: 1320px;
+        margin: auto;
+        padding: 20px 40px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        background: #2563eb;
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+      }
+      .brand strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 650;
+      }
+      .brand small {
+        display: block;
+        color: #627188;
+        font-size: 12px;
+      }
+      .masthead nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 22px;
+        font-size: 13px;
+      }
+      main {
+        max-width: 1320px;
+        margin: auto;
+        padding: 54px 40px 60px;
+      }
+      .eyebrow {
+        margin: 0 0 12px;
+        color: #2563eb;
+        font-size: 12px;
+        font-weight: 650;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0;
+        max-width: 790px;
+        font-size: clamp(30px, 3.4vw, 46px);
+        line-height: 1.15;
+        letter-spacing: -0.035em;
+        font-weight: 650;
+      }
+      .intro {
+        margin: 20px 0 0;
+        max-width: 760px;
+        font-size: 16px;
+        color: #627188;
+      }
+      .shared {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 28px 0 36px;
+        padding: 0;
+        list-style: none;
+      }
+      .shared li {
+        padding: 5px 12px;
+        border: 1px solid #dfe6ee;
+        border-radius: 20px;
+        background: #fff;
+        color: #516177;
+        font-size: 12px;
+      }
+      .options {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+        align-items: start;
+      }
+      .option {
+        border: 1px solid #d7dfe9;
+        background: #fff;
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .option.recommended {
+        border-color: #adc6f7;
+      }
+      .option-heading {
+        padding: 26px 26px 23px;
+      }
+      .option-title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+      }
+      .letter {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        background: #eff5ff;
+        color: #2563eb;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      h2 {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: -0.025em;
+        line-height: 1.25;
+        font-weight: 650;
+      }
+      .badge {
+        display: inline-block;
+        border-radius: 20px;
+        padding: 3px 9px;
+        color: #2451ac;
+        background: #eff5ff;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .option-heading p {
+        margin: 16px 0 0;
+        font-size: 14px;
+        color: #627188;
+      }
+      .screens {
+        display: grid;
+        gap: 20px;
+        padding: 22px 18px;
+        background: #f8fafc;
+        border-block: 1px solid #e4e9f0;
+      }
+      figure {
+        margin: 0;
+        min-width: 0;
+      }
+      figure > a {
+        display: block;
+        border-radius: 6px;
+      }
+      img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+      }
+      .screens img {
+        width: 100%;
+        border: 1px solid #dfe6ee;
+        border-radius: 6px;
+      }
+      figcaption {
+        margin: 9px 2px 0;
+        font-size: 12px;
+        color: #627188;
+      }
+      .option-bottom {
+        padding: 22px 26px 26px;
+      }
+      .tradeoff {
+        margin: 0 0 20px;
+        font-size: 13px;
+        color: #627188;
+      }
+      .tradeoff strong {
+        color: #34455d;
+        font-weight: 650;
+      }
+      .links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .button {
+        display: inline-flex;
+        min-height: 44px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid #d7dfe9;
+        border-radius: 8px;
+        padding: 10px 15px;
+        color: #34455d;
+        background: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .button:hover {
+        background: #f5f8fc;
+      }
+      .button.primary {
+        border-color: #2563eb;
+        color: #fff;
+        background: #2563eb;
+      }
+      .button.primary:hover {
+        background: #1d4ed8;
+      }
+      .access-section {
+        margin-top: 58px;
+      }
+      .section-intro {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-bottom: 22px;
+      }
+      .section-intro p {
+        color: #627188;
+        max-width: 680px;
+        font-size: 14px;
+        margin: 12px 0 0;
+      }
+      .access-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 244px;
+        gap: 24px;
+        align-items: start;
+        background: #eaf0f7;
+        padding: 28px;
+        border-radius: 14px;
+        border: 1px solid #dfe6ee;
+      }
+      .access-grid img {
+        width: 100%;
+        border-radius: 7px;
+        border: 1px solid #d7dfe9;
+      }
+      .access-grid figcaption {
+        color: #516177;
+      }
+      .access-points {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 28px;
+        margin-top: 25px;
+      }
+      .access-points h3 {
+        font-size: 14px;
+        font-weight: 650;
+        margin: 0 0 6px;
+      }
+      .access-points p {
+        margin: 0;
+        color: #627188;
+        font-size: 13px;
+      }
+      .sources {
+        margin-top: 52px;
+        padding-top: 28px;
+        border-top: 1px solid #dfe6ee;
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 32px;
+      }
+      .sources h2 {
+        font-size: 17px;
+      }
+      .sources p {
+        margin: 10px 0 0;
+        color: #627188;
+        font-size: 13px;
+      }
+      .sources ul {
+        padding: 0;
+        margin: 0;
+        list-style: none;
+        display: grid;
+        gap: 12px;
+        font-size: 13px;
+      }
+      .sources li span {
+        display: block;
+        margin-top: 2px;
+        color: #627188;
+      }
+      footer {
+        max-width: 1320px;
+        margin: auto;
+        padding: 0 40px 30px;
+        color: #627188;
+        font-size: 12px;
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      @media (max-width: 900px) {
+        .masthead-inner {
+          padding: 18px 24px;
+        }
+        main {
+          padding: 36px 24px 44px;
+        }
+        .options {
+          gap: 18px;
+        }
+        .option-heading,
+        .option-bottom {
+          padding: 22px 20px;
+        }
+        .option-title {
+          gap: 9px;
+        }
+        .option-title h2 {
+          font-size: 19px;
+        }
+        .access-grid {
+          grid-template-columns: minmax(0, 1fr) 190px;
+          padding: 20px;
+          gap: 20px;
+        }
+        footer {
+          padding-inline: 24px;
+        }
+      }
+      @media (max-width: 680px) {
+        .masthead-inner {
+          padding: 16px;
+          align-items: start;
+        }
+        .masthead nav {
+          gap: 10px;
+          flex-direction: column;
+          text-align: right;
+        }
+        main {
+          padding: 32px 16px 36px;
+        }
+        .intro {
+          font-size: 14px;
+        }
+        .shared {
+          margin-top: 22px;
+          margin-bottom: 28px;
+          gap: 7px;
+        }
+        .shared li {
+          font-size: 11px;
+        }
+        .options,
+        .sources,
+        .access-points,
+        .access-grid {
+          grid-template-columns: 1fr;
+        }
+        .options {
+          gap: 24px;
+        }
+        .access-section {
+          margin-top: 40px;
+        }
+        .access-grid {
+          padding: 16px;
+          gap: 24px;
+        }
+        .access-grid figure:last-child {
+          max-width: 250px;
+          margin-inline: auto;
+        }
+        .access-points {
+          gap: 18px;
+        }
+        .sources {
+          margin-top: 36px;
+          gap: 20px;
+        }
+        footer {
+          padding-inline: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#propostas">Ir para as propostas</a>
+    <header class="masthead">
+      <div class="masthead-inner">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">J</span>
+          <div>
+            <strong>Jaralcon</strong><small>Estudo de Empresas e Equipe</small>
+          </div>
+        </div>
+        <nav aria-label="Materiais do estudo">
+          <a href="index.html">Abrir preview interativa</a
+          ><a href="PLANO.md">Ler o plano</a>
+        </nav>
+      </div>
+    </header>
+    <main id="propostas">
+      <p class="eyebrow">Duas propostas · Uma estrutura comum</p>
+      <h1>Mais clareza para encontrar.<br />Mais espaço para agir.</h1>
+      <p class="intro">
+        Empresas e Equipe passam a falar a mesma linguagem. Compare a consulta
+        em tabela com a ficha permanente e explore os mesmos fluxos nas duas
+        opções.
+      </p>
+      <ul class="shared" aria-label="Pontos comuns das propostas">
+        <li>Uma ação principal por tela</li>
+        <li>Consulta antes da edição</li>
+        <li>Busca e contexto preservados</li>
+        <li>Acessos por seleção direta</li>
+      </ul>
+      <div class="options">
+        <article class="option recommended" aria-labelledby="option-a">
+          <div class="option-heading">
+            <div class="option-title">
+              <span class="letter" aria-hidden="true">A</span>
+              <h2 id="option-a">Diretório e ficha lateral</h2>
+              <span class="badge">Recomendada</span>
+            </div>
+            <p>
+              A lista aproveita toda a largura. A ficha aparece quando você
+              precisa consultar ou editar um registro.
+            </p>
+          </div>
+          <div class="screens">
+            <figure>
+              <a
+                href="images/empresas-a.png"
+                aria-label="Ampliar imagem de Empresas na opção A"
+                ><img
+                  src="images/empresas-a.png"
+                  alt="Diretório de Empresas com nome, código, CNPJ e e-mail em colunas alinhadas."
+                  width="1440"
+                  height="1000"
+              /></a>
+              <figcaption>
+                Empresas · leitura comparável entre registros
+              </figcaption>
+            </figure>
+            <figure>
+              <a
+                href="images/equipe-a.png"
+                aria-label="Ampliar imagem de Equipe na opção A"
+                ><img
+                  src="images/equipe-a.png"
+                  alt="Diretório de Equipe com identidade, papel na organização, acessos e situação."
+                  width="1440"
+                  height="1000"
+                  loading="lazy"
+              /></a>
+              <figcaption>
+                Equipe · pessoa, papel e situação bem separados
+              </figcaption>
+            </figure>
+          </div>
+          <div class="option-bottom">
+            <p class="tradeoff">
+              <strong>Para localizar e comparar.</strong> Mantém mais colunas
+              visíveis. A ficha fica sobre parte da lista durante a consulta.
+            </p>
+            <div class="links">
+              <a
+                class="button primary"
+                href="index.html?modulo=empresas&amp;layout=tabela"
+                >Explorar Empresas <span aria-hidden="true">↗</span></a
+              ><a
+                class="button"
+                href="index.html?modulo=equipe&amp;layout=tabela"
+                >Explorar Equipe <span aria-hidden="true">↗</span></a
+              >
+            </div>
+          </div>
+        </article>
+        <article class="option" aria-labelledby="option-b">
+          <div class="option-heading">
+            <div class="option-title">
+              <span class="letter" aria-hidden="true">B</span>
+              <h2 id="option-b">Lista e ficha fixa</h2>
+              <span class="badge">Alternativa</span>
+            </div>
+            <p>
+              Lista compacta à esquerda, ficha ao lado. A pessoa ou empresa
+              selecionada continua em evidência.
+            </p>
+          </div>
+          <div class="screens">
+            <figure>
+              <a
+                href="images/empresas-b.png"
+                aria-label="Ampliar imagem de Empresas na opção B"
+                ><img
+                  src="images/empresas-b.png"
+                  alt="Lista compacta de Empresas à esquerda com os dados da empresa selecionada à direita."
+                  width="1440"
+                  height="1000"
+              /></a>
+              <figcaption>
+                Empresas · contexto e cadastro lado a lado
+              </figcaption>
+            </figure>
+            <figure>
+              <a
+                href="images/equipe-b.png"
+                aria-label="Ampliar imagem de Equipe na opção B"
+                ><img
+                  src="images/equipe-b.png"
+                  alt="Lista de pessoas à esquerda com o perfil do integrante selecionado ao lado."
+                  width="1440"
+                  height="1000"
+                  loading="lazy"
+              /></a>
+              <figcaption>Equipe · alternância rápida entre pessoas</figcaption>
+            </figure>
+          </div>
+          <div class="option-bottom">
+            <p class="tradeoff">
+              <strong>Para revisar em sequência.</strong> A ficha permanece
+              aberta. A lista mostra menos dados e precisa de mais largura
+              disponível.
+            </p>
+            <div class="links">
+              <a
+                class="button primary"
+                href="index.html?modulo=empresas&amp;layout=ficha"
+                >Explorar Empresas <span aria-hidden="true">↗</span></a
+              ><a
+                class="button"
+                href="index.html?modulo=equipe&amp;layout=ficha"
+                >Explorar Equipe <span aria-hidden="true">↗</span></a
+              >
+            </div>
+          </div>
+        </article>
+      </div>
+      <section class="access-section" aria-labelledby="access-title">
+        <div class="section-intro">
+          <div>
+            <p class="eyebrow">A mesma melhoria nas duas opções</p>
+            <h2 id="access-title">Selecione onde a pessoa trabalha</h2>
+            <p>
+              Em Processos, escolha os setores permitidos. Os cargos descritivos
+              ficam em detalhes opcionais. Em Rotinas, selecione os
+              departamentos e ajuste o nível de cada um.
+            </p>
+          </div>
+          <a
+            class="button"
+            href="index.html?modulo=equipe&amp;layout=ficha&amp;registro=ana&amp;aba=acessos"
+            >Explorar acessos <span aria-hidden="true">↗</span></a
+          >
+        </div>
+        <div class="access-grid">
+          <figure>
+            <a
+              href="images/equipe-selecao-setores.png"
+              aria-label="Ampliar editor de acessos no computador"
+              ><img
+                src="images/equipe-selecao-setores.png"
+                alt="Editor de acessos com caixas de seleção para Diretoria, Financeiro e Regularidade e seleção de departamentos de Rotinas."
+                width="1440"
+                height="1000"
+                loading="lazy"
+            /></a>
+            <figcaption>
+              No computador · setores e departamentos em uma única ficha
+            </figcaption>
+          </figure>
+          <figure>
+            <a
+              href="images/equipe-selecao-setores-mobile.png"
+              aria-label="Ampliar editor de acessos no celular"
+              ><img
+                src="images/equipe-selecao-setores-mobile.png"
+                alt="Editor de acessos em tela de celular, com a ficha ocupando a largura disponível."
+                width="390"
+                height="844"
+                loading="lazy"
+            /></a>
+            <figcaption>
+              No celular · uma coluna, os mesmos controles
+            </figcaption>
+          </figure>
+        </div>
+        <div class="access-points">
+          <div>
+            <h3>Setores com seleção direta</h3>
+            <p>
+              Sem um dropdown de acesso para cada setor. Nenhum marcado
+              significa sem acesso a Processos.
+            </p>
+          </div>
+          <div>
+            <h3>Cargo fica opcional</h3>
+            <p>
+              Texto descritivo separado da permissão. Só aparece quando você
+              abre os detalhes.
+            </p>
+          </div>
+          <div>
+            <h3>Revisão antes de salvar</h3>
+            <p>
+              Alterações ficam no editor até a confirmação. Cancelar preserva o
+              cadastro anterior.
+            </p>
+          </div>
+        </div>
+      </section>
+      <section class="sources" aria-labelledby="sources-title">
+        <div>
+          <h2 id="sources-title">Referências do estudo</h2>
+          <p>Padrões de produtos reais, adaptados ao trabalho do escritório.</p>
+        </div>
+        <ul>
+          <li>
+            <a
+              href="https://attio.com/help/reference/managing-your-data/records/create-and-view-records"
+              >Attio · registros e fichas</a
+            ><span
+              >Diretório comum a empresas e pessoas, consulta sem perder a
+              lista.</span
+            >
+          </li>
+          <li>
+            <a href="https://linear.app/docs/members-roles"
+              >Linear · membros e papéis</a
+            ><span>Identidade, papel e situação com funções distintas.</span>
+          </li>
+          <li>
+            <a
+              href="https://www.notion.com/help/add-members-admins-guests-and-groups"
+              >Notion · membros e convites</a
+            ><span
+              >Convite compacto, centrado em quem entra e com qual papel.</span
+            >
+          </li>
+        </ul>
+      </section>
+    </main>
+    <footer>
+      <span>Estudo visual · dados fictícios · 4 de novembro de 2026</span
+      ><span>As duas propostas se adaptam ao celular.</span>
+    </footer>
+  </body>
+</html>

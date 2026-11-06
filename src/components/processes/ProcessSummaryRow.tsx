@@ -46,6 +46,10 @@ export default function ProcessSummaryRow({
     process.status === 'agendado'
       ? `Libera em ${formatProcessDate(analysis.releaseDate, timeZone)}`
       : ''
+  const nextTask = process.nextTask && <span className="process-next-task">
+    <strong>{process.nextTask.text}</strong>
+    <small>{process.nextTask.stageTitle}{process.pendingTaskCount! > 1 ? ` · +${process.pendingTaskCount! - 1} tarefas` : ''}</small>
+  </span>
   if (compact)
     return (
       <button
@@ -57,6 +61,7 @@ export default function ProcessSummaryRow({
         <span className="t">
           <b>{process.empresa}</b>
           <small>{step}</small>
+          {nextTask}
           <ProcessTypeBadge catalog={catalog} tipo={process.tipo} />
           {responsible && (
             <span className="waiting">Responsável: {responsible}</span>
@@ -89,6 +94,7 @@ export default function ProcessSummaryRow({
         </small>
       </span>
       <span className="st">
+        {nextTask}
         <small>
           {step}
           {release && ` · ${release}`}

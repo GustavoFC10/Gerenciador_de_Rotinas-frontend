@@ -4280,3 +4280,21 @@
 .processes-module a.user:hover {
   background: var(--nav-hover);
 }
+
+.processes-module .process-indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 18px;
+}
+.processes-module .process-indicator-grid dt { font-size: 12px; color: var(--text-muted); }
+.processes-module .process-indicator-grid dd { margin: 6px 0 0; font-weight: 650; }
+.processes-module .process-group-note { padding: 12px 18px; font-size: 12px; color: var(--text-muted); }
+.processes-module .process-group > summary { cursor: pointer; padding: 14px 18px; font-weight: 600; }
+.processes-module .process-group + .process-group,
+.processes-module .process-leggacy-metric + .process-leggacy-metric { border-top: 1px solid var(--divider); }
+.processes-module .process-leggacy-metric h3 { margin: 16px 18px 0; }
+.processes-module .process-next-task { display: grid; gap: 4px; white-space: normal; }
+.processes-module .process-next-task strong { font-size: 13px; font-weight: 600; }
+.processes-module button.drow { width: 100%; text-align: left; }

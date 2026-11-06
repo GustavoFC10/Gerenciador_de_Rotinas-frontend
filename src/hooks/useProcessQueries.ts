@@ -5,8 +5,7 @@ import { processService } from '../services/processService'
 import { ProcessContractError } from '../services/processContract'
 import type {
   ProcessCatalog,
-  ProcessCompanyOptionsPage,
-  ProcessCompanyOptionsFilters,
+  ProcessLeggacyMetric,
   ProcessFilters,
   ProcessIndicators,
   ProcessPage,
@@ -42,19 +41,12 @@ export function useProcessCatalog(
   })
 }
 
-export function useProcessCompanyOptions(
-  scope: OrganizationQueryScope,
-  filters: ProcessCompanyOptionsFilters,
-  enabled: boolean,
-) {
-  return useQuery<ProcessCompanyOptionsPage, Error>({
+export function useProcessLeggacyMetrics(scope: OrganizationQueryScope, enabled: boolean) {
+  return useQuery<ProcessLeggacyMetric[], Error>({
     ...options,
     enabled,
-    queryKey: processQueryKeys.companyOptions(scope, filters),
-    queryFn: ({ signal }) =>
-      processService
-        .companyOptions(filters, signal)
-        .then((response) => response.data),
+    queryKey: processQueryKeys.leggacyMetrics(scope),
+    queryFn: ({ signal }) => processService.leggacyMetrics({}, signal).then(response => response.data),
   })
 }
 

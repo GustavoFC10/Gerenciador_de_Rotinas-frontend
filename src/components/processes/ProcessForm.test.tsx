@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { describe, expect, it, vi } from 'vitest'
-import { processService } from '../../services/processService'
 import ProcessForm from './ProcessForm'
 import { processTestCatalog } from './processTestFixtures'
 
@@ -25,27 +24,6 @@ describe('ProcessForm', () => {
         .fn()
         .mockRejectedValueOnce(new Error('Conexão interrompida'))
         .mockResolvedValueOnce(undefined)
-      vi.spyOn(processService, 'companyOptions').mockResolvedValue({
-        data: {
-          count: 1,
-          next: null,
-          previous: null,
-          results: [
-            {
-              id: '00000000-0000-4000-8000-000000000001',
-              code: 'EMP-01',
-              name: 'Empresa Teste',
-              legalName: 'Empresa Teste Ltda.',
-              cnpj: '12345678000195',
-              status: 'active',
-            },
-          ],
-        },
-        status: 200,
-        headers: new Headers(),
-        etag: null,
-        requestId: null,
-      })
       try {
         await act(async () =>
           root.render(
@@ -63,7 +41,6 @@ describe('ProcessForm', () => {
         expect(host.inert).toBe(true)
         const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
         expect(host.contains(dialog)).toBe(false)
-        expect(processService.companyOptions).not.toHaveBeenCalled()
         expect(dialog.querySelector('input[type="search"]')).toBeNull()
         const name = dialog.querySelector<HTMLInputElement>(
           'input[id$="-empresa"]',

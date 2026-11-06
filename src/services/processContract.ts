@@ -6,8 +6,7 @@ import type {
   ProcessAlertRecipientFilters,
   ProcessAlertRecipientPage,
   ProcessCatalog,
-  ProcessCompanyOptionsFilters,
-  ProcessCompanyOptionsPage,
+  ProcessLeggacyMetric,
   ProcessEntriesFilters,
   ProcessEntriesPage,
   ProcessFilters,
@@ -19,6 +18,7 @@ import type {
   ProcessPage,
   ProcessResource,
   ProcessSummary,
+  ProcessSector,
 } from '../types/processes'
 import {
   PROCESS_CONTRACT_VERSION,
@@ -37,6 +37,7 @@ const types = [
   'abertura',
   'mei',
   'outro',
+  'outros',
   'alteracao',
   'inatividade',
   'inativa',
@@ -46,6 +47,7 @@ const types = [
   'exclusao',
 ] as const
 const privateFields = [
+  'valorProcesso',
   'custo',
   'pagador',
   'parcelas',
@@ -102,6 +104,9 @@ const integer: Validator = (v, p) => {
 const positive: Validator = (v, p) => {
   integer(v, p)
   if ((v as number) < 1) fail(p)
+}
+const days: Validator = (v, p) => {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) fail(p)
 }
 const nullable =
   (check: Validator): Validator =>
@@ -250,9 +255,20 @@ const summaryFields: Fields = {
   workflowVersion: oneOf([1, PROCESS_WORKFLOW_VERSION]),
   analysis,
   permissions,
+  nextTask: optional(nullable(shape({
+    id: string,
+    sector: oneOf(sectors),
+    text: string,
+    stageTitle: string,
+  }, true))),
+  pendingTaskCount: optional(integer),
 }
 const detailFields: Fields = {
   ...summaryFields,
+  descricaoProcesso: optional(string),
+  valorProcesso: optional(decimal),
+  departamentoSolicitado: optional(oneOf(['fin', 'reg'])),
+  acionarLeggacy: optional(boolean),
   inicioInat: optional(nullable(date)),
   obs: optional(string),
   custo: optional(nullable(decimal)),
@@ -335,6 +351,15 @@ const detailFields: Fields = {
     ]),
   ),
 }
+const summary: Validator = (value, path) => {
+  shape(summaryFields, true)(value, path)
+  const data = object(value, path)
+  if ((data.nextTask === undefined) !== (data.pendingTaskCount === undefined))
+    fail(`${path}.nextTask/pendingTaskCount`)
+  if (data.nextTask !== undefined &&
+    (data.nextTask === null ? data.pendingTaskCount !== 0 : (data.pendingTaskCount as number) < 1))
+    fail(`${path}.pendingTaskCount`)
+}
 const entryShape = shape({
   id: string,
   por: string,
@@ -383,14 +408,6 @@ const followUp = shape({
   version: positive,
 })
 const recipient = shape({ memberId: uuid, name: string, email: string })
-const companyOption = shape({
-  id: uuid,
-  code: nullable(string),
-  name: string,
-  legalName: string,
-  cnpj: string,
-  status: oneOf(['active']),
-})
 const alert = shape({
   id: uuid,
   processId: uuid,
@@ -471,7 +488,7 @@ export function parseProcessSummary(
   value: unknown,
   requestId?: string | null,
 ): ProcessSummary {
-  return decode(value, shape(summaryFields, true), requestId)
+  return decode(value, summary, requestId)
 }
 
 export function parseProcessDetail(
@@ -502,30 +519,22 @@ export function parseProcessDetail(
 export function parseProcessPage(
   value: unknown,
   requestId?: string | null,
+  taskSector?: ProcessSector,
 ): ProcessPage {
-  return decode(value, page(shape(summaryFields, true)), requestId)
-}
-
-export function parseProcessCompanyOptionsPage(
-  value: unknown,
-  requestId?: string | null,
-): ProcessCompanyOptionsPage {
-  return decode(value, page(companyOption), requestId)
-}
-
-export function normalizeProcessCompanyOptionsFilters(
-  filters: ProcessCompanyOptionsFilters = {},
-): Required<ProcessCompanyOptionsFilters> {
-  const search = filters.search?.trim() ?? ''
-  if (search.length > 200)
-    throw new ProcessContractError('filters.search (máximo de 200 caracteres)')
-  const pageNumber = filters.page ?? 1
-  const pageSize = filters.pageSize ?? 20
-  if (!Number.isSafeInteger(pageNumber) || pageNumber < 1)
-    throw new ProcessContractError('filters.page')
-  if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100)
-    throw new ProcessContractError('filters.pageSize')
-  return { search, page: pageNumber, pageSize }
+  const result = decode<ProcessPage>(value, page(summary), requestId)
+  result.results.forEach((item, index) => {
+    const path = `response.results[${index}]`
+    if (taskSector) {
+      if (item.nextTask === undefined || item.pendingTaskCount === undefined ||
+        (item.nextTask === null ? item.pendingTaskCount !== 0 :
+          item.pendingTaskCount < 1 || item.nextTask.sector !== taskSector) ||
+        (['agendado', 'concluido', 'cancelado'].includes(item.status) && item.nextTask !== null))
+        throw new ProcessContractError(`${path}.nextTask/pendingTaskCount`, requestId)
+    } else if (item.nextTask !== undefined || item.pendingTaskCount !== undefined) {
+      throw new ProcessContractError(`${path}.nextTask (sem taskSector)`, requestId)
+    }
+  })
+  return result
 }
 
 export function parseProcessEntriesPage(
@@ -548,6 +557,13 @@ export function parseProcessIndicators(
       cancelled: integer,
       late: integer,
       waiting: integer,
+      dueSoon: integer,
+      completedThisMonth: integer,
+      completedThisYear: integer,
+      averageOverdueDays: nullable(days),
+      maxOverdueDays: nullable(days),
+      averageCompletionDays: nullable(days),
+      averageOpenAgeDays: nullable(days),
       byStatus: shape(
         Object.fromEntries(statuses.map((s) => [s, integer])),
         true,
@@ -557,6 +573,23 @@ export function parseProcessIndicators(
     }),
     requestId,
   )
+}
+
+export function parseProcessLeggacyMetrics(
+  value: unknown,
+  requestId?: string | null,
+): ProcessLeggacyMetric[] {
+  const result = decode<ProcessLeggacyMetric[]>(value, array(shape({
+    tipo: oneOf(['abertura', 'alteracao', 'baixa']),
+    completedCount: integer,
+    waitingCount: integer,
+    averageDays: nullable(days),
+    minDays: nullable(days),
+    maxDays: nullable(days),
+  })), requestId)
+  if (result.length !== 3 || new Set(result.map(item => item.tipo)).size !== 3)
+    throw new ProcessContractError('response (métricas dos três tipos da Leggacy)', requestId)
+  return result
 }
 
 export function parseProcessMonthlyReport(
@@ -609,6 +642,9 @@ export function normalizeProcessFilters(
     'status',
     'responsibleSector',
     'queueSector',
+    'otherSector',
+    'taskSector',
+    'ordering',
     'q',
     'month',
   ]
@@ -632,9 +668,13 @@ export function normalizeProcessFilters(
       throw new Error(`Filtro ${key} inválido.`)
   if (filters.tipo !== undefined && !types.includes(filters.tipo))
     throw new Error('Filtro tipo inválido.')
-  for (const key of ['responsibleSector', 'queueSector'] as const)
+  for (const key of ['responsibleSector', 'queueSector', 'otherSector', 'taskSector'] as const)
     if (filters[key] !== undefined && !sectors.includes(filters[key]!))
       throw new Error(`Filtro ${key} inválido.`)
+  if (filters.queueSector && filters.otherSector)
+    throw new Error('Não combine queueSector e otherSector.')
+  if (filters.ordering !== undefined && !['recent', 'urgency'].includes(filters.ordering))
+    throw new Error('Filtro ordering inválido.')
   if (
     filters.month !== undefined &&
     (!/^\d{4}-(0[1-9]|1[0-2])$/.test(filters.month) ||
@@ -654,6 +694,9 @@ export function normalizeProcessFilters(
       ? { responsibleSector: filters.responsibleSector }
       : {}),
     ...(filters.queueSector ? { queueSector: filters.queueSector } : {}),
+    ...(filters.otherSector ? { otherSector: filters.otherSector } : {}),
+    ...(filters.taskSector ? { taskSector: filters.taskSector } : {}),
+    ordering: filters.ordering ?? 'recent',
     ...(filters.q?.trim() ? { q: filters.q.trim() } : {}),
     ...(filters.month ? { month: filters.month } : {}),
     page: filters.page ?? 1,

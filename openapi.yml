@@ -10775,8 +10775,10 @@ paths:
     get:
       operationId: processes_list
       description: Resumos paginados do tenant ativo. Situações usam exclusivamente
-        status salvo; status repetido combina valores com OR. Não inclui tarefas,
-        textos ou histórico.
+        status salvo; status repetido combina valores com OR. ordering=urgency ordena
+        antes de paginar; otherSector seleciona execução sem pendência do setor. taskSector
+        acrescenta nextTask/pendingTaskCount autorizados, sem expor os snapshots nem
+        histórico.
       parameters:
       - in: query
         name: month
@@ -10784,6 +10786,30 @@ paths:
           type: string
           pattern: ^\d{4}-(0[1-9]|1[0-2])$
           minLength: 1
+      - in: query
+        name: ordering
+        schema:
+          enum:
+          - recent
+          - urgency
+          type: string
+          minLength: 1
+        description: |-
+          * `recent` - recent
+          * `urgency` - urgency
+      - in: query
+        name: otherSector
+        schema:
+          enum:
+          - com
+          - fin
+          - reg
+          type: string
+          minLength: 1
+        description: |-
+          * `com` - Diretoria
+          * `fin` - Financeiro
+          * `reg` - Regularidade
       - in: query
         name: page
         schema:
@@ -10846,6 +10872,19 @@ paths:
               * `concluido` - Concluído
               * `cancelado` - Cancelado
       - in: query
+        name: taskSector
+        schema:
+          enum:
+          - com
+          - fin
+          - reg
+          type: string
+          minLength: 1
+        description: |-
+          * `com` - Diretoria
+          * `fin` - Financeiro
+          * `reg` - Regularidade
+      - in: query
         name: tipo
         schema:
           enum:
@@ -10859,6 +10898,7 @@ paths:
           - baixa
           - saida
           - exclusao
+          - outros
           type: string
           minLength: 1
         description: |-
@@ -10872,6 +10912,7 @@ paths:
           * `baixa` - baixa
           * `saida` - saida
           * `exclusao` - exclusao
+          * `outros` - outros
       - in: header
         name: X-Request-ID
         required: false
@@ -10985,14 +11026,15 @@ paths:
           description: ''
     post:
       operationId: processes_create
-      description: Para tipo abertura, enviar empresa e cnpj opcional, sem companyId
-        nem cadastro prévio. Nos demais tipos, companyId é obrigatório e nome/CNPJ
-        são copiados do cadastro. Diretoria. Cria processo e notificações atomicamente
-        para os membros ativos com acesso a Processos na organização. Usa remetente/SMTP
-        compartilhados com Rotinas; o conteúdo respeita as permissões financeiras.
-        Envio após commit e recuperação por worker. Replay retorna 200 sem novos e-mails;
-        corpo diferente, 409. Falha de e-mail não desfaz a criação. Consulte notifications
-        ou GET notifications/ para acompanhar a entrega.
+      description: Todos os tipos usam empresa livre obrigatória e cnpj opcional,
+        sem cadastro prévio ou companyId. Em outros, enviar empresa livre, descricaoProcesso,
+        valorProcesso, departamentoSolicitado e acionarLeggacy, sem companyId/CNPJ.
+        Diretoria. Cria processo e notificações atomicamente para os membros ativos
+        com acesso a Processos na organização. Usa remetente/SMTP compartilhados com
+        Rotinas; o conteúdo respeita as permissões financeiras. Envio após commit
+        e recuperação por worker. Replay retorna 200 sem novos e-mails; corpo diferente,
+        409. Falha de e-mail não desfaz a criação. Consulte notifications ou GET notifications/
+        para acompanhar a entrega.
       parameters:
       - in: header
         name: Idempotency-Key
@@ -11275,8 +11317,10 @@ paths:
           description: ''
     patch:
       operationId: processes_partial_update
-      description: Diretoria. Nome e CNPJ só podem ser editados em abertura sem vínculo
-        cadastral. Demais tipos preservam o snapshot da empresa.
+      description: Diretoria. Nome/CNPJ livres e editáveis com versão em todos os
+        tipos; Outros usa somente nome e seus dados próprios. Nenhuma alteração afeta
+        o cadastro central. Departamento/Leggacy não mudam enquanto houver tarefas
+        concluídas.
       parameters:
       - in: header
         name: X-CSRFToken
@@ -11451,13 +11495,18 @@ paths:
       - cookieAuth: []
       responses:
         '204':
-          description: No response body
           headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão do processo entre aspas. Nas mutações, envie o inteiro
+                no campo version do corpo.
             X-Request-ID:
               description: Identificador de correlação efetivamente usado pelo servidor.
               schema:
                 type: string
                 maxLength: 64
+          description: No response body
         '400':
           content:
             application/problem+json:
@@ -11576,149 +11625,6 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Version'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          headers:
-            ETag:
-              schema:
-                type: string
-              description: Versão do processo entre aspas. Nas mutações, envie o inteiro
-                no campo version do corpo.
-            X-Request-ID:
-              description: Identificador de correlação efetivamente usado pelo servidor.
-              schema:
-                type: string
-                maxLength: 64
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProcessResponse'
-          description: ''
-        '400':
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-          description: ''
-          headers:
-            X-Request-ID:
-              description: Identificador de correlação efetivamente usado pelo servidor.
-              schema:
-                type: string
-                maxLength: 64
-        '403':
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-          description: ''
-          headers:
-            X-Request-ID:
-              description: Identificador de correlação efetivamente usado pelo servidor.
-              schema:
-                type: string
-                maxLength: 64
-        '404':
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-          description: ''
-          headers:
-            X-Request-ID:
-              description: Identificador de correlação efetivamente usado pelo servidor.
-              schema:
-                type: string
-                maxLength: 64
-        '409':
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-          description: ''
-          headers:
-            X-Request-ID:
-              description: Identificador de correlação efetivamente usado pelo servidor.
-              schema:
-                type: string
-                maxLength: 64
-        '429':
-          headers:
-            Retry-After:
-              description: Intervalo mínimo, em segundos, antes de uma nova tentativa.
-              schema:
-                type: integer
-                minimum: 0
-            X-Request-ID:
-              description: Identificador de correlação efetivamente usado pelo servidor.
-              schema:
-                type: string
-                maxLength: 64
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-          description: ''
-        '503':
-          headers:
-            Retry-After:
-              description: 'Aguardar cinco segundos: cache de proteção ou classificação
-                temporal indisponível. Não interpretar a falha como coleção vazia.'
-              schema:
-                type: integer
-                minimum: 0
-                enum:
-                - 5
-            X-Request-ID:
-              description: Identificador de correlação efetivamente usado pelo servidor.
-              schema:
-                type: string
-                maxLength: 64
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-          description: ''
-  /api/v1/processes/{id}/company-link/:
-    post:
-      operationId: processes_company_link_create
-      description: Diretoria. Vincula ou corrige a empresa canônica com justificativa
-        e versão. Preserva nome/CNPJ históricos; não altera o cadastro nem concede
-        acesso a Empresas. Não disponível para tipo abertura, que usa identificação
-        livre.
-      parameters:
-      - in: header
-        name: X-CSRFToken
-        schema:
-          type: string
-        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
-          CSRF recebido nessa resposta.
-        required: true
-      - in: path
-        name: id
-        schema:
-          type: string
-          pattern: ^[0-9a-f-]{36}$
-        required: true
-      - in: header
-        name: X-Request-ID
-        required: false
-        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
-          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
-          inválido.'
-        schema:
-          type: string
-          maxLength: 64
-      tags:
-      - processes
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ProcessCompanyLink'
         required: true
       security:
       - cookieAuth: []
@@ -12518,6 +12424,147 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
           description: ''
+  /api/v1/processes/{id}/restore/:
+    post:
+      operationId: processes_restore_create
+      description: Diretoria. Restaura exclusão lógica com a versão retornada no ETag
+        do DELETE. Preserva tarefas e histórico; não reenvia e-mails.
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^[0-9a-f-]{36}$
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - processes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Version'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão do processo entre aspas. Nas mutações, envie o inteiro
+                no campo version do corpo.
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessResponse'
+          description: ''
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '429':
+          headers:
+            Retry-After:
+              description: Intervalo mínimo, em segundos, antes de uma nova tentativa.
+              schema:
+                type: integer
+                minimum: 0
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: ''
+        '503':
+          headers:
+            Retry-After:
+              description: 'Aguardar cinco segundos: cache de proteção ou classificação
+                temporal indisponível. Não interpretar a falha como coleção vazia.'
+              schema:
+                type: integer
+                minimum: 0
+                enum:
+                - 5
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: ''
   /api/v1/processes/{id}/tasks/{taskId}/transition/:
     post:
       operationId: processes_tasks_transition_create
@@ -12780,13 +12827,40 @@ paths:
         schema:
           type: string
           maxLength: 64
-  /api/v1/processes/company-options/:
+  /api/v1/processes/indicators/:
     get:
-      operationId: processes_company_options_retrieve
-      description: Referências mínimas paginadas de empresas ativas do tenant, autorizadas
-        por Processos. Não inclui contatos ou canais e não exige acesso ao CRUD de
-        Empresas.
+      operationId: processes_indicators_retrieve
       parameters:
+      - in: query
+        name: month
+        schema:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          minLength: 1
+      - in: query
+        name: ordering
+        schema:
+          enum:
+          - recent
+          - urgency
+          type: string
+          minLength: 1
+        description: |-
+          * `recent` - recent
+          * `urgency` - urgency
+      - in: query
+        name: otherSector
+        schema:
+          enum:
+          - com
+          - fin
+          - reg
+          type: string
+          minLength: 1
+        description: |-
+          * `com` - Diretoria
+          * `fin` - Financeiro
+          * `reg` - Regularidade
       - in: query
         name: page
         schema:
@@ -12799,11 +12873,97 @@ paths:
           maximum: 100
           minimum: 1
       - in: query
-        name: search
+        name: q
         schema:
           type: string
           maxLength: 200
           minLength: 1
+      - in: query
+        name: queueSector
+        schema:
+          enum:
+          - com
+          - fin
+          - reg
+          type: string
+          minLength: 1
+        description: |-
+          * `com` - Diretoria
+          * `fin` - Financeiro
+          * `reg` - Regularidade
+      - in: query
+        name: responsibleSector
+        schema:
+          enum:
+          - com
+          - fin
+          - reg
+          type: string
+          minLength: 1
+        description: |-
+          * `com` - Diretoria
+          * `fin` - Financeiro
+          * `reg` - Regularidade
+      - in: query
+        name: status
+        schema:
+          type: array
+          items:
+            enum:
+            - andamento
+            - agendado
+            - atrasado
+            - concluido
+            - cancelado
+            type: string
+            description: |-
+              * `andamento` - Em andamento
+              * `agendado` - Agendado
+              * `atrasado` - Atrasado
+              * `concluido` - Concluído
+              * `cancelado` - Cancelado
+      - in: query
+        name: taskSector
+        schema:
+          enum:
+          - com
+          - fin
+          - reg
+          type: string
+          minLength: 1
+        description: |-
+          * `com` - Diretoria
+          * `fin` - Financeiro
+          * `reg` - Regularidade
+      - in: query
+        name: tipo
+        schema:
+          enum:
+          - abertura
+          - mei
+          - outro
+          - alteracao
+          - inatividade
+          - inativa
+          - reativacao
+          - baixa
+          - saida
+          - exclusao
+          - outros
+          type: string
+          minLength: 1
+        description: |-
+          * `abertura` - abertura
+          * `mei` - mei
+          * `outro` - outro
+          * `alteracao` - alteracao
+          * `inatividade` - inatividade
+          * `inativa` - inativa
+          * `reativacao` - reativacao
+          * `baixa` - baixa
+          * `saida` - saida
+          * `exclusao` - exclusao
+          * `outros` - outros
       - in: header
         name: X-Request-ID
         required: false
@@ -12822,7 +12982,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedProcessCompanyReferenceList'
+                $ref: '#/components/schemas/Indicators'
           description: ''
           headers:
             X-Request-ID:
@@ -12915,9 +13075,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
           description: ''
-  /api/v1/processes/indicators/:
+  /api/v1/processes/leggacy-metrics/:
     get:
-      operationId: processes_indicators_retrieve
+      operationId: processes_leggacy_metrics_retrieve
+      description: Métricas de abertura, alteração e baixa até o marco efetivamente
+        concluído pela Leggacy. Dias corridos, filtros globais antes da agregação,
+        sem dados financeiros. Cancelados e excluídos não participam.
       parameters:
       - in: query
         name: month
@@ -12925,6 +13088,30 @@ paths:
           type: string
           pattern: ^\d{4}-(0[1-9]|1[0-2])$
           minLength: 1
+      - in: query
+        name: ordering
+        schema:
+          enum:
+          - recent
+          - urgency
+          type: string
+          minLength: 1
+        description: |-
+          * `recent` - recent
+          * `urgency` - urgency
+      - in: query
+        name: otherSector
+        schema:
+          enum:
+          - com
+          - fin
+          - reg
+          type: string
+          minLength: 1
+        description: |-
+          * `com` - Diretoria
+          * `fin` - Financeiro
+          * `reg` - Regularidade
       - in: query
         name: page
         schema:
@@ -12987,6 +13174,19 @@ paths:
               * `concluido` - Concluído
               * `cancelado` - Cancelado
       - in: query
+        name: taskSector
+        schema:
+          enum:
+          - com
+          - fin
+          - reg
+          type: string
+          minLength: 1
+        description: |-
+          * `com` - Diretoria
+          * `fin` - Financeiro
+          * `reg` - Regularidade
+      - in: query
         name: tipo
         schema:
           enum:
@@ -13000,6 +13200,7 @@ paths:
           - baixa
           - saida
           - exclusao
+          - outros
           type: string
           minLength: 1
         description: |-
@@ -13013,6 +13214,7 @@ paths:
           * `baixa` - baixa
           * `saida` - saida
           * `exclusao` - exclusao
+          * `outros` - outros
       - in: header
         name: X-Request-ID
         required: false
@@ -13031,7 +13233,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Indicators'
+                $ref: '#/components/schemas/PaginatedLeggacyMetricList'
           description: ''
           headers:
             X-Request-ID:
@@ -16664,6 +16866,14 @@ components:
       description: |-
         * `sent` - sent
         * `failed` - failed
+    DepartamentoSolicitadoEnum:
+      enum:
+      - fin
+      - reg
+      type: string
+      description: |-
+        * `fin` - fin
+        * `reg` - reg
     Department:
       type: object
       properties:
@@ -16949,6 +17159,27 @@ components:
     Indicators:
       type: object
       properties:
+        dueSoon:
+          type: integer
+        completedThisMonth:
+          type: integer
+        completedThisYear:
+          type: integer
+        averageOverdueDays:
+          type: number
+          format: double
+          nullable: true
+        maxOverdueDays:
+          type: integer
+          nullable: true
+        averageCompletionDays:
+          type: number
+          format: double
+          nullable: true
+        averageOpenAgeDays:
+          type: number
+          format: double
+          nullable: true
         total:
           type: integer
         active:
@@ -16975,12 +17206,19 @@ components:
             type: integer
       required:
       - active
+      - averageCompletionDays
+      - averageOpenAgeDays
+      - averageOverdueDays
       - bySector
       - byStatus
       - byType
       - cancelled
       - completed
+      - completedThisMonth
+      - completedThisYear
+      - dueSoon
       - late
+      - maxOverdueDays
       - total
       - waiting
     InternalInvitation:
@@ -17155,6 +17393,44 @@ components:
       - password
       - passwordConfirm
       - token
+    LeggacyMetric:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/LeggacyMetricTipoEnum'
+        completedCount:
+          type: integer
+        waitingCount:
+          type: integer
+        averageDays:
+          type: number
+          format: double
+          nullable: true
+        minDays:
+          type: number
+          format: double
+          nullable: true
+        maxDays:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - averageDays
+      - completedCount
+      - maxDays
+      - minDays
+      - tipo
+      - waitingCount
+    LeggacyMetricTipoEnum:
+      enum:
+      - abertura
+      - alteracao
+      - baixa
+      type: string
+      description: |-
+        * `abertura` - abertura
+        * `alteracao` - alteracao
+        * `baixa` - baixa
     LeggacyTracking:
       type: object
       properties:
@@ -17628,6 +17904,22 @@ components:
       - missingValues
       - month
       - previousMonth
+    NextProcessTask:
+      type: object
+      properties:
+        id:
+          type: string
+        sector:
+          $ref: '#/components/schemas/ProcessSectorEnum'
+        text:
+          type: string
+        stageTitle:
+          type: string
+      required:
+      - id
+      - sector
+      - stageTitle
+      - text
     NoteInput:
       type: object
       description: Reject input keys that are not part of the public API contract.
@@ -17965,6 +18257,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FollowUp'
+    PaginatedLeggacyMetricList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeggacyMetric'
     PaginatedOrganizationMemberList:
       type: object
       required:
@@ -17988,29 +18303,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OrganizationMember'
-    PaginatedProcessCompanyReferenceList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProcessCompanyReference'
     PaginatedProcessEntryList:
       type: object
       required:
@@ -18312,6 +18604,17 @@ components:
       type: object
       description: Reject input keys that are not part of the public API contract.
       properties:
+        descricaoProcesso:
+          type: string
+          maxLength: 3000
+        valorProcesso:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        departamentoSolicitado:
+          $ref: '#/components/schemas/DepartamentoSolicitadoEnum'
+        acionarLeggacy:
+          type: boolean
         protocolo:
           type: string
           maxLength: 160
@@ -18415,13 +18718,13 @@ components:
           type: boolean
         empresa:
           type: string
-          description: Somente abertura sem vínculo cadastral. Nome obrigatório na
-            criação.
+          description: Nome livre em todos os tipos, obrigatório na criação; não depende
+            do cadastro central.
           maxLength: 200
         cnpj:
           type: string
-          description: Somente abertura sem vínculo cadastral. Opcional enquanto não
-            emitido; validado e normalizado quando informado.
+          description: CNPJ livre e opcional, validado e normalizado quando informado;
+            não se aplica ao tipo Outros.
           maxLength: 18
         version:
           type: integer
@@ -18552,24 +18855,6 @@ components:
       - status
       - title
       - type
-    ProcessCompanyLink:
-      type: object
-      description: Reject input keys that are not part of the public API contract.
-      properties:
-        version:
-          type: integer
-          minimum: 1
-        companyId:
-          type: string
-          format: uuid
-        reason:
-          type: string
-          maxLength: 2000
-      required:
-      - companyId
-      - reason
-      - version
-      additionalProperties: false
     ProcessCompanyReference:
       type: object
       properties:
@@ -18606,6 +18891,17 @@ components:
       type: object
       description: Reject input keys that are not part of the public API contract.
       properties:
+        descricaoProcesso:
+          type: string
+          maxLength: 3000
+        valorProcesso:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        departamentoSolicitado:
+          $ref: '#/components/schemas/DepartamentoSolicitadoEnum'
+        acionarLeggacy:
+          type: boolean
         protocolo:
           type: string
           maxLength: 160
@@ -18709,24 +19005,44 @@ components:
           type: boolean
         empresa:
           type: string
-          description: Somente abertura sem vínculo cadastral. Nome obrigatório na
-            criação.
           maxLength: 200
         cnpj:
           type: string
-          description: Somente abertura sem vínculo cadastral. Opcional enquanto não
-            emitido; validado e normalizado quando informado.
+          description: CNPJ livre e opcional, validado e normalizado quando informado;
+            não se aplica ao tipo Outros.
           maxLength: 18
         tipo:
-          $ref: '#/components/schemas/TipoEnum'
-        companyId:
-          type: string
-          format: uuid
-          description: Obrigatório nos demais tipos; não enviar em abertura, que usa
-            empresa e cnpj livres.
+          $ref: '#/components/schemas/ProcessCreateTipoEnum'
       required:
+      - empresa
       - tipo
       additionalProperties: false
+    ProcessCreateTipoEnum:
+      enum:
+      - abertura
+      - mei
+      - outro
+      - alteracao
+      - inatividade
+      - inativa
+      - reativacao
+      - baixa
+      - saida
+      - exclusao
+      - outros
+      type: string
+      description: |-
+        * `abertura` - Abertura de empresa
+        * `mei` - Transformação MEI → ME
+        * `outro` - Cliente de outro escritório
+        * `alteracao` - Alteração contratual
+        * `inatividade` - Paralisação de empresa
+        * `inativa` - Inatividade de empresa
+        * `reativacao` - Reativação de empresa
+        * `baixa` - Baixa de empresa
+        * `saida` - Saída de cliente
+        * `exclusao` - Exclusão de cliente
+        * `outros` - Outros
     ProcessEntry:
       type: object
       properties:
@@ -18858,6 +19174,17 @@ components:
       type: object
       description: Reject input keys that are not part of the public API contract.
       properties:
+        descricaoProcesso:
+          type: string
+          maxLength: 3000
+        valorProcesso:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        departamentoSolicitado:
+          $ref: '#/components/schemas/DepartamentoSolicitadoEnum'
+        acionarLeggacy:
+          type: boolean
         protocolo:
           type: string
           maxLength: 160
@@ -19088,6 +19415,12 @@ components:
     ProcessSummary:
       type: object
       properties:
+        nextTask:
+          allOf:
+          - $ref: '#/components/schemas/NextProcessTask'
+          nullable: true
+        pendingTaskCount:
+          type: integer
         id:
           type: string
           format: uuid
@@ -20529,30 +20862,6 @@ components:
           $ref: '#/components/schemas/TaskStatusEnum'
       required:
       - targetStatus
-    TipoEnum:
-      enum:
-      - abertura
-      - mei
-      - outro
-      - alteracao
-      - inatividade
-      - inativa
-      - reativacao
-      - baixa
-      - saida
-      - exclusao
-      type: string
-      description: |-
-        * `abertura` - Abertura de empresa
-        * `mei` - Transformação MEI → ME
-        * `outro` - Cliente de outro escritório
-        * `alteracao` - Alteração contratual
-        * `inatividade` - Paralisação de empresa
-        * `inativa` - Inatividade de empresa
-        * `reativacao` - Reativação de empresa
-        * `baixa` - Baixa de empresa
-        * `saida` - Saída de cliente
-        * `exclusao` - Exclusão de cliente
     UploadIntent:
       type: object
       description: Reject input keys that are not part of the public API contract.

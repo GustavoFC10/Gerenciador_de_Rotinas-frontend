@@ -809,5 +809,34 @@
         ]
       }
     ]
+  },
+  {
+    "id": "outros",
+    "sigla": "OTS",
+    "icon": "list",
+    "nome": "Outros",
+    "desc": "Atividade específica para Financeiro ou Regularidade",
+    "etapas": [
+      {
+        "t": "Executar atividade",
+        "tasks": [
+          {
+            "id": "ot1",
+            "d": "fin",
+            "txt": "Executar a atividade ou solicitar aos responsáveis internos"
+          }
+        ]
+      },
+      {
+        "t": "Confirmar conclusão",
+        "tasks": [
+          {
+            "id": "ot2",
+            "d": "fin",
+            "txt": "Confirmar que o processo foi concluído"
+          }
+        ]
+      }
+    ]
   }
 ]

@@ -1,7 +1,6 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { OrganizationQueryScope } from '../../query/queryKeys'
-import { useProcessCompanyOptions } from '../../hooks/useProcessQueries'
 import { useOverlayDialog } from '../../hooks/useOverlayDialog'
 import { isApiError } from '../../services/httpClient'
 import type {
@@ -10,10 +9,11 @@ import type {
   ProcessResource,
   ProcessTypeId,
 } from '../../types/processes'
-import ProcessFields, { ProcessAlterationFields } from './ProcessFields'
+import ProcessFields, { ProcessAlterationFields, ProcessOtherFields } from './ProcessFields'
 import ProcessIcon from './ProcessIcon'
 import {
   normalizeProcessInput,
+  processDraftForType,
   processInputFromResource,
   PROCESS_START_LABELS,
 } from './processFormUtils'
@@ -29,7 +29,6 @@ export interface ProcessFormProps {
 
 export default function ProcessForm({
   catalog,
-  scope,
   process,
   initialType,
   onSubmit,
@@ -54,8 +53,6 @@ export default function ProcessForm({
   const [submitting, setSubmitting] = useState(false)
   const submittingRef = useRef(false)
   const [error, setError] = useState('')
-  const [companySearch, setCompanySearch] = useState('')
-  const [companyPage, setCompanyPage] = useState(1)
   const [unconfirmedInput, setUnconfirmedInput] =
     useState<ProcessCreateInput | null>(null)
   const locked = submitting || !!unconfirmedInput
@@ -64,26 +61,14 @@ export default function ProcessForm({
   }
   useOverlayDialog(dialogRef, close)
   const type = catalog.types.find((type) => type.id === typeId)
-  const isCompanyOpening = typeId === 'abertura'
-  const companyOptions = useProcessCompanyOptions(
-    scope,
-    {
-      search: companySearch || undefined,
-      page: companyPage,
-      pageSize: 20,
-    },
-    !process && !!typeId && !isCompanyOpening && !locked,
-  )
+  const isOthers = typeId === 'outros'
+  const configurationLocked = !!process && Object.values(process.tarefas).some(task => task.s === 'feito')
   const update = (patch: Partial<ProcessCreateInput>) =>
     setValue((previous) => ({ ...previous, ...patch }))
   function selectType(nextTypeId: ProcessTypeId) {
     setTypeId(nextTypeId)
-    update({
-      tipo: nextTypeId,
-      ...(isCompanyOpening !== (nextTypeId === 'abertura')
-        ? { companyId: null, empresa: '', cnpj: '' }
-        : {}),
-    })
+    const nextType = catalog.types.find(item => item.id === nextTypeId)
+    if (nextType) setValue(previous => processDraftForType(previous, nextType))
     setError('')
   }
   async function submit(event: FormEvent) {
@@ -92,11 +77,7 @@ export default function ProcessForm({
     setError('')
     try {
       if (!type) throw new Error('Escolha o tipo de processo.')
-      if (!process && !isCompanyOpening && !value.companyId)
-        throw new Error(
-          'Selecione uma empresa cadastrada para abrir o processo.',
-        )
-      const input = unconfirmedInput ?? normalizeProcessInput(value, type)
+      const input = unconfirmedInput ?? normalizeProcessInput(value, type, { allowOmittedValue: !!process && process.valorProcesso === undefined })
       submittingRef.current = true
       setSubmitting(true)
       try {
@@ -220,7 +201,7 @@ export default function ProcessForm({
                       if (event.detail > 0)
                         document
                           .getElementById(
-                            `${id}-${type.id === 'abertura' ? 'empresa' : 'empresa-search'}`,
+                            `${id}-empresa`,
                           )
                           ?.focus()
                     }}
@@ -239,167 +220,18 @@ export default function ProcessForm({
               </div>
             </div>
           )}
-          {isCompanyOpening ? (
-            <div className="field">
-              <label htmlFor={`${id}-empresa`}>
-                Nome da empresa <span className="req">obrigatório</span>
-              </label>
-              <input
-                className="input"
-                id={`${id}-empresa`}
-                value={value.empresa}
-                onChange={(event) => update({ empresa: event.target.value })}
-                required
-                maxLength={200}
-                placeholder="Informe o nome da empresa"
-                disabled={locked}
-              />
-            </div>
-          ) : process ? (
-            <div className="field">
-              <label htmlFor={`${id}-empresa`}>Empresa</label>
-              <input
-                className="input"
-                id={`${id}-empresa`}
-                value={value.empresa}
-                readOnly
-                aria-readonly="true"
-              />
-            </div>
-          ) : (
-            <div className="field">
-              <label htmlFor={`${id}-empresa-search`}>
-                Empresa cadastrada <span className="req">obrigatório</span>
-              </label>
-              <input
-                className="input"
-                id={`${id}-empresa-search`}
-                type="search"
-                value={value.companyId ? value.empresa : companySearch}
-                onChange={(event) => {
-                  setCompanySearch(event.target.value)
-                  setCompanyPage(1)
-                  update({ companyId: null, empresa: '', cnpj: '' })
-                }}
-                required={!value.companyId}
-                maxLength={200}
-                autoComplete="off"
-                placeholder="Buscar por nome, código ou CNPJ"
-                disabled={locked}
-                aria-describedby={`${id}-company-help`}
-              />
-              <p id={`${id}-company-help`} className="help">
-                Se a empresa não aparecer, cadastre-a antes no módulo Empresas.
-              </p>
-              {value.companyId ? (
-                <div className="company-selected">
-                  <span>
-                    <strong>{value.empresa}</strong>
-                    <small>{value.cnpj || 'CNPJ não informado'}</small>
-                  </span>
-                  <button
-                    type="button"
-                    className="btn sm"
-                    disabled={locked}
-                    onClick={() => {
-                      update({ companyId: null, empresa: '', cnpj: '' })
-                      setCompanySearch('')
-                      setCompanyPage(1)
-                      document.getElementById(`${id}-empresa-search`)?.focus()
-                    }}
-                  >
-                    Trocar empresa
-                  </button>
-                </div>
-              ) : (
-                <div className="company-options" aria-live="polite">
-                  {companyOptions.isPending ? (
-                    <p role="status">Buscando empresas…</p>
-                  ) : companyOptions.error ? (
-                    <div role="alert">
-                      <p>
-                        Não foi possível carregar as empresas.{' '}
-                        {companyOptions.error.message}
-                      </p>
-                      <button
-                        type="button"
-                        className="btn sm"
-                        onClick={() => void companyOptions.refetch()}
-                      >
-                        Tentar novamente
-                      </button>
-                    </div>
-                  ) : companyOptions.data?.results.length ? (
-                    <ul aria-label="Opções de empresas">
-                      {companyOptions.data.results.map((company) => (
-                        <li key={company.id}>
-                          <button
-                            type="button"
-                            className="company-option"
-                            disabled={locked}
-                            onClick={() => {
-                              update({
-                                companyId: company.id,
-                                empresa: company.name,
-                                cnpj: company.cnpj,
-                              })
-                              setCompanySearch('')
-                            }}
-                          >
-                            <strong>{company.name}</strong>
-                            <span>
-                              {company.code ? `${company.code} · ` : ''}
-                              {company.cnpj || 'CNPJ não informado'}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>
-                      {companySearch
-                        ? 'Nenhuma empresa ativa encontrada. Cadastre-a no módulo Empresas.'
-                        : 'Nenhuma empresa ativa disponível.'}
-                    </p>
-                  )}
-                  {companyOptions.data && (
-                    <nav
-                      className="company-options-pagination"
-                      aria-label="Paginação de empresas"
-                    >
-                      <button
-                        type="button"
-                        className="btn sm"
-                        disabled={
-                          !companyOptions.data.previous ||
-                          companyOptions.isFetching
-                        }
-                        onClick={() => setCompanyPage((page) => page - 1)}
-                      >
-                        Anterior
-                      </button>
-                      <span>
-                        Página {companyPage} · {companyOptions.data.count}{' '}
-                        empresas
-                      </span>
-                      <button
-                        type="button"
-                        className="btn sm"
-                        disabled={
-                          !companyOptions.data.next || companyOptions.isFetching
-                        }
-                        onClick={() => setCompanyPage((page) => page + 1)}
-                      >
-                        Próxima
-                      </button>
-                    </nav>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          <div className="field">
+            <label htmlFor={id+'-empresa'}>Nome da empresa <span className="req">obrigatório</span></label>
+            <input className="input" id={id+'-empresa'} value={value.empresa}
+              onChange={event => update({ empresa: event.target.value })} required maxLength={200}
+              placeholder="Informe o nome da empresa" disabled={locked} />
+          </div>
+          {isOthers && type && <ProcessOtherFields value={value} onChange={update} disabled={locked}
+            configurationLocked={configurationLocked} viewFinancial={catalog.permissions.viewFinancial}
+            requireValue={!process || process.valorProcesso !== undefined} />}
+          {!isOthers && <>
           <div className="grid2">
-            {isCompanyOpening ? (
+            {(
               <div className="field">
                 <label htmlFor={`${id}-cnpj`}>
                   CNPJ <span>(opcional)</span>
@@ -414,9 +246,7 @@ export default function ProcessForm({
                   disabled={locked}
                 />
               </div>
-            ) : !process ? (
-              <div />
-            ) : null}
+            )}
             <div className="field">
               <label htmlFor={`${id}-date`}>
                 {PROCESS_START_LABELS[typeId] ?? 'Prazo'}{' '}
@@ -500,6 +330,7 @@ export default function ProcessForm({
               disabled={locked}
             />
           </div>
+          </>}
           {!process && (
             <div className="note">
               Ao abrir, os envolvidos com acesso a Processos serão notificados

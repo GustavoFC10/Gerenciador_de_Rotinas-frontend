@@ -6,7 +6,6 @@ import {
 } from './processCommunicationsFixtures'
 import {
   parseProcessCatalog,
-  parseProcessCompanyOptionsPage,
   parsePreparedProcessAlert,
   parseProcessAlert,
   parseProcessAlertPage,
@@ -142,16 +141,16 @@ describe('isolated feature preview', () => {
     ])
   })
 
-  it('seeds all ten workflows and useful operational states', async () => {
+  it('seeds all eleven workflows and useful operational states', async () => {
     const backend = new PreviewBackend()
     const catalog = await json(backend, 'processes/catalog/')
     const indicators = await json(backend, 'processes/indicators/')
-    expect(catalog.types).toHaveLength(10)
+    expect(catalog.types).toHaveLength(11)
     expect(catalog.contractVersion).toBe(2)
     expect(catalog.workflowVersion).toBe(2)
     expect(catalog.openStatuses).toEqual(['andamento', 'agendado', 'atrasado'])
     expect(Object.keys(catalog.statuses)).toHaveLength(5)
-    expect(indicators.total).toBe(13)
+    expect(indicators.total).toBe(14)
     expect(indicators.late).toBeGreaterThan(0)
     expect(indicators.waiting).toBeGreaterThan(0)
     expect(indicators.completed).toBeGreaterThan(0)
@@ -162,30 +161,8 @@ describe('isolated feature preview', () => {
         indicators.byStatus.atrasado,
     )
   })
-  it('serves searchable, paginated active company options with the process contract', async () => {
-    const backend = new PreviewBackend()
-    const first = parseProcessCompanyOptionsPage(
-      await json(backend, 'processes/company-options/?pageSize=3'),
-    )
-    expect(first.count).toBeGreaterThan(3)
-    expect(first.results).toHaveLength(3)
-    expect(first.next).toContain('page=2')
-    expect(first.results[0]?.status).toBe('active')
-    const searched = parseProcessCompanyOptionsPage(
-      await json(
-        backend,
-        'processes/company-options/?search=Clínica&page=1&pageSize=20',
-      ),
-    )
-    expect(searched.count).toBe(1)
-    expect(searched.results[0]?.name).toBe('Clínica Bem Viver')
-    expect(
-      (
-        await backend.handle(
-          url('processes/company-options/?search=invalid&unknown=true'),
-        )
-      ).status,
-    ).toBe(400)
+  it('does not serve the removed process company registry route', async () => {
+    expect((await new PreviewBackend().handle(url('processes/company-options/'))).status).toBe(404)
   })
 
   it('creates and edits general company records through the module API', async () => {
@@ -237,7 +214,7 @@ describe('isolated feature preview', () => {
       )
       expect(catalog.contractVersion).toBe(2)
       const collection = parseProcessPage(await json(backend, 'processes/'))
-      expect(collection.count).toBe(13)
+      expect(collection.count).toBe(14)
       parseProcessIndicators(await json(backend, 'processes/indicators/'))
       for (const summary of collection.results) {
         const detail = parseProcessDetail(
@@ -254,7 +231,7 @@ describe('isolated feature preview', () => {
   it('projects summaries separately and paginates only the requested collection page', async () => {
     const backend = new PreviewBackend()
     const first = await json(backend, 'processes/?pageSize=2')
-    expect(first.count).toBe(13)
+    expect(first.count).toBe(14)
     expect(first.results).toHaveLength(2)
     expect(first.next).toContain('page=2')
     expect(first.previous).toBeNull()
@@ -575,7 +552,7 @@ describe('isolated feature preview', () => {
       ).status,
     ).toBe(409)
   })
-  it('rejects manual company fields for other process types and company IDs for company openings', async () => {
+  it('accepts free company fields for every type and rejects company IDs', async () => {
     const backend = new PreviewBackend()
     const headers = new Headers({ 'Idempotency-Key': 'bad-opening' })
     expect(
@@ -587,7 +564,7 @@ describe('isolated feature preview', () => {
           headers,
         )
       ).status,
-    ).toBe(400)
+    ).toBe(201)
     expect(
       (
         await backend.handle(

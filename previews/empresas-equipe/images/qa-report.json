@@ -1,0 +1,287 @@
+{
+  "checks": [
+    {
+      "scenario": "empresas-a",
+      "width": 1440,
+      "pass": true,
+      "scroll": 1425,
+      "body": 1425,
+      "panel": false
+    },
+    {
+      "scenario": "empresas-a",
+      "width": 1024,
+      "pass": true,
+      "scroll": 1009,
+      "body": 1009,
+      "panel": false
+    },
+    {
+      "scenario": "empresas-a",
+      "width": 768,
+      "pass": true,
+      "scroll": 753,
+      "body": 753,
+      "panel": false
+    },
+    {
+      "scenario": "empresas-a",
+      "width": 390,
+      "pass": true,
+      "scroll": 390,
+      "body": 390,
+      "panel": false
+    },
+    {
+      "scenario": "empresas-a",
+      "width": 320,
+      "pass": true,
+      "scroll": 320,
+      "body": 320,
+      "panel": false
+    },
+    {
+      "scenario": "equipe-a",
+      "width": 1440,
+      "pass": true,
+      "scroll": 1425,
+      "body": 1425,
+      "panel": false
+    },
+    {
+      "scenario": "equipe-a",
+      "width": 1024,
+      "pass": true,
+      "scroll": 1009,
+      "body": 1009,
+      "panel": false
+    },
+    {
+      "scenario": "equipe-a",
+      "width": 768,
+      "pass": true,
+      "scroll": 753,
+      "body": 753,
+      "panel": false
+    },
+    {
+      "scenario": "equipe-a",
+      "width": 390,
+      "pass": true,
+      "scroll": 390,
+      "body": 390,
+      "panel": false
+    },
+    {
+      "scenario": "equipe-a",
+      "width": 320,
+      "pass": true,
+      "scroll": 320,
+      "body": 320,
+      "panel": false
+    },
+    {
+      "scenario": "empresas-b",
+      "width": 1440,
+      "pass": true,
+      "scroll": 1425,
+      "body": 1425,
+      "panel": true
+    },
+    {
+      "scenario": "empresas-b",
+      "width": 1024,
+      "pass": true,
+      "scroll": 1009,
+      "body": 1009,
+      "panel": true
+    },
+    {
+      "scenario": "empresas-b",
+      "width": 768,
+      "pass": true,
+      "scroll": 768,
+      "body": 768,
+      "panel": true
+    },
+    {
+      "scenario": "empresas-b",
+      "width": 390,
+      "pass": true,
+      "scroll": 390,
+      "body": 390,
+      "panel": true
+    },
+    {
+      "scenario": "empresas-b",
+      "width": 320,
+      "pass": true,
+      "scroll": 320,
+      "body": 320,
+      "panel": true
+    },
+    {
+      "scenario": "equipe-b",
+      "width": 1440,
+      "pass": true,
+      "scroll": 1425,
+      "body": 1425,
+      "panel": true
+    },
+    {
+      "scenario": "equipe-b",
+      "width": 1024,
+      "pass": true,
+      "scroll": 1009,
+      "body": 1009,
+      "panel": true
+    },
+    {
+      "scenario": "equipe-b",
+      "width": 768,
+      "pass": true,
+      "scroll": 768,
+      "body": 768,
+      "panel": true
+    },
+    {
+      "scenario": "equipe-b",
+      "width": 390,
+      "pass": true,
+      "scroll": 390,
+      "body": 390,
+      "panel": true
+    },
+    {
+      "scenario": "equipe-b",
+      "width": 320,
+      "pass": true,
+      "scroll": 320,
+      "body": 320,
+      "panel": true
+    },
+    {
+      "scenario": "equipe-acessos",
+      "width": 1440,
+      "pass": true,
+      "scroll": 1440,
+      "body": 1440,
+      "panel": true
+    },
+    {
+      "scenario": "equipe-acessos",
+      "width": 1024,
+      "pass": true,
+      "scroll": 1024,
+      "body": 1024,
+      "panel": true
+    },
+    {
+      "scenario": "equipe-acessos",
+      "width": 768,
+      "pass": true,
+      "scroll": 768,
+      "body": 768,
+      "panel": true
+    },
+    {
+      "scenario": "equipe-acessos",
+      "width": 390,
+      "pass": true,
+      "scroll": 390,
+      "body": 390,
+      "panel": true
+    },
+    {
+      "scenario": "equipe-acessos",
+      "width": 320,
+      "pass": true,
+      "scroll": 320,
+      "body": 320,
+      "panel": true
+    },
+    {
+      "scenario": "convite",
+      "width": 1440,
+      "pass": true,
+      "scroll": 1440,
+      "body": 1440,
+      "panel": true
+    },
+    {
+      "scenario": "convite",
+      "width": 1024,
+      "pass": true,
+      "scroll": 1024,
+      "body": 1024,
+      "panel": true
+    },
+    {
+      "scenario": "convite",
+      "width": 768,
+      "pass": true,
+      "scroll": 768,
+      "body": 768,
+      "panel": true
+    },
+    {
+      "scenario": "convite",
+      "width": 390,
+      "pass": true,
+      "scroll": 390,
+      "body": 390,
+      "panel": true
+    },
+    {
+      "scenario": "convite",
+      "width": 320,
+      "pass": true,
+      "scroll": 320,
+      "body": 320,
+      "panel": true
+    },
+    {
+      "scenario": "comparativo.png",
+      "width": 1440,
+      "scroll": 1425,
+      "body": 1425,
+      "pass": true
+    },
+    {
+      "scenario": "equipe-escuro.png",
+      "width": 1440,
+      "scroll": 1425,
+      "body": 1425,
+      "pass": true
+    }
+  ],
+  "failures": [],
+  "interactions": [
+    {
+      "name": "selecionar setores e descartar",
+      "width": 1440,
+      "pass": true
+    },
+    {
+      "name": "selecionar setores e descartar",
+      "width": 390,
+      "pass": true
+    },
+    {
+      "name": "busca parcial por pessoa",
+      "pass": true
+    },
+    {
+      "name": "link direto e retorno de foco da pessoa",
+      "pass": true
+    },
+    {
+      "name": "link direto da empresa",
+      "pass": true
+    },
+    {
+      "name": "modo leitura sem criação e edição",
+      "pass": true
+    }
+  ]
+}
