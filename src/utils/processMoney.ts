@@ -25,3 +25,9 @@ export function formatProcessMoney(value: string | number): string {
   const absolute = amount < 0n ? -amount : amount
   return `${amount < 0n ? '− ' : ''}R$\u00a0${(absolute / 100n).toLocaleString('pt-BR')},${String(absolute % 100n).padStart(2, '0')}`
 }
+
+export function formatProcessMoneyInput(
+  value: string | null | undefined,
+): string {
+  return value ? formatProcessMoney(value).replace(/^R\$\s/, '') : ''
+}
