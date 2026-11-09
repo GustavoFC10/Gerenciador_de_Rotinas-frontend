@@ -111,7 +111,7 @@ function DefinitionEditor({
         )
           Object.assign(patch, { [key]: field })
       }
-      if (Object.keys(patch).length) await onSave(patch)
+      await onSave(patch)
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Revise as definições.')
     }
@@ -778,10 +778,17 @@ export default function ProcessDetails({
                 onSave={(patch) =>
                   mutate(
                     () =>
-                      processService.update(process.id, {
-                        ...patch,
-                        version: process.version,
-                      }),
+                      Object.keys(patch).length
+                        ? processService.update(process.id, {
+                            ...patch,
+                            version: process.version,
+                          })
+                        : processService.transitionTask(
+                            process.id,
+                            task.id,
+                            process.version,
+                            'feito',
+                          ),
                     'Definição salva',
                   )
                 }

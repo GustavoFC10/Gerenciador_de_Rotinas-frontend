@@ -104,6 +104,26 @@ describe('Outros form', () => {
     },
   )
 
+  it('submits a digit-only monetary input as a decimal API value', async () => {
+    const submit = await render()
+    await enter('Nome da empresa', 'Empresa livre')
+    await enter('Descrição do processo', 'Solicitar certidão')
+    await enter('Valor do processo', '123456')
+    expect(control('Valor do processo').value).toBe('1.234,56')
+    await enter('Solicitar a qual departamento?', 'fin')
+    await enter('Acionar a Leggacy?', 'false')
+    await act(async () =>
+      document
+        .querySelector('form')!
+        .dispatchEvent(
+          new Event('submit', { bubbles: true, cancelable: true }),
+        ),
+    )
+    expect(submit).toHaveBeenCalledWith(
+      expect.objectContaining({ valorProcesso: '1234.56' }),
+    )
+  })
+
   it('locks configuration after a completed task and leaves omitted financial data out of editing', async () => {
     const process = makeProcessTestResource({
       tipo: 'outros',

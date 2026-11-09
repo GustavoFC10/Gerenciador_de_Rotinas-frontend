@@ -1,4 +1,8 @@
-import { useId, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useRef, type ReactNode } from 'react'
+import {
+  centsToDecimal,
+  formatProcessMoneyInput,
+} from '../../utils/processMoney'
 import type {
   ProcessCatalogType,
   ProcessCreateInput,
@@ -82,6 +86,21 @@ function MoneyField({
   required?: boolean
 }) {
   const id = useId()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const digitsAfterCursor = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    const input = inputRef.current
+    if (!input || digitsAfterCursor.current === null) return
+    let cursor = input.value.length
+    let remaining = digitsAfterCursor.current
+    while (cursor > 0 && remaining > 0) {
+      cursor--
+      if (/\d/.test(input.value[cursor]!)) remaining--
+    }
+    while (cursor > 0 && /[.,]/.test(input.value[cursor - 1]!)) cursor--
+    input.setSelectionRange(cursor, cursor)
+    digitsAfterCursor.current = null
+  })
   return (
     <div className="ctl">
       <label className="lbl" htmlFor={id}>
@@ -91,15 +110,19 @@ function MoneyField({
         <label className="mfield">
           <span>R$</span>
           <input
+            ref={inputRef}
             id={id}
             className="input"
-            inputMode="decimal"
-            value={
-              value && /^\d+\.\d{0,2}$/.test(value)
-                ? value.replace('.', ',')
-                : (value ?? '')
-            }
-            onChange={(event) => onChange(event.target.value)}
+            inputMode="numeric"
+            value={formatProcessMoneyInput(value)}
+            onChange={(event) => {
+              const input = event.currentTarget
+              digitsAfterCursor.current = input.value
+                .slice(input.selectionStart ?? input.value.length)
+                .replace(/\D/g, '').length
+              const digits = input.value.replace(/\D/g, '')
+              onChange(digits ? centsToDecimal(BigInt(digits)) : '')
+            }}
             placeholder="0,00"
             disabled={disabled}
             required={required}

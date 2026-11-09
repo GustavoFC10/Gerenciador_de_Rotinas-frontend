@@ -5,7 +5,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, type ApiResponse } from '../../services/httpClient'
 import { processService } from '../../services/processService'
-import type { ProcessEntry, ProcessResource } from '../../types/processes'
+import type {
+  ProcessEntry,
+  ProcessField,
+  ProcessResource,
+} from '../../types/processes'
 import { processQueryKeys } from '../../query/processQueryKeys'
 import ProcessDetails from './ProcessDetails'
 import {
@@ -77,6 +81,127 @@ async function render(process: ProcessResource, onChange = vi.fn()) {
 }
 
 describe('ProcessDetails', () => {
+  it.each(['custo', 'honorario', 'regime', 'altdef'] as const)(
+    'confirms a pending %s definition even when its values are already saved',
+    async (field) => {
+      const process = pendingDefinition(field)
+      const saved: ProcessResource = {
+        ...process,
+        version: 5,
+        tarefas: {
+          definition: {
+            s: 'feito',
+            por: 'member-1',
+            autor: 'Ana',
+            em: '2026-11-09T12:00:00Z',
+          },
+        },
+        responsibleSectors: ['fin'],
+        analysis: {
+          ...process.analysis,
+          completedTasks: 1,
+          currentStage: 1,
+          pendingSectors: ['fin'],
+        },
+      }
+      const transition = vi
+        .spyOn(processService, 'transitionTask')
+        .mockResolvedValue(response(saved))
+      const update = vi.spyOn(processService, 'update')
+      const { button, onChange } = await render(process)
+
+      await act(async () => button('Salvar definição').click())
+
+      expect(transition).toHaveBeenCalledExactlyOnceWith(
+        process.id,
+        'definition',
+        process.version,
+        'feito',
+      )
+      expect(update).not.toHaveBeenCalled()
+      expect(onChange).toHaveBeenCalledWith(saved)
+
+      await act(async () =>
+        root.render(
+          <QueryClientProvider client={client}>
+            <ProcessDetails
+              scope={scope}
+              process={saved}
+              catalog={processTestCatalog}
+              onChange={onChange}
+              onClose={vi.fn()}
+              onEdit={vi.fn()}
+              onDelete={vi.fn()}
+            />
+          </QueryClientProvider>,
+        ),
+      )
+      expect(host.querySelector('.stage.cur')?.textContent).toContain(
+        'Atualização da cobrança',
+      )
+      expect(host.querySelector('.stage.done .stage-h')?.textContent).toContain(
+        'Concluída',
+      )
+      expect(host.querySelector('.process-definition')).toBeNull()
+    },
+  )
+
+  it('patches a changed inactivity fee with normalized money and the current version', async () => {
+    const process = pendingDefinition('honorario')
+    const update = vi
+      .spyOn(processService, 'update')
+      .mockResolvedValue(
+        response({ ...process, honorario: '0.00', version: 5 }),
+      )
+    const transition = vi.spyOn(processService, 'transitionTask')
+    const { button, onChange } = await render(process)
+    const input = host.querySelector<HTMLInputElement>(
+      '.process-definition input',
+    )!
+    // The first money field is the previous fee; edit only the monthly fee.
+    const monthly = host.querySelectorAll<HTMLInputElement>(
+      '.process-definition input',
+    )[1]!
+    expect(input.value).toBe('100,00')
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )!.set!.call(monthly, '0,00')
+      monthly.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    await act(async () => button('Salvar definição').click())
+
+    expect(update).toHaveBeenCalledExactlyOnceWith(process.id, {
+      honorario: '0.00',
+      version: process.version,
+    })
+    expect(transition).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ honorario: '0.00', version: 5 }),
+    )
+  })
+
+  it('shows definition confirmation failures without advancing the process', async () => {
+    const process = pendingDefinition('honorario')
+    vi.spyOn(processService, 'transitionTask').mockRejectedValue(
+      new Error('Falha ao confirmar a definição'),
+    )
+    const { button, onChange } = await render(process)
+
+    await act(async () => button('Salvar definição').click())
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      'Falha ao confirmar a definição',
+    )
+    expect(host.querySelector('.stage.cur')?.textContent).toContain(
+      'Definições',
+    )
+    expect(button('Salvar definição').disabled).toBe(false)
+  })
+
   it.each([
     ['fin', true],
     ['fin', false],
@@ -798,6 +923,48 @@ describe('ProcessDetails', () => {
 
 async function settleQueries() {
   await act(async () => new Promise((resolve) => setTimeout(resolve, 10)))
+}
+
+function pendingDefinition(field: ProcessField): ProcessResource {
+  return makeProcessTestResource({
+    tipo:
+      field === 'honorario'
+        ? 'inativa'
+        : field === 'altdef'
+          ? 'alteracao'
+          : 'abertura',
+    custo: '100.00',
+    pagador: 'cliente',
+    parcelas: 1,
+    honorario: '100.00',
+    honAnterior: '100.00',
+    honCobranca: '2027-08-19',
+    trab: false,
+    regime: 'simples',
+    regimeObs: '',
+    etapas: [
+      {
+        t: 'Definições',
+        tasks: [
+          { id: 'definition', d: 'com', txt: 'Definir dados', campo: field },
+        ],
+      },
+      {
+        t: 'Atualização da cobrança',
+        tasks: [{ id: 'billing', d: 'fin', txt: 'Atualizar a cobrança' }],
+      },
+    ],
+    responsibleSectors: ['com'],
+    analysis: {
+      currentStage: 0,
+      completedTasks: 0,
+      totalTasks: 2,
+      releaseDate: null,
+      waiting: false,
+      late: false,
+      pendingSectors: ['com'],
+    },
+  })
 }
 
 async function enterComment(text: string) {
