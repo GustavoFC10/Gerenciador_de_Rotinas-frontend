@@ -20,7 +20,11 @@ export const processQueryKeys = {
   catalog: (scope: OrganizationQueryScope) =>
     [...processQueryKeys.root(scope), 'catalog'] as const,
   leggacyMetrics: (scope: OrganizationQueryScope, filters?: ProcessFilters) =>
-    [...processQueryKeys.root(scope), 'leggacy-metrics', ...(filters === undefined ? [] : [normalizeProcessFilters(filters)])] as const,
+    [
+      ...processQueryKeys.root(scope),
+      'leggacy-metrics',
+      ...(filters === undefined ? [] : [normalizeProcessFilters(filters)]),
+    ] as const,
   list: (scope: OrganizationQueryScope, filters?: ProcessFilters) =>
     [
       ...processQueryKeys.root(scope),

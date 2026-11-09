@@ -60,12 +60,26 @@ describe('processQueryKeys', () => {
   })
 
   it('separates ordering, task projections, other sectors and global Leggacy metrics', () => {
-    for (const filters of [{ ordering: 'urgency' }, { taskSector: 'fin' }, { otherSector: 'fin' }] as const)
-      expect(processQueryKeys.list(scope, filters)).not.toEqual(processQueryKeys.list(scope, {}))
-    expect(processQueryKeys.list(scope, { taskSector: 'fin' })).not.toEqual(processQueryKeys.list(scope, { taskSector: 'reg' }))
-    expect(processQueryKeys.list(scope, {})).toEqual(processQueryKeys.list(scope, { ordering: 'recent' }))
-    expect(processQueryKeys.leggacyMetrics(scope)).not.toEqual(processQueryKeys.leggacyMetrics({ ...scope, membershipId: 'member-2' }))
-    expect(processQueryKeys.leggacyMetrics(scope, { responsibleSector: 'fin' })).not.toEqual(processQueryKeys.leggacyMetrics(scope))
+    for (const filters of [
+      { ordering: 'urgency' },
+      { taskSector: 'fin' },
+      { otherSector: 'fin' },
+    ] as const)
+      expect(processQueryKeys.list(scope, filters)).not.toEqual(
+        processQueryKeys.list(scope, {}),
+      )
+    expect(processQueryKeys.list(scope, { taskSector: 'fin' })).not.toEqual(
+      processQueryKeys.list(scope, { taskSector: 'reg' }),
+    )
+    expect(processQueryKeys.list(scope, {})).toEqual(
+      processQueryKeys.list(scope, { ordering: 'recent' }),
+    )
+    expect(processQueryKeys.leggacyMetrics(scope)).not.toEqual(
+      processQueryKeys.leggacyMetrics({ ...scope, membershipId: 'member-2' }),
+    )
+    expect(
+      processQueryKeys.leggacyMetrics(scope, { responsibleSector: 'fin' }),
+    ).not.toEqual(processQueryKeys.leggacyMetrics(scope))
   })
 
   it('isola avisos, cobranças e destinatários por tenant, vínculo, filtros e página', () => {

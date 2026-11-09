@@ -111,44 +111,106 @@ function MoneyField({
 }
 
 export function ProcessOtherFields({
-  value, onChange, disabled, configurationLocked, viewFinancial, requireValue,
+  value,
+  onChange,
+  disabled,
+  configurationLocked,
+  viewFinancial,
+  requireValue,
 }: Pick<FieldProps, 'value' | 'onChange' | 'disabled'> & {
   configurationLocked: boolean
   viewFinancial: boolean
   requireValue: boolean
 }) {
   const id = useId()
-  return <>
-    <div className="field">
-      <label htmlFor={`${id}-description`}>Descrição do processo <span className="req">obrigatório</span></label>
-      <textarea className="input" id={`${id}-description`} rows={4} required maxLength={3000}
-        value={value.descricaoProcesso ?? ''} disabled={disabled}
-        onChange={event => onChange({ descricaoProcesso: event.target.value })} />
-    </div>
-    {viewFinancial && requireValue && <MoneyField label="Valor do processo" value={value.valorProcesso}
-      required disabled={disabled} onChange={valorProcesso => onChange({ valorProcesso })} />}
-    <div className="grid2">
+  return (
+    <>
       <div className="field">
-        <label htmlFor={`${id}-department`}>Solicitar a qual departamento?</label>
-        <select className="input" id={`${id}-department`} required value={value.departamentoSolicitado ?? ''}
-          disabled={disabled || configurationLocked}
-          onChange={event => onChange({ departamentoSolicitado: event.target.value as 'fin' | 'reg' })}>
-          <option value="" disabled>Selecione</option><option value="fin">Financeiro</option><option value="reg">Regularidade</option>
-        </select>
+        <label htmlFor={`${id}-description`}>
+          Descrição do processo <span className="req">obrigatório</span>
+        </label>
+        <textarea
+          className="input"
+          id={`${id}-description`}
+          rows={4}
+          required
+          maxLength={3000}
+          value={value.descricaoProcesso ?? ''}
+          disabled={disabled}
+          onChange={(event) =>
+            onChange({ descricaoProcesso: event.target.value })
+          }
+        />
       </div>
-      <div className="field">
-        <label htmlFor={`${id}-leggacy`}>Acionar a Leggacy?</label>
-        <select className="input" id={`${id}-leggacy`} required
-          value={value.acionarLeggacy === undefined ? '' : String(value.acionarLeggacy)}
-          disabled={disabled || configurationLocked}
-          onChange={event => onChange({ acionarLeggacy: event.target.value === 'true' })}>
-          <option value="" disabled>Selecione</option><option value="true">Sim</option><option value="false">Não</option>
-        </select>
+      {viewFinancial && requireValue && (
+        <MoneyField
+          label="Valor do processo"
+          value={value.valorProcesso}
+          required
+          disabled={disabled}
+          onChange={(valorProcesso) => onChange({ valorProcesso })}
+        />
+      )}
+      <div className="grid2">
+        <div className="field">
+          <label htmlFor={`${id}-department`}>
+            Solicitar a qual departamento?
+          </label>
+          <select
+            className="input"
+            id={`${id}-department`}
+            required
+            value={value.departamentoSolicitado ?? ''}
+            disabled={disabled || configurationLocked}
+            onChange={(event) =>
+              onChange({
+                departamentoSolicitado: event.target.value as 'fin' | 'reg',
+              })
+            }
+          >
+            <option value="" disabled>
+              Selecione
+            </option>
+            <option value="fin">Financeiro</option>
+            <option value="reg">Regularidade</option>
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor={`${id}-leggacy`}>Acionar a Leggacy?</label>
+          <select
+            className="input"
+            id={`${id}-leggacy`}
+            required
+            value={
+              value.acionarLeggacy === undefined
+                ? ''
+                : String(value.acionarLeggacy)
+            }
+            disabled={disabled || configurationLocked}
+            onChange={(event) =>
+              onChange({ acionarLeggacy: event.target.value === 'true' })
+            }
+          >
+            <option value="" disabled>
+              Selecione
+            </option>
+            <option value="true">Sim</option>
+            <option value="false">Não</option>
+          </select>
+        </div>
       </div>
-    </div>
-    {configurationLocked && <p className="note">Departamento e opção Leggacy não podem ser alterados enquanto houver tarefas concluídas.</p>}
-    <p className="help">Acionar a Leggacy configura o acompanhamento e as cobranças. O envio externo é realizado e declarado manualmente.</p>
-  </>
+      {configurationLocked && (
+        <p className="note">
+          Departamento e opção Leggacy não podem ser alterados enquanto houver
+          tarefas concluídas.
+        </p>
+      )}
+      <p className="help">
+        Acionar a Leggacy configura o acompanhamento e as cobranças. O envio
+        externo é realizado e declarado manualmente.
+      </p>
+    </>
+  )
 }
 
 export function ProcessAlterationFields({

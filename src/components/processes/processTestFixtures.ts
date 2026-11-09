@@ -196,18 +196,32 @@ export const processTestCatalog: ProcessCatalog = {
 }
 
 // Include every published type; existing specialized test snapshots stay intact.
-processTestCatalog.types.push(...(workflowFixtures as ProcessCatalog['types']).filter(
-  type => !processTestCatalog.types.some(existing => existing.id === type.id),
-))
+processTestCatalog.types.push(
+  ...(workflowFixtures as ProcessCatalog['types']).filter(
+    (type) =>
+      !processTestCatalog.types.some((existing) => existing.id === type.id),
+  ),
+)
 
 export const processTestExtraIndicators = {
-  dueSoon: 0, completedThisMonth: 0, completedThisYear: 0,
-  averageOverdueDays: null, maxOverdueDays: null,
-  averageCompletionDays: null, averageOpenAgeDays: null,
+  dueSoon: 0,
+  completedThisMonth: 0,
+  completedThisYear: 0,
+  averageOverdueDays: null,
+  maxOverdueDays: null,
+  averageCompletionDays: null,
+  averageOpenAgeDays: null,
 }
 
-export const processTestLeggacyMetrics = (['abertura', 'alteracao', 'baixa'] as const).map(tipo => ({
-  tipo, completedCount: 0, waitingCount: 0, averageDays: null, minDays: null, maxDays: null,
+export const processTestLeggacyMetrics = (
+  ['abertura', 'alteracao', 'baixa'] as const
+).map((tipo) => ({
+  tipo,
+  completedCount: 0,
+  waitingCount: 0,
+  averageDays: null,
+  minDays: null,
+  maxDays: null,
 }))
 
 export function makeProcessTestResource(

@@ -5,7 +5,11 @@
   ProcessSector,
   ProcessLeggacyMetric,
 } from '../../types/processes'
-import { PROCESS_SECTORS, formatProcessDays, processTypeName } from '../../utils/processPresentation'
+import {
+  PROCESS_SECTORS,
+  formatProcessDays,
+  processTypeName,
+} from '../../utils/processPresentation'
 import ProcessIcon from './ProcessIcon'
 import ProcessSummaryRow from './ProcessSummaryRow'
 import ProcessIndicatorCards from './ProcessIndicatorCards'
@@ -73,7 +77,9 @@ export default function ProcessOverview({
           <section className="panel mine-panel">
             <div className="panel-h">
               <div>
-                <h2>{sector ? 'Aguardando você' : 'Prioridades da execução'}</h2>
+                <h2>
+                  {sector ? 'Aguardando você' : 'Prioridades da execução'}
+                </h2>
                 <p className="ph-sub">
                   {sector
                     ? `Ações liberadas para ${PROCESS_SECTORS[sector]}`
@@ -146,33 +152,68 @@ export default function ProcessOverview({
           <section className="panel">
             <div className="panel-h">
               <div>
-                <h2>{sector ? 'Com outros setores' : 'Em execução na equipe'}</h2>
-                <p className="ph-sub">{sector ? `Sem pendências de ${PROCESS_SECTORS[sector]}` : 'Em andamento e atrasados'}</p>
+                <h2>
+                  {sector ? 'Com outros setores' : 'Em execução na equipe'}
+                </h2>
+                <p className="ph-sub">
+                  {sector
+                    ? `Sem pendências de ${PROCESS_SECTORS[sector]}`
+                    : 'Em andamento e atrasados'}
+                </p>
               </div>
               <span className="pill">{execution.count}</span>
             </div>
             {rows(execution)}
-            <button className="morel" onClick={() => onList(sector ? 'outrosSetores' : 'fila')}>
+            <button
+              className="morel"
+              onClick={() => onList(sector ? 'outrosSetores' : 'fila')}
+            >
               {sector ? 'Ver com outros setores' : 'Ver execução completa'}
             </button>
           </section>
         </div>
         <div className="home-left">
           <ProcessIndicatorCards indicators={indicators} />
-          {leggacyMetrics && <section className="panel">
-            <div className="panel-h"><div><h2>Prazos da Leggacy</h2>
-              <p className="ph-sub">Dias corridos da abertura até o marco concluído · toda a organização</p></div></div>
-            {leggacyMetrics.map(metric => <div className="process-leggacy-metric" key={metric.tipo}>
-              <h3>{processTypeName(catalog, metric.tipo)}</h3>
-              <dl className="process-indicator-grid">
-                <div><dt>Média</dt><dd>{formatProcessDays(metric.averageDays)}</dd></div>
-                <div><dt>Mínimo</dt><dd>{formatProcessDays(metric.minDays)}</dd></div>
-                <div><dt>Máximo</dt><dd>{formatProcessDays(metric.maxDays)}</dd></div>
-                <div><dt>Amostra concluída</dt><dd>{metric.completedCount}</dd></div>
-                <div><dt>Aguardando</dt><dd>{metric.waitingCount}</dd></div>
-              </dl>
-            </div>)}
-          </section>}
+          {leggacyMetrics && (
+            <section className="panel">
+              <div className="panel-h">
+                <div>
+                  <h2>Prazos da Leggacy</h2>
+                  <p className="ph-sub">
+                    Dias corridos da abertura até o marco concluído · toda a
+                    organização
+                  </p>
+                </div>
+              </div>
+              {leggacyMetrics.map((metric) => (
+                <div className="process-leggacy-metric" key={metric.tipo}>
+                  <h3>{processTypeName(catalog, metric.tipo)}</h3>
+                  <dl className="process-indicator-grid">
+                    <div>
+                      <dt>Média</dt>
+                      <dd>{formatProcessDays(metric.averageDays)}</dd>
+                    </div>
+                    <div>
+                      <dt>Mínimo</dt>
+                      <dd>{formatProcessDays(metric.minDays)}</dd>
+                    </div>
+                    <div>
+                      <dt>Máximo</dt>
+                      <dd>{formatProcessDays(metric.maxDays)}</dd>
+                    </div>
+                    <div>
+                      <dt>Amostra concluída</dt>
+                      <dd>{metric.completedCount}</dd>
+                    </div>
+                    <div>
+                      <dt>Aguardando</dt>
+                      <dd>{metric.waitingCount}</dd>
+                    </div>
+                  </dl>
+                </div>
+              ))}
+            </section>
+          )}
           <section className="panel stat">
             <div className="stat-h">
               <div className="ico-sq">
@@ -209,8 +250,13 @@ export default function ProcessOverview({
             <div className="dchart">
               <div className="dchart-h">Filas executáveis por setor</div>
               {Object.entries(PROCESS_SECTORS).map(([key, label]) => (
-                <button className="drow" key={key} onClick={() => onQueueSector?.(key as ProcessSector)}
-                  disabled={!onQueueSector} aria-label={`Consultar responsabilidade de ${label}`}>
+                <button
+                  className="drow"
+                  key={key}
+                  onClick={() => onQueueSector?.(key as ProcessSector)}
+                  disabled={!onQueueSector}
+                  aria-label={`Consultar responsabilidade de ${label}`}
+                >
                   <span className="dl">{label}</span>
                   <b className="num">
                     {indicators.bySector[key as ProcessSector] ?? 0}
@@ -220,9 +266,16 @@ export default function ProcessOverview({
             </div>
             <div className="dchart">
               <div className="dchart-h">Processos por tipo</div>
-              {catalog.types.map(type => <button className="drow" key={type.id} onClick={() => onList('todos', type.id)}>
-                <span className="dl">{type.nome}</span><b className="num">{indicators.byType[type.id] ?? 0}</b>
-              </button>)}
+              {catalog.types.map((type) => (
+                <button
+                  className="drow"
+                  key={type.id}
+                  onClick={() => onList('todos', type.id)}
+                >
+                  <span className="dl">{type.nome}</span>
+                  <b className="num">{indicators.byType[type.id] ?? 0}</b>
+                </button>
+              ))}
             </div>
             <div className="mini3">
               <button onClick={() => onList('concluidos')}>

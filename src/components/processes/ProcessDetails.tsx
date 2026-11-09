@@ -269,9 +269,14 @@ function HistoryValue({
       </dl>
     )
   if (
-    ['custo', 'honorario', 'trabValor', 'honAnterior', 'honPerdido', 'valorProcesso'].includes(
-      name,
-    )
+    [
+      'custo',
+      'honorario',
+      'trabValor',
+      'honAnterior',
+      'honPerdido',
+      'valorProcesso',
+    ].includes(name)
   )
     return processMoney(String(value))
   if (name === 'regime')
@@ -279,7 +284,9 @@ function HistoryValue({
       PROCESS_REGIMES[value as keyof typeof PROCESS_REGIMES] ?? String(value)
     )
   if (name === 'departamentoSolicitado')
-    return PROCESS_SECTORS[value as keyof typeof PROCESS_SECTORS] ?? String(value)
+    return (
+      PROCESS_SECTORS[value as keyof typeof PROCESS_SECTORS] ?? String(value)
+    )
   if (name === 'pagador')
     return PROCESS_PAYERS[value as keyof typeof PROCESS_PAYERS] ?? String(value)
   if (name === 'motivo')
@@ -331,12 +338,35 @@ function ProcessValues({
     DIRECT_LOSS_TYPES.includes(process.tipo)
   return (
     <div className="vals">
-      {process.tipo === 'outros' && <>
-        {valueBox('Descrição do processo', <span className="obs-t">{process.descricaoProcesso}</span>)}
-        {valueBox('Departamento solicitado', process.departamentoSolicitado ? PROCESS_SECTORS[process.departamentoSolicitado] : '—')}
-        {valueBox('Acionar a Leggacy', process.acionarLeggacy === undefined ? '—' : process.acionarLeggacy ? 'Sim' : 'Não')}
-        {financial && process.valorProcesso !== undefined && valueBox('Valor do processo', processMoney(process.valorProcesso), <small>Valor pontual</small>)}
-      </>}
+      {process.tipo === 'outros' && (
+        <>
+          {valueBox(
+            'Descrição do processo',
+            <span className="obs-t">{process.descricaoProcesso}</span>,
+          )}
+          {valueBox(
+            'Departamento solicitado',
+            process.departamentoSolicitado
+              ? PROCESS_SECTORS[process.departamentoSolicitado]
+              : '—',
+          )}
+          {valueBox(
+            'Acionar a Leggacy',
+            process.acionarLeggacy === undefined
+              ? '—'
+              : process.acionarLeggacy
+                ? 'Sim'
+                : 'Não',
+          )}
+          {financial &&
+            process.valorProcesso !== undefined &&
+            valueBox(
+              'Valor do processo',
+              processMoney(process.valorProcesso),
+              <small>Valor pontual</small>,
+            )}
+        </>
+      )}
       {process.tipo === 'saida' &&
         valueBox(
           'Nova contabilidade',
@@ -1594,7 +1624,13 @@ function HistoryEntry({
   const author = automatic ? 'Sistema' : entry.autor || 'Equipe'
   const action = statusChange
     ? `alterou a situação de ${statuses[details.from as ProcessStatus]} para ${statuses[details.to as ProcessStatus]}`
-    : ({ restored: 'restaurou o processo', company_unlinked: 'desvinculou o cadastro central, preservando a identificação do processo' } as Record<string, string>)[entry.kind] ?? entry.text
+    : ((
+        {
+          restored: 'restaurou o processo',
+          company_unlinked:
+            'desvinculou o cadastro central, preservando a identificação do processo',
+        } as Record<string, string>
+      )[entry.kind] ?? entry.text)
   const initials = author
     .split(/\s+/)
     .filter(Boolean)

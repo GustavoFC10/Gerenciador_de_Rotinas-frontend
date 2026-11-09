@@ -28,7 +28,11 @@ import type {
   ProcessSummary,
 } from '../../types/processes'
 import ProcessesPage from './ProcessesPage'
-import { NotificationsContext, type NotificationsContextValue, type NotificationInput } from '../../contexts/notificationContextDefinition'
+import {
+  NotificationsContext,
+  type NotificationsContextValue,
+  type NotificationInput,
+} from '../../contexts/notificationContextDefinition'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const scope = { organizationId: 'org-1', membershipId: 'member-1' }
@@ -58,7 +62,9 @@ function serverResults(filters: ProcessFilters = {}) {
       (!filters.queueSector ||
         (['andamento', 'atrasado'].includes(record.status) &&
           record.analysis.pendingSectors.includes(filters.queueSector))) &&
-      (!filters.otherSector || (['andamento','atrasado'].includes(record.status) && !record.analysis.pendingSectors.includes(filters.otherSector))) &&
+      (!filters.otherSector ||
+        (['andamento', 'atrasado'].includes(record.status) &&
+          !record.analysis.pendingSectors.includes(filters.otherSector))) &&
       (!filters.q || record.empresa.includes(filters.q)),
   )
 }
@@ -178,10 +184,24 @@ function LocationProbe() {
 }
 
 beforeEach(() => {
-  notify.mockReset().mockImplementation(() => `notice-${notify.mock.calls.length}`)
+  notify
+    .mockReset()
+    .mockImplementation(() => `notice-${notify.mock.calls.length}`)
   dismiss.mockReset()
-  feedback = { isAvailable: true, notifications: [], history: [], activities: {}, historyOpen: false,
-    notify, dismiss, removeHistory: vi.fn(), openHistory: vi.fn(), closeHistory: vi.fn(), setActivity: vi.fn(), reset: vi.fn() }
+  feedback = {
+    isAvailable: true,
+    notifications: [],
+    history: [],
+    activities: {},
+    historyOpen: false,
+    notify,
+    dismiss,
+    removeHistory: vi.fn(),
+    openHistory: vi.fn(),
+    closeHistory: vi.fn(),
+    setActivity: vi.fn(),
+    reset: vi.fn(),
+  }
   catalog = structuredClone(processTestCatalog)
   records = [makeProcessTestResource()]
   host = document.createElement('div')
@@ -202,11 +222,28 @@ beforeEach(() => {
       count: matches.length,
       previous: page > 1 ? '?page=1' : null,
       next: page * size < matches.length ? `?page=${page + 1}` : null,
-      results: matches.slice((page - 1) * size, page * size).map(record => ({ ...summary(record), ...(filters.taskSector ? {
-        nextTask: ['andamento', 'atrasado'].includes(record.status) && record.analysis.pendingSectors.includes(filters.taskSector)
-          ? { id: 'next-1', sector: filters.taskSector, text: 'Próxima tarefa recebida da API', stageTitle: 'Etapa recebida da API' } : null,
-        pendingTaskCount: ['andamento', 'atrasado'].includes(record.status) && record.analysis.pendingSectors.includes(filters.taskSector) ? 3 : 0,
-      } : {}) })),
+      results: matches.slice((page - 1) * size, page * size).map((record) => ({
+        ...summary(record),
+        ...(filters.taskSector
+          ? {
+              nextTask:
+                ['andamento', 'atrasado'].includes(record.status) &&
+                record.analysis.pendingSectors.includes(filters.taskSector)
+                  ? {
+                      id: 'next-1',
+                      sector: filters.taskSector,
+                      text: 'Próxima tarefa recebida da API',
+                      stageTitle: 'Etapa recebida da API',
+                    }
+                  : null,
+              pendingTaskCount:
+                ['andamento', 'atrasado'].includes(record.status) &&
+                record.analysis.pendingSectors.includes(filters.taskSector)
+                  ? 3
+                  : 0,
+            }
+          : {}),
+      })),
     })
   })
   vi.spyOn(processService, 'entries').mockResolvedValue(
@@ -218,7 +255,9 @@ beforeEach(() => {
   vi.spyOn(processService, 'followUps').mockResolvedValue(
     response({ count: 0, next: null, previous: null, results: [] }),
   )
-  vi.spyOn(processService, 'leggacyMetrics').mockResolvedValue(response(processTestLeggacyMetrics))
+  vi.spyOn(processService, 'leggacyMetrics').mockResolvedValue(
+    response(processTestLeggacyMetrics),
+  )
   vi.spyOn(processService, 'get').mockImplementation(async (id) =>
     response(records.find((record) => record.id === id)!),
   )
@@ -266,8 +305,8 @@ async function render(path: string, currentScope = scope) {
         <QueryClientProvider client={client}>
           <AuthContext.Provider value={auth}>
             <NotificationsContext.Provider value={feedback}>
-            <ProcessesPage />
-            <LocationProbe />
+              <ProcessesPage />
+              <LocationProbe />
             </NotificationsContext.Provider>
           </AuthContext.Provider>
         </QueryClientProvider>
@@ -328,27 +367,77 @@ async function submitForm() {
 
 describe('ProcessesPage integration', () => {
   it('keeps urgency in the URL, resets the page, and queries aggregate cards with the same filters', async () => {
-    await render('/processos/lista?situacao=todos&page=2&tipo=abertura&q=Empresa')
-    const ordering = host.querySelector<HTMLSelectElement>('select[aria-label="Ordenação"]')!
-    await act(async () => { ordering.value = 'urgency'; ordering.dispatchEvent(new Event('change', { bubbles: true })) })
+    await render(
+      '/processos/lista?situacao=todos&page=2&tipo=abertura&q=Empresa',
+    )
+    const ordering = host.querySelector<HTMLSelectElement>(
+      'select[aria-label="Ordenação"]',
+    )!
+    await act(async () => {
+      ordering.value = 'urgency'
+      ordering.dispatchEvent(new Event('change', { bubbles: true }))
+    })
     await settle()
-    expect(host.querySelector('[data-testid="location"]')?.textContent).toContain('ordering=urgency')
-    expect(host.querySelector('[data-testid="location"]')?.textContent).not.toContain('page=2')
-    expect(processService.list).toHaveBeenLastCalledWith(expect.objectContaining({ ordering: 'urgency', page: 1, tipo: 'abertura', q: 'Empresa' }), expect.any(AbortSignal))
-    expect(processService.indicators).toHaveBeenLastCalledWith(expect.objectContaining({ ordering: 'urgency', tipo: 'abertura', q: 'Empresa' }), expect.any(AbortSignal))
+    expect(
+      host.querySelector('[data-testid="location"]')?.textContent,
+    ).toContain('ordering=urgency')
+    expect(
+      host.querySelector('[data-testid="location"]')?.textContent,
+    ).not.toContain('page=2')
+    expect(processService.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        ordering: 'urgency',
+        page: 1,
+        tipo: 'abertura',
+        q: 'Empresa',
+      }),
+      expect.any(AbortSignal),
+    )
+    expect(processService.indicators).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        ordering: 'urgency',
+        tipo: 'abertura',
+        q: 'Empresa',
+      }),
+      expect.any(AbortSignal),
+    )
     expect(processService.get).not.toHaveBeenCalled()
   })
 
   it('projects the next task in the home queue and requests other sectors separately from global metrics', async () => {
-    records[0] = makeProcessTestResource({ analysis: { ...records[0]!.analysis, pendingSectors: ['com'] } })
+    records[0] = makeProcessTestResource({
+      analysis: { ...records[0]!.analysis, pendingSectors: ['com'] },
+    })
     await render('/processos')
-    expect(host.querySelector('main')?.textContent).toContain('Próxima tarefa recebida da API')
-    expect(host.querySelector('main')?.textContent).toContain('Etapa recebida da API · +2 tarefas')
-    expect(host.querySelector('main')?.textContent).toContain('Com outros setores')
-    expect(host.querySelector('main')?.textContent).toContain('Prazos da Leggacy')
-    expect(processService.list).toHaveBeenCalledWith({ queueSector: 'com', taskSector: 'com', ordering: 'urgency', pageSize: 8 }, expect.any(AbortSignal))
-    expect(processService.list).toHaveBeenCalledWith({ otherSector: 'com', ordering: 'urgency', pageSize: 6 }, expect.any(AbortSignal))
-    expect(processService.leggacyMetrics).toHaveBeenCalledWith({}, expect.any(AbortSignal))
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Próxima tarefa recebida da API',
+    )
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Etapa recebida da API · +2 tarefas',
+    )
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Com outros setores',
+    )
+    expect(host.querySelector('main')?.textContent).toContain(
+      'Prazos da Leggacy',
+    )
+    expect(processService.list).toHaveBeenCalledWith(
+      {
+        queueSector: 'com',
+        taskSector: 'com',
+        ordering: 'urgency',
+        pageSize: 8,
+      },
+      expect.any(AbortSignal),
+    )
+    expect(processService.list).toHaveBeenCalledWith(
+      { otherSector: 'com', ordering: 'urgency', pageSize: 6 },
+      expect.any(AbortSignal),
+    )
+    expect(processService.leggacyMetrics).toHaveBeenCalledWith(
+      {},
+      expect.any(AbortSignal),
+    )
     expect(processService.get).not.toHaveBeenCalled()
   })
 
@@ -356,70 +445,136 @@ describe('ProcessesPage integration', () => {
     catalog.permissions.executeSectors = []
     await render('/processos/fila')
     expect(host.querySelector('main')?.textContent).toContain('Empresa Exemplo')
-    expect(processService.list).toHaveBeenCalledWith(expect.objectContaining({ status: ['andamento', 'atrasado'], ordering: 'urgency' }), expect.any(AbortSignal))
-    expect(vi.mocked(processService.list).mock.calls[0]?.[0]).not.toHaveProperty('queueSector')
-    expect(vi.mocked(processService.list).mock.calls[0]?.[0]).not.toHaveProperty('taskSector')
+    expect(processService.list).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: ['andamento', 'atrasado'],
+        ordering: 'urgency',
+      }),
+      expect.any(AbortSignal),
+    )
+    expect(
+      vi.mocked(processService.list).mock.calls[0]?.[0],
+    ).not.toHaveProperty('queueSector')
+    expect(
+      vi.mocked(processService.list).mock.calls[0]?.[0],
+    ).not.toHaveProperty('taskSector')
   })
 
   it('offers scoped undo after closing the deleted detail and uses the returned version once', async () => {
-    vi.spyOn(processService, 'remove').mockResolvedValue({ ...response(undefined), status: 204, etag: '"8"' })
+    vi.spyOn(processService, 'remove').mockResolvedValue({
+      ...response(undefined),
+      status: 204,
+      etag: '"8"',
+    })
     let finish!: (result: ApiResponse<ProcessResource>) => void
-    const restore = vi.spyOn(processService, 'restore').mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    const restore = vi.spyOn(processService, 'restore').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
     await render('/processos/process-1')
     await act(async () => button('Excluir').click())
     await act(async () => button('Excluir processo').click())
     await settle()
-    const notice = notify.mock.calls.find(([input]) => input.title === 'Processo excluído')![0]
+    const notice = notify.mock.calls.find(
+      ([input]) => input.title === 'Processo excluído',
+    )![0]
     expect(notice.action?.label).toBe('Desfazer')
-    expect(host.querySelector('[data-testid="location"]')?.textContent).toBe('/processos')
+    expect(host.querySelector('[data-testid="location"]')?.textContent).toBe(
+      '/processos',
+    )
     expect(processService.get).toHaveBeenCalledTimes(1)
-    await act(async () => { notice.action!.onClick(); notice.action!.onClick() })
+    await act(async () => {
+      notice.action!.onClick()
+      notice.action!.onClick()
+    })
     expect(restore).toHaveBeenCalledExactlyOnceWith('process-1', 8)
-    await act(async () => finish(response(makeProcessTestResource({ version: 9 }))))
-    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: 'Processo restaurado' }))
-    expect(client.getQueryData(processQueryKeys.detail(scope, 'process-1'))).toMatchObject({ version: 9 })
+    await act(async () =>
+      finish(response(makeProcessTestResource({ version: 9 }))),
+    )
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Processo restaurado' }),
+    )
+    expect(
+      client.getQueryData(processQueryKeys.detail(scope, 'process-1')),
+    ).toMatchObject({ version: 9 })
   })
 
-  it.each([null, 'invalid', '"0"'])('preserves delete success without offering undo for ETag %s', async etag => {
-    vi.spyOn(processService, 'remove').mockResolvedValue({ ...response(undefined), status: 204, etag })
-    await render('/processos/process-1')
-    const detailRequests = vi.mocked(processService.get).mock.calls.length
-    await act(async () => button('Excluir').click())
-    await act(async () => button('Excluir processo').click())
-    await settle()
-    expect(notify.mock.calls.find(([input]) => input.title === 'Processo excluído')?.[0].action).toBeUndefined()
-    expect(processService.get).toHaveBeenCalledTimes(detailRequests)
-  })
+  it.each([null, 'invalid', '"0"'])(
+    'preserves delete success without offering undo for ETag %s',
+    async (etag) => {
+      vi.spyOn(processService, 'remove').mockResolvedValue({
+        ...response(undefined),
+        status: 204,
+        etag,
+      })
+      await render('/processos/process-1')
+      const detailRequests = vi.mocked(processService.get).mock.calls.length
+      await act(async () => button('Excluir').click())
+      await act(async () => button('Excluir processo').click())
+      await settle()
+      expect(
+        notify.mock.calls.find(
+          ([input]) => input.title === 'Processo excluído',
+        )?.[0].action,
+      ).toBeUndefined()
+      expect(processService.get).toHaveBeenCalledTimes(detailRequests)
+    },
+  )
 
   it('explains restore conflicts without retrying or requesting the deleted detail', async () => {
-    vi.spyOn(processService, 'remove').mockResolvedValue({ ...response(undefined), status: 204, etag: '"8"' })
-    const restore = vi.spyOn(processService, 'restore').mockRejectedValue(httpError(409))
+    vi.spyOn(processService, 'remove').mockResolvedValue({
+      ...response(undefined),
+      status: 204,
+      etag: '"8"',
+    })
+    const restore = vi
+      .spyOn(processService, 'restore')
+      .mockRejectedValue(httpError(409))
     await render('/processos/process-1')
     await act(async () => button('Excluir').click())
     await act(async () => button('Excluir processo').click())
     await settle()
-    const action = notify.mock.calls.find(([input]) => input.title === 'Processo excluído')![0].action!
+    const action = notify.mock.calls.find(
+      ([input]) => input.title === 'Processo excluído',
+    )![0].action!
     await act(async () => action.onClick())
     await settle()
     expect(restore).toHaveBeenCalledTimes(1)
-    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('versão ou o estado') }))
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining('versão ou o estado'),
+      }),
+    )
     expect(processService.get).toHaveBeenCalledTimes(1)
   })
 
   it('dismisses the undo action and rejects its stale callback when organization and membership change', async () => {
-    vi.spyOn(processService, 'remove').mockResolvedValue({ ...response(undefined), status: 204, etag: '"8"' })
+    vi.spyOn(processService, 'remove').mockResolvedValue({
+      ...response(undefined),
+      status: 204,
+      etag: '"8"',
+    })
     const restore = vi.spyOn(processService, 'restore')
     await render('/processos/process-1')
     await act(async () => button('Excluir').click())
     await act(async () => button('Excluir processo').click())
     await settle()
-    const action = notify.mock.calls.find(([input]) => input.title === 'Processo excluído')![0].action!
+    const action = notify.mock.calls.find(
+      ([input]) => input.title === 'Processo excluído',
+    )![0].action!
     records = [makeProcessTestResource({ organizationId: 'org-2' })]
-    await render('/processos', { organizationId: 'org-2', membershipId: 'member-2' })
+    await render('/processos', {
+      organizationId: 'org-2',
+      membershipId: 'member-2',
+    })
     expect(dismiss).toHaveBeenCalled()
     await act(async () => action.onClick())
     expect(restore).not.toHaveBeenCalled()
-    expect(client.getQueriesData({ queryKey: processQueryKeys.root(scope) })).toHaveLength(0)
+    expect(
+      client.getQueriesData({ queryKey: processQueryKeys.root(scope) }),
+    ).toHaveLength(0)
   })
 
   it('shows one creation action and one contextual search without repeating KPI cards or implicit statuses', async () => {
@@ -531,7 +686,14 @@ describe('ProcessesPage integration', () => {
     await act(async () => button('Limpar filtros').click())
     await waitFor(() => !!host.querySelector('.lrow'))
     expect(processService.list).toHaveBeenLastCalledWith(
-      { queueSector: 'com', taskSector: 'com', ordering: 'urgency', status: ['andamento', 'atrasado'], page: 1, pageSize: 10 },
+      {
+        queueSector: 'com',
+        taskSector: 'com',
+        ordering: 'urgency',
+        status: ['andamento', 'atrasado'],
+        page: 1,
+        pageSize: 10,
+      },
       expect.any(AbortSignal),
     )
     expect(host.querySelector('[data-testid="location"]')?.textContent).toBe(
@@ -634,7 +796,13 @@ describe('ProcessesPage integration', () => {
       'Todos os processos',
     )
     expect(processService.list).toHaveBeenLastCalledWith(
-      { status: ['cancelado'], q: 'Empresa', ordering: 'recent', page: 1, pageSize: 50 },
+      {
+        status: ['cancelado'],
+        q: 'Empresa',
+        ordering: 'recent',
+        page: 1,
+        pageSize: 50,
+      },
       expect.any(AbortSignal),
     )
     expect(host.querySelector('button.nav-i[aria-current="page"]')).toBeNull()

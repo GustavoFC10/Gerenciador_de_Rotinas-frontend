@@ -82,7 +82,9 @@ export function formatProcessDays(value: number | null | undefined) {
 }
 
 /** DELETE returns the version after deletion as a strong, quoted ETag. */
-export function processVersionFromEtag(etag: string | null | undefined): number | null {
+export function processVersionFromEtag(
+  etag: string | null | undefined,
+): number | null {
   if (!etag || !/^"[1-9]\d*"$/.test(etag)) return null
   const version = Number(etag.slice(1, -1))
   return Number.isSafeInteger(version) ? version : null

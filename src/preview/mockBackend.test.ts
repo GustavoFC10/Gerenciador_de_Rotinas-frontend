@@ -162,7 +162,10 @@ describe('isolated feature preview', () => {
     )
   })
   it('does not serve the removed process company registry route', async () => {
-    expect((await new PreviewBackend().handle(url('processes/company-options/'))).status).toBe(404)
+    expect(
+      (await new PreviewBackend().handle(url('processes/company-options/')))
+        .status,
+    ).toBe(404)
   })
 
   it('creates and edits general company records through the module API', async () => {

@@ -41,12 +41,18 @@ export function useProcessCatalog(
   })
 }
 
-export function useProcessLeggacyMetrics(scope: OrganizationQueryScope, enabled: boolean) {
+export function useProcessLeggacyMetrics(
+  scope: OrganizationQueryScope,
+  enabled: boolean,
+) {
   return useQuery<ProcessLeggacyMetric[], Error>({
     ...options,
     enabled,
     queryKey: processQueryKeys.leggacyMetrics(scope),
-    queryFn: ({ signal }) => processService.leggacyMetrics({}, signal).then(response => response.data),
+    queryFn: ({ signal }) =>
+      processService
+        .leggacyMetrics({}, signal)
+        .then((response) => response.data),
   })
 }
 

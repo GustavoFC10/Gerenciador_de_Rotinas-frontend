@@ -12,38 +12,119 @@ import {
 } from './processTestFixtures'
 
 describe('process form contract', () => {
-  it.each(['fin', 'reg'] as const)('keeps zero and false for Outros in %s and drops residual fields', departamentoSolicitado => {
-    const type = processTestCatalog.types.find(type => type.id === 'outros')!
-    for (const acionarLeggacy of [true, false]) {
-      expect(normalizeProcessInput({ tipo: 'outros', empresa: ' Empresa ', descricaoProcesso: ' Atividade ',
-        valorProcesso: '0', departamentoSolicitado, acionarLeggacy, cnpj: '123', honorario: '150', parcelas: 3, regime: 'simples',
-      }, type)).toEqual({ tipo: 'outros', empresa: 'Empresa', descricaoProcesso: 'Atividade', valorProcesso: '0.00', departamentoSolicitado, acionarLeggacy })
-    }
-  })
+  it.each(['fin', 'reg'] as const)(
+    'keeps zero and false for Outros in %s and drops residual fields',
+    (departamentoSolicitado) => {
+      const type = processTestCatalog.types.find(
+        (type) => type.id === 'outros',
+      )!
+      for (const acionarLeggacy of [true, false]) {
+        expect(
+          normalizeProcessInput(
+            {
+              tipo: 'outros',
+              empresa: ' Empresa ',
+              descricaoProcesso: ' Atividade ',
+              valorProcesso: '0',
+              departamentoSolicitado,
+              acionarLeggacy,
+              cnpj: '123',
+              honorario: '150',
+              parcelas: 3,
+              regime: 'simples',
+            },
+            type,
+          ),
+        ).toEqual({
+          tipo: 'outros',
+          empresa: 'Empresa',
+          descricaoProcesso: 'Atividade',
+          valorProcesso: '0.00',
+          departamentoSolicitado,
+          acionarLeggacy,
+        })
+      }
+    },
+  )
 
   it('requires explicit Outros fields and never fills an omitted financial value in PATCH', () => {
-    const type = processTestCatalog.types.find(type => type.id === 'outros')!
-    const input = { tipo: 'outros' as const, empresa: 'Empresa', descricaoProcesso: 'Atividade', valorProcesso: '0', departamentoSolicitado: 'reg' as const, acionarLeggacy: false }
-    for (const field of ['empresa', 'descricaoProcesso', 'valorProcesso', 'departamentoSolicitado', 'acionarLeggacy']) {
+    const type = processTestCatalog.types.find((type) => type.id === 'outros')!
+    const input = {
+      tipo: 'outros' as const,
+      empresa: 'Empresa',
+      descricaoProcesso: 'Atividade',
+      valorProcesso: '0',
+      departamentoSolicitado: 'reg' as const,
+      acionarLeggacy: false,
+    }
+    for (const field of [
+      'empresa',
+      'descricaoProcesso',
+      'valorProcesso',
+      'departamentoSolicitado',
+      'acionarLeggacy',
+    ]) {
       const missing = { ...input, [field]: undefined }
       expect(() => normalizeProcessInput(missing, type)).toThrow()
     }
-    const resource = makeProcessTestResource({ tipo: 'outros', descricaoProcesso: 'Atividade', departamentoSolicitado: 'reg', acionarLeggacy: false })
-    const normalized = normalizeProcessInput({ ...processInputFromResource(resource), empresa: 'Corrigida' }, type, { allowOmittedValue: true })
+    const resource = makeProcessTestResource({
+      tipo: 'outros',
+      descricaoProcesso: 'Atividade',
+      departamentoSolicitado: 'reg',
+      acionarLeggacy: false,
+    })
+    const normalized = normalizeProcessInput(
+      { ...processInputFromResource(resource), empresa: 'Corrigida' },
+      type,
+      { allowOmittedValue: true },
+    )
     expect(normalized).not.toHaveProperty('valorProcesso')
-    expect(changedProcessFields(normalized, resource)).toEqual({ empresa: 'Corrigida' })
-    expect(() => normalizeProcessInput({ ...input, descricaoProcesso: 'x'.repeat(3001) }, type)).toThrow('3000')
-    expect(() => normalizeProcessInput({ ...input, empresa: 'x'.repeat(201) }, type)).toThrow('200')
+    expect(changedProcessFields(normalized, resource)).toEqual({
+      empresa: 'Corrigida',
+    })
+    expect(() =>
+      normalizeProcessInput(
+        { ...input, descricaoProcesso: 'x'.repeat(3001) },
+        type,
+      ),
+    ).toThrow('3000')
+    expect(() =>
+      normalizeProcessInput({ ...input, empresa: 'x'.repeat(201) }, type),
+    ).toThrow('200')
   })
 
   it('retains compatible identity and definitions and removes fields that do not apply to a new type', () => {
-    const opening = processTestCatalog.types.find(type => type.id === 'abertura')!
-    const departure = processTestCatalog.types.find(type => type.id === 'saida')!
-    const others = processTestCatalog.types.find(type => type.id === 'outros')!
-    const input = { tipo: 'mei' as const, empresa: 'Empresa', cnpj: '00.ABC.123/0001-00', honorario: '100.00', regime: 'simples' as const }
-    expect(processDraftForType(input, opening)).toMatchObject({ empresa: input.empresa, cnpj: input.cnpj, honorario: '100.00', regime: 'simples' })
-    expect(processDraftForType(input, departure)).toEqual({ tipo: 'saida', empresa: input.empresa, cnpj: input.cnpj })
-    expect(processDraftForType(input, others)).toEqual({ tipo: 'outros', empresa: input.empresa })
+    const opening = processTestCatalog.types.find(
+      (type) => type.id === 'abertura',
+    )!
+    const departure = processTestCatalog.types.find(
+      (type) => type.id === 'saida',
+    )!
+    const others = processTestCatalog.types.find(
+      (type) => type.id === 'outros',
+    )!
+    const input = {
+      tipo: 'mei' as const,
+      empresa: 'Empresa',
+      cnpj: '00.ABC.123/0001-00',
+      honorario: '100.00',
+      regime: 'simples' as const,
+    }
+    expect(processDraftForType(input, opening)).toMatchObject({
+      empresa: input.empresa,
+      cnpj: input.cnpj,
+      honorario: '100.00',
+      regime: 'simples',
+    })
+    expect(processDraftForType(input, departure)).toEqual({
+      tipo: 'saida',
+      empresa: input.empresa,
+      cnpj: input.cnpj,
+    })
+    expect(processDraftForType(input, others)).toEqual({
+      tipo: 'outros',
+      empresa: input.empresa,
+    })
   })
 
   it('normalizes BRL without dropping cents, undefined values or defined zero', () => {

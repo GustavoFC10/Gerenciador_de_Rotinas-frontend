@@ -77,30 +77,95 @@ async function render(process: ProcessResource, onChange = vi.fn()) {
 }
 
 describe('ProcessDetails', () => {
-  it.each([['fin', true], ['fin', false], ['reg', true], ['reg', false]] as const)(
-    'renders the received Outros workflow for %s/Leggacy %s and enforces Regularidade permissions', async (departamentoSolicitado, acionarLeggacy) => {
-      const process = makeProcessTestResource({ tipo: 'outros', descricaoProcesso: 'Descrição operacional da certidão', departamentoSolicitado, acionarLeggacy,
-        etapas: [{ t: 'Etapa enviada pela API', tasks: [{ id: 'ot1', d: departamentoSolicitado, txt: acionarLeggacy ? 'Comunicar atividade e orçamento à Leggacy' : 'Executar a atividade interna' }] },
-          { t: 'Confirmação enviada pela API', tasks: [{ id: 'ot2', d: departamentoSolicitado, txt: 'Confirmar conclusão' }] }],
-        analysis: { currentStage: 0, completedTasks: 0, totalTasks: 2, releaseDate: null, waiting: false, late: false, pendingSectors: [departamentoSolicitado] },
-        permissions: { ...processTestCatalog.permissions, create: false, edit: false, delete: false, viewFinancial: false, executeSectors: ['reg'] },
+  it.each([
+    ['fin', true],
+    ['fin', false],
+    ['reg', true],
+    ['reg', false],
+  ] as const)(
+    'renders the received Outros workflow for %s/Leggacy %s and enforces Regularidade permissions',
+    async (departamentoSolicitado, acionarLeggacy) => {
+      const process = makeProcessTestResource({
+        tipo: 'outros',
+        descricaoProcesso: 'Descrição operacional da certidão',
+        departamentoSolicitado,
+        acionarLeggacy,
+        etapas: [
+          {
+            t: 'Etapa enviada pela API',
+            tasks: [
+              {
+                id: 'ot1',
+                d: departamentoSolicitado,
+                txt: acionarLeggacy
+                  ? 'Comunicar atividade e orçamento à Leggacy'
+                  : 'Executar a atividade interna',
+              },
+            ],
+          },
+          {
+            t: 'Confirmação enviada pela API',
+            tasks: [
+              {
+                id: 'ot2',
+                d: departamentoSolicitado,
+                txt: 'Confirmar conclusão',
+              },
+            ],
+          },
+        ],
+        analysis: {
+          currentStage: 0,
+          completedTasks: 0,
+          totalTasks: 2,
+          releaseDate: null,
+          waiting: false,
+          late: false,
+          pendingSectors: [departamentoSolicitado],
+        },
+        permissions: {
+          ...processTestCatalog.permissions,
+          create: false,
+          edit: false,
+          delete: false,
+          viewFinancial: false,
+          executeSectors: ['reg'],
+        },
       })
-      const transition = vi.spyOn(processService, 'transitionTask').mockResolvedValue(response({ ...process, version: 5 }))
+      const transition = vi
+        .spyOn(processService, 'transitionTask')
+        .mockResolvedValue(response({ ...process, version: 5 }))
       await render(process)
       expect(host.textContent).toContain(process.descricaoProcesso)
       expect(host.textContent).toContain('Etapa enviada pela API')
       expect(host.textContent).not.toContain('Valor do processo')
-      const complete = [...host.querySelectorAll<HTMLButtonElement>('.tbtns button')].find(button => button.textContent === 'Concluir')!
+      const complete = [
+        ...host.querySelectorAll<HTMLButtonElement>('.tbtns button'),
+      ].find((button) => button.textContent === 'Concluir')!
       expect(complete.disabled).toBe(departamentoSolicitado !== 'reg')
       await act(async () => complete.click())
-      if (departamentoSolicitado === 'reg') expect(transition).toHaveBeenCalledWith(process.id, 'ot1', process.version, 'feito')
+      if (departamentoSolicitado === 'reg')
+        expect(transition).toHaveBeenCalledWith(
+          process.id,
+          'ot1',
+          process.version,
+          'feito',
+        )
       else expect(transition).not.toHaveBeenCalled()
       expect(host.querySelectorAll('.stage')).toHaveLength(2)
     },
   )
 
   it('displays an authorized zero Outros value as a one-time amount', async () => {
-    await render(makeProcessTestResource({ tipo: 'outros', valorProcesso: '0.00', descricaoProcesso: 'Certidão', departamentoSolicitado: 'fin', acionarLeggacy: false }))
+    await render(
+      makeProcessTestResource({
+        tipo: 'outros',
+        valorProcesso: '0.00',
+        descricaoProcesso: 'Certidão',
+        departamentoSolicitado: 'fin',
+        acionarLeggacy: false,
+      }),
+    )
     expect(host.textContent).toContain('Valor do processo')
     expect(host.textContent).toMatch(/R\$\s*0,00/)
     expect(host.textContent).toContain('Valor pontual')
