@@ -35,17 +35,15 @@ describe('ProcessService revision 2', () => {
   it.each([403, 404, 409, 429, 503])(
     'preserves restore HTTP %s without automatic mutation retries',
     async (status) => {
-      const fetchImplementation = vi
-        .fn<typeof fetch>()
-        .mockResolvedValue(
-          new Response(JSON.stringify({ status, title: 'Falha' }), {
-            status,
-            headers: {
-              'Content-Type': 'application/problem+json',
-              'Retry-After': '12',
-            },
-          }),
-        )
+      const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(JSON.stringify({ status, title: 'Falha' }), {
+          status,
+          headers: {
+            'Content-Type': 'application/problem+json',
+            'Retry-After': '12',
+          },
+        }),
+      )
       await expect(
         createService(fetchImplementation).restore('process-1', 8),
       ).rejects.toMatchObject({ status, retryAfter: '12' })
