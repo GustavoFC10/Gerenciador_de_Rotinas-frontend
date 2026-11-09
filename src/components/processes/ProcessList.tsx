@@ -15,7 +15,10 @@ import { PROCESS_VIEWS } from '../../utils/processFilters'
 import ProcessIcon from './ProcessIcon'
 import ProcessSummaryRow from './ProcessSummaryRow'
 import ProcessIndicatorCards from './ProcessIndicatorCards'
-import { groupProcessPage, type ProcessGrouping } from '../../utils/processGroups'
+import {
+  groupProcessPage,
+  type ProcessGrouping,
+} from '../../utils/processGroups'
 
 interface Props {
   data: ProcessPage
@@ -57,9 +60,18 @@ export default function ProcessList({
   const moreId = useId()
   const [moreOpen, setMoreOpen] = useState(false)
   const [grouping, setGrouping] = useState<ProcessGrouping>('none')
-  const groups = groupProcessPage(data.results, grouping, timeZone, filters.ordering)
-  const row = (process: ProcessPage['results'][number]) => <ProcessSummaryRow
-    key={process.id} {...{ process, catalog, onOpen, sector, timeZone }} />
+  const groups = groupProcessPage(
+    data.results,
+    grouping,
+    timeZone,
+    filters.ordering,
+  )
+  const row = (process: ProcessPage['results'][number]) => (
+    <ProcessSummaryRow
+      key={process.id}
+      {...{ process, catalog, onOpen, sector, timeZone }}
+    />
+  )
   const metadata = PROCESS_VIEWS[view] ?? PROCESS_VIEWS.todos
   const statuses =
     view === 'todos' ? (customStatuses ?? filters.status ?? []) : []
@@ -171,17 +183,32 @@ export default function ProcessList({
             Mais filtros{advancedCount > 0 ? ` (${advancedCount})` : ''}
             <ProcessIcon name="chev" size={14} />
           </button>
-          <label>Ordenação
-            <select className="input" aria-label="Ordenação" value={filters.ordering ?? 'recent'}
-              onChange={event => onFilters({ ordering: event.target.value })}>
-              <option value="recent">Mais recentes</option><option value="urgency">Mais urgentes</option>
+          <label>
+            Ordenação
+            <select
+              className="input"
+              aria-label="Ordenação"
+              value={filters.ordering ?? 'recent'}
+              onChange={(event) => onFilters({ ordering: event.target.value })}
+            >
+              <option value="recent">Mais recentes</option>
+              <option value="urgency">Mais urgentes</option>
             </select>
           </label>
-          <label>Agrupar resultados
-            <select className="input" aria-label="Agrupar resultados" value={grouping}
-              onChange={event => setGrouping(event.target.value as ProcessGrouping)}>
-              <option value="none">Sem agrupamento</option><option value="status">Por situação</option>
-              <option value="completion">Por mês de conclusão</option><option value="overdue">Por faixa de atraso</option>
+          <label>
+            Agrupar resultados
+            <select
+              className="input"
+              aria-label="Agrupar resultados"
+              value={grouping}
+              onChange={(event) =>
+                setGrouping(event.target.value as ProcessGrouping)
+              }
+            >
+              <option value="none">Sem agrupamento</option>
+              <option value="status">Por situação</option>
+              <option value="completion">Por mês de conclusão</option>
+              <option value="overdue">Por faixa de atraso</option>
             </select>
           </label>
         </div>
@@ -336,13 +363,25 @@ export default function ProcessList({
             </section>
           ) : (
             <section className="panel" aria-label="Resultados da lista">
-              {grouping === 'none' ? data.results.map(row) : <>
-                <p className="process-group-note">Grupos desta página · contagens apenas dos resultados exibidos</p>
-                {groups.map(group => <details className="process-group" key={group.id} open>
-                  <summary>{group.label} <span className="pill">{group.results.length}</span></summary>
-                  {group.results.map(row)}
-                </details>)}
-              </>}
+              {grouping === 'none' ? (
+                data.results.map(row)
+              ) : (
+                <>
+                  <p className="process-group-note">
+                    Grupos desta página · contagens apenas dos resultados
+                    exibidos
+                  </p>
+                  {groups.map((group) => (
+                    <details className="process-group" key={group.id} open>
+                      <summary>
+                        {group.label}{' '}
+                        <span className="pill">{group.results.length}</span>
+                      </summary>
+                      {group.results.map(row)}
+                    </details>
+                  ))}
+                </>
+              )}
             </section>
           )}
           <div className="process-list-pagination">

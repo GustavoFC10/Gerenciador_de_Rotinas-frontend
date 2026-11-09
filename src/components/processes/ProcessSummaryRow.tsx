@@ -46,10 +46,17 @@ export default function ProcessSummaryRow({
     process.status === 'agendado'
       ? `Libera em ${formatProcessDate(analysis.releaseDate, timeZone)}`
       : ''
-  const nextTask = process.nextTask && <span className="process-next-task">
-    <strong>{process.nextTask.text}</strong>
-    <small>{process.nextTask.stageTitle}{process.pendingTaskCount! > 1 ? ` · +${process.pendingTaskCount! - 1} tarefas` : ''}</small>
-  </span>
+  const nextTask = process.nextTask && (
+    <span className="process-next-task">
+      <strong>{process.nextTask.text}</strong>
+      <small>
+        {process.nextTask.stageTitle}
+        {process.pendingTaskCount! > 1
+          ? ` · +${process.pendingTaskCount! - 1} tarefas`
+          : ''}
+      </small>
+    </span>
+  )
   if (compact)
     return (
       <button

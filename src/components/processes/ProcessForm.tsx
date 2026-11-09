@@ -9,7 +9,10 @@ import type {
   ProcessResource,
   ProcessTypeId,
 } from '../../types/processes'
-import ProcessFields, { ProcessAlterationFields, ProcessOtherFields } from './ProcessFields'
+import ProcessFields, {
+  ProcessAlterationFields,
+  ProcessOtherFields,
+} from './ProcessFields'
 import ProcessIcon from './ProcessIcon'
 import {
   normalizeProcessInput,
@@ -62,13 +65,16 @@ export default function ProcessForm({
   useOverlayDialog(dialogRef, close)
   const type = catalog.types.find((type) => type.id === typeId)
   const isOthers = typeId === 'outros'
-  const configurationLocked = !!process && Object.values(process.tarefas).some(task => task.s === 'feito')
+  const configurationLocked =
+    !!process &&
+    Object.values(process.tarefas).some((task) => task.s === 'feito')
   const update = (patch: Partial<ProcessCreateInput>) =>
     setValue((previous) => ({ ...previous, ...patch }))
   function selectType(nextTypeId: ProcessTypeId) {
     setTypeId(nextTypeId)
-    const nextType = catalog.types.find(item => item.id === nextTypeId)
-    if (nextType) setValue(previous => processDraftForType(previous, nextType))
+    const nextType = catalog.types.find((item) => item.id === nextTypeId)
+    if (nextType)
+      setValue((previous) => processDraftForType(previous, nextType))
     setError('')
   }
   async function submit(event: FormEvent) {
@@ -77,7 +83,11 @@ export default function ProcessForm({
     setError('')
     try {
       if (!type) throw new Error('Escolha o tipo de processo.')
-      const input = unconfirmedInput ?? normalizeProcessInput(value, type, { allowOmittedValue: !!process && process.valorProcesso === undefined })
+      const input =
+        unconfirmedInput ??
+        normalizeProcessInput(value, type, {
+          allowOmittedValue: !!process && process.valorProcesso === undefined,
+        })
       submittingRef.current = true
       setSubmitting(true)
       try {
@@ -199,11 +209,7 @@ export default function ProcessForm({
                     onClick={(event) => {
                       selectType(type.id)
                       if (event.detail > 0)
-                        document
-                          .getElementById(
-                            `${id}-empresa`,
-                          )
-                          ?.focus()
+                        document.getElementById(`${id}-empresa`)?.focus()
                     }}
                   >
                     <span className="ico-sq">
@@ -221,116 +227,136 @@ export default function ProcessForm({
             </div>
           )}
           <div className="field">
-            <label htmlFor={id+'-empresa'}>Nome da empresa <span className="req">obrigatório</span></label>
-            <input className="input" id={id+'-empresa'} value={value.empresa}
-              onChange={event => update({ empresa: event.target.value })} required maxLength={200}
-              placeholder="Informe o nome da empresa" disabled={locked} />
-          </div>
-          {isOthers && type && <ProcessOtherFields value={value} onChange={update} disabled={locked}
-            configurationLocked={configurationLocked} viewFinancial={catalog.permissions.viewFinancial}
-            requireValue={!process || process.valorProcesso !== undefined} />}
-          {!isOthers && <>
-          <div className="grid2">
-            {(
-              <div className="field">
-                <label htmlFor={`${id}-cnpj`}>
-                  CNPJ <span>(opcional)</span>
-                </label>
-                <input
-                  className="input"
-                  id={`${id}-cnpj`}
-                  value={value.cnpj ?? ''}
-                  onChange={(event) => update({ cnpj: event.target.value })}
-                  maxLength={18}
-                  placeholder="00.000.000/0000-00"
-                  disabled={locked}
-                />
-              </div>
-            )}
-            <div className="field">
-              <label htmlFor={`${id}-date`}>
-                {PROCESS_START_LABELS[typeId] ?? 'Prazo'}{' '}
-                <span>(opcional)</span>
-              </label>
-              <input
-                className="input"
-                id={`${id}-date`}
-                type="date"
-                value={
-                  (PROCESS_START_LABELS[typeId]
-                    ? value.inicioInat
-                    : value.prazo) ?? ''
-                }
-                onChange={(event) =>
-                  update(
-                    PROCESS_START_LABELS[typeId]
-                      ? { inicioInat: event.target.value || null }
-                      : { prazo: event.target.value || null },
-                  )
-                }
-                disabled={locked}
-              />
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor={`${id}-protocol`}>
-              Protocolo externo <span>(opcional)</span>
+            <label htmlFor={id + '-empresa'}>
+              Nome da empresa <span className="req">obrigatório</span>
             </label>
             <input
               className="input"
-              id={`${id}-protocol`}
-              maxLength={160}
-              value={value.protocolo ?? ''}
-              onChange={(event) => update({ protocolo: event.target.value })}
-              placeholder="Protocolo de registro ou referência"
+              id={id + '-empresa'}
+              value={value.empresa}
+              onChange={(event) => update({ empresa: event.target.value })}
+              required
+              maxLength={200}
+              placeholder="Informe o nome da empresa"
               disabled={locked}
             />
           </div>
-          {type?.id === 'alteracao' && (
-            <ProcessAlterationFields
+          {isOthers && type && (
+            <ProcessOtherFields
               value={value}
               onChange={update}
               disabled={locked}
+              configurationLocked={configurationLocked}
+              viewFinancial={catalog.permissions.viewFinancial}
+              requireValue={!process || process.valorProcesso !== undefined}
             />
           )}
-          {type && (
-            <div className="nvals">
-              <h3>
-                {type.id === 'alteracao'
-                  ? 'Custo da alteração'
-                  : 'Definições da Diretoria'}
-              </h3>
-              <p>
-                {type.id === 'alteracao'
-                  ? 'Valor, quem paga e forma de pagamento. Com isso, a etapa de definições já nasce concluída.'
-                  : process
-                    ? 'As definições completas concluem suas tarefas automaticamente.'
-                    : 'Opcional agora. Se preencher tudo, a tarefa correspondente já entra como concluída.'}
-              </p>
-              <ProcessFields
-                value={value}
-                type={type}
-                onChange={update}
-                disabled={locked}
-              />
-            </div>
+          {!isOthers && (
+            <>
+              <div className="grid2">
+                {
+                  <div className="field">
+                    <label htmlFor={`${id}-cnpj`}>
+                      CNPJ <span>(opcional)</span>
+                    </label>
+                    <input
+                      className="input"
+                      id={`${id}-cnpj`}
+                      value={value.cnpj ?? ''}
+                      onChange={(event) => update({ cnpj: event.target.value })}
+                      maxLength={18}
+                      placeholder="00.000.000/0000-00"
+                      disabled={locked}
+                    />
+                  </div>
+                }
+                <div className="field">
+                  <label htmlFor={`${id}-date`}>
+                    {PROCESS_START_LABELS[typeId] ?? 'Prazo'}{' '}
+                    <span>(opcional)</span>
+                  </label>
+                  <input
+                    className="input"
+                    id={`${id}-date`}
+                    type="date"
+                    value={
+                      (PROCESS_START_LABELS[typeId]
+                        ? value.inicioInat
+                        : value.prazo) ?? ''
+                    }
+                    onChange={(event) =>
+                      update(
+                        PROCESS_START_LABELS[typeId]
+                          ? { inicioInat: event.target.value || null }
+                          : { prazo: event.target.value || null },
+                      )
+                    }
+                    disabled={locked}
+                  />
+                </div>
+              </div>
+              <div className="field">
+                <label htmlFor={`${id}-protocol`}>
+                  Protocolo externo <span>(opcional)</span>
+                </label>
+                <input
+                  className="input"
+                  id={`${id}-protocol`}
+                  maxLength={160}
+                  value={value.protocolo ?? ''}
+                  onChange={(event) =>
+                    update({ protocolo: event.target.value })
+                  }
+                  placeholder="Protocolo de registro ou referência"
+                  disabled={locked}
+                />
+              </div>
+              {type?.id === 'alteracao' && (
+                <ProcessAlterationFields
+                  value={value}
+                  onChange={update}
+                  disabled={locked}
+                />
+              )}
+              {type && (
+                <div className="nvals">
+                  <h3>
+                    {type.id === 'alteracao'
+                      ? 'Custo da alteração'
+                      : 'Definições da Diretoria'}
+                  </h3>
+                  <p>
+                    {type.id === 'alteracao'
+                      ? 'Valor, quem paga e forma de pagamento. Com isso, a etapa de definições já nasce concluída.'
+                      : process
+                        ? 'As definições completas concluem suas tarefas automaticamente.'
+                        : 'Opcional agora. Se preencher tudo, a tarefa correspondente já entra como concluída.'}
+                  </p>
+                  <ProcessFields
+                    value={value}
+                    type={type}
+                    onChange={update}
+                    disabled={locked}
+                  />
+                </div>
+              )}
+              <div className="field">
+                <label htmlFor={`${id}-obs`}>
+                  Observações <span>(opcional)</span>
+                </label>
+                <textarea
+                  className="input"
+                  id={`${id}-obs`}
+                  rows={2}
+                  maxLength={5000}
+                  value={value.obs ?? ''}
+                  onChange={(event) => update({ obs: event.target.value })}
+                  placeholder="Particularidades do processo"
+                  disabled={locked}
+                />
+              </div>
+            </>
           )}
-          <div className="field">
-            <label htmlFor={`${id}-obs`}>
-              Observações <span>(opcional)</span>
-            </label>
-            <textarea
-              className="input"
-              id={`${id}-obs`}
-              rows={2}
-              maxLength={5000}
-              value={value.obs ?? ''}
-              onChange={(event) => update({ obs: event.target.value })}
-              placeholder="Particularidades do processo"
-              disabled={locked}
-            />
-          </div>
-          </>}
           {!process && (
             <div className="note">
               Ao abrir, os envolvidos com acesso a Processos serão notificados

@@ -97,7 +97,8 @@ export class ProcessService {
           query: processQuery(filters),
           signal,
         }),
-      (value, requestId) => parseProcessPage(value, requestId, filters.taskSector),
+      (value, requestId) =>
+        parseProcessPage(value, requestId, filters.taskSector),
       this.client.baseUrl,
     )
   }
@@ -135,17 +136,24 @@ export class ProcessService {
     }
     if (!input.empresa.trim() || input.empresa.trim().length > 200)
       throw new Error('Informe o nome da empresa.')
-    const fields = Object.fromEntries(Object.entries(input).filter(([key]) => key !== 'companyId'))
-    const payload = input.tipo === 'outros'
-      ? {
-          tipo: input.tipo,
-          empresa: input.empresa.trim(),
-          descricaoProcesso: input.descricaoProcesso?.trim(),
-          valorProcesso: input.valorProcesso,
-          departamentoSolicitado: input.departamentoSolicitado,
-          acionarLeggacy: input.acionarLeggacy,
-        }
-      : { ...fields, empresa: input.empresa.trim(), cnpj: input.cnpj?.trim() ?? '' }
+    const fields = Object.fromEntries(
+      Object.entries(input).filter(([key]) => key !== 'companyId'),
+    )
+    const payload =
+      input.tipo === 'outros'
+        ? {
+            tipo: input.tipo,
+            empresa: input.empresa.trim(),
+            descricaoProcesso: input.descricaoProcesso?.trim(),
+            valorProcesso: input.valorProcesso,
+            departamentoSolicitado: input.departamentoSolicitado,
+            acionarLeggacy: input.acionarLeggacy,
+          }
+        : {
+            ...fields,
+            empresa: input.empresa.trim(),
+            cnpj: input.cnpj?.trim() ?? '',
+          }
     return this.validated(
       () => this.client.post(PROCESSES_ENDPOINT, payload, { idempotencyKey }),
       parseProcessDetail,
@@ -157,9 +165,13 @@ export class ProcessService {
     input: ProcessPatchInput,
   ): Promise<ApiResponse<ProcessResource>> {
     return this.validated(
-      () => this.client.patch(processPath(id), Object.fromEntries(
-        Object.entries(input).filter(([key]) => key !== 'companyId'),
-      )),
+      () =>
+        this.client.patch(
+          processPath(id),
+          Object.fromEntries(
+            Object.entries(input).filter(([key]) => key !== 'companyId'),
+          ),
+        ),
       parseProcessDetail,
     )
   }
@@ -183,9 +195,16 @@ export class ProcessService {
     )
   }
 
-  leggacyMetrics(filters: ProcessFilters = {}, signal?: AbortSignal): Promise<ApiResponse<ProcessLeggacyMetric[]>> {
+  leggacyMetrics(
+    filters: ProcessFilters = {},
+    signal?: AbortSignal,
+  ): Promise<ApiResponse<ProcessLeggacyMetric[]>> {
     return this.validated(
-      () => this.client.get(`${PROCESSES_ENDPOINT}leggacy-metrics/`, { query: processQuery(filters), signal }),
+      () =>
+        this.client.get(`${PROCESSES_ENDPOINT}leggacy-metrics/`, {
+          query: processQuery(filters),
+          signal,
+        }),
       parseProcessLeggacyMetrics,
     )
   }

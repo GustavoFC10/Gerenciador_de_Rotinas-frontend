@@ -255,12 +255,19 @@ const summaryFields: Fields = {
   workflowVersion: oneOf([1, PROCESS_WORKFLOW_VERSION]),
   analysis,
   permissions,
-  nextTask: optional(nullable(shape({
-    id: string,
-    sector: oneOf(sectors),
-    text: string,
-    stageTitle: string,
-  }, true))),
+  nextTask: optional(
+    nullable(
+      shape(
+        {
+          id: string,
+          sector: oneOf(sectors),
+          text: string,
+          stageTitle: string,
+        },
+        true,
+      ),
+    ),
+  ),
   pendingTaskCount: optional(integer),
 }
 const detailFields: Fields = {
@@ -356,8 +363,12 @@ const summary: Validator = (value, path) => {
   const data = object(value, path)
   if ((data.nextTask === undefined) !== (data.pendingTaskCount === undefined))
     fail(`${path}.nextTask/pendingTaskCount`)
-  if (data.nextTask !== undefined &&
-    (data.nextTask === null ? data.pendingTaskCount !== 0 : (data.pendingTaskCount as number) < 1))
+  if (
+    data.nextTask !== undefined &&
+    (data.nextTask === null
+      ? data.pendingTaskCount !== 0
+      : (data.pendingTaskCount as number) < 1)
+  )
     fail(`${path}.pendingTaskCount`)
 }
 const entryShape = shape({
@@ -525,13 +536,27 @@ export function parseProcessPage(
   result.results.forEach((item, index) => {
     const path = `response.results[${index}]`
     if (taskSector) {
-      if (item.nextTask === undefined || item.pendingTaskCount === undefined ||
-        (item.nextTask === null ? item.pendingTaskCount !== 0 :
-          item.pendingTaskCount < 1 || item.nextTask.sector !== taskSector) ||
-        (['agendado', 'concluido', 'cancelado'].includes(item.status) && item.nextTask !== null))
-        throw new ProcessContractError(`${path}.nextTask/pendingTaskCount`, requestId)
-    } else if (item.nextTask !== undefined || item.pendingTaskCount !== undefined) {
-      throw new ProcessContractError(`${path}.nextTask (sem taskSector)`, requestId)
+      if (
+        item.nextTask === undefined ||
+        item.pendingTaskCount === undefined ||
+        (item.nextTask === null
+          ? item.pendingTaskCount !== 0
+          : item.pendingTaskCount < 1 || item.nextTask.sector !== taskSector) ||
+        (['agendado', 'concluido', 'cancelado'].includes(item.status) &&
+          item.nextTask !== null)
+      )
+        throw new ProcessContractError(
+          `${path}.nextTask/pendingTaskCount`,
+          requestId,
+        )
+    } else if (
+      item.nextTask !== undefined ||
+      item.pendingTaskCount !== undefined
+    ) {
+      throw new ProcessContractError(
+        `${path}.nextTask (sem taskSector)`,
+        requestId,
+      )
     }
   })
   return result
@@ -579,16 +604,28 @@ export function parseProcessLeggacyMetrics(
   value: unknown,
   requestId?: string | null,
 ): ProcessLeggacyMetric[] {
-  const result = decode<ProcessLeggacyMetric[]>(value, array(shape({
-    tipo: oneOf(['abertura', 'alteracao', 'baixa']),
-    completedCount: integer,
-    waitingCount: integer,
-    averageDays: nullable(days),
-    minDays: nullable(days),
-    maxDays: nullable(days),
-  })), requestId)
-  if (result.length !== 3 || new Set(result.map(item => item.tipo)).size !== 3)
-    throw new ProcessContractError('response (métricas dos três tipos da Leggacy)', requestId)
+  const result = decode<ProcessLeggacyMetric[]>(
+    value,
+    array(
+      shape({
+        tipo: oneOf(['abertura', 'alteracao', 'baixa']),
+        completedCount: integer,
+        waitingCount: integer,
+        averageDays: nullable(days),
+        minDays: nullable(days),
+        maxDays: nullable(days),
+      }),
+    ),
+    requestId,
+  )
+  if (
+    result.length !== 3 ||
+    new Set(result.map((item) => item.tipo)).size !== 3
+  )
+    throw new ProcessContractError(
+      'response (métricas dos três tipos da Leggacy)',
+      requestId,
+    )
   return result
 }
 
@@ -668,12 +705,20 @@ export function normalizeProcessFilters(
       throw new Error(`Filtro ${key} inválido.`)
   if (filters.tipo !== undefined && !types.includes(filters.tipo))
     throw new Error('Filtro tipo inválido.')
-  for (const key of ['responsibleSector', 'queueSector', 'otherSector', 'taskSector'] as const)
+  for (const key of [
+    'responsibleSector',
+    'queueSector',
+    'otherSector',
+    'taskSector',
+  ] as const)
     if (filters[key] !== undefined && !sectors.includes(filters[key]!))
       throw new Error(`Filtro ${key} inválido.`)
   if (filters.queueSector && filters.otherSector)
     throw new Error('Não combine queueSector e otherSector.')
-  if (filters.ordering !== undefined && !['recent', 'urgency'].includes(filters.ordering))
+  if (
+    filters.ordering !== undefined &&
+    !['recent', 'urgency'].includes(filters.ordering)
+  )
     throw new Error('Filtro ordering inválido.')
   if (
     filters.month !== undefined &&

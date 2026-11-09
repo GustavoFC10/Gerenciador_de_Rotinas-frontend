@@ -12,9 +12,14 @@ import { ProcessService } from './processService'
 
 describe('ProcessService revision 2', () => {
   it('uses the returned deletion ETag for restore with CSRF and no request for the deleted detail', async () => {
-    const fetchImplementation = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(null, { status: 204, headers: { ETag: '"8"' } }))
-      .mockResolvedValueOnce(jsonResponse(makeProcessTestResource({ version: 9 })))
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(null, { status: 204, headers: { ETag: '"8"' } }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(makeProcessTestResource({ version: 9 })),
+      )
     const service = createService(fetchImplementation)
     expect((await service.remove('process-1', 4)).etag).toBe('"8"')
     const restored = await service.restore('process-1', 8)
@@ -27,19 +32,58 @@ describe('ProcessService revision 2', () => {
     expect(fetchImplementation).toHaveBeenCalledTimes(2)
   })
 
-  it.each([403, 404, 409, 429, 503])('preserves restore HTTP %s without automatic mutation retries', async status => {
-    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ status, title: 'Falha' }), { status, headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '12' } }))
-    await expect(createService(fetchImplementation).restore('process-1', 8)).rejects.toMatchObject({ status, retryAfter: '12' })
-    expect(fetchImplementation).toHaveBeenCalledTimes(1)
-  })
+  it.each([403, 404, 409, 429, 503])(
+    'preserves restore HTTP %s without automatic mutation retries',
+    async (status) => {
+      const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(JSON.stringify({ status, title: 'Falha' }), {
+          status,
+          headers: {
+            'Content-Type': 'application/problem+json',
+            'Retry-After': '12',
+          },
+        }),
+      )
+      await expect(
+        createService(fetchImplementation).restore('process-1', 8),
+      ).rejects.toMatchObject({ status, retryAfter: '12' })
+      expect(fetchImplementation).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('sends urgency and projection filters to the server and fetches global operational metrics', async () => {
-    const fetchImplementation = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(jsonResponse({ count: 1, next: null, previous: null, results: [{ ...summaryFixture(), nextTask: { id: 't1', sector: 'fin', text: 'Atividade', stageTitle: 'Etapa' }, pendingTaskCount: 2 }] }))
-      .mockResolvedValueOnce(jsonResponse({ count: 0, next: null, previous: null, results: [] }))
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              ...summaryFixture(),
+              nextTask: {
+                id: 't1',
+                sector: 'fin',
+                text: 'Atividade',
+                stageTitle: 'Etapa',
+              },
+              pendingTaskCount: 2,
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ count: 0, next: null, previous: null, results: [] }),
+      )
       .mockResolvedValueOnce(jsonResponse(processTestLeggacyMetrics))
     const service = createService(fetchImplementation)
-    await service.list({ queueSector: 'fin', taskSector: 'fin', ordering: 'urgency', pageSize: 8 })
+    await service.list({
+      queueSector: 'fin',
+      taskSector: 'fin',
+      ordering: 'urgency',
+      pageSize: 8,
+    })
     await service.list({ otherSector: 'fin', ordering: 'urgency', pageSize: 6 })
     await service.leggacyMetrics()
     const first = new URL(String(fetchImplementation.mock.calls[0]![0]))
@@ -52,14 +96,44 @@ describe('ProcessService revision 2', () => {
     expect(metrics.pathname).toBe('/api/v1/processes/leggacy-metrics/')
     expect(metrics.searchParams.has('status')).toBe(false)
     expect(metrics.searchParams.has('taskSector')).toBe(false)
-    expect(() => service.list({ queueSector: 'fin', otherSector: 'fin' })).toThrow('Não combine')
-    expect(() => service.list({ ordering: 'invalid' } as unknown as ProcessFilters)).toThrow('ordering')
+    expect(() =>
+      service.list({ queueSector: 'fin', otherSector: 'fin' }),
+    ).toThrow('Não combine')
+    expect(() =>
+      service.list({ ordering: 'invalid' } as unknown as ProcessFilters),
+    ).toThrow('ordering')
   })
 
   it('sends only the six Outros fields even if a draft contains older type fields', async () => {
-    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(makeProcessTestResource({ tipo: 'outros' })))
-    await createService(fetchImplementation).create({ tipo: 'outros', empresa: 'Empresa', descricaoProcesso: 'Atividade', valorProcesso: '0.00', departamentoSolicitado: 'reg', acionarLeggacy: false, cnpj: '123', honorario: '150.00', regime: 'simples' }, 'outros:create')
-    expect(JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body))).toEqual({ tipo: 'outros', empresa: 'Empresa', descricaoProcesso: 'Atividade', valorProcesso: '0.00', departamentoSolicitado: 'reg', acionarLeggacy: false })
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        jsonResponse(makeProcessTestResource({ tipo: 'outros' })),
+      )
+    await createService(fetchImplementation).create(
+      {
+        tipo: 'outros',
+        empresa: 'Empresa',
+        descricaoProcesso: 'Atividade',
+        valorProcesso: '0.00',
+        departamentoSolicitado: 'reg',
+        acionarLeggacy: false,
+        cnpj: '123',
+        honorario: '150.00',
+        regime: 'simples',
+      },
+      'outros:create',
+    )
+    expect(
+      JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body)),
+    ).toEqual({
+      tipo: 'outros',
+      empresa: 'Empresa',
+      descricaoProcesso: 'Atividade',
+      valorProcesso: '0.00',
+      departamentoSolicitado: 'reg',
+      acionarLeggacy: false,
+    })
   })
 
   it('repete abertura com a mesma chave e preserva CSRF, corpo, versão e metadados', async () => {
@@ -91,28 +165,53 @@ describe('ProcessService revision 2', () => {
       expect(new Headers(request?.headers).get('X-CSRFToken')).toBe(
         'csrf-token',
       )
-      expect(JSON.parse(String(request?.body))).toEqual(
-        ({
-          tipo: 'abertura',
-          honorario: '1200.00',
-          reunAlinh: false,
-          empresa: 'Empresa Exemplo',
-          cnpj: '12345678000195',
-        }),
-      )
+      expect(JSON.parse(String(request?.body))).toEqual({
+        tipo: 'abertura',
+        honorario: '1200.00',
+        reunAlinh: false,
+        empresa: 'Empresa Exemplo',
+        cnpj: '12345678000195',
+      })
       expect(JSON.parse(String(request?.body))).not.toHaveProperty('companyId')
     }
   })
 
-  it.each(['abertura','mei','outro','alteracao','inatividade','inativa','reativacao','baixa','saida','exclusao'] as const)(
-    'uses free name/CNPJ for %s without a registry request', async tipo => {
-      const fetchImplementation = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse(makeProcessTestResource({ tipo })))
+  it.each([
+    'abertura',
+    'mei',
+    'outro',
+    'alteracao',
+    'inatividade',
+    'inativa',
+    'reativacao',
+    'baixa',
+    'saida',
+    'exclusao',
+  ] as const)(
+    'uses free name/CNPJ for %s without a registry request',
+    async (tipo) => {
+      const fetchImplementation = vi
+        .fn<typeof fetch>()
+        .mockImplementation(async () =>
+          jsonResponse(makeProcessTestResource({ tipo })),
+        )
       const service = createService(fetchImplementation)
-      await service.create({ tipo, empresa: ' Empresa livre ', cnpj: '00.ABC.123/0001-00' }, 'free-identity')
+      await service.create(
+        { tipo, empresa: ' Empresa livre ', cnpj: '00.ABC.123/0001-00' },
+        'free-identity',
+      )
       expect(fetchImplementation).toHaveBeenCalledTimes(1)
-      expect(JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body))).toEqual({ tipo, empresa: 'Empresa livre', cnpj: '00.ABC.123/0001-00' })
-      await service.update('process-1', { version: 4, empresa: 'Novo nome', cnpj: '' })
-      expect(JSON.parse(String(fetchImplementation.mock.calls[1]?.[1]?.body))).toEqual({ version: 4, empresa: 'Novo nome', cnpj: '' })
+      expect(
+        JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body)),
+      ).toEqual({ tipo, empresa: 'Empresa livre', cnpj: '00.ABC.123/0001-00' })
+      await service.update('process-1', {
+        version: 4,
+        empresa: 'Novo nome',
+        cnpj: '',
+      })
+      expect(
+        JSON.parse(String(fetchImplementation.mock.calls[1]?.[1]?.body)),
+      ).toEqual({ version: 4, empresa: 'Novo nome', cnpj: '' })
     },
   )
 
