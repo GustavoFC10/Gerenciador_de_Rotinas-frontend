@@ -197,6 +197,28 @@ export const processTestCatalog: ProcessCatalog = {
 
 // Include every published type; existing specialized test snapshots stay intact.
 processTestCatalog.types.push(
+  ...(['aumento_honorarios', 'reducao_honorarios'] as const).map((id) => ({
+    id,
+    nome:
+      id === 'aumento_honorarios'
+        ? 'Aumento de honorários contábeis'
+        : 'Redução de honorários contábeis',
+    sigla: id === 'aumento_honorarios' ? 'AHC' : 'RHC',
+    icon: id === 'aumento_honorarios' ? 'up' : 'swap',
+    desc: 'Reajuste dos honorários contábeis',
+    etapas: [
+      {
+        t: 'Financeiro',
+        tasks: [
+          {
+            id: id === 'aumento_honorarios' ? 'ah1' : 'rh1',
+            d: 'fin' as const,
+            txt: 'Ajustar novos honorários no sistema contábil',
+          },
+        ],
+      },
+    ],
+  })),
   ...(workflowFixtures as ProcessCatalog['types']).filter(
     (type) =>
       !processTestCatalog.types.some((existing) => existing.id === type.id),

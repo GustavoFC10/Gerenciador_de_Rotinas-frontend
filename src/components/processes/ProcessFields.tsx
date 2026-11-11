@@ -15,6 +15,8 @@ import type {
 import ProcessIcon from './ProcessIcon'
 import {
   DIRECT_LOSS_TYPES,
+  isProcessFeeAdjustment,
+  processFeeVariation,
   LOSS_TYPES,
   PROCESS_ALTERATIONS,
   PROCESS_PAYERS,
@@ -133,6 +135,30 @@ function MoneyField({
   )
 }
 
+export function ProcessContactField({
+  value,
+  onChange,
+  disabled,
+}: Pick<FieldProps, 'value' | 'onChange' | 'disabled'>) {
+  const id = useId()
+  return (
+    <div className="field full">
+      <label htmlFor={id}>
+        Contato do cliente <span>(opcional)</span>
+      </label>
+      <input
+        id={id}
+        className="input"
+        value={value.contato ?? ''}
+        maxLength={500}
+        onChange={(event) => onChange({ contato: event.target.value })}
+        disabled={disabled}
+        placeholder="Telefone, e-mail ou outra referência"
+      />
+    </div>
+  )
+}
+
 export function ProcessOtherFields({
   value,
   onChange,
@@ -148,6 +174,11 @@ export function ProcessOtherFields({
   const id = useId()
   return (
     <>
+      <ProcessContactField
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+      />
       <div className="field">
         <label htmlFor={`${id}-description`}>
           Descrição do processo <span className="req">obrigatório</span>
@@ -313,8 +344,51 @@ export default function ProcessFields({
     !only || only === field || (only === 'altdef' && field === 'custo')
   const total = processMonthlyTotal(value)
   const loss = processInactivityLoss(value)
+  if (isProcessFeeAdjustment(type.id)) {
+    const variation = processFeeVariation(value)
+    return (
+      <>
+        {!only && (
+          <ProcessContactField
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+          />
+        )}
+        <div className="ctl-grid">
+          <MoneyField
+            label="Honorário anterior"
+            value={value.honAnterior}
+            required
+            disabled={disabled}
+            onChange={(honAnterior) => onChange({ honAnterior })}
+          />
+          <MoneyField
+            label="Novo honorário contábil"
+            value={value.honorario}
+            required
+            disabled={disabled}
+            onChange={(honorario) => onChange({ honorario })}
+          />
+        </div>
+        {variation !== null && (
+          <p className="help" role="status">
+            {variation.startsWith('-') ? 'Redução' : 'Aumento'} de{' '}
+            {processMoney(variation.replace(/^-/, ''))}/mês
+          </p>
+        )}
+      </>
+    )
+  }
   return (
     <>
+      {!only && (
+        <ProcessContactField
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      )}
       {show('regime') && processHasField(type, 'regime') && (
         <div className="field full">
           <label>Estrutura tributária</label>
@@ -642,16 +716,6 @@ export default function ProcessFields({
       )}
       {!only && type.id === 'saida' && (
         <div className="field full">
-          <label htmlFor={`${id}-contact`}>Contato do cliente</label>
-          <input
-            className="input"
-            id={`${id}-contact`}
-            value={value.contato ?? ''}
-            onChange={(event) => onChange({ contato: event.target.value })}
-            maxLength={500}
-            disabled={disabled}
-            placeholder="Nome e telefone de quem acompanha a saída"
-          />
           <ProcessSwitch
             checked={!!value.novoContador}
             title="Já temos os dados do novo contador"

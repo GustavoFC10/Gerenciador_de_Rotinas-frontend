@@ -45,6 +45,8 @@ const types = [
   'baixa',
   'saida',
   'exclusao',
+  'aumento_honorarios',
+  'reducao_honorarios',
 ] as const
 const privateFields = [
   'valorProcesso',
@@ -57,12 +59,12 @@ const privateFields = [
   'trabQtd',
   'trabValor',
   'honAnterior',
+  'honVariacao',
   'honPerdido',
   'obs',
   'altDesc',
   'regimeObs',
   'motivoObs',
-  'contato',
   'contadorContato',
 ]
 
@@ -287,6 +289,7 @@ const detailFields: Fields = {
   trabQtd: optional(nullable(positive)),
   trabValor: optional(nullable(decimal)),
   honAnterior: optional(nullable(decimal)),
+  honVariacao: optional(decimal),
   honPerdido: optional(nullable(decimal)),
   altItens: optional(
     array(
@@ -519,6 +522,14 @@ export function parseProcessDetail(
           requestId,
         )
   }
+  if (
+    result.honVariacao !== undefined &&
+    !['aumento_honorarios', 'reducao_honorarios'].includes(result.tipo)
+  )
+    throw new ProcessContractError(
+      'response.honVariacao (tipo sem reajuste)',
+      requestId,
+    )
   if (!result.permissions.create && result.notifications !== undefined)
     throw new ProcessContractError(
       'response.notifications (sem permissão)',

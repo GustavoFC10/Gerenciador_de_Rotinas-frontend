@@ -85,3 +85,16 @@
 :root[data-theme='dark'] .process-type-exclusao {
   --type-color: #fca5a5;
 }
+
+.process-type-aumento_honorarios {
+  --type-color: #0f766e;
+}
+.process-type-reducao_honorarios {
+  --type-color: #b91c1c;
+}
+:root[data-theme='dark'] .process-type-aumento_honorarios {
+  --type-color: #5eead4;
+}
+:root[data-theme='dark'] .process-type-reducao_honorarios {
+  --type-color: #fca5a5;
+}

@@ -16,6 +16,7 @@ import ProcessFields, {
 import ProcessIcon from './ProcessIcon'
 import {
   normalizeProcessInput,
+  isProcessFeeAdjustment,
   processDraftForType,
   processInputFromResource,
   PROCESS_START_LABELS,
@@ -64,6 +65,7 @@ export default function ProcessForm({
   }
   useOverlayDialog(dialogRef, close)
   const type = catalog.types.find((type) => type.id === typeId)
+  const isAdjustment = isProcessFeeAdjustment(typeId)
   const isOthers = typeId === 'outros'
   const configurationLocked =
     !!process &&
@@ -228,7 +230,8 @@ export default function ProcessForm({
           )}
           <div className="field">
             <label htmlFor={id + '-empresa'}>
-              Nome da empresa <span className="req">obrigatório</span>
+              {isAdjustment ? 'Nome do cliente' : 'Nome da empresa'}{' '}
+              <span className="req">obrigatório</span>
             </label>
             <input
               className="input"
@@ -270,47 +273,56 @@ export default function ProcessForm({
                     />
                   </div>
                 }
+                {!isAdjustment && (
+                  <div className="field">
+                    <label htmlFor={`${id}-date`}>
+                      {PROCESS_START_LABELS[typeId] ?? 'Prazo'}{' '}
+                      <span>(opcional)</span>
+                    </label>
+                    <input
+                      className="input"
+                      id={`${id}-date`}
+                      type="date"
+                      value={
+                        (PROCESS_START_LABELS[typeId]
+                          ? value.inicioInat
+                          : value.prazo) ?? ''
+                      }
+                      onChange={(event) =>
+                        update(
+                          PROCESS_START_LABELS[typeId]
+                            ? { inicioInat: event.target.value || null }
+                            : { prazo: event.target.value || null },
+                        )
+                      }
+                      disabled={locked}
+                    />
+                  </div>
+                )}
+              </div>
+              {!isAdjustment && (
                 <div className="field">
-                  <label htmlFor={`${id}-date`}>
-                    {PROCESS_START_LABELS[typeId] ?? 'Prazo'}{' '}
-                    <span>(opcional)</span>
+                  <label htmlFor={`${id}-protocol`}>
+                    Protocolo externo <span>(opcional)</span>
                   </label>
                   <input
                     className="input"
-                    id={`${id}-date`}
-                    type="date"
-                    value={
-                      (PROCESS_START_LABELS[typeId]
-                        ? value.inicioInat
-                        : value.prazo) ?? ''
-                    }
+                    id={`${id}-protocol`}
+                    maxLength={160}
+                    value={value.protocolo ?? ''}
                     onChange={(event) =>
-                      update(
-                        PROCESS_START_LABELS[typeId]
-                          ? { inicioInat: event.target.value || null }
-                          : { prazo: event.target.value || null },
-                      )
+                      update({ protocolo: event.target.value })
                     }
+                    placeholder="Protocolo de registro ou referência"
                     disabled={locked}
                   />
+                  <p className="help">
+                    Referência manual de registro na Junta Comercial, prefeitura
+                    ou outro sistema externo. Independente do código interno;
+                    não aciona integrações.
+                  </p>
                 </div>
-              </div>
-              <div className="field">
-                <label htmlFor={`${id}-protocol`}>
-                  Protocolo externo <span>(opcional)</span>
-                </label>
-                <input
-                  className="input"
-                  id={`${id}-protocol`}
-                  maxLength={160}
-                  value={value.protocolo ?? ''}
-                  onChange={(event) =>
-                    update({ protocolo: event.target.value })
-                  }
-                  placeholder="Protocolo de registro ou referência"
-                  disabled={locked}
-                />
-              </div>
+              )}
               {type?.id === 'alteracao' && (
                 <ProcessAlterationFields
                   value={value}
@@ -326,11 +338,13 @@ export default function ProcessForm({
                       : 'Definições da Diretoria'}
                   </h3>
                   <p>
-                    {type.id === 'alteracao'
-                      ? 'Valor, quem paga e forma de pagamento. Com isso, a etapa de definições já nasce concluída.'
-                      : process
-                        ? 'As definições completas concluem suas tarefas automaticamente.'
-                        : 'Opcional agora. Se preencher tudo, a tarefa correspondente já entra como concluída.'}
+                    {isAdjustment
+                      ? 'Os dois honorários são obrigatórios na abertura. O ajuste no sistema contábil deve ser realizado manualmente pelo Financeiro.'
+                      : type.id === 'alteracao'
+                        ? 'Valor, quem paga e forma de pagamento. Com isso, a etapa de definições já nasce concluída.'
+                        : process
+                          ? 'As definições completas concluem suas tarefas automaticamente.'
+                          : 'Opcional agora. Se preencher tudo, a tarefa correspondente já entra como concluída.'}
                   </p>
                   <ProcessFields
                     value={value}
@@ -340,21 +354,23 @@ export default function ProcessForm({
                   />
                 </div>
               )}
-              <div className="field">
-                <label htmlFor={`${id}-obs`}>
-                  Observações <span>(opcional)</span>
-                </label>
-                <textarea
-                  className="input"
-                  id={`${id}-obs`}
-                  rows={2}
-                  maxLength={5000}
-                  value={value.obs ?? ''}
-                  onChange={(event) => update({ obs: event.target.value })}
-                  placeholder="Particularidades do processo"
-                  disabled={locked}
-                />
-              </div>
+              {!isAdjustment && (
+                <div className="field">
+                  <label htmlFor={`${id}-obs`}>
+                    Observações <span>(opcional)</span>
+                  </label>
+                  <textarea
+                    className="input"
+                    id={`${id}-obs`}
+                    rows={2}
+                    maxLength={5000}
+                    value={value.obs ?? ''}
+                    onChange={(event) => update({ obs: event.target.value })}
+                    placeholder="Particularidades do processo"
+                    disabled={locked}
+                  />
+                </div>
+              )}
             </>
           )}
           {!process && (

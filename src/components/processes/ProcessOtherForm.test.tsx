@@ -150,6 +150,7 @@ describe('Outros form', () => {
     expect(submit.mock.calls[0]?.[0]).toEqual({
       tipo: 'outros',
       empresa: 'Nome corrigido',
+      contato: '',
       descricaoProcesso: 'Solicitar certidão',
       departamentoSolicitado: 'reg',
       acionarLeggacy: false,

@@ -14,6 +14,40 @@ import {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('relatório PDF de Processos', () => {
+  it('describes reactivation and adjustments as gains using the server totals', () => {
+    const report = makeReport()
+    Object.assign(report, {
+      gain: '500.00',
+      loss: '100.00',
+      balance: '400.00',
+      entries: [
+        {
+          processId: 'reactivation',
+          empresa: 'Cliente',
+          tipo: 'reativacao',
+          value: '350.00',
+        },
+        {
+          processId: 'increase',
+          empresa: 'Cliente',
+          tipo: 'aumento_honorarios',
+          value: '150.00',
+        },
+      ],
+      exits: [
+        {
+          processId: 'reduction',
+          empresa: 'Cliente',
+          tipo: 'reducao_honorarios',
+          value: '100.00',
+        },
+      ],
+    })
+    const summary = processReportSummary(report)
+    for (const text of ['registrou 2 ganhos', '500,00', '100,00', '400,00'])
+      expect(summary).toContain(text)
+    expect(summary).not.toContain('contrato')
+  })
   it('preserva cada centavo dos totais decimais, inclusive acima do limite de precisão de Number', () => {
     expect(formatProcessReportMoney('9999999999999999999999.99')).toBe(
       'R$\u00a09.999.999.999.999.999.999.999,99',
@@ -44,7 +78,7 @@ describe('relatório PDF de Processos', () => {
     const summary = processReportSummary(report)
 
     expect(summary).toContain(
-      'Em outubro de 2026, a Jaralcon iniciou 2 novos contratos',
+      'Em outubro de 2026, a Jaralcon registrou 2 ganhos',
     )
     expect(summary).toContain('somando R$\u00a01.200,00')
     expect(summary).toContain('1 empresa reduziu ou encerrou')
@@ -64,7 +98,7 @@ describe('relatório PDF de Processos', () => {
 
     const summary = processReportSummary(report)
 
-    expect(summary).toContain('não houve início de novos contratos')
+    expect(summary).toContain('não houve ganhos de honorários')
     expect(summary).toContain('Não houve perda de honorários no período')
     expect(summary).not.toContain('mês anterior')
   })

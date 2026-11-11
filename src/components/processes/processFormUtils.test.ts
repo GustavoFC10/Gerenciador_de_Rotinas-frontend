@@ -5,6 +5,8 @@ import {
   normalizeProcessMoney,
   processInputFromResource,
   processDraftForType,
+  processFeeVariation,
+  processHasField,
 } from './processFormUtils'
 import {
   makeProcessTestResource,
@@ -12,6 +14,130 @@ import {
 } from './processTestFixtures'
 
 describe('process form contract', () => {
+  it.each(['aumento_honorarios', 'reducao_honorarios'] as const)(
+    'validates exact money and simple payloads for %s',
+    (tipo) => {
+      const type = processTestCatalog.types.find((item) => item.id === tipo)!
+      const increasing = tipo === 'aumento_honorarios'
+      const input = {
+        tipo,
+        empresa: ' Cliente ',
+        cnpj: '',
+        contato: ' cliente@exemplo.com ',
+        honAnterior: increasing ? '0' : '100',
+        honorario: increasing ? '100' : '0',
+        honCobranca: '2026-11-10',
+        trab: true,
+        trabQtd: 2,
+        trabValor: '50',
+        custo: '100',
+        regime: 'simples' as const,
+      }
+      expect(processHasField(type, 'honorario')).toBe(true)
+      expect(normalizeProcessInput(input, type)).toEqual({
+        tipo,
+        empresa: 'Cliente',
+        cnpj: '',
+        contato: 'cliente@exemplo.com',
+        honAnterior: increasing ? '0.00' : '100.00',
+        honorario: increasing ? '100.00' : '0.00',
+      })
+      expect(Object.keys(processDraftForType(input, type)).sort()).toEqual(
+        [
+          'tipo',
+          'empresa',
+          'cnpj',
+          'contato',
+          'honAnterior',
+          'honorario',
+        ].sort(),
+      )
+      expect(processFeeVariation(input)).toBe(increasing ? '100.00' : '-100.00')
+      expect(
+        processFeeVariation({
+          honAnterior: '999999999999.98',
+          honorario: '999999999999.99',
+        }),
+      ).toBe('0.01')
+      expect(
+        processFeeVariation({ honAnterior: '', honorario: '0' }),
+      ).toBeNull()
+      for (const [honAnterior, honorario] of [
+        ['100', '100'],
+        ['0', '0'],
+        [increasing ? '100' : '0', increasing ? '0' : '100'],
+        ['', '100'],
+        ['100', ''],
+        [null, '100'],
+        ['100', null],
+        ['-1', '100'],
+        ['100', '-1'],
+        ['0', '100.001'],
+        ['0', '1000000000000'],
+      ])
+        expect(() =>
+          normalizeProcessInput({ ...input, honAnterior, honorario }, type),
+        ).toThrow()
+      const resource = makeProcessTestResource({
+        tipo,
+        contato: input.contato.trim(),
+        honAnterior: increasing ? '0.00' : '100.00',
+        honorario: increasing ? '100.00' : '0.00',
+        honVariacao: increasing ? '100.00' : '-100.00',
+      })
+      const normalized = normalizeProcessInput(
+        {
+          ...processInputFromResource(resource),
+          honorario: increasing ? '150' : '50',
+        },
+        type,
+      )
+      expect(changedProcessFields(normalized, resource)).toEqual({
+        honorario: increasing ? '150.00' : '50.00',
+      })
+    },
+  )
+
+  it.each(processTestCatalog.types)(
+    'preserves and clears client contact for $id',
+    (type) => {
+      const input = {
+        tipo: type.id,
+        empresa: 'Cliente',
+        contato: ' cliente@exemplo.com ',
+        descricaoProcesso: 'Atividade',
+        valorProcesso: '0',
+        departamentoSolicitado: 'reg' as const,
+        acionarLeggacy: false,
+        honAnterior: type.id === 'reducao_honorarios' ? '200' : '0',
+        honorario: '100',
+        honPerdido: '100',
+        altItens: ['endereco' as const],
+        altDesc: 'Novo endereço',
+        custo: '0',
+        pagador: 'cliente' as const,
+        parcelas: 1,
+      }
+      expect(processDraftForType(input, type).contato).toBe(input.contato)
+      expect(normalizeProcessInput(input, type).contato).toBe(
+        'cliente@exemplo.com',
+      )
+      expect(() =>
+        normalizeProcessInput({ ...input, contato: 'a'.repeat(501) }, type),
+      ).toThrow('500')
+      const resource = makeProcessTestResource({
+        tipo: type.id,
+        contato: 'cliente@exemplo.com',
+      })
+      expect(processInputFromResource(resource).contato).toBe(resource.contato)
+      expect(
+        changedProcessFields(
+          normalizeProcessInput({ ...input, contato: '' }, type),
+          resource,
+        ),
+      ).toHaveProperty('contato', '')
+    },
+  )
   it.each(['fin', 'reg'] as const)(
     'keeps zero and false for Outros in %s and drops residual fields',
     (departamentoSolicitado) => {

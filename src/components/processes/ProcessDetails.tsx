@@ -35,6 +35,7 @@ import ProcessFollowUps from './ProcessFollowUps'
 import ProcessTypeBadge from './ProcessTypeBadge'
 import {
   DIRECT_LOSS_TYPES,
+  isProcessFeeAdjustment,
   PROCESS_ALTERATIONS,
   PROCESS_PAYERS,
   PROCESS_REASONS,
@@ -486,7 +487,22 @@ function ProcessValues({
           </>,
           process.custo == null,
         )}
+      {financial && isProcessFeeAdjustment(process.tipo) && (
+        <>
+          {valueBox('Honorário anterior', processMoney(process.honAnterior))}
+          {valueBox('Novo honorário contábil', processMoney(process.honorario))}
+          {valueBox(
+            process.tipo === 'aumento_honorarios'
+              ? 'Aumento de honorários'
+              : 'Redução de honorários',
+            process.honVariacao === undefined
+              ? 'A definir'
+              : `${processMoney(process.honVariacao.replace(/^-/, ''))} /mês`,
+          )}
+        </>
+      )}
       {financial &&
+        !isProcessFeeAdjustment(process.tipo) &&
         processHasField(type, 'honorario') &&
         valueBox(
           'Novo honorário mensal',
@@ -1258,9 +1274,7 @@ export default function ProcessDetails({
               )}
               {process.protocolo &&
                 readonlyField('Protocolo externo', process.protocolo)}
-              {process.tipo === 'saida' &&
-                process.permissions.viewFinancial &&
-                readonlyField('Contato do cliente', process.contato)}
+              {readonlyField('Contato do cliente', process.contato)}
               {readonlyField('Aberto por', process.autorAbertura)}
               <div className="field full">
                 <label>Definições da Diretoria</label>

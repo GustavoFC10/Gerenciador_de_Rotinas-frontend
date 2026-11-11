@@ -92,8 +92,8 @@ export function processReportSummary(report: ProcessMonthlyReport): string {
   const entries = report.entries.length
   const exits = report.exits.length
   const opening = entries
-    ? `Em ${month}, a Jaralcon iniciou ${entries} ${entries === 1 ? 'novo contrato' : 'novos contratos'}, somando ${formatProcessReportMoney(report.gain)} em honorários mensais.`
-    : `Em ${month}, não houve início de novos contratos.`
+    ? `Em ${month}, a Jaralcon registrou ${entries} ${entries === 1 ? 'ganho' : 'ganhos'}, somando ${formatProcessReportMoney(report.gain)} em honorários mensais.`
+    : `Em ${month}, não houve ganhos de honorários.`
   const losses = exits
     ? ` No mesmo período, ${exits} ${exits === 1 ? 'empresa reduziu ou encerrou' : 'empresas reduziram ou encerraram'} seus honorários, totalizando ${formatProcessReportMoney(report.loss)} por mês.`
     : ' Não houve perda de honorários no período.'
@@ -167,7 +167,7 @@ export async function downloadProcessReportPdf(
   doc.setProperties({
     title: `Movimentações Empresariais - ${monthLabel(report.month)}`,
     author: authorName || 'Jaralcon Assessoria Contábil',
-    subject: 'Novos honorários mensais e honorários perdidos no mês',
+    subject: 'Ganhos de honorários mensais e honorários perdidos no mês',
   })
 
   fill(COLORS.navy)
@@ -188,7 +188,11 @@ export async function downloadProcessReportPdf(
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(10)
   ink([205, 205, 225])
-  write('Novos honorários mensais e honorários perdidos no mês', margin, 61.5)
+  write(
+    'Ganhos de honorários mensais e honorários perdidos no mês',
+    margin,
+    61.5,
+  )
   draw(COLORS.gold)
   doc.setLineWidth(0.7)
   doc.lines(
@@ -209,9 +213,9 @@ export async function downloadProcessReportPdf(
     color: Color
   }[] = [
     {
-      label: 'NOVOS HONORÁRIOS',
+      label: 'GANHOS DE HONORÁRIOS',
       value: `+ ${money(report.gain)}`,
-      caption: `${report.entries.length} contrato(s) no mês`,
+      caption: `${report.entries.length} movimentação(ões) de ganho no mês`,
       color: COLORS.green,
     },
     {
@@ -330,10 +334,10 @@ export async function downloadProcessReportPdf(
   doc.rect(margin, y - 2.6, 3, 3, 'F')
   ink(COLORS.muted)
   doc.setFont('helvetica', 'normal')
-  write('Novos honorários', margin + 5, y)
+  write('Ganhos de honorários', margin + 5, y)
   fill(COLORS.red)
-  doc.rect(margin + 40, y - 2.6, 3, 3, 'F')
-  write('Honorários perdidos', margin + 45, y)
+  doc.rect(margin + 50, y - 2.6, 3, 3, 'F')
+  write('Honorários perdidos', margin + 55, y)
   y += 12
 
   const list = (
@@ -358,7 +362,9 @@ export async function downloadProcessReportPdf(
       doc.setFontSize(9.5)
       ink(COLORS.muted)
       write(
-        sign > 0 ? 'Nenhum contrato novo no mês.' : 'Nenhuma perda no mês.',
+        sign > 0
+          ? 'Nenhum ganho de honorários no mês.'
+          : 'Nenhuma perda no mês.',
         margin,
         y + 6,
       )
@@ -407,7 +413,7 @@ export async function downloadProcessReportPdf(
     })
     y += 12
   }
-  list('Novos contratos', report.entries, 1, report.gain, COLORS.green)
+  list('Ganhos', report.entries, 1, report.gain, COLORS.green)
   list('Honorários perdidos', report.exits, -1, report.loss, COLORS.red)
 
   const losses = Object.entries(report.lossesByType).filter(
