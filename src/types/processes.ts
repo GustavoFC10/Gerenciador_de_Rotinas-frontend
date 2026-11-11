@@ -13,6 +13,8 @@ export type ProcessTypeId =
   | 'baixa'
   | 'saida'
   | 'exclusao'
+  | 'aumento_honorarios'
+  | 'reducao_honorarios'
 
 export type ProcessStatus =
   'andamento' | 'agendado' | 'atrasado' | 'concluido' | 'cancelado'
@@ -233,6 +235,7 @@ export type ProcessSummary = Readonly<ProcessSummaryDto>
 /** Validated transport detail, independent of form input. */
 export interface ProcessDetailDto
   extends ProcessSummaryDto, Omit<ProcessFields, keyof ProcessSummaryDto> {
+  honVariacao?: string
   tarefas: Record<string, ProcessTaskState>
   etapas: ProcessStage[]
   leggacy: LeggacyTracking[]

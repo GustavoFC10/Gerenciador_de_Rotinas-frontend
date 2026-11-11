@@ -101,6 +101,53 @@ async function render(onUnavailable = vi.fn()) {
 }
 
 describe('ProcessMovements query lifecycle', () => {
+  it('renders reactivation and fee adjustments using only the API totals', async () => {
+    const data: ProcessMonthlyReport = {
+      ...report,
+      gain: '500.00',
+      loss: '100.00',
+      balance: '400.00',
+      entries: [
+        {
+          processId: 'reactivation',
+          empresa: 'Cliente reativado',
+          tipo: 'reativacao',
+          value: '350.00',
+        },
+        {
+          processId: 'increase',
+          empresa: 'Cliente com aumento',
+          tipo: 'aumento_honorarios',
+          value: '150.00',
+        },
+      ],
+      exits: [
+        {
+          processId: 'reduction',
+          empresa: 'Cliente com redução',
+          tipo: 'reducao_honorarios',
+          value: '100.00',
+        },
+      ],
+      lossesByType: { reducao_honorarios: '100.00' },
+    }
+    vi.spyOn(processService, 'monthlyReport').mockResolvedValue({
+      ...response(),
+      data,
+    })
+    await render()
+    const cards = host.querySelector('.scards')!.textContent!
+    for (const value of ['500,00', '100,00', '400,00'])
+      expect(cards).toContain(value)
+    expect(host.textContent).toContain('2 movimentações de ganho')
+    expect(host.textContent).toContain('reativações')
+    expect(host.textContent).toContain('aumentos de honorários')
+    expect(host.textContent).toContain('reduções de honorários')
+    expect(host.textContent).not.toContain('contratos novos')
+    expect(
+      client.getQueryData(processQueryKeys.report(scope, '2026-10')),
+    ).toEqual(data)
+  })
   it.each([403, 404])(
     'purges reports and retains a visible denial on HTTP %i without refetch loops',
     async (status) => {

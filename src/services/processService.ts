@@ -137,7 +137,9 @@ export class ProcessService {
     if (!input.empresa.trim() || input.empresa.trim().length > 200)
       throw new Error('Informe o nome da empresa.')
     const fields = Object.fromEntries(
-      Object.entries(input).filter(([key]) => key !== 'companyId'),
+      Object.entries(input).filter(
+        ([key]) => !['companyId', 'honVariacao'].includes(key),
+      ),
     )
     const payload =
       input.tipo === 'outros'
@@ -148,6 +150,7 @@ export class ProcessService {
             valorProcesso: input.valorProcesso,
             departamentoSolicitado: input.departamentoSolicitado,
             acionarLeggacy: input.acionarLeggacy,
+            ...(input.contato !== undefined ? { contato: input.contato } : {}),
           }
         : {
             ...fields,
@@ -169,7 +172,9 @@ export class ProcessService {
         this.client.patch(
           processPath(id),
           Object.fromEntries(
-            Object.entries(input).filter(([key]) => key !== 'companyId'),
+            Object.entries(input).filter(
+              ([key]) => !['companyId', 'honVariacao'].includes(key),
+            ),
           ),
         ),
       parseProcessDetail,

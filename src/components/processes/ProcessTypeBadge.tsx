@@ -13,6 +13,8 @@ const presentation: Record<string, { icon: string; name: string }> = {
   reativacao: { icon: 'refresh', name: 'Reativação' },
   baixa: { icon: 'box', name: 'Baixa' },
   saida: { icon: 'out', name: 'Saída' },
+  aumento_honorarios: { icon: 'up', name: 'Aumento de honorários contábeis' },
+  reducao_honorarios: { icon: 'swap', name: 'Redução de honorários contábeis' },
   exclusao: { icon: 'userx', name: 'Exclusão' },
 }
 

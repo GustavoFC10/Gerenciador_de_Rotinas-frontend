@@ -81,6 +81,91 @@ async function render(process: ProcessResource, onChange = vi.fn()) {
 }
 
 describe('ProcessDetails', () => {
+  it.each(['aumento_honorarios', 'reducao_honorarios'] as const)(
+    'renders the API workflow and financial variation for %s',
+    async (tipo) => {
+      const type = processTestCatalog.types.find((item) => item.id === tipo)!
+      const process = makeProcessTestResource({
+        tipo,
+        etapas: type.etapas,
+        contato: 'cliente@exemplo.com',
+        honAnterior: '800.00',
+        honorario: '700.00',
+        honVariacao: '-100.00',
+        permissions: {
+          ...processTestCatalog.permissions,
+          create: false,
+          edit: false,
+          executeSectors: ['fin'],
+        },
+        analysis: {
+          currentStage: 0,
+          completedTasks: 0,
+          totalTasks: 1,
+          releaseDate: null,
+          waiting: false,
+          late: false,
+          pendingSectors: ['fin'],
+        },
+      })
+      const completed = {
+        ...process,
+        version: 5,
+        status: 'concluido' as const,
+        tarefas: {
+          [type.etapas[0]!.tasks[0]!.id]: {
+            s: 'feito' as const,
+            por: 'member-1',
+            em: '2026-11-10T12:00:00Z',
+          },
+        },
+        analysis: {
+          ...process.analysis,
+          completedTasks: 1,
+          currentStage: null,
+          pendingSectors: [],
+        },
+      }
+      const task = vi
+        .spyOn(processService, 'transitionTask')
+        .mockResolvedValue(response(completed))
+      const { onChange } = await render(process)
+      expect(host.textContent).toContain('cliente@exemplo.com')
+      expect(host.textContent).toContain('Honorário anterior')
+      expect(host.textContent).toContain('R$\u00a0100,00 /mês')
+      expect(host.textContent).not.toContain('Cobrança do 1º honorário')
+      const taskButton = [
+        ...host.querySelectorAll<HTMLButtonElement>('.tbtns button'),
+      ].find((button) => button.textContent?.trim() === 'Concluir')
+      expect(taskButton).not.toBeNull()
+      await act(async () => taskButton!.click())
+      expect(task).toHaveBeenCalled()
+      expect(onChange).toHaveBeenCalledWith(completed)
+    },
+  )
+
+  it.each(processTestCatalog.types)(
+    'shows operational contact without financial permission for $id',
+    async (type) => {
+      await render(
+        makeProcessTestResource({
+          tipo: type.id,
+          etapas: type.etapas,
+          contato: 'cliente@exemplo.com',
+          permissions: {
+            ...processTestCatalog.permissions,
+            create: false,
+            edit: false,
+            viewFinancial: false,
+            executeSectors: [],
+          },
+        }),
+      )
+      expect(host.textContent).toContain('cliente@exemplo.com')
+      expect(host.textContent).not.toContain('Honorário anterior')
+      expect(host.textContent).not.toContain('Novo honorário contábil')
+    },
+  )
   it.each(['custo', 'honorario', 'regime', 'altdef'] as const)(
     'confirms a pending %s definition even when its values are already saved',
     async (field) => {

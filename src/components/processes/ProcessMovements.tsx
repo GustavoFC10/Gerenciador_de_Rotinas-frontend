@@ -82,8 +82,8 @@ export default function ProcessMovements({
         <div className="tt">
           <h1>Movimentações Empresariais</h1>
           <p>
-            Novos honorários mensais x honorários perdidos, pelo mês de abertura
-            do processo.
+            Ganhos de honorários mensais x honorários perdidos, pelo mês de
+            abertura do processo.
           </p>
         </div>
         <div className="process-actions">
@@ -160,8 +160,8 @@ export default function ProcessMovements({
           <ReportMetrics report={report} />
           <div className="mgrid">
             <MovementList
-              title="Novos honorários"
-              description="Aberturas, transformações MEI → ME e clientes de outro escritório"
+              title="Ganhos de honorários"
+              description="Aberturas, reativações, transformações MEI → ME, clientes de outro escritório e aumentos de honorários"
               items={report.entries}
               total={report.gain}
               sign={1}
@@ -170,7 +170,7 @@ export default function ProcessMovements({
             />
             <MovementList
               title="Honorários perdidos"
-              description="Baixas, paralisações, inatividades, saídas e exclusões"
+              description="Baixas, paralisações, inatividades, saídas, exclusões e reduções de honorários"
               items={report.exits}
               total={report.loss}
               sign={-1}
@@ -194,7 +194,7 @@ export default function ProcessMovements({
               <div>
                 <h2>Últimos 12 meses</h2>
                 <p className="ph-sub">
-                  <span className="lg up" /> Novos honorários{' '}
+                  <span className="lg up" /> Ganhos de honorários{' '}
                   <span className="lg down" /> Honorários perdidos
                 </p>
               </div>
@@ -221,9 +221,9 @@ function ReportMetrics({ report }: { report: ProcessMonthlyReport }) {
   return (
     <div className="scards">
       <div className="scard completed">
-        <span>Novos honorários</span>
+        <span>Ganhos de honorários</span>
         <b className="num">+ {formatBRL(report.gain)}</b>
-        <small>{report.entries.length} contratos novos · por mês</small>
+        <small>{report.entries.length} movimentações de ganho · por mês</small>
       </div>
       <div className="scard error">
         <span>Honorários perdidos</span>
@@ -312,7 +312,7 @@ function MovementList({
         <div className="empty small">
           <p>
             {sign > 0
-              ? 'Nenhum contrato novo neste mês.'
+              ? 'Nenhum ganho de honorários neste mês.'
               : 'Nenhuma perda de honorário neste mês.'}
           </p>
         </div>
@@ -373,7 +373,7 @@ function HistoryChart({ report }: { report: ProcessMonthlyReport }) {
       viewBox="0 0 720 210"
       className="mchart"
       role="img"
-      aria-label="Novos honorários e honorários perdidos nos últimos 12 meses"
+      aria-label="Ganhos de honorários e honorários perdidos nos últimos 12 meses"
     >
       <line x1="8" x2="712" y1="176" y2="176" stroke="var(--panel-border)" />
       {report.history.map((item, index) => {
@@ -518,7 +518,7 @@ function ReportDialog({
             <div className="rleg">
               <span>
                 <i className="g" />
-                Novos honorários
+                Ganhos de honorários
               </span>
               <span>
                 <i className="l" />
@@ -527,7 +527,7 @@ function ReportDialog({
             </div>
           </div>
           <div className="rsec">
-            <h3>Novos honorários</h3>
+            <h3>Ganhos de honorários</h3>
             <ReportRows items={report.entries} catalog={catalog} sign={1} />
           </div>
           <div className="rsec">

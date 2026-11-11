@@ -10898,6 +10898,8 @@ paths:
           - baixa
           - saida
           - exclusao
+          - aumento_honorarios
+          - reducao_honorarios
           - outros
           type: string
           minLength: 1
@@ -10912,6 +10914,8 @@ paths:
           * `baixa` - baixa
           * `saida` - saida
           * `exclusao` - exclusao
+          * `aumento_honorarios` - aumento_honorarios
+          * `reducao_honorarios` - reducao_honorarios
           * `outros` - outros
       - in: header
         name: X-Request-ID
@@ -12949,6 +12953,8 @@ paths:
           - baixa
           - saida
           - exclusao
+          - aumento_honorarios
+          - reducao_honorarios
           - outros
           type: string
           minLength: 1
@@ -12963,6 +12969,8 @@ paths:
           * `baixa` - baixa
           * `saida` - saida
           * `exclusao` - exclusao
+          * `aumento_honorarios` - aumento_honorarios
+          * `reducao_honorarios` - reducao_honorarios
           * `outros` - outros
       - in: header
         name: X-Request-ID
@@ -13200,6 +13208,8 @@ paths:
           - baixa
           - saida
           - exclusao
+          - aumento_honorarios
+          - reducao_honorarios
           - outros
           type: string
           minLength: 1
@@ -13214,6 +13224,8 @@ paths:
           * `baixa` - baixa
           * `saida` - saida
           * `exclusao` - exclusao
+          * `aumento_honorarios` - aumento_honorarios
+          * `reducao_honorarios` - reducao_honorarios
           * `outros` - outros
       - in: header
         name: X-Request-ID
@@ -18617,6 +18629,8 @@ components:
           type: boolean
         protocolo:
           type: string
+          description: Referência externa opcional, preenchida manualmente; não é
+            o código interno nem aciona integrações.
           maxLength: 160
         prazo:
           type: string
@@ -18701,6 +18715,8 @@ components:
           maxLength: 3000
         contato:
           type: string
+          description: Contato operacional do cliente em qualquer tipo, visível aos
+            leitores do processo.
           maxLength: 500
         novoContador:
           type: boolean
@@ -18904,6 +18920,8 @@ components:
           type: boolean
         protocolo:
           type: string
+          description: Referência externa opcional, preenchida manualmente; não é
+            o código interno nem aciona integrações.
           maxLength: 160
         prazo:
           type: string
@@ -18988,6 +19006,8 @@ components:
           maxLength: 3000
         contato:
           type: string
+          description: Contato operacional do cliente em qualquer tipo, visível aos
+            leitores do processo.
           maxLength: 500
         novoContador:
           type: boolean
@@ -19029,6 +19049,8 @@ components:
       - baixa
       - saida
       - exclusao
+      - aumento_honorarios
+      - reducao_honorarios
       - outros
       type: string
       description: |-
@@ -19042,6 +19064,8 @@ components:
         * `baixa` - Baixa de empresa
         * `saida` - Saída de cliente
         * `exclusao` - Exclusão de cliente
+        * `aumento_honorarios` - Aumento de honorários contábeis
+        * `reducao_honorarios` - Redução de honorários contábeis
         * `outros` - Outros
     ProcessEntry:
       type: object
@@ -19187,6 +19211,8 @@ components:
           type: boolean
         protocolo:
           type: string
+          description: Referência externa opcional, preenchida manualmente; não é
+            o código interno nem aciona integrações.
           maxLength: 160
         prazo:
           type: string
@@ -19271,6 +19297,8 @@ components:
           maxLength: 3000
         contato:
           type: string
+          description: Contato operacional do cliente em qualquer tipo, visível aos
+            leitores do processo.
           maxLength: 500
         novoContador:
           type: boolean
@@ -19286,6 +19314,13 @@ components:
           type: boolean
         reunAcomp:
           type: boolean
+        honVariacao:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Novo menos anterior, somente nos reajustes e para quem pode
+            visualizar financeiro.
         id:
           type: string
           format: uuid
@@ -19376,6 +19411,7 @@ components:
       - criadoPor
       - empresa
       - etapas
+      - honVariacao
       - id
       - leggacy
       - organizationId

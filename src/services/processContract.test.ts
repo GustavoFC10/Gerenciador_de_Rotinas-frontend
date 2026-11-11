@@ -53,9 +53,58 @@ function summaryFixture(): Record<string, unknown> {
 }
 
 describe('Processos generated OpenAPI revision 2', () => {
-  it('accepts the eleven types, keeping outro and outros distinct in revision 2', () => {
+  it.each(['aumento_honorarios', 'reducao_honorarios'] as const)(
+    'accepts %s detail and protects its financial fields',
+    (tipo) => {
+      const detail = makeProcessTestResource({
+        tipo,
+        contato: 'cliente@exemplo.com',
+        honAnterior: '800.00',
+        honorario: '700.00',
+        honVariacao: '-100.00',
+      })
+      expect(parseProcessDetail(detail).honVariacao).toBe('-100.00')
+      const restricted = makeProcessTestResource({
+        tipo,
+        contato: detail.contato,
+        permissions: {
+          ...detail.permissions,
+          create: false,
+          edit: false,
+          viewFinancial: false,
+          executeSectors: [],
+        },
+      })
+      expect(parseProcessDetail(restricted).contato).toBe(detail.contato)
+      for (const field of [
+        'honAnterior',
+        'honorario',
+        'honVariacao',
+        'contadorContato',
+        'obs',
+      ])
+        expect(() =>
+          parseProcessDetail({
+            ...restricted,
+            [field]:
+              field === 'obs' || field === 'contadorContato'
+                ? 'privado'
+                : '0.00',
+          }),
+        ).toThrow('conteúdo confidencial')
+      for (const field of ['contato', 'honVariacao'])
+        expect(() =>
+          parseProcessSummary({ ...summaryFixture(), [field]: '0.00' }),
+        ).toThrow(ProcessContractError)
+      expect(() => parseProcessDetail({ ...detail, tipo: 'abertura' })).toThrow(
+        'tipo sem reajuste',
+      )
+      expect(normalizeProcessFilters({ tipo }).tipo).toBe(tipo)
+    },
+  )
+  it('accepts thirteen types, keeping outro and outros distinct in revision 2', () => {
     const catalog = parseProcessCatalog(processTestCatalog)
-    expect(catalog.types).toHaveLength(11)
+    expect(catalog.types).toHaveLength(13)
     expect(catalog.types.find((type) => type.id === 'outros')?.sigla).toBe(
       'OTS',
     )
@@ -242,6 +291,9 @@ describe('Processos generated OpenAPI revision 2', () => {
     const detail = makeProcessTestResource()
     expect(parseProcessDetail(detail)).toEqual(detail)
     for (const field of requiredFields('ProcessResponse')) {
+      // The generated response schema lists this conditional financial field as
+      // required, but it is omitted outside fee adjustments and for restricted readers.
+      if (field === 'honVariacao') continue
       const incomplete = { ...detail } as Record<string, unknown>
       delete incomplete[field]
       expect(() => parseProcessDetail(incomplete), field).toThrow(

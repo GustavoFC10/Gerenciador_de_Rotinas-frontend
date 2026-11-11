@@ -945,6 +945,97 @@ describe('ProcessesPage integration', () => {
     expect(client.getQueryState(alertKey)?.isInvalidated).toBe(true)
   })
 
+  it.each([
+    ['aumento_honorarios', true],
+    ['aumento_honorarios', false],
+    ['reducao_honorarios', true],
+    ['reducao_honorarios', false],
+  ] as const)(
+    'replaces the completed %s snapshot after editing (fees: %s)',
+    async (tipo, changeFees) => {
+      const type = catalog.types.find((item) => item.id === tipo)!
+      const taskId = type.etapas[0]!.tasks[0]!.id
+      const original = makeProcessTestResource({
+        tipo,
+        etapas: type.etapas,
+        status: 'concluido',
+        concluidoEm: '2026-10-22T12:00:00Z',
+        honAnterior: '500.00',
+        honorario: tipo === 'aumento_honorarios' ? '650.00' : '400.00',
+        honVariacao: tipo === 'aumento_honorarios' ? '150.00' : '-100.00',
+        contato: 'cliente@exemplo.com',
+        tarefas: {
+          [taskId]: { s: 'feito', por: 'member-1', em: '2026-10-22T12:00:00Z' },
+        },
+        analysis: {
+          currentStage: null,
+          completedTasks: 1,
+          totalTasks: 1,
+          releaseDate: null,
+          waiting: false,
+          late: false,
+          pendingSectors: [],
+        },
+      })
+      records = [original]
+      const saved = {
+        ...original,
+        version: 5,
+        ...(changeFees
+          ? {
+              honorario: tipo === 'aumento_honorarios' ? '700.00' : '300.00',
+              honVariacao: tipo === 'aumento_honorarios' ? '200.00' : '-200.00',
+              status: 'andamento' as const,
+              concluidoEm: null,
+              tarefas: {},
+              analysis: {
+                ...original.analysis,
+                currentStage: 0,
+                completedTasks: 0,
+                pendingSectors: ['fin' as const],
+              },
+            }
+          : { contato: '' }),
+      }
+      const update = vi
+        .spyOn(processService, 'update')
+        .mockImplementation(async () => {
+          records = [saved]
+          return response(saved)
+        })
+      await render('/processos/process-1')
+      const reportKey = processQueryKeys.report(scope, '2026-10')
+      client.setQueryData(reportKey, { gain: '150.00' })
+      await act(async () => button('Editar').click())
+      const label = [
+        ...document.querySelectorAll<HTMLLabelElement>('[role="dialog"] label'),
+      ].find((item) =>
+        item.textContent?.startsWith(
+          changeFees ? 'Novo honorário contábil' : 'Contato do cliente',
+        ),
+      )!
+      await changeFormValue(
+        changeFees ? (tipo === 'aumento_honorarios' ? '70000' : '30000') : '',
+        `[id="${label.htmlFor}"]`,
+      )
+      await submitForm()
+      expect(update).toHaveBeenCalledExactlyOnceWith(original.id, {
+        version: 4,
+        ...(changeFees ? { honorario: saved.honorario } : { contato: '' }),
+      })
+      expect(
+        client.getQueryData(processQueryKeys.detail(scope, original.id)),
+      ).toEqual(saved)
+      expect(client.getQueryState(reportKey)?.isInvalidated).toBe(true)
+      expect(host.querySelectorAll('.task')).toHaveLength(1)
+      expect(
+        host
+          .querySelector('.task [aria-pressed]')
+          ?.getAttribute('aria-pressed'),
+      ).toBe(String(!changeFees))
+    },
+  )
+
   it('shows each second-visit workflow at home with status, responsibility and release when the executable queue is empty', async () => {
     records = (['abertura', 'mei', 'outro', 'reativacao'] as const).map(
       (tipo) =>

@@ -77,6 +77,44 @@ async function enter(
 }
 
 describe('Process money fields', () => {
+  it.each(['aumento_honorarios', 'reducao_honorarios'] as const)(
+    'shows two required fees and an exact preview for %s',
+    async (tipo) => {
+      await render(tipo, {
+        honAnterior: tipo === 'aumento_honorarios' ? '500.00' : '800.00',
+        honorario: tipo === 'aumento_honorarios' ? '650.00' : '700.00',
+      })
+      expect(moneyInput('Honorário anterior').required).toBe(true)
+      expect(moneyInput('Novo honorário contábil').required).toBe(true)
+      expect(host.querySelector('[role="status"]')?.textContent).toBe(
+        tipo === 'aumento_honorarios'
+          ? 'Aumento de R$\u00a0150,00/mês'
+          : 'Redução de R$\u00a0100,00/mês',
+      )
+      expect(host.querySelectorAll('input')).toHaveLength(3)
+      expect(host.querySelector('input[type="date"]')).toBeNull()
+      expect(host.querySelector('[role="switch"]')).toBeNull()
+    },
+  )
+
+  it.each(processTestCatalog.types)(
+    'allows free text contact for $id',
+    async ({ id }) => {
+      const change = await render(id)
+      const label = [...host.querySelectorAll('label')].find((item) =>
+        item.textContent?.startsWith('Contato do cliente'),
+      )!
+      const input = document.getElementById(label.htmlFor) as HTMLInputElement
+      expect(input.maxLength).toBe(500)
+      expect(input.required).toBe(false)
+      await enter(input, 'cliente@exemplo.com')
+      expect(change).toHaveBeenLastCalledWith({
+        contato: 'cliente@exemplo.com',
+      })
+      await enter(input, '')
+      expect(change).toHaveBeenLastCalledWith({ contato: '' })
+    },
+  )
   it.each([
     ['abertura', 'Valor do processo', 'custo'],
     ['abertura', 'Honorário mensal', 'honorario'],

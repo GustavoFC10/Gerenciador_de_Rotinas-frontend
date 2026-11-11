@@ -9,6 +9,80 @@ import { processTestCatalog } from './processTestFixtures'
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 describe('ProcessForm', () => {
+  it.each(['aumento_honorarios', 'reducao_honorarios'] as const)(
+    'creates %s with only the simple fields',
+    async (tipo) => {
+      const host = document.createElement('div')
+      document.body.append(host)
+      const root = createRoot(host)
+      const submit = vi.fn().mockResolvedValue(undefined)
+      try {
+        await act(async () =>
+          root.render(
+            <ProcessForm
+              catalog={processTestCatalog}
+              scope={{ organizationId: 'org-1', membershipId: 'member-1' }}
+              initialType={tipo}
+              onSubmit={submit}
+              onClose={vi.fn()}
+            />,
+          ),
+        )
+        const dialog = document.querySelector('[role="dialog"]')!
+        expect(dialog.textContent).toContain('Nome do cliente')
+        expect(dialog.textContent).toContain('obrigatórios na abertura')
+        expect(dialog.querySelectorAll('input')).toHaveLength(5)
+        expect(
+          dialog.querySelector(
+            'textarea, select, input[type="date"], input[type="search"]',
+          ),
+        ).toBeNull()
+        const setInput = async (prefix: string, value: string) => {
+          const label = [...dialog.querySelectorAll('label')].find((item) =>
+            item.textContent?.startsWith(prefix),
+          )!
+          const input = document.getElementById(
+            label.htmlFor,
+          ) as HTMLInputElement
+          await act(async () => {
+            Object.getOwnPropertyDescriptor(
+              HTMLInputElement.prototype,
+              'value',
+            )!.set!.call(input, value)
+            input.dispatchEvent(new Event('input', { bubbles: true }))
+          })
+        }
+        await setInput('Nome do cliente', 'Cliente Exemplo')
+        await setInput('Contato do cliente', 'cliente@exemplo.com')
+        await setInput(
+          'Honorário anterior',
+          tipo === 'aumento_honorarios' ? '0' : '10000',
+        )
+        await setInput(
+          'Novo honorário contábil',
+          tipo === 'aumento_honorarios' ? '10000' : '0',
+        )
+        await act(async () => {
+          dialog
+            .querySelector('form')!
+            .dispatchEvent(
+              new Event('submit', { bubbles: true, cancelable: true }),
+            )
+        })
+        expect(submit).toHaveBeenCalledExactlyOnceWith({
+          tipo,
+          empresa: 'Cliente Exemplo',
+          cnpj: '',
+          contato: 'cliente@exemplo.com',
+          honAnterior: tipo === 'aumento_honorarios' ? '0.00' : '100.00',
+          honorario: tipo === 'aumento_honorarios' ? '100.00' : '0.00',
+        })
+      } finally {
+        await act(async () => root.unmount())
+        host.remove()
+      }
+    },
+  )
   it.each(['12345678000195', ''])(
     'opens a company with manual fields and keeps the draft after a network failure (CNPJ: %s)',
     async (cnpjValue) => {

@@ -11,6 +11,53 @@ import { ProcessContractError } from './processContract'
 import { ProcessService } from './processService'
 
 describe('ProcessService revision 2', () => {
+  it.each(['aumento_honorarios', 'reducao_honorarios', 'outros'] as const)(
+    'sends contact and strips computed fields for %s mutations',
+    async (tipo) => {
+      const resource = makeProcessTestResource({
+        tipo,
+        version: 5,
+        contato: 'cliente@exemplo.com',
+      })
+      const fetchImplementation = vi
+        .fn<typeof fetch>()
+        .mockImplementation(async () => jsonResponse(resource))
+      const service = createService(fetchImplementation)
+      const input = {
+        tipo,
+        empresa: 'Cliente',
+        contato: 'cliente@exemplo.com',
+        honAnterior: '500.00',
+        honorario: '650.00',
+        honVariacao: '150.00',
+        companyId: 'forbidden',
+        descricaoProcesso: 'Atividade',
+        valorProcesso: '0.00',
+        departamentoSolicitado: 'fin' as const,
+        acionarLeggacy: false,
+      }
+      await service.create(input, 'fee-key')
+      const request = fetchImplementation.mock.calls[0]![1]!
+      expect(JSON.parse(String(request.body))).toMatchObject({
+        contato: input.contato,
+      })
+      expect(JSON.parse(String(request.body))).not.toHaveProperty('honVariacao')
+      expect(JSON.parse(String(request.body))).not.toHaveProperty('companyId')
+      expect(new Headers(request.headers).get('Idempotency-Key')).toBe(
+        'fee-key',
+      )
+      expect(new Headers(request.headers).get('X-CSRFToken')).toBe('csrf-token')
+      const response = await service.update('process-1', {
+        version: 4,
+        contato: '',
+        ...{ honVariacao: '0.00' },
+      })
+      expect(response.data).toEqual(resource)
+      expect(
+        JSON.parse(String(fetchImplementation.mock.calls[1]![1]!.body)),
+      ).toEqual({ version: 4, contato: '' })
+    },
+  )
   it('uses the returned deletion ETag for restore with CSRF and no request for the deleted detail', async () => {
     const fetchImplementation = vi
       .fn<typeof fetch>()

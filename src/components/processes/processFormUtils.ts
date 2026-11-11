@@ -41,10 +41,24 @@ export const PROCESS_START_LABELS: Record<string, string> = {
   inativa: 'Início da inatividade',
 }
 
+export const isProcessFeeAdjustment = (tipo: string) =>
+  tipo === 'aumento_honorarios' || tipo === 'reducao_honorarios'
+
+export function processFeeVariation(
+  input: Pick<ProcessInput, 'honAnterior' | 'honorario'>,
+): string | null {
+  const previous = previewCents(input.honAnterior)
+  const current = previewCents(input.honorario)
+  return previous == null || current == null
+    ? null
+    : centsToDecimal(current - previous)
+}
+
 export const processHasField = (
   type: ProcessCatalogType | undefined,
   field: string,
 ) =>
+  (field === 'honorario' && !!type && isProcessFeeAdjustment(type.id)) ||
   !!type?.etapas.some((stage) =>
     stage.tasks.some((task) => task.campo === field),
   )
@@ -190,10 +204,12 @@ export function processDraftForType(
   input: ProcessInput,
   type: ProcessCatalogType,
 ): ProcessInput {
-  const keys =
-    type.id === 'outros'
+  const keys = isProcessFeeAdjustment(type.id)
+    ? ['empresa', 'cnpj', 'contato', 'honAnterior', 'honorario']
+    : type.id === 'outros'
       ? [
           'empresa',
+          'contato',
           'descricaoProcesso',
           'valorProcesso',
           'departamentoSolicitado',
@@ -201,6 +217,7 @@ export function processDraftForType(
         ]
       : [
           'empresa',
+          'contato',
           'cnpj',
           'protocolo',
           'obs',
@@ -215,7 +232,7 @@ export function processDraftForType(
           ...(LOSS_TYPES.includes(type.id) ? ['motivo', 'motivoObs'] : []),
           ...(type.id === 'alteracao' ? ['altItens', 'altDesc'] : []),
           ...(type.id === 'saida'
-            ? ['contato', 'novoContador', 'contadorNome', 'contadorContato']
+            ? ['novoContador', 'contadorNome', 'contadorContato']
             : []),
           ...(type.id === 'reativacao' ? ['reatJunta'] : []),
           ...(processHasMeeting(type, 'alinhamento') ? ['reunAlinh'] : []),
@@ -238,6 +255,35 @@ export function normalizeProcessInput(
   const empresa = input.empresa.trim()
   if (!empresa || empresa.length > 200)
     throw new Error('Informe o nome da empresa com até 200 caracteres.')
+  const contato = input.contato?.trim() ?? ''
+  if (contato.length > 500)
+    throw new Error('Informe o contato do cliente com até 500 caracteres.')
+  const contactFields = input.contato === undefined ? {} : { contato }
+  if (isProcessFeeAdjustment(type.id)) {
+    const honAnterior = normalizeProcessMoney(input.honAnterior)
+    const honorario = normalizeProcessMoney(input.honorario)
+    if (honAnterior === null || honorario === null)
+      throw new Error(
+        'Informe o honorário anterior e o novo honorário contábil, inclusive quando for zero.',
+      )
+    const difference = decimalToCents(honorario) - decimalToCents(honAnterior)
+    if (difference === 0n)
+      throw new Error('O novo honorário deve ser diferente do anterior.')
+    if (type.id === 'aumento_honorarios' ? difference < 0n : difference > 0n)
+      throw new Error(
+        type.id === 'aumento_honorarios'
+          ? 'No aumento, o novo honorário deve ser maior que o anterior.'
+          : 'Na redução, o novo honorário deve ser menor que o anterior.',
+      )
+    return {
+      tipo: type.id,
+      empresa,
+      cnpj: input.cnpj?.trim() ?? '',
+      ...contactFields,
+      honAnterior,
+      honorario,
+    }
+  }
   if (type.id === 'outros') {
     const descricaoProcesso = input.descricaoProcesso?.trim() ?? ''
     if (!descricaoProcesso || descricaoProcesso.length > 3000)
@@ -254,6 +300,7 @@ export function normalizeProcessInput(
     return {
       tipo: 'outros',
       empresa,
+      ...contactFields,
       descricaoProcesso,
       departamentoSolicitado: input.departamentoSolicitado,
       acionarLeggacy: input.acionarLeggacy,
@@ -263,6 +310,7 @@ export function normalizeProcessInput(
   const result: ProcessInput = {
     tipo: type.id,
     empresa,
+    ...contactFields,
     cnpj: input.cnpj?.trim() ?? '',
     protocolo: input.protocolo?.trim() ?? '',
     obs: input.obs?.trim() ?? '',
@@ -316,7 +364,6 @@ export function normalizeProcessInput(
   }
   if (type.id === 'saida') {
     Object.assign(result, {
-      contato: input.contato?.trim() ?? '',
       novoContador: !!input.novoContador,
       contadorNome: input.novoContador
         ? (input.contadorNome?.trim() ?? '')
