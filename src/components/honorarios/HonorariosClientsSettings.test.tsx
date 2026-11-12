@@ -89,10 +89,10 @@ afterEach(async () => {
   host.remove()
   vi.restoreAllMocks()
 })
-async function render(node: React.ReactNode) {
+async function render(node: React.ReactNode, path = '/') {
   await act(async () => {
     root.render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[path]}>
         <QueryClientProvider client={cache}>{node}</QueryClientProvider>
       </MemoryRouter>,
     )
@@ -119,6 +119,33 @@ async function click(label: string) {
 }
 
 describe('Honorários: parâmetros e carteira', () => {
+  it('abre o cadastro de cliente pelo atalho inicial do painel', async () => {
+    vi.spyOn(honorariosService, 'clients').mockResolvedValue({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    })
+    vi.spyOn(honorariosService, 'companyOptions').mockResolvedValue({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    })
+    await render(
+      <HonorariosClients
+        configuration={configuration}
+        canEdit
+        canManage
+        scopeKey={['shortcut']}
+      />,
+      '/honorarios/clientes?novo=true',
+    )
+    expect(host.querySelector('form')).not.toBeNull()
+    expect(host.textContent).toContain('Empresa do cadastro central')
+    expect(host.textContent).toContain('Salvar perfil')
+  })
+
   it('mantém a edição de parâmetros em rascunho e salva o payload completo com a versão', async () => {
     const save = vi
       .spyOn(honorariosService, 'saveConfiguration')

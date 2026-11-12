@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, NavLink, Navigate, Route, Routes } from 'react-router'
-import ModuleWorkspaceLayout from '../../layouts/ModuleWorkspaceLayout'
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router'
+import HonorariosLayout from '../../layouts/HonorariosLayout'
 import Button from '../../components/ui/Button'
 import { Notice } from '../../components/honorarios/HonorariosShared'
 import HonorariosClients from '../../components/honorarios/HonorariosClients'
@@ -17,7 +17,6 @@ import { honorariosService } from '../../services/honorariosService'
 import { isApiError } from '../../services/httpClient'
 import { queryKeys } from '../../query/queryKeys'
 import { getErrorPresentation } from '../../utils/apiErrors'
-import { focusRing } from '../../constants/designTokens'
 
 export default function HonorariosPage() {
   const { activeMembership } = useAuth()
@@ -31,6 +30,7 @@ export default function HonorariosPage() {
 
 function HonorariosWorkspace() {
   const { activeMembership, refreshSession } = useAuth()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const scopeKey = useMemo(
     () => [
@@ -89,29 +89,52 @@ function HonorariosWorkspace() {
   const props = config
     ? { configuration: config, canEdit, canManage, scopeKey, onDenied }
     : null
+  const route = location.pathname
+    .slice('/honorarios'.length)
+    .replace(/^\/+|\/+$/g, '')
+  const titles: Record<string, [string, string]> = {
+    '': [
+      'Painel de honorários',
+      'Acompanhe sua carteira, as negociações e as oportunidades de crescimento.',
+    ],
+    novo: [
+      'Novo orçamento',
+      'Calcule o honorário e prepare uma proposta para seu cliente.',
+    ],
+    orcamentos: ['Orçamentos', 'Acompanhe propostas, revisões e negociações.'],
+    clientes: [
+      'Clientes',
+      'Gerencie os honorários e os reajustes da sua carteira.',
+    ],
+    parametros: [
+      'Parâmetros',
+      'Consulte e configure as regras de precificação do escritório.',
+    ],
+  }
+  const [title, description] =
+    titles[route] ??
+    (route.endsWith('/revisar')
+      ? [
+          'Revisar proposta',
+          'Crie uma nova revisão preservando o documento anterior.',
+        ]
+      : [
+          'Proposta comercial',
+          'Consulte o documento salvo e acompanhe a negociação.',
+        ])
   return (
-    <ModuleWorkspaceLayout>
-      <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Link
-            to="/hub"
-            className={`text-xs font-semibold text-[var(--color-text-muted)] ${focusRing}`}
-          >
-            Áreas de trabalho / Honorários
-          </Link>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-[var(--color-text-strong)]">
-            Honorários
-          </h1>
-          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-            Precificação, propostas e gestão da carteira.
-          </p>
-        </div>
-        {props && (
-          <span className="rounded-full bg-[var(--color-brand-soft)] px-3 py-1.5 text-xs font-bold text-[var(--color-brand)]">
-            {canManage ? 'Administração' : canEdit ? 'Operação' : 'Consulta'}
-          </span>
-        )}
-      </div>
+    <HonorariosLayout
+      title={title}
+      description={description}
+      roleLabel={
+        canManage ? 'Administração' : canEdit ? 'Operação' : 'Consulta'
+      }
+      canEdit={!denied && canEdit}
+      isRefreshing={configuration.isFetching}
+      onRefresh={() =>
+        void queryClient.invalidateQueries({ queryKey: scopeKey })
+      }
+    >
       {denied || (config && config.permissions.read !== true) ? (
         <Notice tone="error">
           Seu acesso a Honorários foi revogado.{' '}
@@ -121,29 +144,6 @@ function HonorariosWorkspace() {
         </Notice>
       ) : (
         <>
-          <nav
-            aria-label="Navegação de Honorários"
-            className="mb-7 flex gap-1 overflow-x-auto border-b border-[var(--color-panel-border)] pb-3"
-          >
-            {[
-              ['', 'Painel'],
-              ['novo', 'Novo orçamento'],
-              ['orcamentos', 'Orçamentos'],
-              ['clientes', 'Clientes'],
-              ['parametros', 'Parâmetros'],
-            ].map(([path, label]) => (
-              <NavLink
-                key={path}
-                end={path === ''}
-                to={`/honorarios${path ? `/${path}` : ''}`}
-                className={({ isActive }) =>
-                  `shrink-0 rounded-[var(--radius-control)] px-4 py-2.5 text-sm font-bold ${focusRing} ${isActive ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-panel-soft-bg)]'}`
-                }
-              >
-                {label}
-              </NavLink>
-            ))}
-          </nav>
           {configuration.isPending && (
             <p
               role="status"
@@ -164,8 +164,14 @@ function HonorariosWorkspace() {
           )}
           {props && !configuration.error && (
             <Routes>
-              <Route index element={<HonorariosDashboard {...props} />} />
-              <Route path="novo" element={<HonorariosQuoteForm {...props} />} />
+              <Route
+                index
+                element={<HonorariosDashboard {...props} showIntro={false} />}
+              />
+              <Route
+                path="novo"
+                element={<HonorariosQuoteForm {...props} showIntro={false} />}
+              />
               <Route
                 path="orcamentos"
                 element={<HonorariosQuotes {...props} />}
@@ -202,6 +208,6 @@ function HonorariosWorkspace() {
           )}
         </>
       )}
-    </ModuleWorkspaceLayout>
+    </HonorariosLayout>
   )
 }

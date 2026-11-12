@@ -200,7 +200,9 @@ function ModuleRouter({
   ) {
     return getModule('honorarios')?.actions.includes('read') ? (
       <Suspense fallback={<LoadingState message="Carregando Honorários…" />}>
-        <HonorariosPage />
+        <Routes>
+          <Route path={`${ROUTES.HONORARIOS}/*`} element={<HonorariosPage />} />
+        </Routes>
       </Suspense>
     ) : (
       <Navigate to={ROUTES.HUB} replace />

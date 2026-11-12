@@ -1,6 +1,6 @@
 # Módulo Honorários
 
-Implementação React integrada ao HUB, à sessão e à organização ativa. A referência funcional está em `docs/honorarios_base`; os contratos foram conferidos também no código de `apps/honorarios` do backend disponível no repositório vizinho. A interface reutiliza `ModuleWorkspaceLayout`, os componentes de formulário, botões, cartões e tokens de tema do produto.
+Implementação React integrada ao HUB, à sessão e à organização ativa. A referência funcional está em `docs/honorarios_base`; os contratos foram conferidos também no código de `apps/honorarios` do backend disponível no repositório vizinho. A interface usa `HonorariosLayout`, com navegação lateral e cabeçalho nas mesmas dimensões e tokens de Rotinas, e reutiliza `WorkspaceBar`, formulários, botões e cartões do produto. O retorno aos módulos fica disponível na barra lateral e no cabeçalho móvel.
 
 ## Entrada e acesso
 
@@ -35,6 +35,7 @@ O limite é de 10.000 linhas por arquivo e 1.000 por lote enviado à API. Cada l
 ## Organização do código
 
 - `src/pages/honorarios/HonorariosPage.tsx`: estrutura, rotas e isolamento por organização/membro.
+- `src/layouts/HonorariosLayout.tsx`: navegação lateral, menu móvel, organização, perfil e cabeçalho.
 - `src/components/honorarios/`: telas, formulários e componentes compartilhados.
 - `src/hooks/useHonorariosCalculation.ts`: debounce e descarte de respostas antigas.
 - `src/services/honorariosService.ts` e `src/types/honorarios.ts`: contrato, envelopes, paginação e chamadas pelo cliente HTTP existente.
@@ -56,6 +57,14 @@ npm run test
 npm run build
 ```
 
-Não houve publicação, commit ou push. A verificação automatizada de componentes usa happy-dom; a conferência visual em navegador e o fluxo autenticado contra a API de implantação precisam ser feitos no ambiente integrado.
+O `ci.yml` também executa `npm ci` e `npm run format:check`, com `VITE_API_URL=http://localhost:3000`.
 
-Resultado da validação desta entrega: 87 arquivos e 757 testes aprovados; TypeScript, ESLint, formatação dos arquivos novos e build de produção aprovados. O Vite manteve o aviso não bloqueante sobre o tamanho do bundle principal.
+### Regressão de navegação corrigida
+
+O `App.tsx` montava Honorários diretamente, sem a rota pai `/honorarios/*`. Por isso as rotas relativas internas não encontravam a URL, o painel não montava e a calculadora não consultava a API. O teste anterior de página já fornecia artificialmente essa rota pai, enquanto o teste de App substituía a página por um mock; ambos deixavam a falha passar.
+
+`src/AppHonorarios.test.tsx` usa o App e as telas reais, sem criar a rota pai no teste. Ele reproduziu a falha antes da correção e agora cobre a entrada no painel, todas as abas, links diretos para propostas e revisões, consultas à API, erro com repetição e retorno ao HUB. Há também testes de painel vazio, estados de carregamento, simulação e menu móvel. A falha de consulta da proposta de origem agora apresenta erro e repetição, sem ficar carregando indefinidamente.
+
+Resultado da validação: 90 arquivos e 779 testes aprovados. O build mantém o aviso não bloqueante sobre o tamanho do bundle principal.
+
+Também foi feita verificação em Edge headless, usando a aplicação real em desktop (1440 px) e celular (390 px), com respostas simuladas exclusivamente no transporte do navegador. Foram conferidos painel com dados e vazio, temas claro/escuro, navegação por todas as abas, menu móvel, retorno ao HUB e chamada POST de cálculo com CSRF. As capturas estão em `reports/honorarios-desktop.png`, `reports/honorarios-mobile.png` e `reports/honorarios-mobile-menu.png`. Isso não substitui a conferência com sessão autenticada contra o backend de implantação. As correções não foram publicadas automaticamente.
