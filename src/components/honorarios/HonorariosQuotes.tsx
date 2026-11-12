@@ -44,6 +44,7 @@ interface Props {
   canManage: boolean
   scopeKey: readonly unknown[]
   onDenied: (error: unknown) => void
+  showIntro?: boolean
 }
 const pageSize = 20
 const detailKey = (scopeKey: readonly unknown[], id: string) => [
@@ -317,6 +318,7 @@ function QuoteEditor({
   scopeKey,
   onDenied,
   source,
+  showIntro = true,
 }: Props & { source?: HonorariosQuote }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -416,24 +418,27 @@ function QuoteEditor({
   }
   return (
     <form onSubmit={submit} className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold">
-            {source ? `Nova revisão de ${source.number}` : 'Novo orçamento'}
-          </h2>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            Defina o perfil e confira a composição antes de preparar a proposta.
-          </p>
+      {(showIntro || source) && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold">
+              {source ? `Nova revisão de ${source.number}` : 'Novo orçamento'}
+            </h2>
+            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+              Defina o perfil e confira a composição antes de preparar a
+              proposta.
+            </p>
+          </div>
+          {source && (
+            <Link
+              to={`/honorarios/orcamentos/${source.id}`}
+              className="text-sm font-semibold text-[var(--color-brand)]"
+            >
+              Voltar à proposta
+            </Link>
+          )}
         </div>
-        {source && (
-          <Link
-            to={`/honorarios/orcamentos/${source.id}`}
-            className="text-sm font-semibold text-[var(--color-brand)]"
-          >
-            Voltar à proposta
-          </Link>
-        )}
-      </div>
+      )}
       {!canEdit && (
         <Notice>
           Modo consulta. Você pode simular valores; criar e revisar propostas

@@ -164,8 +164,14 @@ function HonorariosWorkspace() {
           )}
           {props && !configuration.error && (
             <Routes>
-              <Route index element={<HonorariosDashboard {...props} />} />
-              <Route path="novo" element={<HonorariosQuoteForm {...props} />} />
+              <Route
+                index
+                element={<HonorariosDashboard {...props} showIntro={false} />}
+              />
+              <Route
+                path="novo"
+                element={<HonorariosQuoteForm {...props} showIntro={false} />}
+              />
               <Route
                 path="orcamentos"
                 element={<HonorariosQuotes {...props} />}

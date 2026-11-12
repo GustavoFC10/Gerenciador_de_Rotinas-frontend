@@ -17,10 +17,12 @@ export default function HonorariosDashboard({
   configuration,
   scopeKey,
   onDenied,
+  showIntro = true,
 }: {
   configuration: HonorariosConfiguration
   scopeKey: readonly unknown[]
   onDenied: (error: unknown) => void
+  showIntro?: boolean
 }) {
   const [limit, setLimit] = useState(String(configuration.params.reajusteMax))
   const [appliedLimit, setAppliedLimit] = useState(
@@ -71,31 +73,33 @@ export default function HonorariosDashboard({
     clients.count === 0 && quotes.count === 0 && quotes.openCount === 0
   return (
     <div className="honorarios-dashboard space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-[var(--color-text-strong)]">
-            Visão geral
-          </h2>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            Acompanhe sua carteira, as negociações e as oportunidades de
-            reajuste.
-          </p>
+      {showIntro && (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-[var(--color-text-strong)]">
+              Visão geral
+            </h2>
+            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+              Acompanhe sua carteira, as negociações e as oportunidades de
+              reajuste.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/honorarios/clientes"
+              className={`${actionClass} ${buttonTone.neutral}`}
+            >
+              Carteira de clientes
+            </Link>
+            <Link
+              to="/honorarios/novo"
+              className={`${actionClass} ${buttonTone.primary}`}
+            >
+              {canEdit ? 'Novo orçamento' : 'Abrir calculadora'}
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            to="/honorarios/clientes"
-            className={`${actionClass} ${buttonTone.neutral}`}
-          >
-            Carteira de clientes
-          </Link>
-          <Link
-            to="/honorarios/novo"
-            className={`${actionClass} ${buttonTone.primary}`}
-          >
-            {canEdit ? 'Novo orçamento' : 'Abrir calculadora'}
-          </Link>
-        </div>
-      </div>
+      )}
       {isEmpty && (
         <Panel title="Comece a organizar seus honorários">
           <div className="flex flex-wrap items-center justify-between gap-5">
