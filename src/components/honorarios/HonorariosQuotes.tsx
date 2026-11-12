@@ -277,14 +277,22 @@ export function HonorariosQuoteForm(props: Props) {
     if (source.error || latest.error)
       props.onDenied(source.error || latest.error)
   }, [source.error, latest.error, props])
-  if (quoteId && (source.isPending || latest.isPending))
-    return <p role="status">Carregando revisão…</p>
   if (quoteId && (source.error || latest.error))
     return (
       <Notice tone="error">
         {getErrorPresentation(source.error || latest.error).message}
+        <Button
+          className="ml-3"
+          onClick={() =>
+            void (source.error ? source.refetch() : latest.refetch())
+          }
+        >
+          Tentar novamente
+        </Button>
       </Notice>
     )
+  if (quoteId && (source.isPending || latest.isPending))
+    return <p role="status">Carregando revisão…</p>
   if (
     quoteId &&
     (source.data?.archivedAt ||

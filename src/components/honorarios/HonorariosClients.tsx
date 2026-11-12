@@ -65,11 +65,15 @@ export default function HonorariosClients(props: Props) {
   const selected = searchParams.get('cliente') ?? ''
   function setSelected(id: string) {
     const next = new URLSearchParams(searchParams)
-    if (id) next.set('cliente', id)
-    else next.delete('cliente')
+    if (id) {
+      next.set('cliente', id)
+      next.delete('novo')
+    } else next.delete('cliente')
     setSearchParams(next)
   }
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState(
+    () => canEdit && !selected && searchParams.get('novo') === 'true',
+  )
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')

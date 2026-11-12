@@ -253,6 +253,35 @@ async function submit() {
 }
 
 describe('Honorários quote workflow', () => {
+  it('shows a failed source revision immediately and allows a deliberate retry', async () => {
+    vi.mocked(honorariosService.quote).mockRejectedValueOnce(
+      new Error('Não foi possível consultar a proposta.'),
+    )
+    await render('/honorarios/orcamentos/quote-1/revisar')
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      'Não foi possível consultar a proposta.',
+    )
+    expect(host.textContent).not.toContain('Carregando revisão…')
+    expect(honorariosService.quotes).not.toHaveBeenCalled()
+    await click('Tentar novamente')
+    await settle()
+    expect(host.textContent).toContain('Nova revisão de 2026-007')
+    expect(honorariosService.quote).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows an error when checking the latest revision fails instead of opening an unsafe revision form', async () => {
+    vi.mocked(honorariosService.quotes).mockRejectedValueOnce(
+      new Error('Não foi possível confirmar a revisão atual.'),
+    )
+    await render('/honorarios/orcamentos/quote-1/revisar')
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      'Não foi possível confirmar a revisão atual.',
+    )
+    expect(host.querySelector('form')).toBeNull()
+    await click('Tentar novamente')
+    expect(host.textContent).toContain('Nova revisão de 2026-007')
+  })
+
   it('preserves UUID and body after an uncertain response, then displays the saved snapshot', async () => {
     const create = vi
       .spyOn(honorariosService, 'createQuote')
