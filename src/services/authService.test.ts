@@ -72,6 +72,17 @@ describe('AuthService', () => {
     {
       modules: [
         {
+          module: 'honorarios' as const,
+          role: 'editor',
+          globalAccess: false,
+          actions: ['read', 'edit', 'applyAdjustment'],
+          sectors: [],
+        },
+      ],
+    },
+    {
+      modules: [
+        {
           module: 'processes' as const,
           globalAccess: false,
           actions: ['read'],

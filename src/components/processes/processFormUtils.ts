@@ -2,6 +2,7 @@
   ProcessCatalogType,
   ProcessCreateInput as ProcessInput,
   ProcessResource,
+  ProcessTypeId,
 } from '../../types/processes'
 import {
   centsToDecimal,
@@ -40,6 +41,51 @@ export const PROCESS_START_LABELS: Record<string, string> = {
   inatividade: 'Início da paralisação',
   inativa: 'Início da inatividade',
 }
+type ProcessCompetenceKey =
+  | 'competenciaInicioAtividade'
+  | 'competenciaInicioInatividade'
+  | 'ultimaCompetenciaTrabalho'
+
+export const PROCESS_COMPETENCE_FIELDS: Partial<
+  Record<ProcessTypeId, { key: ProcessCompetenceKey; label: string }>
+> = {
+  abertura: {
+    key: 'competenciaInicioAtividade',
+    label: 'Competência de início da atividade',
+  },
+  mei: {
+    key: 'competenciaInicioAtividade',
+    label: 'Competência de início da atividade',
+  },
+  outro: {
+    key: 'competenciaInicioAtividade',
+    label: 'Competência de início da atividade',
+  },
+  reativacao: {
+    key: 'competenciaInicioAtividade',
+    label: 'Competência de início da atividade',
+  },
+  inativa: {
+    key: 'competenciaInicioInatividade',
+    label: 'Competência de início da inatividade',
+  },
+  inatividade: {
+    key: 'ultimaCompetenciaTrabalho',
+    label: 'Última competência de trabalho',
+  },
+  baixa: {
+    key: 'ultimaCompetenciaTrabalho',
+    label: 'Última competência de trabalho',
+  },
+  saida: {
+    key: 'ultimaCompetenciaTrabalho',
+    label: 'Última competência de trabalho',
+  },
+  exclusao: {
+    key: 'ultimaCompetenciaTrabalho',
+    label: 'Última competência de trabalho',
+  },
+} as const
 
 export const isProcessFeeAdjustment = (tipo: string) =>
   tipo === 'aumento_honorarios' || tipo === 'reducao_honorarios'
@@ -173,6 +219,9 @@ export function processInputFromResource(
     protocolo: process.protocolo ?? '',
     prazo: process.prazo ?? null,
     inicioInat: process.inicioInat ?? null,
+    competenciaInicioAtividade: process.competenciaInicioAtividade ?? null,
+    competenciaInicioInatividade: process.competenciaInicioInatividade ?? null,
+    ultimaCompetenciaTrabalho: process.ultimaCompetenciaTrabalho ?? null,
     obs: process.obs ?? '',
     custo: process.custo ?? null,
     pagador: process.pagador ?? null,
@@ -204,8 +253,9 @@ export function processDraftForType(
   input: ProcessInput,
   type: ProcessCatalogType,
 ): ProcessInput {
+  const competenceField = PROCESS_COMPETENCE_FIELDS[type.id]
   const keys = isProcessFeeAdjustment(type.id)
-    ? ['empresa', 'cnpj', 'contato', 'honAnterior', 'honorario']
+    ? ['empresa', 'cnpj', 'contato', 'honAnterior', 'honorario', 'honCobranca']
     : type.id === 'outros'
       ? [
           'empresa',
@@ -222,6 +272,7 @@ export function processDraftForType(
           'protocolo',
           'obs',
           PROCESS_START_LABELS[type.id] ? 'inicioInat' : 'prazo',
+          ...(competenceField ? [competenceField.key] : []),
           ...(processHasCost(type) ? ['custo', 'pagador', 'parcelas'] : []),
           ...(processHasField(type, 'honorario')
             ? ['honorario', 'honCobranca', 'trab', 'trabQtd', 'trabValor']
@@ -282,6 +333,7 @@ export function normalizeProcessInput(
       ...contactFields,
       honAnterior,
       honorario,
+      honCobranca: input.honCobranca || null,
     }
   }
   if (type.id === 'outros') {
@@ -319,6 +371,13 @@ export function normalizeProcessInput(
   if (PROCESS_START_LABELS[type.id])
     result.inicioInat = input.inicioInat || null
   else result.prazo = input.prazo || null
+  const competenceField = PROCESS_COMPETENCE_FIELDS[type.id]
+  if (competenceField) {
+    const competence = input[competenceField.key]
+    if (competence && !/^\d{4}-(0[1-9]|1[0-2])$/.test(competence))
+      throw new Error('Informe uma competência válida no formato mês e ano.')
+    result[competenceField.key] = competence || null
+  }
   if (processHasCost(type))
     Object.assign(result, {
       custo: normalizeProcessMoney(input.custo),

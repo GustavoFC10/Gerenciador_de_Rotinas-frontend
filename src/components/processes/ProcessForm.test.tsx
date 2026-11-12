@@ -31,12 +31,13 @@ describe('ProcessForm', () => {
         const dialog = document.querySelector('[role="dialog"]')!
         expect(dialog.textContent).toContain('Nome do cliente')
         expect(dialog.textContent).toContain('obrigatórios na abertura')
-        expect(dialog.querySelectorAll('input')).toHaveLength(5)
+        expect(dialog.querySelectorAll('input')).toHaveLength(6)
         expect(
           dialog.querySelector(
-            'textarea, select, input[type="date"], input[type="search"]',
+            'textarea, select, input[type="month"], input[type="search"]',
           ),
         ).toBeNull()
+        expect(dialog.querySelector('input[type="date"]')).not.toBeNull()
         const setInput = async (prefix: string, value: string) => {
           const label = [...dialog.querySelectorAll('label')].find((item) =>
             item.textContent?.startsWith(prefix),
@@ -76,7 +77,79 @@ describe('ProcessForm', () => {
           contato: 'cliente@exemplo.com',
           honAnterior: tipo === 'aumento_honorarios' ? '0.00' : '100.00',
           honorario: tipo === 'aumento_honorarios' ? '100.00' : '0.00',
+          honCobranca: null,
         })
+      } finally {
+        await act(async () => root.unmount())
+        host.remove()
+      }
+    },
+  )
+  it.each([
+    ['abertura', 'Competência de início da atividade'],
+    ['mei', 'Competência de início da atividade'],
+    ['outro', 'Competência de início da atividade'],
+    ['reativacao', 'Competência de início da atividade'],
+    ['inativa', 'Competência de início da inatividade'],
+    ['inatividade', 'Última competência de trabalho'],
+    ['baixa', 'Última competência de trabalho'],
+    ['saida', 'Última competência de trabalho'],
+    ['exclusao', 'Última competência de trabalho'],
+  ] as const)('shows the %s competence field', async (tipo, label) => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const root = createRoot(host)
+    try {
+      await act(async () =>
+        root.render(
+          <ProcessForm
+            catalog={processTestCatalog}
+            scope={{ organizationId: 'org-1', membershipId: 'member-1' }}
+            initialType={tipo}
+            onSubmit={vi.fn().mockResolvedValue(undefined)}
+            onClose={vi.fn()}
+          />,
+        ),
+      )
+      const dialog = document.querySelector('[role="dialog"]')!
+      const input = dialog.querySelector<HTMLInputElement>(
+        'input[type="month"]',
+      )
+      expect(input).not.toBeNull()
+      expect(input?.value).toBe('')
+      expect(
+        [...dialog.querySelectorAll('label')].some((item) =>
+          item.textContent?.startsWith(label),
+        ),
+      ).toBe(true)
+    } finally {
+      await act(async () => root.unmount())
+      host.remove()
+    }
+  })
+  it.each(['alteracao', 'outros'] as const)(
+    'does not add a competence field to %s',
+    async (tipo) => {
+      const host = document.createElement('div')
+      document.body.append(host)
+      const root = createRoot(host)
+      try {
+        await act(async () =>
+          root.render(
+            <ProcessForm
+              catalog={processTestCatalog}
+              scope={{ organizationId: 'org-1', membershipId: 'member-1' }}
+              initialType={tipo}
+              onSubmit={vi.fn().mockResolvedValue(undefined)}
+              onClose={vi.fn()}
+            />,
+          ),
+        )
+        expect(
+          document
+            .querySelector('[role="dialog"]')
+            ?.querySelector('input[type="month"]'),
+        ).toBeNull()
       } finally {
         await act(async () => root.unmount())
         host.remove()

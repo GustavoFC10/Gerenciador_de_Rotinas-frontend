@@ -49,8 +49,8 @@ export default function ModuleAccessSettingsPage() {
           Cargos e acessos por módulo
         </h1>
         <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
-          Os acessos de Rotinas e Processos são independentes. A configuração é
-          salva de uma só vez.
+          Os acessos de Rotinas, Processos, Empresas e Honorários são
+          independentes. A configuração é salva de uma só vez.
         </p>
       </header>
       {!canManage ? (

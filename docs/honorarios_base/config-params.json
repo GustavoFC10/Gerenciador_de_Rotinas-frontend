@@ -1,0 +1,279 @@
+{
+  "anomalias": [
+    {
+      "id": "atraso",
+      "nome": "Documentos entregues fora do prazo",
+      "pct": 15
+    },
+    {
+      "id": "desorganizado",
+      "nome": "Documentação desorganizada ou incompleta",
+      "pct": 20
+    },
+    {
+      "id": "retrabalho",
+      "nome": "Retrabalho frequente (lançamentos refeitos)",
+      "pct": 10
+    }
+  ],
+  "arredondamento": 10,
+  "decimoTerceiro": true,
+  "descontoMax": 10,
+  "faixasPresumido": [
+    {
+      "ate": 30000,
+      "pct": 0
+    },
+    {
+      "ate": 100000,
+      "pct": 15
+    },
+    {
+      "ate": 300000,
+      "pct": 30
+    },
+    {
+      "ate": 800000,
+      "pct": 50
+    },
+    {
+      "ate": null,
+      "pct": 80
+    }
+  ],
+  "faixasReal": [
+    {
+      "ate": 30000,
+      "pct": 0
+    },
+    {
+      "ate": 100000,
+      "pct": 15
+    },
+    {
+      "ate": 300000,
+      "pct": 30
+    },
+    {
+      "ate": 800000,
+      "pct": 50
+    },
+    {
+      "ate": null,
+      "pct": 80
+    }
+  ],
+  "faixasSimples": [
+    {
+      "ate": 30000,
+      "pct": 0
+    },
+    {
+      "ate": 100000,
+      "pct": 15
+    },
+    {
+      "ate": 300000,
+      "pct": 30
+    },
+    {
+      "ate": 400000,
+      "pct": 50
+    }
+  ],
+  "fatorRegime": {
+    "mei": 1,
+    "presumido": 1.2,
+    "real": 1.5,
+    "simples": 1
+  },
+  "filial": {
+    "modo": "fixo",
+    "pct": 80,
+    "valor": 250,
+    "valorInativa": 100
+  },
+  "funcionarios": {
+    "incluidos": 1,
+    "valor": 45
+  },
+  "horas": {
+    "custoHora": 85,
+    "margem": 35,
+    "metodo": "maior"
+  },
+  "inativa": {
+    "mei": 60,
+    "presumido": 180,
+    "real": 400,
+    "simples": 150
+  },
+  "indices": {
+    "carencia": 7,
+    "fixo": {
+      "nome": "Percentual fixo",
+      "pct": 5
+    },
+    "igpm": {
+      "nome": "IGP-M",
+      "pct": 3.34
+    },
+    "ipca": {
+      "nome": "IPCA",
+      "pct": 4.58
+    },
+    "periodicidade": "aniversario",
+    "referencia": "acumulado 12 meses até set/2026",
+    "usar": "ipca"
+  },
+  "nf": {
+    "fixo": 80,
+    "franquia": 10,
+    "porNota": 4
+  },
+  "planos": {
+    "ativo": false,
+    "niveis": [
+      {
+        "ajuste": 0,
+        "ativo": true,
+        "descricao": "Só a contabilidade obrigatória",
+        "destaque": false,
+        "emiteNF": false,
+        "id": "basico",
+        "nome": "Básico",
+        "servicos": []
+      },
+      {
+        "ajuste": 0,
+        "ativo": true,
+        "descricao": "Contabilidade + emissão de notas + consultoria contábil",
+        "destaque": true,
+        "emiteNF": true,
+        "id": "recomendado",
+        "nome": "Recomendado",
+        "servicos": [
+          "consultoria"
+        ]
+      },
+      {
+        "ajuste": 0,
+        "ativo": true,
+        "descricao": "Tudo do Recomendado + consultoria periódica",
+        "destaque": false,
+        "emiteNF": true,
+        "id": "premium",
+        "nome": "Premium",
+        "servicos": [
+          "consultoria",
+          "gerencial",
+          "certidoes"
+        ]
+      }
+    ]
+  },
+  "reajusteMax": 20,
+  "reajusteTeto": true,
+  "segmentos": [
+    {
+      "base": {
+        "mei": 120,
+        "presumido": 850,
+        "real": 1800,
+        "simples": 450
+      },
+      "id": "servicos",
+      "nome": "Prestação de serviços"
+    },
+    {
+      "base": {
+        "mei": 150,
+        "presumido": 1000,
+        "real": 2100,
+        "simples": 550
+      },
+      "id": "comercio",
+      "nome": "Comércio"
+    },
+    {
+      "base": {
+        "mei": 180,
+        "presumido": 1300,
+        "real": 2600,
+        "simples": 750
+      },
+      "id": "industria",
+      "nome": "Indústria"
+    },
+    {
+      "base": {
+        "mei": 120,
+        "presumido": 900,
+        "real": 1900,
+        "simples": 500
+      },
+      "id": "saude",
+      "nome": "Saúde (clínicas e consultórios)"
+    },
+    {
+      "base": {
+        "mei": 150,
+        "presumido": 1200,
+        "real": 2400,
+        "simples": 700
+      },
+      "id": "construcao",
+      "nome": "Construção civil"
+    },
+    {
+      "base": {
+        "mei": 0,
+        "presumido": 700,
+        "real": 1500,
+        "simples": 400
+      },
+      "id": "holding",
+      "nome": "Holding / patrimonial"
+    }
+  ],
+  "servicos": [
+    {
+      "id": "consultoria",
+      "nome": "Consultoria contábil sob demanda",
+      "valor": 150
+    },
+    {
+      "id": "gerencial",
+      "nome": "Reunião gerencial mensal",
+      "valor": 250
+    },
+    {
+      "id": "irpf",
+      "nome": "IRPF dos sócios (mensalizado)",
+      "valor": 35
+    },
+    {
+      "id": "certidoes",
+      "nome": "Gestão de certidões e alvarás",
+      "valor": 60
+    },
+    {
+      "id": "bpo",
+      "nome": "BPO financeiro",
+      "valor": 450
+    }
+  ],
+  "socios": {
+    "ativo": false,
+    "incluidos": 1,
+    "valor": 30
+  },
+  "tolerancia": 5,
+  "vencimento": 10,
+  "xml": {
+    "ativo": false,
+    "bloco": 100,
+    "franquia": 100,
+    "valorBloco": 50
+  }
+}

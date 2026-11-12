@@ -61,6 +61,20 @@ function renderHub(
 }
 
 describe('HubPage module access', () => {
+  it('offers Honorários only with its explicit read action', () => {
+    const access: ModuleSummary = {
+      module: 'honorarios',
+      role: 'viewer',
+      globalAccess: false,
+      actions: ['read'],
+      sectors: [],
+    }
+    expect(renderHub([access])).toContain('href="/honorarios"')
+    expect(renderHub([{ ...access, actions: [] }], 'owner')).not.toContain(
+      'href="/honorarios"',
+    )
+    expect(renderHub([], 'owner')).not.toContain('href="/honorarios"')
+  })
   it('offers Equipe to an owner without any operational module', () => {
     const markup = renderHub([], 'owner')
     expect(markup).toContain('href="/equipe"')

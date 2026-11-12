@@ -47,15 +47,16 @@ export function useModuleAccess() {
     refreshedPermissions.current = permissionsFingerprint
     // Respostas anteriores podem conter valores que o novo acesso já não permite.
     if (activeMembership) {
-      void queryClient.resetQueries({
-        queryKey: [
-          ...queryKeys.scope({
-            organizationId: activeMembership.organization.id,
-            membershipId: activeMembership.id,
-          }),
-          'processes',
-        ],
-      })
+      for (const module of ['processes', 'honorarios'])
+        void queryClient.resetQueries({
+          queryKey: [
+            ...queryKeys.scope({
+              organizationId: activeMembership.organization.id,
+              membershipId: activeMembership.id,
+            }),
+            module,
+          ],
+        })
     }
     void refreshSession().catch(() => {
       refreshedPermissions.current = ''

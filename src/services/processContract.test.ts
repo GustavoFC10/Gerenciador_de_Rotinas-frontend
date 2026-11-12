@@ -62,8 +62,20 @@ describe('Processos generated OpenAPI revision 2', () => {
         honAnterior: '800.00',
         honorario: '700.00',
         honVariacao: '-100.00',
+        honCobranca: '2027-08-19',
+        competenciaInicioAtividade: '2027-08',
       })
       expect(parseProcessDetail(detail).honVariacao).toBe('-100.00')
+      expect(parseProcessDetail(detail).honCobranca).toBe('2027-08-19')
+      expect(parseProcessDetail(detail).competenciaInicioAtividade).toBe(
+        '2027-08',
+      )
+      expect(() =>
+        parseProcessDetail({
+          ...detail,
+          competenciaInicioAtividade: '2027-13',
+        }),
+      ).toThrow(ProcessContractError)
       const restricted = makeProcessTestResource({
         tipo,
         contato: detail.contato,

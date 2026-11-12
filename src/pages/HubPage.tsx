@@ -42,6 +42,13 @@ const destinations: {
       'Gerencie aberturas, alterações e demais processos do escritório, do início à conclusão.',
     to: ROUTES.PROCESSES,
   },
+  {
+    module: 'honorarios',
+    title: 'Honorários',
+    description:
+      'Calcule honorários, prepare propostas e acompanhe os contratos e reajustes da carteira.',
+    to: ROUTES.HONORARIOS,
+  },
 ]
 
 export default function HubPage() {
@@ -106,7 +113,12 @@ export default function HubPage() {
               ? canManageTeam
               : item.module === 'companies'
                 ? canManageCompanies
-                : modules.some((module) => module.module === item.module),
+                : modules.some(
+                    (module) =>
+                      module.module === item.module &&
+                      (item.module !== 'honorarios' ||
+                        module.actions.includes('read')),
+                  ),
           )
           .map((item) => {
             const access = modules.find(
@@ -169,6 +181,11 @@ function ModuleIcon({ module }: { module: AppModule | 'team' | 'companies' }) {
       ) : module === 'companies' ? (
         <>
           <path d="M3 21h18M5 21V7l7-4 7 4v14M9 10h.01M15 10h.01M9 14h.01M15 14h.01M10 21v-4h4v4" />
+        </>
+      ) : module === 'honorarios' ? (
+        <>
+          <rect x="4" y="3" width="16" height="18" rx="2" />
+          <path d="M8 7h8M8 11h2M14 11h2M8 15h2M14 15h2M8 18h2M14 18h2" />
         </>
       ) : module === 'processes' ? (
         <>

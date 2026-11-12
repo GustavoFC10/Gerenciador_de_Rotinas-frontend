@@ -19,6 +19,7 @@ import {
   isProcessFeeAdjustment,
   processDraftForType,
   processInputFromResource,
+  PROCESS_COMPETENCE_FIELDS,
   PROCESS_START_LABELS,
 } from './processFormUtils'
 
@@ -65,6 +66,7 @@ export default function ProcessForm({
   }
   useOverlayDialog(dialogRef, close)
   const type = catalog.types.find((type) => type.id === typeId)
+  const competenceField = typeId ? PROCESS_COMPETENCE_FIELDS[typeId] : undefined
   const isAdjustment = isProcessFeeAdjustment(typeId)
   const isOthers = typeId === 'outros'
   const configurationLocked =
@@ -300,6 +302,25 @@ export default function ProcessForm({
                   </div>
                 )}
               </div>
+              {!isOthers && !isAdjustment && competenceField && (
+                <div className="field">
+                  <label htmlFor={`${id}-competence`}>
+                    {competenceField.label} <span>(opcional)</span>
+                  </label>
+                  <input
+                    className="input"
+                    id={`${id}-competence`}
+                    type="month"
+                    value={value[competenceField.key] ?? ''}
+                    onChange={(event) =>
+                      update({
+                        [competenceField.key]: event.target.value || null,
+                      })
+                    }
+                    disabled={locked}
+                  />
+                </div>
+              )}
               {!isAdjustment && (
                 <div className="field">
                   <label htmlFor={`${id}-protocol`}>

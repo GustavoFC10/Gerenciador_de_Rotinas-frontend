@@ -10,6 +10,7 @@ export const ROUTES = {
   HUB: '/hub',
   HUB_PROFILE: '/hub/perfil',
   PROCESSES: '/processos',
+  HONORARIOS: '/honorarios',
   COMPANY_REGISTRY: '/cadastro-empresas',
   COMPANY_REGISTRY_CREATE: '/cadastro-empresas/nova',
   COMPANY_REGISTRY_DETAILS: '/cadastro-empresas/:companyId',

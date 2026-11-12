@@ -54,6 +54,9 @@ export interface ProcessFields {
   protocolo?: string
   prazo?: string | null
   inicioInat?: string | null
+  competenciaInicioAtividade?: string | null
+  competenciaInicioInatividade?: string | null
+  ultimaCompetenciaTrabalho?: string | null
   obs?: string
   custo?: string | null
   pagador?: ProcessPayer | null

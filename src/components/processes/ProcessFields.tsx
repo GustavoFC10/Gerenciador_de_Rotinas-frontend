@@ -370,6 +370,23 @@ export default function ProcessFields({
             disabled={disabled}
             onChange={(honorario) => onChange({ honorario })}
           />
+          <div className="ctl">
+            <label className="lbl" htmlFor={`${id}-new-fee-date`}>
+              Data cobrança novo valor
+            </label>
+            <div className="row">
+              <input
+                className="input"
+                id={`${id}-new-fee-date`}
+                type="date"
+                value={value.honCobranca ?? ''}
+                onChange={(event) =>
+                  onChange({ honCobranca: event.target.value || null })
+                }
+                disabled={disabled}
+              />
+            </div>
+          </div>
         </div>
         {variation !== null && (
           <p className="help" role="status">

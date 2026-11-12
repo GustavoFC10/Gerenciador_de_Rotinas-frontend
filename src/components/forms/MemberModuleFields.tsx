@@ -3,6 +3,10 @@ import TextField from '../ui/TextField'
 import type { Department } from '../../types/domain'
 import {
   PROCESS_SECTORS,
+  HONORARIOS_ROLES,
+  MODULE_LABELS,
+  type AccessibleModule,
+  type HonorariosRole,
   type ModuleAccessConfiguration,
 } from '../../types/modules'
 
@@ -18,7 +22,7 @@ export default function MemberModuleFields({
   disabled?: boolean
 }) {
   function update(
-    module: 'routines' | 'processes',
+    module: AccessibleModule,
     patch: Partial<ModuleAccessConfiguration>,
   ) {
     const current = value.find((item) => item.module === module) ?? {
@@ -189,6 +193,49 @@ export default function MemberModuleFields({
           </fieldset>
         )
       })}
+      {(['companies', 'honorarios'] as const).map((module) => (
+        <fieldset
+          key={module}
+          disabled={disabled}
+          className="space-y-3 rounded-[var(--radius-control)] border border-[var(--color-divider)] p-4"
+        >
+          <legend className="px-1 text-sm font-black text-[var(--color-text-strong)]">
+            {MODULE_LABELS[module]}
+          </legend>
+          <Select
+            disabled={disabled}
+            id={`member-module-${module}`}
+            label={`Acesso a ${MODULE_LABELS[module]}`}
+            value={
+              value.find((item) => item.module === module)?.enabled
+                ? (value.find((item) => item.module === module)?.role ?? '')
+                : 'none'
+            }
+            onChange={(event) =>
+              update(module, {
+                enabled: event.target.value !== 'none',
+                role:
+                  event.target.value === 'none'
+                    ? undefined
+                    : (event.target.value as HonorariosRole),
+                sectors: undefined,
+              })
+            }
+          >
+            <option value="none">Sem acesso</option>
+            {HONORARIOS_ROLES.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </Select>
+          <p className="text-sm leading-6 text-[var(--color-text-muted)]">
+            {module === 'honorarios'
+              ? 'Consulta permite visualizar e exportar. Operação também permite cadastrar perfis, negociar propostas e confirmar reajustes. Administração também permite salvar parâmetros e arquivar registros.'
+              : 'Consulta permite visualizar o cadastro. Operação também permite cadastrar e editar empresas. Administração também permite arquivar e restaurar empresas.'}
+          </p>
+        </fieldset>
+      ))}
     </div>
   )
 }
