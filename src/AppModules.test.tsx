@@ -26,6 +26,9 @@ vi.mock('./pages/EmployeesPage', () => ({
 vi.mock('./pages/CompaniesModulePage', () => ({
   default: () => <main data-companies-module>Empresas independentes</main>,
 }))
+vi.mock('./pages/honorarios/HonorariosPage', () => ({
+  default: () => <main data-honorarios-module>Honorários independentes</main>,
+}))
 vi.mock('./pages/ProfilePage', () => ({
   default: () => <main>Perfil compartilhado</main>,
 }))
@@ -132,6 +135,53 @@ function LocationProbe() {
 }
 
 describe('App module routing', () => {
+  it.each(['owner', 'admin', 'member'] as const)(
+    'requires an explicit read grant for Honorários for %s',
+    async (role) => {
+      await renderApp('/honorarios/clientes', [processes], role)
+      expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
+      expect(host.querySelector('[data-honorarios-module]')).toBeNull()
+      expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
+    },
+  )
+  it('opens Honorários without loading operational modules or requiring Empresas', async () => {
+    await renderApp('/honorarios/orcamentos', [
+      {
+        module: 'honorarios',
+        role: 'viewer',
+        globalAccess: false,
+        actions: ['read', 'export'],
+        sectors: [],
+      },
+    ])
+    for (
+      let i = 0;
+      i < 100 && !host.querySelector('[data-honorarios-module]');
+      i++
+    )
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      })
+    expect(host.querySelector('[data-honorarios-module]')).not.toBeNull()
+    expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
+  })
+  it('does not grant Honorários from the module name without returned actions', async () => {
+    await renderApp(
+      '/honorarios',
+      [
+        {
+          module: 'honorarios',
+          role: 'manager',
+          globalAccess: true,
+          actions: [],
+          sectors: [],
+        },
+      ],
+      'owner',
+    )
+    expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
+    expect(host.querySelector('[data-honorarios-module]')).toBeNull()
+  })
   it('keeps profile and preferences accessible without routine module access', async () => {
     await renderApp('/hub/perfil', [processes])
     expect(host.textContent).toContain('Perfil compartilhado')

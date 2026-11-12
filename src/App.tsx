@@ -37,6 +37,7 @@ import { isRoutinesAdmin } from './utils/permissions'
 const TeamModulePage = lazy(() => import('./pages/TeamModulePage'))
 const ProcessesPage = lazy(() => import('./pages/processes/ProcessesPage'))
 const CompaniesModulePage = lazy(() => import('./pages/CompaniesModulePage'))
+const HonorariosPage = lazy(() => import('./pages/honorarios/HonorariosPage'))
 
 function App() {
   const { activeMembership, isAuthenticated, isInitializing, session } =
@@ -187,6 +188,19 @@ function ModuleRouter({
     return canAccessModule('processes') ? (
       <Suspense fallback={<LoadingState message="Carregando Processos…" />}>
         <ProcessesPage />
+      </Suspense>
+    ) : (
+      <Navigate to={ROUTES.HUB} replace />
+    )
+  }
+
+  if (
+    location.pathname === ROUTES.HONORARIOS ||
+    location.pathname.startsWith(`${ROUTES.HONORARIOS}/`)
+  ) {
+    return getModule('honorarios')?.actions.includes('read') ? (
+      <Suspense fallback={<LoadingState message="Carregando Honorários…" />}>
+        <HonorariosPage />
       </Suspense>
     ) : (
       <Navigate to={ROUTES.HUB} replace />

@@ -100,6 +100,43 @@ const response = (data: OrganizationMemberResource) => ({
 })
 
 describe('general collaborator profiles', () => {
+  it.each(['viewer', 'editor', 'manager'] as const)(
+    'saves the %s Honorários role independently from Empresas and without sectors',
+    async (role) => {
+      const configured: OrganizationMemberResource = {
+        ...member,
+        moduleAccesses: [
+          { module: 'companies', enabled: true, role: 'manager' },
+          { module: 'honorarios', enabled: false },
+        ],
+      }
+      const update = vi
+        .spyOn(organizationMemberService, 'update')
+        .mockResolvedValue(response(configured))
+      await render(
+        <EmployeeProfilePanel
+          member={configured}
+          departments={departments}
+          canManage
+          canAssignOwner
+          onMemberChange={async () => {}}
+          onClose={() => {}}
+        />,
+      )
+      expect(host.querySelector('[id^="member-sector-honorarios"]')).toBeNull()
+      await change('member-module-honorarios', role)
+      await submit()
+      expect(update).toHaveBeenCalledExactlyOnceWith('member-1', {
+        displayName: 'Maria',
+        moduleAccesses: [
+          { module: 'routines', enabled: false },
+          { module: 'processes', enabled: false },
+          { module: 'companies', enabled: true, role: 'manager' },
+          { module: 'honorarios', enabled: true, role },
+        ],
+      })
+    },
+  )
   it('includes Processos configuration and optional titles in the initial invitation', async () => {
     const invite = vi.fn(async (input: MembershipInvitationInput) => ({
       ...input,
@@ -127,6 +164,8 @@ describe('general collaborator profiles', () => {
       role: 'member',
       moduleAccesses: [
         { module: 'routines', enabled: false },
+        { module: 'companies', enabled: false },
+        { module: 'honorarios', enabled: false },
         {
           module: 'processes',
           enabled: true,
@@ -165,6 +204,8 @@ describe('general collaborator profiles', () => {
       displayName: 'Maria Silva',
       role: 'member',
       moduleAccesses: [
+        { module: 'companies', enabled: false },
+        { module: 'honorarios', enabled: false },
         {
           module: 'processes',
           enabled: true,
@@ -200,6 +241,8 @@ describe('general collaborator profiles', () => {
       displayName: 'Maria',
       moduleAccesses: [
         { module: 'routines', enabled: false },
+        { module: 'companies', enabled: false },
+        { module: 'honorarios', enabled: false },
         { module: 'processes', enabled: false },
       ],
     })

@@ -12,6 +12,7 @@ import {
   moduleAccessPayload,
 } from '../utils/memberModuleAccess'
 import type { Department } from '../types/domain'
+import { MODULE_LABELS } from '../types/modules'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import TextField from '../components/ui/TextField'
@@ -397,9 +398,7 @@ function CreateEmployeePage({
                 <dd className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
                   {moduleAccesses
                     .filter((access) => access.enabled)
-                    .map((access) =>
-                      access.module === 'routines' ? 'Rotinas' : 'Processos',
-                    )
+                    .map((access) => MODULE_LABELS[access.module])
                     .join(' · ') || 'Sem acesso aos módulos'}
                 </dd>
               </div>

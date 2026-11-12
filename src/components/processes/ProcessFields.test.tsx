@@ -91,8 +91,8 @@ describe('Process money fields', () => {
           ? 'Aumento de R$\u00a0150,00/mês'
           : 'Redução de R$\u00a0100,00/mês',
       )
-      expect(host.querySelectorAll('input')).toHaveLength(3)
-      expect(host.querySelector('input[type="date"]')).toBeNull()
+      expect(host.querySelectorAll('input')).toHaveLength(4)
+      expect(host.querySelector('input[type="date"]')).not.toBeNull()
       expect(host.querySelector('[role="switch"]')).toBeNull()
     },
   )

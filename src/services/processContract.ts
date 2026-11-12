@@ -163,6 +163,10 @@ const date: Validator = (v, p) => {
   )
     fail(p)
 }
+const competence: Validator = (v, p) => {
+  string(v, p)
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(v as string)) fail(p)
+}
 const timestamp: Validator = (v, p) => {
   string(v, p)
   if (
@@ -279,6 +283,9 @@ const detailFields: Fields = {
   departamentoSolicitado: optional(oneOf(['fin', 'reg'])),
   acionarLeggacy: optional(boolean),
   inicioInat: optional(nullable(date)),
+  competenciaInicioAtividade: optional(nullable(competence)),
+  competenciaInicioInatividade: optional(nullable(competence)),
+  ultimaCompetenciaTrabalho: optional(nullable(competence)),
   obs: optional(string),
   custo: optional(nullable(decimal)),
   pagador: optional(nullable(oneOf(['cliente', 'jaralcon']))),

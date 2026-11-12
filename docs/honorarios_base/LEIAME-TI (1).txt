@@ -1,0 +1,92 @@
+HONORÁRIOS JARALCON — O QUE O TI PRECISA PARA COLOCAR NO AR
+============================================================
+
+Arquivos:
+- honorarios-jaralcon.html -> o sistema completo em um arquivo (HTML, CSS e JS puro, sem build, logo embutida)
+- config-params.json       -> parâmetros de preço que a Jaralcon usa hoje (gravar como config/params)
+
+Base de clientes e orçamentos: vazia (os testes foram apagados). Os clientes reais entram pela tela
+Clientes > Importar (Excel ou CSV) ou um a um.
+
+Falta fazer: hospedar, ligar um banco de dados e colocar login.
+
+
+1. O QUE O SISTEMA FAZ (resumo)
+-------------------------------
+- Calcula o honorário mensal pela tabela de parâmetros (regime, faturamento, funcionários, sócios, XMLs,
+  notas, unidades, serviços adicionais, exceções e horas).
+- Orçamentos: abertura de empresa (valor e parcelas), mês do 1º honorário (no ato, 1ª, 2ª ou 3ª competência,
+  a 2ª e 3ª marcadas como benefício), planos, status, proposta em uma folha no modelo do site (baixa em .html,
+  imprime em PDF) e mensagem para WhatsApp.
+- Clientes: compara o que paga hoje com a tabela, importa/exporta a carteira e avisa o reajuste anual.
+- Painel com indicadores da carteira e dos orçamentos.
+- Parâmetros: tudo editável na tela (rascunho até "Salvar parâmetros").
+
+
+2. CÓDIGO
+---------
+- Todo o JavaScript fica no <script> no fim do arquivo. A tela é redesenhada por render() a partir do objeto
+  global state; eventos por delegação (data-nav, data-act, data-ns + data-k/data-path).
+- Dependências externas: fonte Inter (Google Fonts) e SheetJS 0.18.5 (cdnjs, carregado só ao importar .xlsx).
+- Hoje usa o banco do Claude (window.claude.use('db')). Fora dele entra em "modo local" e salva no
+  localStorage (chave honorario-certo-local-v1), com uma faixa amarela avisando. Modo local é só para teste.
+- SEED_EXEMPLOS = false (com true cria clientes de demonstração no modo local; manter false).
+
+
+3. O QUE TROCAR
+---------------
+a) Banco de dados — 3 coleções, 1 documento por registro, id texto:
+   - clientes   : nome, cnpj, contato, obs, atual (honorário cobrado hoje), dataReajuste (AAAA-MM-DD, início
+                  do contrato ou último reajuste), historico [{data, de, para, motivo}], campos do perfil de
+                  cálculo (regime, segmento, faturamento, funcionarios, socios, xml, notas, filiais...),
+                  criadoEm, atualizadoEm.
+   - orcamentos : numero (AAAA-NNN), prospect, contato, inp (perfil), sugerido, valor, planos, status
+                  [rascunho|enviado|aceito|recusado], validade, abertura, inicioCobranca, criadoEm...
+   - config     : documento "params" = conteúdo de config-params.json.
+
+   Todo acesso ao banco está no objeto Store (procure "const Store="):
+   - Store.init(): abre o banco e assina em tempo real as 3 coleções (onSnapshot) chamando onData(col, linhas).
+   - Store.put(col, id, dados): cria/substitui o documento inteiro.
+   - Store.del(col, id): exclui.
+   Basta reescrever esses 3 métodos. Firebase Firestore tem a mesma API (collection().doc().set/delete e
+   onSnapshot). Com Supabase: uma tabela por coleção com id text + data jsonb e Realtime.
+
+   Atenção: o número do orçamento (proximoNumero) é gerado no navegador. Com várias pessoas orçando ao mesmo
+   tempo pode repetir; se for o caso, gerar no banco (sequência).
+
+b) Login:
+   - O sistema não tem login nem níveis de acesso. Colocar o login na frente (ex.: o mesmo do sistema de
+     Processos) e liberar leitura/escrita só para usuários da Jaralcon nas regras do banco.
+   - Se quiserem restringir Parâmetros à Diretoria, esconder o item data-nav="parametros" e bloquear a
+     escrita em config no banco.
+
+
+4. REAJUSTE ANUAL (regras que já estão no código)
+-------------------------------------------------
+Tudo em Parâmetros > Cobrança e reajuste. Funções: reajusteInfo, vencReajuste, aplicarReajuste.
+- Índice: IPCA, IGP-M ou percentual fixo. Os percentuais são digitados na tela (não há busca automática).
+- Quando: "A cada 12 meses" (aniversário de dataReajuste) ou "Em janeiro de cada ano"
+  (indices.periodicidade). O aviso aparece 30 dias antes, na ficha do cliente e no Painel.
+- Carência de janeiro (indices.carencia, padrão 7 = julho): no modo janeiro, contrato iniciado a partir
+  desse mês pula o primeiro janeiro. 0 = desligado.
+- Limite da tabela (reajusteTeto, padrão ligado): o reajuste nunca passa do valor que um contrato novo pagaria
+  no mesmo perfil. Quem já está na tabela ou acima fica travado: o valor não sobe e também não é reduzido.
+- Aplicar o reajuste grava o novo valor, a nova dataReajuste e uma linha em historico. Nada é aplicado
+  sozinho: alguém confirma na tela.
+
+
+5. DADOS FIXOS DA JARALCON NO CÓDIGO
+------------------------------------
+Nome, logo, endereços das unidades (Rio Branco do Sul, Curitiba, Almirante Tamandaré, Itaperuçu),
+WhatsApp (41) 99967-3799 e site ficam em DEFAULT_PERFIL e no rodapé da proposta. Se mudar endereço ou
+telefone, editar ali.
+
+
+6. CHECKLIST
+------------
+[ ] Hospedar honorarios-jaralcon.html (ex.: Vercel)
+[ ] Criar coleções clientes, orcamentos, config e reescrever Store.init / put / del
+[ ] Gravar config-params.json como config/params
+[ ] Login e regras de acesso no banco
+[ ] Importar a carteira de clientes (Clientes > Importar; modelo de planilha na própria tela)
+[ ] Teste final: cadastrar cliente, gerar orçamento, baixar a proposta, aplicar um reajuste

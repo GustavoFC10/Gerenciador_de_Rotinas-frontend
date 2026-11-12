@@ -18640,6 +18640,24 @@ components:
           type: string
           format: date
           nullable: true
+        competenciaInicioAtividade:
+          type: string
+          format: year-month
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          nullable: true
+          description: Competência de início da atividade, no formato AAAA-MM.
+        competenciaInicioInatividade:
+          type: string
+          format: year-month
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          nullable: true
+          description: Competência de início da inatividade, no formato AAAA-MM.
+        ultimaCompetenciaTrabalho:
+          type: string
+          format: year-month
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          nullable: true
+          description: Última competência de trabalho, no formato AAAA-MM.
         obs:
           type: string
           maxLength: 5000
@@ -18931,6 +18949,24 @@ components:
           type: string
           format: date
           nullable: true
+        competenciaInicioAtividade:
+          type: string
+          format: year-month
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          nullable: true
+          description: Competência de início da atividade, no formato AAAA-MM.
+        competenciaInicioInatividade:
+          type: string
+          format: year-month
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          nullable: true
+          description: Competência de início da inatividade, no formato AAAA-MM.
+        ultimaCompetenciaTrabalho:
+          type: string
+          format: year-month
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          nullable: true
+          description: Última competência de trabalho, no formato AAAA-MM.
         obs:
           type: string
           maxLength: 5000
@@ -19222,6 +19258,24 @@ components:
           type: string
           format: date
           nullable: true
+        competenciaInicioAtividade:
+          type: string
+          format: year-month
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          nullable: true
+          description: Competência de início da atividade, no formato AAAA-MM.
+        competenciaInicioInatividade:
+          type: string
+          format: year-month
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          nullable: true
+          description: Competência de início da inatividade, no formato AAAA-MM.
+        ultimaCompetenciaTrabalho:
+          type: string
+          format: year-month
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          nullable: true
+          description: Última competência de trabalho, no formato AAAA-MM.
         obs:
           type: string
           maxLength: 5000

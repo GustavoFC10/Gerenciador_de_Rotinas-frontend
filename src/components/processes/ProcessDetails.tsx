@@ -26,6 +26,7 @@ import type {
 } from '../../types/processes'
 import {
   formatProcessDate,
+  monthLabel,
   PROCESS_SECTORS,
   processStatus,
 } from '../../utils/processPresentation'
@@ -40,6 +41,7 @@ import {
   PROCESS_PAYERS,
   PROCESS_REASONS,
   PROCESS_REGIMES,
+  PROCESS_COMPETENCE_FIELDS,
   PROCESS_START_LABELS,
   normalizeProcessMoney,
   processHasCost,
@@ -163,6 +165,9 @@ const fieldLabels: Record<string, string> = {
   parcelas: 'Parcelas',
   honorario: 'Honorário contábil',
   honCobranca: 'Cobrança do honorário',
+  competenciaInicioAtividade: 'Competência de início da atividade',
+  competenciaInicioInatividade: 'Competência de início da inatividade',
+  ultimaCompetenciaTrabalho: 'Última competência de trabalho',
   trab: 'Honorário trabalhista',
   trabQtd: 'Funcionários',
   trabValor: 'Valor por funcionário',
@@ -491,6 +496,7 @@ function ProcessValues({
         <>
           {valueBox('Honorário anterior', processMoney(process.honAnterior))}
           {valueBox('Novo honorário contábil', processMoney(process.honorario))}
+          {valueBox('Data cobrança novo valor', date(process.honCobranca))}
           {valueBox(
             process.tipo === 'aumento_honorarios'
               ? 'Aumento de honorários'
@@ -572,6 +578,7 @@ export default function ProcessDetails({
   const [unavailable, setUnavailable] = useState(false)
   const [openedAt] = useState(() => Date.now())
   const type = catalog.types.find((type) => type.id === process.tipo)
+  const competenceField = PROCESS_COMPETENCE_FIELDS[process.tipo]
   const taskNames = Object.fromEntries(
     [...(type?.etapas ?? []), ...process.etapas].flatMap((stage) =>
       stage.tasks.map((task) => [task.id, task.txt]),
@@ -1272,6 +1279,13 @@ export default function ProcessDetails({
                     ? date(process.prazo)
                     : 'Sem prazo',
               )}
+              {competenceField &&
+                readonlyField(
+                  competenceField.label,
+                  process[competenceField.key]
+                    ? monthLabel(process[competenceField.key]!)
+                    : 'Não informado',
+                )}
               {process.protocolo &&
                 readonlyField('Protocolo externo', process.protocolo)}
               {readonlyField('Contato do cliente', process.contato)}

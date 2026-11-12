@@ -951,11 +951,21 @@ export class PreviewBackend {
     const configs = (body.moduleAccesses ?? []) as ModuleAccessConfiguration[]
     if (!Array.isArray(configs)) return 'Configuração de módulos inválida.'
     for (const config of configs) {
-      if (!['routines', 'processes'].includes(config.module))
+      if (
+        !['routines', 'processes', 'companies', 'honorarios'].includes(
+          config.module,
+        )
+      )
         return 'Módulo inválido.'
       if (!config.enabled) continue
       if (!['active', 'pending'].includes(member.status))
         return 'Acessos disponíveis apenas para contas ativas ou pendentes.'
+      if (config.module === 'honorarios' || config.module === 'companies') {
+        if (!['viewer', 'editor', 'manager'].includes(config.role ?? ''))
+          return 'Papel do módulo inválido.'
+        if (config.sectors?.length) return 'O módulo não utiliza setores.'
+        continue
+      }
       if (config.module === 'routines' && config.role === 'admin') continue
       if (!config.sectors?.length)
         return 'Escolha ao menos um setor ou departamento.'
@@ -993,15 +1003,20 @@ export class PreviewBackend {
     this.state.members ??= {}
     this.state.members[member.id] = member
     this.state.accesses[member.id] = (member.moduleAccesses ?? []).flatMap(
-      (config) =>
-        config.enabled
-          ? (config.sectors ?? []).map((sector) => ({
-              module: config.module,
-              sector: sector.sector,
-              role: sector.role,
-              jobTitle: sector.jobTitle ?? '',
-            }))
-          : [],
+      (config) => {
+        const module = config.module
+        if (
+          !config.enabled ||
+          (module !== 'routines' && module !== 'processes')
+        )
+          return []
+        return (config.sectors ?? []).map((sector) => ({
+          module,
+          sector: sector.sector,
+          role: sector.role,
+          jobTitle: sector.jobTitle ?? '',
+        }))
+      },
     )
     this.save()
   }

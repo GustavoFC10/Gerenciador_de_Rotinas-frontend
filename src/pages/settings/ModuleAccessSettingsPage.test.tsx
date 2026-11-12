@@ -148,6 +148,8 @@ describe('ModuleAccessSettingsPage', () => {
     expect(update).toHaveBeenCalledWith('selected-member', {
       moduleAccesses: [
         { module: 'routines', enabled: false },
+        { module: 'companies', enabled: false },
+        { module: 'honorarios', enabled: false },
         {
           module: 'processes',
           enabled: true,

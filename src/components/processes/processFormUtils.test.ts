@@ -41,6 +41,7 @@ describe('process form contract', () => {
         contato: 'cliente@exemplo.com',
         honAnterior: increasing ? '0.00' : '100.00',
         honorario: increasing ? '100.00' : '0.00',
+        honCobranca: '2026-11-10',
       })
       expect(Object.keys(processDraftForType(input, type)).sort()).toEqual(
         [
@@ -50,6 +51,7 @@ describe('process form contract', () => {
           'contato',
           'honAnterior',
           'honorario',
+          'honCobranca',
         ].sort(),
       )
       expect(processFeeVariation(input)).toBe(increasing ? '100.00' : '-100.00')
@@ -97,6 +99,35 @@ describe('process form contract', () => {
       })
     },
   )
+
+  it.each([
+    ['abertura', 'competenciaInicioAtividade'],
+    ['mei', 'competenciaInicioAtividade'],
+    ['outro', 'competenciaInicioAtividade'],
+    ['reativacao', 'competenciaInicioAtividade'],
+    ['inativa', 'competenciaInicioInatividade'],
+    ['inatividade', 'ultimaCompetenciaTrabalho'],
+    ['baixa', 'ultimaCompetenciaTrabalho'],
+    ['saida', 'ultimaCompetenciaTrabalho'],
+    ['exclusao', 'ultimaCompetenciaTrabalho'],
+  ] as const)('normalizes and retains %s competence', (tipo, field) => {
+    const type = processTestCatalog.types.find((item) => item.id === tipo)!
+    const input = {
+      tipo,
+      empresa: 'Empresa',
+      [field]: '2026-11',
+      honPerdido: '0',
+    }
+    const normalized = normalizeProcessInput(input, type)
+    expect(normalized[field]).toBe('2026-11')
+    expect(processDraftForType(input, type)[field]).toBe('2026-11')
+    expect(
+      normalizeProcessInput({ ...input, [field]: '' }, type)[field],
+    ).toBeNull()
+    expect(() =>
+      normalizeProcessInput({ ...input, [field]: '2026-13' }, type),
+    ).toThrow('competência válida')
+  })
 
   it.each(processTestCatalog.types)(
     'preserves and clears client contact for $id',
@@ -291,6 +322,7 @@ describe('process form contract', () => {
       honPerdido: '0.00',
       motivo: null,
       motivoObs: '',
+      ultimaCompetenciaTrabalho: null,
     })
   })
 
