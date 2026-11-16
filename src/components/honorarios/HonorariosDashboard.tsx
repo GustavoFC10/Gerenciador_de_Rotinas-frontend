@@ -4,14 +4,21 @@ import { Link } from 'react-router'
 import Card from '../ui/Card'
 import TextField from '../ui/TextField'
 import Button from '../ui/Button'
+import Dialog from '../ui/Dialog'
 import { Notice, Panel } from './HonorariosShared'
 import { honorariosService } from '../../services/honorariosService'
 import type { HonorariosConfiguration } from '../../types/honorarios'
-import { money, quoteStatusNames } from '../../utils/honorariosPresentation'
+import { money, regimeNames } from '../../utils/honorariosPresentation'
 import { getErrorPresentation } from '../../utils/apiErrors'
 import { buttonTone, focusRing } from '../../constants/designTokens'
 
-const actionClass = `inline-flex min-h-9 items-center justify-center rounded-[var(--radius-control)] px-3 text-sm font-bold transition ${focusRing}`
+const actionClass = `inline-flex min-h-8 items-center justify-center rounded-[var(--radius-control)] px-3 text-xs font-semibold transition ${focusRing}`
+const alignmentLabels = {
+  abaixo: 'Podem aumentar',
+  alinhado: 'Alinhados',
+  acima: 'Acima',
+} as const
+const regimeOrder = ['simples', 'presumido', 'real', 'mei'] as const
 
 export default function HonorariosDashboard({
   configuration,
@@ -24,6 +31,7 @@ export default function HonorariosDashboard({
   onDenied: (error: unknown) => void
   showIntro?: boolean
 }) {
+  const [simulationOpen, setSimulationOpen] = useState(false)
   const [limit, setLimit] = useState(String(configuration.params.reajusteMax))
   const [appliedLimit, setAppliedLimit] = useState(
     configuration.params.reajusteMax,
@@ -43,10 +51,7 @@ export default function HonorariosDashboard({
         <p role="status" className="text-sm text-[var(--color-text-muted)]">
           Carregando indicadores…
         </p>
-        <div
-          aria-hidden="true"
-          className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-        >
+        <div aria-hidden="true" className="hon-dashboard-kpis mt-5">
           {[1, 2, 3, 4].map((item) => (
             <div
               key={item}
@@ -71,51 +76,60 @@ export default function HonorariosDashboard({
   const canEdit = configuration.permissions.edit === true
   const isEmpty =
     clients.count === 0 && quotes.count === 0 && quotes.openCount === 0
+  const annualPotential =
+    Number(clients.potential) * (configuration.params.decimoTerceiro ? 13 : 12)
+  // The chart shows the full gap to the parameter, not the capped simulation gain.
+  const opportunities = clients.adjustmentPlan.entries
+    .map((entry) => ({
+      ...entry,
+      potential: Math.max(
+        0,
+        Number(entry.parameterFee) - Number(entry.currentFee),
+      ),
+    }))
+    .filter((entry) => entry.potential > 0)
+    .sort(
+      (a, b) =>
+        b.potential - a.potential ||
+        a.companyName.localeCompare(b.companyName, 'pt-BR') ||
+        a.clientId.localeCompare(b.clientId),
+    )
+    .slice(0, 8)
+  const maximumOpportunity = Math.max(
+    1,
+    ...opportunities.map((entry) => entry.potential),
+  )
+  const regimeMaximum = Math.max(
+    1,
+    ...Object.values(clients.byRegime ?? {}).flatMap((entry) => [
+      Number(entry.current),
+      Number(entry.byParameters),
+    ]),
+  )
+
   return (
     <div className="honorarios-dashboard space-y-5">
       {showIntro && (
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-[var(--color-text-strong)]">
-              Visão geral
-            </h2>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-              Acompanhe sua carteira, as negociações e as oportunidades de
-              reajuste.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              to="/honorarios/clientes"
-              className={`${actionClass} ${buttonTone.neutral}`}
-            >
-              Carteira de clientes
-            </Link>
-            <Link
-              to="/honorarios/orcamentos"
-              className={`${actionClass} ${buttonTone.primary}`}
-            >
-              {canEdit ? 'Orçamentos' : 'Consultar orçamentos'}
-            </Link>
-          </div>
+          <h2 className="text-lg font-bold text-[var(--color-text-strong)]">
+            Painel da carteira
+          </h2>
+          <Link
+            to="/honorarios/orcamentos"
+            className={`${actionClass} ${buttonTone.neutral}`}
+          >
+            {canEdit ? 'Orçamentos' : 'Consultar orçamentos'}
+          </Link>
         </div>
       )}
       {isEmpty && (
         <Panel title="Comece a organizar seus honorários">
           <div className="flex flex-wrap items-center justify-between gap-5">
-            <div className="max-w-2xl space-y-2">
-              <p className="text-sm text-[var(--color-text-muted)]">
-                Adicione empresas à carteira e crie propostas para acompanhar os
-                resultados aqui. Os indicadores abaixo mostram os dados
-                registrados na organização.
-              </p>
-              {!canEdit && (
-                <p className="text-sm text-[var(--color-text-muted)]">
-                  Seu acesso permite consultar a carteira e simular valores. Os
-                  cadastros são feitos por quem possui permissão de operação.
-                </p>
-              )}
-            </div>
+            <p className="max-w-2xl text-sm text-[var(--color-text-muted)]">
+              {canEdit
+                ? 'Vincule as empresas da carteira para acompanhar os honorários e as oportunidades de reajuste.'
+                : 'Seu acesso permite consultar a carteira e simular valores. Os cadastros são feitos por quem possui permissão de operação.'}
+            </p>
             {canEdit && (
               <Link
                 to="/honorarios/clientes?novo=true"
@@ -129,7 +143,7 @@ export default function HonorariosDashboard({
       )}
       <section
         aria-label="Indicadores de honorários"
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="hon-dashboard-kpis"
       >
         {[
           [
@@ -140,125 +154,223 @@ export default function HonorariosDashboard({
               : 'Nenhum perfil financeiro ativo',
           ],
           [
-            'Cobrado hoje',
+            'Faturamento mensal',
             money(clients.current),
-            'Receita mensal da carteira',
-          ],
-          [
-            'Pelos parâmetros',
-            money(clients.suggested),
-            'Referência da tabela vigente',
+            'Pelos parâmetros: ' + money(clients.suggested),
           ],
           [
             'Potencial de aumento',
             money(clients.potential),
-            'Oportunidade mensal da carteira',
+            money(annualPotential) + ' por ano',
+          ],
+          [
+            'Reajustes pendentes',
+            String(clients.adjustmentsDue),
+            'Vencidos ou em até 30 dias',
           ],
         ].map(([label, value, caption]) => (
-          <Card key={label} variant="metric" className="p-5">
-            <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
-              {label}
-            </p>
-            <p className="my-3 text-2xl font-black tabular-nums tracking-tight text-[var(--color-text-strong)]">
-              {value}
-            </p>
-            <p className="text-xs text-[var(--color-text-muted)]">{caption}</p>
+          <Card key={label} variant="metric" className="hon-dashboard-kpi">
+            <span>{label}</span>
+            <strong>{value}</strong>
+            <small>{caption}</small>
           </Card>
         ))}
       </section>
-      {(clients.adjustmentsDue > 0 || quotes.expiringCount > 0) && (
-        <Notice>
-          {clients.adjustmentsDue} cliente(s) com reajuste próximo ou vencido.{' '}
-          {quotes.expiringCount} proposta(s) aberta(s) vencem nos próximos três
-          dias.{' '}
-          <Link
-            to="/honorarios/clientes"
-            className="font-semibold text-[var(--color-brand)] underline"
-          >
-            Ver carteira
-          </Link>
-        </Notice>
-      )}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Alinhamento da carteira">
-          <div className="space-y-4">
-            {clients.count === 0 && (
-              <p className="text-sm text-[var(--color-text-muted)]">
-                Nenhum perfil financeiro cadastrado. Vincule empresas existentes
-                para comparar os honorários com a tabela.
+      <div className="hon-dashboard-grid">
+        <Card className="hon-dashboard-panel">
+          <header>
+            <h2>Oportunidade de aumento de receita</h2>
+            <Link
+              to="/honorarios/clientes"
+              className={`${actionClass} ${buttonTone.neutral}`}
+            >
+              Ver todos
+            </Link>
+          </header>
+          <div className="hon-dashboard-body">
+            <div className="hon-dashboard-revenue">
+              <strong>+{money(clients.potential)}/mês</strong>
+              <span>
+                {clients.byAlignment.abaixo} clientes podem se aproximar dos
+                parâmetros
+              </span>
+            </div>
+            {opportunities.length ? (
+              <div className="hon-dashboard-opportunities">
+                {opportunities.map((entry) => (
+                  <Link
+                    key={entry.clientId}
+                    to={`/honorarios/clientes?cliente=${encodeURIComponent(entry.clientId)}`}
+                    title={`${entry.companyName}: atual ${money(entry.currentFee)} · pelos parâmetros ${money(entry.parameterFee)}`}
+                    className={focusRing}
+                  >
+                    <span className="hon-dashboard-company">
+                      {entry.companyName}
+                    </span>
+                    <span className="hon-dashboard-bar" aria-hidden="true">
+                      <span
+                        style={{
+                          width: `${(entry.potential / maximumOpportunity) * 100}%`,
+                        }}
+                      />
+                    </span>
+                    <strong>
+                      +{money(entry.potential)}
+                      <small>/mês</small>
+                    </strong>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="hon-dashboard-unavailable">
+                {clients.byAlignment.abaixo === 0
+                  ? 'Nenhum aumento sugerido para a carteira atual.'
+                  : 'Detalhamento das oportunidades indisponível no momento.'}
               </p>
             )}
-            {(
-              [
-                ['abaixo', 'Podem aumentar'],
-                ['alinhado', 'Alinhados'],
-                ['acima', 'Acima'],
-              ] as const
-            ).map(([id, label]) => (
-              <div key={id} data-fee-alignment={id}>
-                <div className="mb-2 flex justify-between text-sm">
-                  <span>{label}</span>
-                  <strong>{clients.byAlignment[id]}</strong>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-[var(--color-panel-soft-bg)]">
-                  <div
-                    className="h-full rounded-full bg-[var(--color-brand)]"
-                    style={{
-                      width: `${clients.count ? (clients.byAlignment[id] / clients.count) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-            <p className="pt-2 text-sm text-[var(--color-text-muted)]">
-              Receita sugerida pela tabela:{' '}
-              <strong>{money(clients.suggested)}</strong>
-            </p>
-            <Link
-              className="inline-block text-sm font-bold text-[var(--color-brand)]"
-              to="/honorarios/clientes"
+            <div className="hon-dashboard-secondary-action">
+              <Button size="sm" onClick={() => setSimulationOpen(true)}>
+                Simular aumentos
+              </Button>
+            </div>
+          </div>
+        </Card>
+        <Card className="hon-dashboard-panel">
+          <header>
+            <h2>Situação da carteira</h2>
+          </header>
+          <div className="hon-dashboard-body">
+            <div
+              className="hon-dashboard-alignment"
+              role="img"
+              aria-label={Object.entries(alignmentLabels)
+                .map(
+                  ([key, label]) =>
+                    `${label}: ${clients.byAlignment[key as keyof typeof alignmentLabels]}`,
+                )
+                .join(', ')}
             >
-              Consultar carteira →
-            </Link>
-          </div>
-        </Panel>
-        <Panel title={`Propostas de ${year}`}>
-          {quotes.count === 0 && (
-            <p className="mb-4 text-sm text-[var(--color-text-muted)]">
-              Nenhuma proposta registrada neste ano. Crie um orçamento para
-              acompanhar a negociação.
-            </p>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            {Object.entries(quoteStatusNames).map(([status, label]) => (
-              <Link
-                key={status}
-                to={`/honorarios/orcamentos?status=${status}`}
-                className="rounded-[var(--radius-control)] bg-[var(--color-panel-soft-bg)] p-4"
-              >
-                <span className="block text-xs text-[var(--color-text-muted)]">
-                  {label}
+              {Object.keys(alignmentLabels).map((key) => {
+                const count =
+                  clients.byAlignment[key as keyof typeof alignmentLabels]
+                return count > 0 ? (
+                  <span
+                    key={key}
+                    data-fee-alignment={key}
+                    style={{ flex: count }}
+                  />
+                ) : null
+              })}
+            </div>
+            <div className="hon-dashboard-legend">
+              {Object.entries(alignmentLabels).map(([key, label]) => (
+                <span key={key} data-fee-alignment={key}>
+                  <i aria-hidden="true" />
+                  {label}{' '}
+                  <b>
+                    {clients.byAlignment[key as keyof typeof alignmentLabels]}
+                  </b>
                 </span>
-                <strong className="mt-1 block text-xl">
-                  {quotes.byStatus[status as keyof typeof quoteStatusNames]}
-                </strong>
-              </Link>
-            ))}
+              ))}
+            </div>
+            <div className="hon-dashboard-part">
+              <h3>Orçamentos</h3>
+              <dl className="hon-dashboard-summary">
+                <div>
+                  <dt>Em aberto</dt>
+                  <dd>
+                    <Link to="/honorarios/orcamentos" className={focusRing}>
+                      {quotes.openCount} · {money(quotes.openValue)}/mês
+                    </Link>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Aceitos no ano</dt>
+                  <dd>
+                    <Link
+                      to="/honorarios/orcamentos?status=aceito"
+                      title={`Orçamentos aceitos em ${year}: ${money(quotes.acceptedValue)}/mês`}
+                      className={focusRing}
+                    >
+                      {quotes.byStatus.aceito}
+                    </Link>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Taxa de aceite</dt>
+                  <dd>
+                    {quotes.acceptanceRate === null
+                      ? '—'
+                      : Math.round(quotes.acceptanceRate * 100) + '%'}
+                  </dd>
+                </div>
+              </dl>
+              {quotes.count === 0 && (
+                <p className="hon-dashboard-unavailable">
+                  Nenhuma proposta registrada neste ano.
+                </p>
+              )}
+              {quotes.expiringCount > 0 && (
+                <p className="hon-dashboard-unavailable">
+                  {quotes.expiringCount} proposta(s) vence(m) nos próximos três
+                  dias.
+                </p>
+              )}
+            </div>
+            <div className="hon-dashboard-part">
+              <h3>Atual × parâmetro por regime</h3>
+              <div className="hon-dashboard-regime-key">
+                <span>Cobrado hoje</span>
+                <span>Valor pelos parâmetros</span>
+              </div>
+              {clients.byRegime ? (
+                <div className="hon-dashboard-regimes">
+                  {regimeOrder.map((regime) => {
+                    const entry = clients.byRegime![regime] ?? {
+                      count: 0,
+                      current: '0.00',
+                      byParameters: '0.00',
+                    }
+                    return (
+                      <div
+                        key={regime}
+                        className="hon-dashboard-regime"
+                        role="img"
+                        aria-label={`${regimeNames[regime]}: cobrado hoje ${money(entry.current)}, pelos parâmetros ${money(entry.byParameters)}`}
+                        title={`${money(entry.current)} / ${money(entry.byParameters)}`}
+                      >
+                        <span>{regimeNames[regime]}</span>
+                        <div>
+                          <span
+                            style={{
+                              width: `${(Number(entry.byParameters) / regimeMaximum) * 100}%`,
+                            }}
+                          />
+                          <b
+                            style={{
+                              width: `${(Number(entry.current) / regimeMaximum) * 100}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="hon-dashboard-unavailable">
+                  Comparativo por regime indisponível no momento.
+                </p>
+              )}
+            </div>
           </div>
-          <p className="mt-4 text-sm text-[var(--color-text-muted)]">
-            Valor mensal aceito: <strong>{money(quotes.acceptedValue)}</strong>
-            <br />
-            Em negociação: {quotes.openCount} proposta(s) ·{' '}
-            {money(quotes.openValue)}
-            <br />
-            Taxa de aceite:{' '}
-            {quotes.acceptanceRate === null
-              ? '—'
-              : Math.round(Number(quotes.acceptanceRate) * 100) + '%'}
-          </p>
-        </Panel>
+        </Card>
       </div>
-      <Panel title="Simular plano de aumentos">
+      <Dialog
+        open={simulationOpen}
+        onClose={() => setSimulationOpen(false)}
+        title="Simular plano de aumentos"
+        size="lg"
+      >
         <form
           className="mb-5 flex flex-wrap items-end gap-3"
           onSubmit={(e) => {
@@ -326,7 +438,7 @@ export default function HonorariosDashboard({
                         className="font-semibold text-[var(--color-brand)]"
                         to={`/honorarios/clientes?cliente=${encodeURIComponent(entry.clientId)}`}
                       >
-                        Abrir perfil
+                        {entry.companyName}
                       </Link>
                     </td>
                     <td className="p-3">{money(entry.current)}</td>
@@ -345,7 +457,7 @@ export default function HonorariosDashboard({
             Nenhum aumento sugerido para a carteira atual.
           </p>
         )}
-      </Panel>
+      </Dialog>
     </div>
   )
 }

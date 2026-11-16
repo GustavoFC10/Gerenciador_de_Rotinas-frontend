@@ -79,6 +79,18 @@ function populatedDashboard(): Dashboard {
     potential: '300.00',
     byAlignment: { abaixo: 2, alinhado: 1, acima: 0 },
     adjustmentsDue: 1,
+    byRegime: {
+      simples: {
+        count: 2,
+        current: '900.30',
+        byParameters: '1200.00',
+      },
+      presumido: {
+        count: 1,
+        current: '300.00',
+        byParameters: '300.00',
+      },
+    },
     adjustmentPlan: {
       maxIncreasePct: 20,
       count: 1,
@@ -87,6 +99,10 @@ function populatedDashboard(): Dashboard {
       entries: [
         {
           clientId: 'client-1',
+          companyId: 'company-1',
+          companyName: 'Empresa da carteira',
+          currentFee: '300.00',
+          parameterFee: '500.00',
           current: '300.00',
           proposed: '400.00',
           gain: '100.00',
@@ -228,18 +244,89 @@ describe('Painel de Honorários', () => {
     expect(host.textContent).toContain('1.200,30')
     expect(host.textContent).toContain('75%')
     expect(host.textContent).toContain('Ticket médio')
-    expect(host.textContent).toContain(
-      '1 cliente(s) com reajuste próximo ou vencido',
-    )
+    expect(host.textContent).toContain('Reajustes pendentes')
     expect(host.textContent).not.toContain('Comece a organizar')
+    expect(host.querySelector('[role="dialog"]')).toBeNull()
     expect(
       host.querySelector('a[href="/honorarios/clientes?cliente=client-1"]')
         ?.textContent,
-    ).toBe('Abrir perfil')
+    ).toContain('Empresa da carteira')
+    // The opportunity is the full gap (200), not the capped simulation gain (100).
+    expect(
+      host.querySelector('.hon-dashboard-opportunities')?.textContent,
+    ).toContain('200,00')
+    expect(host.querySelectorAll('.hon-dashboard-regime')).toHaveLength(4)
+    expect(
+      host.querySelector('.hon-dashboard-regime')?.getAttribute('aria-label'),
+    ).toContain('900,30')
+    expect(
+      host
+        .querySelectorAll('.hon-dashboard-regime')[2]
+        .getAttribute('aria-label'),
+    ).toContain('R$\u00a00,00')
+    expect(host.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe(
+      'Podem aumentar: 2, Alinhados: 1, Acima: 0',
+    )
     expect(
       host.querySelector('a[href="/honorarios/orcamentos?status=aceito"]')
         ?.textContent,
     ).toContain('3')
+  })
+
+  it('keeps unavailable detail distinct from an empty portfolio and does not fabricate client names or bars', async () => {
+    const data = populatedDashboard()
+    data.clients.adjustmentPlan.entries = []
+    delete data.clients.byRegime
+    vi.mocked(honorariosService.dashboard).mockResolvedValueOnce(data)
+    await render()
+    await waitFor(
+      () => !!host.querySelector('[aria-label="Indicadores de honorários"]'),
+    )
+    expect(host.textContent).toContain(
+      'Detalhamento das oportunidades indisponível',
+    )
+    expect(host.textContent).toContain('Comparativo por regime indisponível')
+    expect(host.textContent).not.toContain('Nenhum aumento sugerido')
+    expect(host.querySelector('.hon-dashboard-opportunities')).toBeNull()
+    expect(host.querySelector('.hon-dashboard-regimes')).toBeNull()
+    expect(honorariosService.dashboard).toHaveBeenCalledTimes(1)
+  })
+
+  it('orders opportunities by the full fee gap and opens the financial profile rather than the central company', async () => {
+    const data = populatedDashboard()
+    const entry = data.clients.adjustmentPlan.entries[0]
+    data.clients.adjustmentPlan.entries = Array.from(
+      { length: 10 },
+      (_, index) => ({
+        ...entry,
+        clientId: `financial-${index}`,
+        companyId: `central-${index}`,
+        companyName: `Empresa ${index}`,
+        currentFee: '10.00',
+        parameterFee: (20 + index).toFixed(2),
+        gain: '0.00',
+      }),
+    )
+    vi.mocked(honorariosService.dashboard).mockResolvedValueOnce(data)
+    await render()
+    await waitFor(() => !!host.querySelector('.hon-dashboard-opportunities'))
+    const links = host.querySelectorAll<HTMLAnchorElement>(
+      '.hon-dashboard-opportunities a',
+    )
+    expect(links).toHaveLength(8)
+    expect(links[0].getAttribute('href')).toBe(
+      '/honorarios/clientes?cliente=financial-9',
+    )
+    expect(links[0].textContent).toContain('Empresa 9')
+    expect(links[0].textContent).toContain('19,00')
+    expect(links[7].textContent).toContain('Empresa 2')
+    await act(async () => button('Simular aumentos').click())
+    const dialog = document.querySelector('[role="dialog"]')!
+    expect(dialog.querySelector('tbody a')?.textContent).toBe('Empresa 0')
+    expect(dialog.querySelector('tbody a')?.getAttribute('href')).toBe(
+      '/honorarios/clientes?cliente=financial-0',
+    )
+    expect(dialog.querySelector('tbody tr')?.textContent).toContain('0,00')
   })
 
   it('shows API errors and recovers only after the user retries', async () => {
@@ -270,6 +357,9 @@ describe('Painel de Honorários', () => {
     await waitFor(
       () => !!host.querySelector('[aria-label="Indicadores de honorários"]'),
     )
+    await act(async () => button('Simular aumentos').click())
+    const dialog = document.querySelector('[role="dialog"]')!
+    expect(dialog).not.toBeNull()
     let finish!: (data: Dashboard) => void
     vi.mocked(honorariosService.dashboard).mockImplementationOnce(
       () =>
@@ -277,7 +367,7 @@ describe('Painel de Honorários', () => {
           finish = resolve
         }),
     )
-    const input = host.querySelector('input[type="number"]')!
+    const input = dialog.querySelector('input[type="number"]')!
     expect(input.getAttribute('max')).toBe('10000')
     await act(async () => {
       Object.getOwnPropertyDescriptor(
@@ -287,7 +377,7 @@ describe('Painel de Honorários', () => {
       input.dispatchEvent(new Event('input', { bubbles: true }))
     })
     await act(async () =>
-      host
+      dialog
         .querySelector('form')!
         .dispatchEvent(
           new Event('submit', { bubbles: true, cancelable: true }),
@@ -298,12 +388,66 @@ describe('Painel de Honorários', () => {
       expect.any(AbortSignal),
     )
     expect(host.textContent).toContain('1.200,30')
-    expect(host.textContent).toContain('Atualizando simulação')
+    expect(dialog.textContent).toContain('Atualizando simulação')
     const updated = populatedDashboard()
     updated.clients.adjustmentPlan.monthlyGain = '125.50'
     await act(async () => finish(updated))
-    await waitFor(() => host.textContent!.includes('125,50'))
-    expect(host.textContent).toContain('Esta simulação não altera os contratos')
+    await waitFor(() => dialog.textContent!.includes('125,50'))
+    expect(dialog.textContent).toContain(
+      'Esta simulação não altera os contratos',
+    )
     expect(honorariosService.dashboard).toHaveBeenCalledTimes(2)
+  })
+
+  it('preserves full opportunities when simulating zero increase', async () => {
+    vi.mocked(honorariosService.dashboard).mockResolvedValueOnce(
+      populatedDashboard(),
+    )
+    await render()
+    await waitFor(() => !!host.querySelector('.hon-dashboard-opportunities'))
+    await act(async () => button('Simular aumentos').click())
+    const dialog = document.querySelector('[role="dialog"]')!
+    const data = populatedDashboard()
+    data.clients.adjustmentPlan = {
+      ...data.clients.adjustmentPlan,
+      maxIncreasePct: 0,
+      count: 0,
+      monthlyGain: '0.00',
+      annualGain: '0.00',
+      entries: data.clients.adjustmentPlan.entries.map((entry) => ({
+        ...entry,
+        proposed: entry.current,
+        gain: '0.00',
+      })),
+    }
+    vi.mocked(honorariosService.dashboard).mockResolvedValueOnce(data)
+    const input = dialog.querySelector('input[type="number"]')!
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )!.set!.call(input, '0')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await act(async () =>
+      dialog
+        .querySelector('form')!
+        .dispatchEvent(
+          new Event('submit', { bubbles: true, cancelable: true }),
+        ),
+    )
+    await waitFor(() =>
+      dialog.textContent!.includes('Ganho mensalR$\u00a00,00'),
+    )
+    expect(honorariosService.dashboard).toHaveBeenLastCalledWith(
+      0,
+      expect.any(AbortSignal),
+    )
+    expect(
+      host.querySelector('.hon-dashboard-opportunities')?.textContent,
+    ).toContain('200,00')
+    expect(
+      host.querySelector('.hon-dashboard-opportunities')?.textContent,
+    ).toContain('Empresa da carteira')
   })
 })

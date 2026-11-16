@@ -477,6 +477,38 @@ export class HonorariosService {
             integer(statuses[key] ?? 0, `${path}.quotes.byStatus.${key}`),
           ]),
         )
+        if (!Array.isArray(plan.entries))
+          throw new HonorariosContractError(
+            `${path}.clients.adjustmentPlan.entries`,
+          )
+        plan.entries.forEach((value, index) => {
+          const key = `${path}.clients.adjustmentPlan.entries[${index}]`
+          const entry = object(value, key)
+          for (const field of ['clientId', 'companyId', 'companyName'])
+            string(entry[field], `${key}.${field}`)
+          for (const field of [
+            'currentFee',
+            'parameterFee',
+            'current',
+            'proposed',
+            'gain',
+          ])
+            money(entry[field], `${key}.${field}`)
+          if (typeof entry.full !== 'boolean')
+            throw new HonorariosContractError(`${key}.full`)
+        })
+        if (clients.byRegime !== undefined) {
+          const regimes = object(clients.byRegime, `${path}.clients.byRegime`)
+          Object.entries(regimes).forEach(([regime, value]) => {
+            const key = `${path}.clients.byRegime.${regime}`
+            if (!['mei', 'simples', 'presumido', 'real'].includes(regime))
+              throw new HonorariosContractError(key)
+            const entry = object(value, key)
+            integer(entry.count, `${key}.count`)
+            money(entry.current, `${key}.current`)
+            money(entry.byParameters, `${key}.byParameters`)
+          })
+        }
         return {
           ...result,
           clients: {

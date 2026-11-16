@@ -1,0 +1,192 @@
+{
+  "fixture": true,
+  "checks": [
+    {
+      "name": "Dashboard API atual 1280",
+      "pass": true
+    },
+    {
+      "name": "Dashboard API atual 1366",
+      "pass": true
+    },
+    {
+      "name": "Dashboard contrato proposto 1280",
+      "pass": true
+    },
+    {
+      "name": "Dashboard contrato proposto 1366",
+      "pass": true
+    },
+    {
+      "name": "Simulação em janela conserva o painel e devolve o foco",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "complete": false,
+      "width": 1280,
+      "scrollWidth": 1265,
+      "title": "Painel da carteira",
+      "nav": ["Home"],
+      "panelTitles": [
+        "Oportunidade de aumento de receita",
+        "Situação da carteira"
+      ],
+      "cards": 4,
+      "opportunities": 0,
+      "regimes": 0,
+      "colors": [
+        {
+          "color": "rgb(8, 127, 91)",
+          "bar": "rgb(8, 127, 91)"
+        },
+        {
+          "color": "rgb(37, 99, 235)",
+          "bar": "rgb(37, 99, 235)"
+        },
+        {
+          "color": "rgb(180, 35, 53)",
+          "bar": "rgba(0, 0, 0, 0)"
+        }
+      ],
+      "panels": [
+        {
+          "x": 304,
+          "y": 313.421875,
+          "width": 465.578125
+        },
+        {
+          "x": 789.578125,
+          "y": 313.421875,
+          "width": 443.421875
+        }
+      ],
+      "unavailable": true
+    },
+    {
+      "complete": false,
+      "width": 1366,
+      "scrollWidth": 1351,
+      "title": "Painel da carteira",
+      "nav": ["Home"],
+      "panelTitles": [
+        "Oportunidade de aumento de receita",
+        "Situação da carteira"
+      ],
+      "cards": 4,
+      "opportunities": 0,
+      "regimes": 0,
+      "colors": [
+        {
+          "color": "rgb(8, 127, 91)",
+          "bar": "rgb(8, 127, 91)"
+        },
+        {
+          "color": "rgb(37, 99, 235)",
+          "bar": "rgb(37, 99, 235)"
+        },
+        {
+          "color": "rgb(180, 35, 53)",
+          "bar": "rgba(0, 0, 0, 0)"
+        }
+      ],
+      "panels": [
+        {
+          "x": 304,
+          "y": 315.953125,
+          "width": 509.625
+        },
+        {
+          "x": 833.625,
+          "y": 315.953125,
+          "width": 485.375
+        }
+      ],
+      "unavailable": true
+    },
+    {
+      "complete": true,
+      "width": 1280,
+      "scrollWidth": 1265,
+      "title": "Painel da carteira",
+      "nav": ["Home"],
+      "panelTitles": [
+        "Oportunidade de aumento de receita",
+        "Situação da carteira"
+      ],
+      "cards": 4,
+      "opportunities": 7,
+      "regimes": 4,
+      "colors": [
+        {
+          "color": "rgb(8, 127, 91)",
+          "bar": "rgb(8, 127, 91)"
+        },
+        {
+          "color": "rgb(37, 99, 235)",
+          "bar": "rgb(37, 99, 235)"
+        },
+        {
+          "color": "rgb(180, 35, 53)",
+          "bar": "rgb(180, 35, 53)"
+        }
+      ],
+      "panels": [
+        {
+          "x": 304,
+          "y": 313.421875,
+          "width": 465.578125
+        },
+        {
+          "x": 789.578125,
+          "y": 313.421875,
+          "width": 443.421875
+        }
+      ],
+      "unavailable": false
+    },
+    {
+      "complete": true,
+      "width": 1366,
+      "scrollWidth": 1351,
+      "title": "Painel da carteira",
+      "nav": ["Home"],
+      "panelTitles": [
+        "Oportunidade de aumento de receita",
+        "Situação da carteira"
+      ],
+      "cards": 4,
+      "opportunities": 7,
+      "regimes": 4,
+      "colors": [
+        {
+          "color": "rgb(8, 127, 91)",
+          "bar": "rgb(8, 127, 91)"
+        },
+        {
+          "color": "rgb(37, 99, 235)",
+          "bar": "rgb(37, 99, 235)"
+        },
+        {
+          "color": "rgb(180, 35, 53)",
+          "bar": "rgb(180, 35, 53)"
+        }
+      ],
+      "panels": [
+        {
+          "x": 304,
+          "y": 315.953125,
+          "width": 509.625
+        },
+        {
+          "x": 833.625,
+          "y": 315.953125,
+          "width": 485.375
+        }
+      ],
+      "unavailable": false
+    }
+  ],
+  "exceptions": []
+}

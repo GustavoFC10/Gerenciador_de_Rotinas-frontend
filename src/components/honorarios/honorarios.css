@@ -1,6 +1,264 @@
 .honorarios-workspace {
   font-size: 14px;
 }
+
+/* P12: four indicators and two panels, following the approved dashboard. */
+.hon-dashboard-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.hon-dashboard-kpi {
+  min-width: 0;
+  padding: 20px 18px;
+  border-top: 3px solid var(--color-brand);
+}
+.hon-dashboard-kpi > span,
+.hon-dashboard-kpi > small {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.hon-dashboard-kpi > strong {
+  display: block;
+  margin: 12px 0 8px;
+  color: var(--color-text-strong);
+  font-size: clamp(22px, 1.95vw, 27px);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.hon-dashboard-kpi:nth-child(3) {
+  border-top-color: var(--color-fee-below);
+}
+.hon-dashboard-kpi:nth-child(3) > strong {
+  color: var(--color-fee-below);
+}
+.hon-dashboard-kpi:nth-child(4) {
+  border-top-color: var(--color-fee-above);
+}
+.hon-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+.hon-dashboard-panel {
+  min-width: 0;
+}
+.hon-dashboard-panel > header {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-panel-border);
+}
+.hon-dashboard-panel > header h2 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 15px;
+  font-weight: 650;
+}
+.hon-dashboard-panel > header a {
+  flex-shrink: 0;
+}
+.hon-dashboard-body {
+  padding: 20px;
+}
+.hon-dashboard-revenue {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+.hon-dashboard-revenue strong {
+  color: var(--color-fee-below);
+  font-size: 25px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.hon-dashboard-revenue > span,
+.hon-dashboard-unavailable {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.hon-dashboard-unavailable {
+  margin-top: 14px;
+}
+.hon-dashboard-opportunities {
+  display: grid;
+  gap: 17px;
+}
+.hon-dashboard-opportunities a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(60px, 1fr) 90px;
+  align-items: center;
+  gap: 12px;
+  border-radius: 3px;
+  color: var(--color-text-strong);
+  font-size: 12px;
+}
+.hon-dashboard-opportunities a:hover .hon-dashboard-company {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.hon-dashboard-company {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hon-dashboard-opportunities strong {
+  color: var(--color-fee-below);
+  text-align: right;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.hon-dashboard-opportunities small {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+.hon-dashboard-bar {
+  height: 13px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--color-panel-soft-bg);
+}
+.hon-dashboard-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-fee-below);
+}
+.hon-dashboard-secondary-action {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-panel-border);
+}
+.hon-dashboard-alignment {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  gap: 3px;
+  border-radius: 4px;
+  background: var(--color-panel-soft-bg);
+}
+.hon-dashboard-alignment > span {
+  background: var(--hon-alignment);
+}
+.hon-dashboard-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 13px;
+  font-size: 11px;
+}
+.hon-dashboard-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--hon-alignment);
+}
+.hon-dashboard-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.hon-dashboard-part {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-panel-border);
+}
+.hon-dashboard-part h3 {
+  margin: 0 0 9px;
+  color: var(--color-text-strong);
+  font-size: 13px;
+  font-weight: 650;
+}
+.hon-dashboard-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-panel-border);
+  font-size: 12px;
+}
+.hon-dashboard-summary > div:last-child {
+  border-bottom: 0;
+}
+.hon-dashboard-summary dt {
+  color: var(--color-text-muted);
+}
+.hon-dashboard-summary dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.hon-dashboard-summary a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.hon-dashboard-regime-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+.hon-dashboard-regime-key span::before {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  background: color-mix(in srgb, var(--color-brand) 65%, var(--color-panel-bg));
+  content: '';
+}
+.hon-dashboard-regime-key span:first-child::before {
+  background: var(--color-text-subtle);
+}
+.hon-dashboard-regime {
+  display: grid;
+  grid-template-columns: 126px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  font-size: 11px;
+}
+.hon-dashboard-regime > div {
+  position: relative;
+  height: 15px;
+  background: var(--color-panel-soft-bg);
+  border-radius: 2px;
+}
+.hon-dashboard-regime > div > span {
+  position: absolute;
+  height: 15px;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--color-brand) 65%, var(--color-panel-bg));
+}
+.hon-dashboard-regime b {
+  position: absolute;
+  top: 5px;
+  height: 5px;
+  background: var(--color-text-subtle);
+}
+@media (max-width: 1150px) {
+  .hon-dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  .hon-dashboard-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .hon-client-toolbar {
   max-width: 42rem;
   margin-bottom: 16px;

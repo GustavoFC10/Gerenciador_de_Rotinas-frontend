@@ -242,7 +242,9 @@ async function waitFor(check: () => boolean) {
 describe('Honorários no roteamento real da aplicação', () => {
   it('monta o painel na rota-base e busca os indicadores sem depender de Rotinas', async () => {
     await render()
-    await waitFor(() => host.textContent?.includes('Cobrado hoje') ?? false)
+    await waitFor(
+      () => host.textContent?.includes('Faturamento mensal') ?? false,
+    )
     expect(honorariosService.dashboard).toHaveBeenCalledWith(
       20,
       expect.any(AbortSignal),
@@ -253,7 +255,9 @@ describe('Honorários no roteamento real da aplicação', () => {
   })
   it('navega pelas abas reais, monta seus formulários e consulta os endpoints correspondentes', async () => {
     await render()
-    await waitFor(() => host.textContent?.includes('Cobrado hoje') ?? false)
+    await waitFor(
+      () => host.textContent?.includes('Faturamento mensal') ?? false,
+    )
     await clickLink('/honorarios/orcamentos')
     await waitFor(() => !!host.querySelector('a[href="/honorarios/novo"]'))
     await clickLink('/honorarios/novo')
@@ -381,7 +385,9 @@ describe('Honorários no roteamento real da aplicação', () => {
       },
     })
     await render()
-    await waitFor(() => host.textContent?.includes('Cobrado hoje') ?? false)
+    await waitFor(
+      () => host.textContent?.includes('Faturamento mensal') ?? false,
+    )
     expect(host.textContent).toContain('0,00')
     expect(host.textContent).toContain('Nenhum perfil financeiro ativo')
     expect(host.textContent).toContain('Nenhum aumento sugerido')
@@ -399,7 +405,9 @@ describe('Honorários no roteamento real da aplicação', () => {
       (button) => button.textContent === 'Tentar novamente',
     )!
     await act(async () => retry.click())
-    await waitFor(() => host.textContent?.includes('Cobrado hoje') ?? false)
+    await waitFor(
+      () => host.textContent?.includes('Faturamento mensal') ?? false,
+    )
     expect(honorariosService.dashboard).toHaveBeenCalledTimes(2)
   })
   it('oferece retorno explícito ao HUB dos módulos', async () => {

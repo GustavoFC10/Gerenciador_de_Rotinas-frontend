@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router'
+import { Link, NavLink, useLocation } from 'react-router'
 
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import IconButton from '../components/ui/IconButton'
-import Select from '../components/ui/Select'
 import { appThemeClass, focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { useAuth } from '../hooks/useAuth'
@@ -41,7 +40,7 @@ const links: Array<{
   icon: IconName
   end?: boolean
 }> = [
-  { to: ROUTES.HONORARIOS, label: 'Painel', icon: 'home', end: true },
+  { to: ROUTES.HONORARIOS, label: 'Home', icon: 'home', end: true },
   {
     to: `${ROUTES.HONORARIOS}/orcamentos`,
     label: 'Orçamentos',
@@ -65,17 +64,10 @@ export default function HonorariosLayout({
   isRefreshing,
   onRefresh,
 }: HonorariosLayoutProps) {
-  const {
-    activeMembership,
-    memberships,
-    session,
-    selectActiveMembership,
-    logout,
-  } = useAuth()
+  const { activeMembership, session, logout } = useAuth()
   const location = useLocation()
-  const navigate = useNavigate()
   const [navigationOpen, setNavigationOpen] = useState(false)
-  const [pending, setPending] = useState<'organization' | 'logout' | null>(null)
+  const [pending, setPending] = useState<'logout' | null>(null)
   const [error, setError] = useState('')
   const navigationRef = useRef<HTMLElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -139,19 +131,6 @@ export default function HonorariosLayout({
     }
   }, [navigationOpen])
 
-  async function changeOrganization(membershipId: string) {
-    if (membershipId === activeMembership?.id || pending) return
-    setPending('organization')
-    setError('')
-    try {
-      await selectActiveMembership(membershipId)
-      navigate(ROUTES.HUB, { replace: true })
-    } catch (caught) {
-      setError(getErrorPresentation(caught).message)
-    } finally {
-      setPending(null)
-    }
-  }
   async function leave() {
     if (pending) return
     setPending('logout')
@@ -273,24 +252,6 @@ export default function HonorariosLayout({
                 </li>
               ))}
             </ul>
-            {memberships.length > 1 && (
-              <div className="mt-6 border-t border-[var(--color-sidebar-border)] pt-4">
-                <Select
-                  label="Organização ativa"
-                  value={activeMembership?.id ?? ''}
-                  disabled={!!pending}
-                  onChange={(event) =>
-                    void changeOrganization(event.target.value)
-                  }
-                >
-                  {memberships.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.organization.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            )}
           </nav>
           <div
             className="shrink-0 space-y-2 border-t border-[var(--color-sidebar-border)] p-3"

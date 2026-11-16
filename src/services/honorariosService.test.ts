@@ -321,7 +321,7 @@ describe('HonorariosService', () => {
         clients: {
           current: '1000.01',
           byAlignment: { abaixo: 2 },
-          adjustmentPlan: { maxIncreasePct: '10.00' },
+          adjustmentPlan: { maxIncreasePct: '10.00', entries: [] },
         },
         quotes: { byStatus: { aceito: 3 }, acceptanceRate: '0.75' },
       }),
@@ -338,4 +338,91 @@ describe('HonorariosService', () => {
       },
     })
   })
+
+  it('reads company identity and full parameter fees from simulation entries without converting money strings', async () => {
+    const entries = [
+      {
+        clientId: 'client-1',
+        companyId: 'company-1',
+        companyName: 'Cliente',
+        currentFee: '500.00',
+        parameterFee: '750.00',
+        current: '500.00',
+        proposed: '600.00',
+        gain: '100.00',
+        full: false,
+      },
+    ]
+    const byRegime = {
+      simples: { count: 1, current: '500.00', byParameters: '750.00' },
+    }
+    const payload = {
+      clients: {
+        byAlignment: { abaixo: 1 },
+        adjustmentPlan: { maxIncreasePct: '20.00', entries },
+        byRegime,
+      },
+      quotes: { byStatus: {}, acceptanceRate: null },
+    }
+    const { service } = setup([json(payload)])
+    const result = await service.dashboard(20)
+    expect(result.clients.adjustmentPlan.entries).toEqual(entries)
+    expect(result.clients.byRegime).toEqual(byRegime)
+  })
+
+  it.each([
+    {
+      adjustmentPlan: {
+        maxIncreasePct: 20,
+        entries: [
+          {
+            clientId: 'client-1',
+            companyId: 'company-1',
+            companyName: 'Cliente',
+            currentFee: 500,
+            parameterFee: '750.00',
+            current: '500.00',
+            proposed: '600.00',
+            gain: '100.00',
+            full: false,
+          },
+        ],
+      },
+    },
+    {
+      byRegime: [
+        {
+          regime: 'simples',
+          count: 1,
+          current: '500.00',
+          byParameters: '750.00',
+        },
+      ],
+    },
+    {
+      byRegime: { simples: { count: 1, current: '500.00', byParameters: 750 } },
+    },
+    {
+      byRegime: {
+        desconhecido: { count: 0, current: '0.00', byParameters: '0.00' },
+      },
+    },
+  ])(
+    'rejects incompatible dashboard detail instead of displaying incorrect aggregates: %j',
+    async (detail) => {
+      const { service } = setup([
+        json({
+          clients: {
+            byAlignment: {},
+            adjustmentPlan: { maxIncreasePct: 20, entries: [] },
+            ...detail,
+          },
+          quotes: { byStatus: {}, acceptanceRate: null },
+        }),
+      ])
+      await expect(service.dashboard(20)).rejects.toBeInstanceOf(
+        HonorariosContractError,
+      )
+    },
+  )
 })

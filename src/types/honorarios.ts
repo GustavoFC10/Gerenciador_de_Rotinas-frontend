@@ -311,6 +311,16 @@ export interface HonorariosDashboard {
     potential: string
     byAlignment: Record<HonorariosAlignment, number>
     adjustmentsDue: number
+    byRegime?: Partial<
+      Record<
+        HonorariosRegime,
+        {
+          count: number
+          current: string
+          byParameters: string
+        }
+      >
+    >
     adjustmentPlan: {
       maxIncreasePct: number
       count: number
@@ -318,6 +328,10 @@ export interface HonorariosDashboard {
       annualGain: string
       entries: Array<{
         clientId: string
+        companyId: string
+        companyName: string
+        currentFee: string
+        parameterFee: string
         current: string
         proposed: string
         gain: string

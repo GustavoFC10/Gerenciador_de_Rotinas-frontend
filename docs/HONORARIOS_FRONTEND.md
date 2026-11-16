@@ -43,7 +43,7 @@ O limite é de 10.000 linhas por arquivo e 1.000 por lote enviado à API. Cada l
 ## Organização do código
 
 - `src/pages/honorarios/HonorariosPage.tsx`: estrutura, rotas e isolamento por organização/membro.
-- `src/layouts/HonorariosLayout.tsx`: navegação lateral, menu móvel, organização, perfil e cabeçalho.
+- `src/layouts/HonorariosLayout.tsx`: navegação lateral, menu móvel, perfil e cabeçalho; mantém o contexto da sessão sem seletor de organização no módulo.
 - `src/components/honorarios/`: telas, formulários e componentes compartilhados.
 - `src/hooks/useHonorariosCalculation.ts`: debounce e descarte de respostas antigas.
 - `src/services/honorariosService.ts` e `src/types/honorarios.ts`: contrato, envelopes, paginação e chamadas pelo cliente HTTP existente.

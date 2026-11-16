@@ -94,7 +94,7 @@ function HonorariosWorkspace() {
     .replace(/^\/+|\/+$/g, '')
   const titles: Record<string, [string, string]> = {
     '': [
-      'Painel de honorários',
+      'Painel da carteira',
       'Acompanhe sua carteira, as negociações e as oportunidades de crescimento.',
     ],
     novo: [
