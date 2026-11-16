@@ -1,8 +1,9 @@
+import { createPortal } from 'react-dom'
 import Dialog from '../ui/Dialog'
 import CurrencyField from './CurrencyField'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import Button from '../ui/Button'
 import Select from '../ui/Select'
 import TextField from '../ui/TextField'
@@ -13,7 +14,6 @@ import { isApiError } from '../../services/httpClient'
 import type {
   HonorariosAdjustmentMode,
   HonorariosClient,
-  HonorariosClientFilters,
   HonorariosClientInput,
   HonorariosCompanyOption,
   HonorariosConfiguration,
@@ -59,18 +59,18 @@ export default function HonorariosClients(props: Props) {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [query, setQuery] = useState('')
-  const [companyView, setCompanyView] = useState(true)
-  const [presence, setPresence] = useState<'all' | 'with' | 'without'>('all')
-  const [ordering, setOrdering] = useState('name')
+  const presence = 'all' as const
+  const ordering = 'name'
   const [initialCompany, setInitialCompany] =
     useState<HonorariosCompanyOption | null>(null)
-  const [regime, setRegime] = useState('')
-  const [alignment, setAlignment] = useState('')
-  const [archived, setArchived] = useState(false)
+  const [profileBusy, setProfileBusy] = useState(false)
+  const [detailCompany, setDetailCompany] =
+    useState<HonorariosCompanyOption | null>(null)
   const [page, setPage] = useState(1)
   const [searchParams, setSearchParams] = useSearchParams()
   const selected = searchParams.get('cliente') ?? ''
   function setSelected(id: string) {
+    setDetailCompany(null)
     const next = new URLSearchParams(searchParams)
     if (id) {
       next.set('cliente', id)
@@ -92,25 +92,6 @@ export default function HonorariosClients(props: Props) {
     }, 300)
     return () => clearTimeout(timer)
   }, [search])
-  const filters: HonorariosClientFilters = {
-    q: query,
-    archived,
-    page,
-    pageSize: 20,
-    ...(regime ? { regime: regime as HonorariosClientFilters['regime'] } : {}),
-    ...(alignment
-      ? { alignment: alignment as HonorariosClientFilters['alignment'] }
-      : {}),
-  }
-  const clients = useQuery({
-    enabled: !companyView,
-    queryKey: [...scopeKey, 'clients', filters],
-    queryFn: ({ signal }) => honorariosService.clients(filters, signal),
-    retry: false,
-  })
-  useEffect(() => {
-    if (clients.error) onDenied?.(clients.error)
-  }, [clients.error, onDenied])
   const companies = useQuery({
     queryKey: [
       ...scopeKey,
@@ -125,15 +106,22 @@ export default function HonorariosClients(props: Props) {
         { q: query, profile: presence, ordering, page, pageSize: 20 },
         signal,
       ),
-    enabled: companyView,
     retry: false,
   })
   useEffect(() => {
     if (companies.error) onDenied?.(companies.error)
   }, [companies.error, onDenied])
+  const companyPage = companies.data
+  const listRequest = companies
+  const [actionsHost, setActionsHost] = useState<HTMLElement | null>(null)
+  useEffect(
+    () => setActionsHost(document.getElementById('honorarios-page-actions')),
+    [],
+  )
   async function refresh(client?: HonorariosClient) {
     if (client) {
       setSelected(client.id)
+      setDetailCompany(client.company)
       setCreating(false)
       setMessage('Perfil salvo com sucesso.')
     }
@@ -145,13 +133,7 @@ export default function HonorariosClients(props: Props) {
     try {
       const csv = await honorariosService.exportClients({
         q: query,
-        archived,
-        ...(regime
-          ? { regime: regime as HonorariosClientFilters['regime'] }
-          : {}),
-        ...(alignment
-          ? { alignment: alignment as HonorariosClientFilters['alignment'] }
-          : {}),
+        archived: false,
       })
       downloadText(csv, 'carteira-honorarios.csv', 'text/csv;charset=utf-8')
     } catch (caught) {
@@ -161,46 +143,43 @@ export default function HonorariosClients(props: Props) {
       setExporting(false)
     }
   }
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-black">Carteira de clientes</h2>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            Compare os honorários atuais com a tabela e acompanhe os reajustes.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => void exportCsv()} disabled={exporting}>
-            {exporting ? 'Exportando…' : 'Exportar perfis CSV'}
-          </Button>
-          {canEdit && (
-            <>
-              <Button
-                onClick={() => {
-                  setImporting(!importing)
-                  setCreating(false)
-                  setSelected('')
-                }}
-              >
-                {importing ? 'Fechar importação' : 'Importar carteira'}
-              </Button>
-              <Button
-                tone="primary"
-                onClick={() => {
-                  setInitialCompany(null)
-                  setCreating(true)
-                  setSelected('')
-                  setImporting(false)
-                  setMessage('')
-                }}
-              >
-                Novo cliente
-              </Button>
-            </>
-          )}
-        </div>
+  const actions = (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => void exportCsv()} disabled={exporting}>
+          {exporting ? 'Exportando…' : 'Exportar perfis CSV'}
+        </Button>
+        {canEdit && (
+          <>
+            <Button
+              onClick={() => {
+                setImporting(!importing)
+                setCreating(false)
+                setSelected('')
+              }}
+            >
+              {importing ? 'Fechar importação' : 'Importar carteira'}
+            </Button>
+            <Button
+              tone="primary"
+              onClick={() => {
+                setInitialCompany(null)
+                setCreating(true)
+                setSelected('')
+                setImporting(false)
+                setMessage('')
+              }}
+            >
+              Novo cliente
+            </Button>
+          </>
+        )}
       </div>
+    </div>
+  )
+  return (
+    <div className="hon-client-list space-y-5">
+      {actionsHost ? createPortal(actions, actionsHost) : actions}
       {error && <Notice tone="error">{error}</Notice>}
       {message && <Notice tone="success">{message}</Notice>}
       {importing && canEdit && (
@@ -215,13 +194,19 @@ export default function HonorariosClients(props: Props) {
       {creating && canEdit && (
         <Dialog
           open
-          title="Configurar honorários"
+          title={initialCompany?.name ?? 'Novo cliente'}
+          description="Cadastro de honorários"
+          className="hon-financial-dialog"
           size="lg"
-          onClose={() => setCreating(false)}
+          onClose={() => {
+            if (!profileBusy) setCreating(false)
+          }}
         >
           <ClientForm
             {...props}
             initialCompany={initialCompany}
+            onCompanyChange={setInitialCompany}
+            onBusyChange={setProfileBusy}
             onCancel={() => {
               setCreating(false)
               setInitialCompany(null)
@@ -233,9 +218,18 @@ export default function HonorariosClients(props: Props) {
       {selected && (
         <Dialog
           open
-          title="Ficha financeira"
+          title={
+            companyPage?.results.find(
+              (company) => company.financialProfile?.id === selected,
+            )?.name ??
+            detailCompany?.name ??
+            'Ficha financeira'
+          }
+          className="hon-financial-dialog"
           size="lg"
-          onClose={() => setSelected('')}
+          onClose={() => {
+            if (!profileBusy) setSelected('')
+          }}
         >
           <ClientDetails
             key={selected}
@@ -243,127 +237,30 @@ export default function HonorariosClients(props: Props) {
             id={selected}
             onClose={() => setSelected('')}
             onChanged={() => void refresh()}
+            onCompanyResolved={setDetailCompany}
+            onBusyChange={setProfileBusy}
           />
         </Dialog>
       )}
-      <Panel
-        title={companyView ? 'Empresas e honorários' : 'Perfis financeiros'}
-      >
-        <Select
-          label="Consulta"
-          value={companyView ? 'companies' : 'profiles'}
-          onChange={(event) => {
-            setCompanyView(event.target.value === 'companies')
-            setPage(1)
-          }}
-        >
-          <option value="companies">Todas as empresas ativas</option>
-          <option value="profiles">
-            Perfis financeiros — filtros e arquivados
-          </option>
-        </Select>
-        {companyView && (
-          <div className="hon-company-tools mt-4">
-            <TextField
-              label="Buscar empresa"
-              placeholder="Nome, código ou CNPJ"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            <Select
-              label="Dados financeiros"
-              value={presence}
-              onChange={(event) => {
-                setPresence(event.target.value as typeof presence)
-                setPage(1)
-              }}
-            >
-              <option value="all">Todas as empresas</option>
-              <option value="with">Com perfil financeiro</option>
-              <option value="without">Sem perfil financeiro</option>
-            </Select>
-            <Select
-              label="Ordenar por"
-              value={ordering}
-              onChange={(event) => {
-                setOrdering(event.target.value)
-                setPage(1)
-              }}
-            >
-              <option value="name">Nome</option>
-              <option value="code">Código</option>
-              <option value="cnpj">CNPJ</option>
-            </Select>
-          </div>
-        )}
-        <div
-          style={{ display: companyView ? 'none' : undefined }}
-          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-        >
+      <Panel>
+        <div className="hon-client-toolbar">
           <TextField
-            label="Buscar cliente"
-            placeholder="Nome, CNPJ ou contato"
+            aria-label="Buscar empresa ou cliente"
+            placeholder="Buscar por nome, código ou CNPJ"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
-          {!companyView && (
-            <>
-              <Select
-                label="Regime tributário"
-                value={regime}
-                onChange={(event) => {
-                  setRegime(event.target.value)
-                  setPage(1)
-                }}
-              >
-                <option value="">Todos os regimes</option>
-                {Object.entries(regimeNames).map(([id, name]) => (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                label="Comparação com a tabela"
-                value={alignment}
-                onChange={(event) => {
-                  setAlignment(event.target.value)
-                  setPage(1)
-                }}
-              >
-                <option value="">Todas as situações</option>
-                {Object.entries(alignmentNames).map(([id, name]) => (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                label="Situação do perfil"
-                value={archived ? 'true' : 'false'}
-                onChange={(event) => {
-                  setArchived(event.target.value === 'true')
-                  setPage(1)
-                }}
-              >
-                <option value="false">Ativos</option>
-                <option value="true">Arquivados</option>
-              </Select>
-            </>
-          )}
         </div>
-        {companyView && companies.isPending && (
-          <p role="status">Carregando empresas…</p>
-        )}
-        {companyView && companies.error && (
+        {listRequest.isPending && <p role="status">Carregando empresas…</p>}
+        {listRequest.error && (
           <Notice tone="error">
-            {getErrorPresentation(companies.error).message}
-            <Button onClick={() => void companies.refetch()}>
+            {getErrorPresentation(listRequest.error).message}
+            <Button onClick={() => void listRequest.refetch()}>
               Tentar novamente
             </Button>
           </Notice>
         )}
-        {companyView && companies.data && (
+        {companyPage && (
           <>
             <div className="overflow-x-auto mt-5">
               <table className="w-full text-left text-sm">
@@ -376,7 +273,7 @@ export default function HonorariosClients(props: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {companies.data.results.map((company) => {
+                  {companyPage.results.map((company) => {
                     const financial = company.financialProfile
                     const open = () => {
                       if (financial) {
@@ -443,7 +340,7 @@ export default function HonorariosClients(props: Props) {
                 </tbody>
               </table>
             </div>
-            {!companies.data.results.length && (
+            {!companyPage.results.length && (
               <EmptyState
                 title="Nenhuma empresa encontrada"
                 description="Ajuste a busca ou o filtro de perfil financeiro."
@@ -451,146 +348,12 @@ export default function HonorariosClients(props: Props) {
             )}
             <Pagination
               page={page}
-              count={companies.data.count}
+              count={companyPage.count}
               onChange={setPage}
             />
           </>
         )}
 
-        {!companyView && clients.isPending && (
-          <p role="status" className="py-8 text-sm">
-            Carregando carteira…
-          </p>
-        )}
-        {!companyView && clients.error && (
-          <Notice tone="error">
-            {getErrorPresentation(clients.error).message}
-            <Button size="sm" onClick={() => void clients.refetch()}>
-              Tentar novamente
-            </Button>
-          </Notice>
-        )}
-        {!companyView && clients.data && !clients.data.results.length && (
-          <div className="mt-5">
-            <EmptyState
-              title="Nenhum cliente encontrado"
-              description="Cadastre um perfil de honorários para uma empresa existente ou ajuste os filtros."
-            />
-          </div>
-        )}
-        {!companyView && clients.data && clients.data.results.length > 0 && (
-          <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-180 text-left text-sm">
-              <thead className="border-b border-[var(--color-panel-border)] text-xs text-[var(--color-text-muted)]">
-                <tr>
-                  {[
-                    'Empresa',
-                    'Honorário atual',
-                    'Tabela',
-                    'Diferença',
-                    'Situação',
-                    'Reajuste',
-                    '',
-                  ].map((title, index) => (
-                    <th
-                      key={index}
-                      scope="col"
-                      className="px-3 py-3 font-semibold"
-                    >
-                      {title}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {!companyView &&
-                  clients.data.results.map((client) => (
-                    <tr
-                      key={client.id}
-                      data-fee-alignment={client.alignment}
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`Abrir ficha de ${client.company.name}`}
-                      onClick={() => {
-                        setSelected(client.id)
-                        setCreating(false)
-                        setImporting(false)
-                        setMessage('')
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          setSelected(client.id)
-                          setCreating(false)
-                          setImporting(false)
-                          setMessage('')
-                        }
-                      }}
-                      className="border-b border-[var(--color-panel-border)]"
-                    >
-                      <td className="px-3 py-4">
-                        <p className="font-bold text-[var(--color-text-strong)]">
-                          {client.company.name}
-                        </p>
-                        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                          {client.company.cnpj || 'CNPJ não informado'} ·{' '}
-                          {regimeNames[client.profile.regime]}
-                        </p>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 font-semibold">
-                        {money(client.currentFee)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4">
-                        {money(client.calculation.total)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4">
-                        {money(client.difference)}
-                      </td>
-                      <td className="px-3 py-4">
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-semibold ${client.alignment === 'abaixo' ? 'bg-[var(--status-pending-bg)] text-[var(--status-pending-text)]' : 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'}`}
-                        >
-                          {alignmentNames[client.alignment]}
-                        </span>
-                      </td>
-                      <td className="px-3 py-4">
-                        {client.adjustment?.notice ? (
-                          <span className="font-semibold text-[var(--status-pending-text)]">
-                            {(client.adjustment.days ?? 0) < 0
-                              ? 'Vencido'
-                              : 'Próximo'}{' '}
-                            · {date(client.adjustment.dueDate)}
-                          </span>
-                        ) : (
-                          date(client.adjustment?.dueDate)
-                        )}
-                      </td>
-                      <td className="px-3 py-4">
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setSelected(client.id)
-                            setCreating(false)
-                            setImporting(false)
-                            setMessage('')
-                          }}
-                        >
-                          Ver perfil
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {!companyView && clients.data && (
-          <Pagination
-            page={page}
-            count={clients.data.count}
-            onChange={setPage}
-          />
-        )}
         <p className="mt-3 text-xs text-[var(--color-text-muted)]">
           Diferença = honorário atual menos o valor sugerido. Tabela versão{' '}
           {configuration.version}.
@@ -602,6 +365,8 @@ export default function HonorariosClients(props: Props) {
 
 function ClientForm({
   initialCompany,
+  onCompanyChange,
+  onBusyChange,
   configuration,
   canEdit,
   onDenied,
@@ -610,6 +375,8 @@ function ClientForm({
   onCancel,
 }: Props & {
   initialCompany?: HonorariosCompanyOption | null
+  onCompanyChange?: (company: HonorariosCompanyOption | null) => void
+  onBusyChange?: (busy: boolean) => void
   client?: HonorariosClient
   onSaved: (client: HonorariosClient) => void
   onCancel: () => void
@@ -627,6 +394,10 @@ function ClientForm({
   const [contact, setContact] = useState(client?.contact ?? '')
   const [notes, setNotes] = useState(client?.notes ?? '')
   const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    onBusyChange?.(busy)
+    return () => onBusyChange?.(false)
+  }, [busy, onBusyChange])
   const [error, setError] = useState('')
   const [conflict, setConflict] = useState(false)
   const request = useRef<AbortController | null>(null)
@@ -677,41 +448,57 @@ function ClientForm({
     }
   }
   return (
-    <Panel
-      title={
-        client ? 'Editar perfil de honorários' : 'Novo perfil de honorários'
-      }
-      actions={
-        <Button onClick={onCancel} disabled={busy}>
-          Cancelar
-        </Button>
-      }
-    >
-      <form className="space-y-5" onSubmit={(event) => void save(event)}>
-        {error && <Notice tone="error">{error}</Notice>}
-        {conflict && (
-          <Notice tone="error">
-            O registro mudou ou não pode ser editado no estado atual. Feche a
-            edição e consulte novamente o perfil antes de tentar salvar.
-          </Notice>
-        )}
-        <fieldset disabled={busy || conflict} className="space-y-5">
-          {client ? (
-            <div className="rounded-[var(--radius-control)] bg-[var(--color-panel-soft-bg)] p-4 text-sm">
-              <strong>{client.company.name}</strong>
-              <p className="mt-1 text-[var(--color-text-muted)]">
-                CNPJ: {client.company.cnpj || 'Não informado'} · Empresa
-                vinculada, sem alteração do cadastro central.
-              </p>
-            </div>
-          ) : (
+    <form className="hon-financial-form" onSubmit={(event) => void save(event)}>
+      {error && <Notice tone="error">{error}</Notice>}
+      {conflict && (
+        <Notice tone="error">
+          O registro mudou ou não pode ser editado no estado atual. Feche a
+          edição e consulte novamente o perfil antes de tentar salvar.
+        </Notice>
+      )}
+      <fieldset disabled={busy || conflict} className="hon-financial-fields">
+        {company ? (
+          <section
+            className="hon-financial-identity"
+            aria-label="Empresa vinculada"
+          >
+            <dl>
+              <div>
+                <dt>CNPJ</dt>
+                <dd>
+                  {company.cnpj
+                    ? company.cnpj.replace(
+                        /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+                        '$1.$2.$3/$4-$5',
+                      )
+                    : 'Não informado'}
+                </dd>
+              </div>
+              <div>
+                <dt>Código</dt>
+                <dd>{company.code || 'Não informado'}</dd>
+              </div>
+            </dl>
+            <Link to={`/cadastro-empresas/${encodeURIComponent(company.id)}`}>
+              Cadastro geral da empresa ↗
+            </Link>
+          </section>
+        ) : (
+          <section className="hon-financial-choice">
+            {' '}
             <CompanyPicker
               value={company}
-              onChange={setCompany}
+              onChange={(next) => {
+                setCompany(next)
+                onCompanyChange?.(next)
+              }}
               onDenied={onDenied}
             />
-          )}
-          <div className="grid gap-4 sm:grid-cols-2">
+          </section>
+        )}
+        <section className="hon-financial-contract">
+          <h3>Contrato financeiro</h3>
+          <div className="hon-financial-contract-grid">
             <CurrencyField
               label="Honorário atual (R$)"
               required
@@ -732,34 +519,47 @@ function ClientForm({
               onChange={(event) => setContact(event.target.value)}
             />
             <Textarea
+              className="hon-financial-notes"
               label="Observações internas"
               maxLength={5000}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
             />
           </div>
+        </section>
+        <section className="hon-financial-pricing">
+          <h3>Perfil de cálculo</h3>
           <ProfileFields
             params={configuration.params}
             profile={profile}
             onChange={setProfile}
           />
-        </fieldset>
-        <div className="flex justify-end">
-          <Button
-            tone="primary"
-            type="submit"
-            disabled={busy || conflict || !company}
-          >
-            {busy ? 'Salvando…' : 'Salvar perfil'}
-          </Button>
-        </div>
-      </form>
-    </Panel>
+        </section>
+      </fieldset>
+      <footer className="hon-financial-actions">
+        <Button onClick={onCancel} disabled={busy}>
+          Cancelar
+        </Button>
+        <Button
+          tone="primary"
+          type="submit"
+          disabled={busy || conflict || !company}
+        >
+          {busy ? 'Salvando…' : 'Salvar perfil'}
+        </Button>
+      </footer>
+    </form>
   )
 }
 
 function ClientDetails(
-  props: Props & { id: string; onClose: () => void; onChanged: () => void },
+  props: Props & {
+    id: string
+    onClose: () => void
+    onChanged: () => void
+    onCompanyResolved: (company: HonorariosCompanyOption) => void
+    onBusyChange: (busy: boolean) => void
+  },
 ) {
   const {
     id,
@@ -767,6 +567,8 @@ function ClientDetails(
     onDenied,
     onClose,
     onChanged,
+    onCompanyResolved,
+    onBusyChange,
     configuration,
     canEdit,
     canManage,
@@ -777,6 +579,9 @@ function ClientDetails(
     queryFn: ({ signal }) => honorariosService.client(id, signal),
     retry: false,
   })
+  useEffect(() => {
+    if (detail.data?.company) onCompanyResolved(detail.data.company)
+  }, [detail.data?.company, onCompanyResolved])
   const [editing, setEditing] = useState(false)
   const [history, setHistory] = useState(false)
   const [action, setAction] = useState<'adjust' | 'archive' | 'restore' | null>(
@@ -784,6 +589,10 @@ function ClientDetails(
   )
   const [mode, setMode] = useState<HonorariosAdjustmentMode>('indice')
   const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    onBusyChange(busy)
+    return () => onBusyChange(false)
+  }, [busy, onBusyChange])
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const request = useRef<AbortController | null>(null)
@@ -900,6 +709,7 @@ function ClientDetails(
         key={`${id}:${client.version}`}
         {...props}
         client={client}
+        onBusyChange={onBusyChange}
         onCancel={() => {
           setEditing(false)
           void detail.refetch()
@@ -908,14 +718,7 @@ function ClientDetails(
       />
     )
   return (
-    <Panel
-      title={client.company.name}
-      actions={
-        <Button onClick={onClose} disabled={busy}>
-          Fechar perfil
-        </Button>
-      }
-    >
+    <div className="hon-financial-detail">
       <div className="space-y-5">
         {error && <Notice tone="error">{error}</Notice>}
         {message && <Notice tone="info">{message}</Notice>}
@@ -1138,7 +941,7 @@ function ClientDetails(
           />
         )}
       </div>
-    </Panel>
+    </div>
   )
 }
 

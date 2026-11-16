@@ -406,7 +406,11 @@ export default function HonorariosLayout({
             tabIndex={-1}
             className="honorarios-workspace workspace-main flex-1 px-4 py-4 outline-none sm:px-6 sm:py-5 lg:px-8"
           >
-            <WorkspaceBar title={title} meta={<Badge>{roleLabel}</Badge>} />
+            <WorkspaceBar
+              title={title}
+              meta={<Badge>{roleLabel}</Badge>}
+              actions={<div id="honorarios-page-actions" />}
+            />
             {description && (
               <p className="-mt-2 mb-5 text-sm text-[var(--color-text-muted)]">
                 {description}

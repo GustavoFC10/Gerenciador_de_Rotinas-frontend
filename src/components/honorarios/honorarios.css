@@ -1,6 +1,138 @@
 .honorarios-workspace {
   font-size: 14px;
 }
+.hon-client-toolbar {
+  max-width: 42rem;
+  margin-bottom: 16px;
+}
+
+/* Company context stays fixed; this form edits only the financial profile. */
+.hon-financial-dialog .ui-dialog-body {
+  padding: 0;
+}
+.hon-financial-dialog .ui-dialog-header {
+  align-items: center;
+}
+.hon-financial-dialog .ui-dialog-header h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.35;
+}
+.hon-financial-form {
+  min-width: 0;
+}
+.hon-financial-choice,
+.hon-financial-detail {
+  padding: 24px;
+}
+.hon-financial-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.hon-financial-form > [role='alert'],
+.hon-financial-form > [role='status'] {
+  margin: 16px 24px;
+}
+.hon-financial-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 24px;
+  background: var(--color-panel-soft-bg);
+  border-bottom: 1px solid var(--color-divider);
+}
+.hon-financial-identity dl {
+  display: flex;
+  gap: 36px;
+  margin: 0;
+}
+.hon-financial-identity dt {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+.hon-financial-identity dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hon-financial-identity a {
+  font-size: 12px;
+  color: var(--color-brand);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.hon-financial-contract,
+.hon-financial-pricing {
+  padding: 22px 24px;
+}
+.hon-financial-contract {
+  border-bottom: 1px solid var(--color-divider);
+}
+.hon-financial-contract > h3,
+.hon-financial-pricing > h3 {
+  font-size: 15px;
+  font-weight: 650;
+  margin: 0 0 18px;
+  color: var(--color-text-strong);
+}
+.hon-financial-contract-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
+  align-items: start;
+}
+.hon-financial-notes {
+  grid-column: 1/-1;
+}
+.hon-financial-contract-grid > label:has(input[maxlength='500']) {
+  grid-column: 1/-1;
+}
+.hon-financial-notes textarea {
+  min-height: 76px;
+}
+.hon-financial-pricing .hon-profile-fields > section {
+  padding: 20px 0;
+}
+.hon-financial-pricing .hon-profile-fields > section:first-of-type {
+  padding-top: 0;
+}
+.hon-financial-pricing .hon-profile-fields > section:last-child {
+  padding-bottom: 0;
+}
+.hon-financial-pricing .hon-field-grid > label:has(select) {
+  grid-column: 1/-1;
+}
+.hon-financial-pricing .hon-toggle {
+  margin-top: 12px;
+}
+.hon-financial-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  background: var(--color-panel-soft-bg);
+  border-top: 1px solid var(--color-divider);
+}
+.hon-financial-form > .hon-financial-fields > .min-w-0 {
+  padding: 24px;
+}
+@media (max-width: 700px) {
+  .hon-financial-identity {
+    flex-wrap: wrap;
+  }
+  .hon-financial-contract-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .hon-quote-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
