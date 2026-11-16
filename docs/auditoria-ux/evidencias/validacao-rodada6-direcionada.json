@@ -1,0 +1,18 @@
+{
+  "checks": [
+    {
+      "name": "P08: página completa, link direto e contexto preservado",
+      "pass": true
+    },
+    {
+      "name": "P18: janela de Rotinas preserva lista e aponta para página geral",
+      "pass": true
+    },
+    {
+      "name": "P16: os dois grupos iniciam abertos e continuam recolhíveis",
+      "pass": true
+    }
+  ],
+  "exceptions": [],
+  "network": []
+}

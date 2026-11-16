@@ -1,0 +1,45 @@
+{
+  "before": {
+    "top": 562,
+    "height": 158,
+    "fieldRows": [
+      {
+        "text": "Faturamento mensal (R$)",
+        "y": 364
+      },
+      {
+        "text": "Funcionários",
+        "y": 364
+      }
+    ]
+  },
+  "during": {
+    "top": 326,
+    "height": 158,
+    "fieldRows": [
+      {
+        "text": "Faturamento mensal (R$)",
+        "y": 364
+      },
+      {
+        "text": "Funcionários",
+        "y": 364
+      }
+    ]
+  },
+  "after": {
+    "top": 562,
+    "height": 158,
+    "fieldRows": [
+      {
+        "text": "Faturamento mensal (R$)",
+        "y": 364
+      },
+      {
+        "text": "Funcionários",
+        "y": 364
+      }
+    ]
+  },
+  "exceptions": []
+}

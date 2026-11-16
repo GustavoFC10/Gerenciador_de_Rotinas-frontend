@@ -27,20 +27,20 @@ export const focusRing =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]'
 
 export const controlSize = {
-  sm: 'min-h-8 px-2.5 text-xs',
-  md: 'min-h-9 px-3 text-sm',
-  lg: 'min-h-10 px-4 text-sm',
+  sm: 'ui-button--sm',
+  md: 'ui-button--md',
+  lg: 'ui-button--lg',
 }
 
 export const buttonTone = {
   primary:
-    'bg-[var(--color-button-primary-bg)] text-[var(--color-button-primary-text)] hover:bg-[var(--color-button-primary-hover-bg)] disabled:opacity-60',
+    'border border-transparent bg-[var(--color-button-primary-bg)] text-[var(--color-button-primary-text)] hover:bg-[var(--color-button-primary-hover-bg)] disabled:opacity-60',
   neutral:
     'border border-[var(--color-button-neutral-border)] bg-[var(--color-button-neutral-bg)] text-[var(--color-button-neutral-text)] hover:bg-[var(--color-button-neutral-hover-bg)]',
   selected:
-    'bg-[var(--color-brand-soft)] text-[var(--color-brand)] ring-1 ring-[var(--color-accent)]',
+    'border border-[var(--color-brand-border)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]',
   ghost:
-    'text-[var(--color-text-muted)] hover:bg-[var(--color-panel-soft-bg)] hover:text-[var(--color-text-strong)]',
+    'border border-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-panel-soft-bg)] hover:text-[var(--color-text-strong)]',
 }
 
 interface StatusToneDefinition {
@@ -105,14 +105,24 @@ export const statusTone: Record<RoutineStatus, StatusToneDefinition> = {
   },
   no_movement: {
     label: 'Sem movimento',
-    dot: 'bg-[var(--color-brand)]',
+    dot: 'bg-[var(--status-no-movement-strong-bg)]',
     surface:
-      'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]',
-    card: 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] hover:bg-[var(--color-accent-soft)]',
-    accent: 'bg-[var(--color-brand)]',
-    border: 'border-l-[var(--color-brand)]',
-    code: 'bg-[var(--color-accent-soft)] text-[var(--color-brand)]',
+      'border-[var(--status-no-movement-border)] bg-[var(--status-no-movement-bg)] text-[var(--status-no-movement-text)]',
+    card: 'border-[var(--status-no-movement-border)] bg-[var(--status-no-movement-bg)] hover:bg-[var(--status-no-movement-hover-bg)]',
+    accent: 'bg-[var(--status-no-movement-strong-bg)]',
+    border: 'border-l-[var(--status-no-movement-border)]',
+    code: 'bg-[var(--status-no-movement-code-bg)] text-[var(--status-no-movement-text)]',
     field:
-      'border-[var(--color-brand)] bg-[var(--color-list-field-bg)] focus:border-[var(--color-brand)] focus:ring-[var(--color-focus-ring)]',
+      'border-[var(--status-no-movement-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--status-no-movement-border)] focus:ring-[var(--color-focus-ring)]',
   },
 }
+
+/** Commercial fee comparison; these tones do not represent execution status. */
+export const feeAlignmentTone = {
+  abaixo:
+    'border-[var(--color-fee-below-border)] bg-[var(--color-fee-below-bg)] text-[var(--color-fee-below)]',
+  alinhado:
+    'border-[var(--color-fee-aligned-border)] bg-[var(--color-fee-aligned-bg)] text-[var(--color-fee-aligned)]',
+  acima:
+    'border-[var(--color-fee-above-border)] bg-[var(--color-fee-above-bg)] text-[var(--color-fee-above)]',
+} as const

@@ -1,0 +1,614 @@
+// Local visual review derived from ProcessMovements.tsx; production remains unchanged.
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import logoUrl from '../../../src/assets/jaralcon-report-logo.png'
+import { useOverlayDialog } from '../../../src/hooks/useOverlayDialog'
+import { processQueryKeys } from '../../../src/query/processQueryKeys'
+import type { OrganizationQueryScope } from '../../../src/query/queryKeys'
+import { processService } from '../../../src/services/processService'
+import { isApiError } from '../../../src/services/httpClient'
+import {
+  downloadProcessReportPdf,
+  processReportSummary,
+} from './processReportPdfPreview'
+import type {
+  ProcessCatalog,
+  ProcessMonthlyReport,
+  ProcessMovementItem,
+} from '../../../src/types/processes'
+import {
+  formatBRL,
+  monthLabel,
+  shiftMonth,
+} from '../../../src/utils/processPresentation'
+import ProcessIcon from '../../../src/components/processes/ProcessIcon'
+import ProcessQueryError from '../../../src/components/processes/ProcessQueryError'
+import ProcessTypeBadge from '../../../src/components/processes/ProcessTypeBadge'
+
+interface Props {
+  scope: OrganizationQueryScope
+  catalog: ProcessCatalog
+  month: string
+  authorName: string
+  onMonth: (month: string) => void
+  onOpen: (id: string) => void
+  onUnavailable?: (error: unknown) => void
+}
+
+export default function ProcessMovementsPreview({
+  scope,
+  catalog,
+  month,
+  authorName,
+  onMonth,
+  onOpen,
+  onUnavailable,
+}: Props) {
+  const [showReport, setShowReport] = useState(false)
+  const [denied, setDenied] = useState<{
+    context: string
+    error: unknown
+  } | null>(null)
+  const queryClient = useQueryClient()
+  const context = `${scope.organizationId}:${scope.membershipId}:${month}`
+  const retainedError = denied?.context === context ? denied.error : null
+  const query = useQuery({
+    retry: false,
+    refetchOnWindowFocus: false,
+    enabled: !retainedError,
+    queryKey: processQueryKeys.report(scope, month),
+    queryFn: ({ signal }) =>
+      processService
+        .monthlyReport(month, signal)
+        .then((response) => response.data),
+  })
+  const error = retainedError ?? query.error
+  const report = error ? undefined : query.data
+  useEffect(() => {
+    if (error) setShowReport(false)
+  }, [error])
+  useEffect(() => {
+    if (!isApiError(query.error) || ![403, 404].includes(query.error.status))
+      return
+    setDenied({ context, error: query.error })
+    onUnavailable?.(query.error)
+    const queryKey = processQueryKeys.report(scope, '').slice(0, -1)
+    void queryClient.cancelQueries({ queryKey })
+    queryClient.removeQueries({ queryKey })
+  }, [query.error, context, onUnavailable, queryClient, scope])
+  return (
+    <>
+      <div className="lhead">
+        <div className="tt">
+          <h1>Movimentações Empresariais</h1>
+          <p>
+            Ganhos de honorários mensais x honorários perdidos, pelo mês de
+            abertura do processo.
+          </p>
+        </div>
+        <div className="process-actions">
+          <button
+            className="btn"
+            aria-label="Atualizar movimentações"
+            disabled={query.isFetching || !!error}
+            onClick={() => void query.refetch()}
+          >
+            <ProcessIcon name="refresh" size={16} />
+          </button>
+          <button
+            className="btn primary"
+            onClick={() => setShowReport(true)}
+            disabled={!report || query.isFetching}
+          >
+            <ProcessIcon name="pen" size={16} />
+            Relatório do mês
+          </button>
+          <div className="mnav">
+            <button
+              className="icon-btn"
+              onClick={() => onMonth(shiftMonth(month, -1))}
+              aria-label="Mês anterior"
+            >
+              <span className="process-rotate">
+                <ProcessIcon name="chevr" />
+              </span>
+            </button>
+            <label>
+              <span className="sr-only">Mês das movimentações</span>
+              <input
+                aria-label="Mês das movimentações"
+                type="month"
+                min="1900-01"
+                max="9999-12"
+                value={month}
+                onChange={(event) => {
+                  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(event.target.value))
+                    onMonth(event.target.value)
+                }}
+              />
+            </label>
+            <button
+              className="icon-btn"
+              onClick={() => onMonth(shiftMonth(month, 1))}
+              aria-label="Próximo mês"
+            >
+              <ProcessIcon name="chevr" />
+            </button>
+          </div>
+        </div>
+      </div>
+      {query.isPending && !error && (
+        <div className="panel empty" role="status">
+          Carregando movimentações…
+        </div>
+      )}
+      {!!error && (
+        <ProcessQueryError
+          error={error}
+          title="Não foi possível carregar movimentações"
+          retry={() => {
+            if (retainedError) setDenied(null)
+            else void query.refetch()
+          }}
+        />
+      )}
+      {query.isFetching && report && (
+        <p role="status">Atualizando movimentações…</p>
+      )}
+      {report && (
+        <>
+          <ReportMetrics report={report} />
+          <div className="mgrid">
+            <MovementList
+              title="Ganhos de honorários"
+              description="Aberturas, reativações, transformações MEI → ME, clientes de outro escritório e aumentos de honorários"
+              items={report.entries}
+              total={report.gain}
+              sign={1}
+              catalog={catalog}
+              onOpen={onOpen}
+            />
+            <MovementList
+              title="Honorários perdidos"
+              description="Baixas, paralisações, inatividades, saídas, exclusões e reduções de honorários"
+              items={report.exits}
+              total={report.loss}
+              sign={-1}
+              catalog={catalog}
+              onOpen={onOpen}
+            />
+          </div>
+          <section className="panel process-section">
+            <div className="panel-h">
+              <div>
+                <h2>Perdas por tipo de processo</h2>
+                <p className="ph-sub">
+                  Honorário mensal perdido em {monthLabel(month)}
+                </p>
+              </div>
+            </div>
+            <LossBreakdown report={report} catalog={catalog} />
+          </section>
+          <section className="panel process-section">
+            <div className="panel-h">
+              <div>
+                <h2>Últimos 12 meses</h2>
+                <p className="ph-sub">
+                  <span className="lg up" /> Ganhos de honorários{' '}
+                  <span className="lg down" /> Honorários perdidos
+                </p>
+              </div>
+            </div>
+            <div className="mchart-wrap">
+              <HistoryChart report={report} />
+            </div>
+          </section>
+          {showReport && (
+            <ReportDialog
+              report={report}
+              catalog={catalog}
+              authorName={authorName}
+              onClose={() => setShowReport(false)}
+            />
+          )}
+        </>
+      )}
+    </>
+  )
+}
+
+function movementCount(count: number) {
+  return `${count} ${count === 1 ? 'movimentação' : 'movimentações'}`
+}
+
+function ReportMetrics({ report }: { report: ProcessMonthlyReport }) {
+  return (
+    <div className="scards">
+      <div className="scard completed">
+        <span>Ganhos de honorários</span>
+        <b className="num">+ {formatBRL(report.gain)}</b>
+        <small>{movementCount(report.entries.length)} de ganho · por mês</small>
+      </div>
+      <div className="scard error">
+        <span>Honorários perdidos</span>
+        <b className="num">− {formatBRL(report.loss)}</b>
+        <small>{movementCount(report.exits.length)} de perda · por mês</small>
+      </div>
+      <div
+        className={`scard ${Number(report.balance) >= 0 ? 'completed' : 'error'}`}
+      >
+        <span>Saldo mensal</span>
+        <b className="num">
+          {Number(report.balance) > 0 ? '+ ' : ''}
+          {formatBRL(report.balance)}
+        </b>
+        <small>
+          {Number(report.balance) >= 0
+            ? 'receita recorrente acrescentada'
+            : 'receita recorrente reduzida'}
+        </small>
+      </div>
+      {report.missingValues > 0 && (
+        <div className="scard progress">
+          <span>Valores não informados</span>
+          <b className="num">{report.missingValues}</b>
+          <small>processos fora dos totais</small>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MovementList({
+  title,
+  description,
+  items,
+  total,
+  sign,
+  catalog,
+  onOpen,
+}: {
+  title: string
+  description: string
+  items: ProcessMovementItem[]
+  total: string
+  sign: number
+  catalog: ProcessCatalog
+  onOpen: (id: string) => void
+}) {
+  return (
+    <section className="panel">
+      <div className="panel-h">
+        <div>
+          <h2>{title}</h2>
+          <p className="ph-sub">{description}</p>
+        </div>
+        <span className={`pill ${sign > 0 ? 'okp' : 'errp'}`}>
+          {sign > 0 ? '+' : '−'} {formatBRL(total)}
+        </span>
+      </div>
+      {items.length ? (
+        [...items]
+          .sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0))
+          .map((item) => (
+            <button
+              key={item.processId}
+              className="mrow"
+              onClick={() => onOpen(item.processId)}
+            >
+              <span className="nm">
+                <b>{item.empresa}</b>
+                <small>
+                  <ProcessTypeBadge catalog={catalog} tipo={item.tipo} />
+                </small>
+              </span>
+              <span
+                className={`mv ${item.value == null ? 'none' : sign > 0 ? 'up' : 'down'}`}
+              >
+                {item.value == null
+                  ? 'Valor não informado'
+                  : `${sign > 0 ? '+ ' : '− '}${formatBRL(item.value)}`}
+                {item.value != null && <small>/mês</small>}
+              </span>
+            </button>
+          ))
+      ) : (
+        <div className="empty small">
+          <p>
+            {sign > 0
+              ? 'Nenhum ganho de honorários neste mês.'
+              : 'Nenhuma perda de honorário neste mês.'}
+          </p>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function LossBreakdown({
+  report,
+  catalog,
+}: {
+  report: ProcessMonthlyReport
+  catalog: ProcessCatalog
+}) {
+  const types = Object.entries(report.lossesByType).sort(
+    (a, b) => Number(b[1]) - Number(a[1]),
+  )
+  const maximum = Math.max(1, ...types.map(([, amount]) => Number(amount)))
+  return types.length ? (
+    <div className="mot">
+      {types.map(([type, amount]) => (
+        <div key={type} className="mot-r">
+          <span className="ml">
+            <ProcessTypeBadge catalog={catalog} tipo={type} />
+            <small>
+              {movementCount(
+                report.exits.filter((item) => item.tipo === type).length,
+              )}
+            </small>
+          </span>
+          <span className="mt">
+            <i style={{ width: `${(Number(amount) / maximum) * 100}%` }} />
+          </span>
+          <b className="num">{formatBRL(amount)}</b>
+          <em className="num">
+            {Number(report.loss)
+              ? Math.round((Number(amount) / Number(report.loss)) * 100)
+              : 0}
+            %
+          </em>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="empty small">
+      <p>Nenhuma perda neste mês.</p>
+    </div>
+  )
+}
+
+function HistoryChart({
+  report,
+  slots = 12,
+}: {
+  report: ProcessMonthlyReport
+  slots?: number
+}) {
+  const maximum = Math.max(
+    1,
+    ...report.history.flatMap((item) => [Number(item.gain), Number(item.loss)]),
+  )
+  return (
+    <svg
+      viewBox="0 0 720 210"
+      className="mchart"
+      role="img"
+      aria-label={`Ganhos de honorários e honorários perdidos nos últimos ${slots} meses`}
+    >
+      <line x1="8" x2="712" y1="176" y2="176" stroke="var(--panel-border)" />
+      {report.history.map((item, index) => {
+        const x = 8 + index * (704 / slots) + 704 / (slots * 2)
+        const gain = (Number(item.gain) / maximum) * 150
+        const loss = (Number(item.loss) / maximum) * 150
+        return (
+          <g key={item.month}>
+            {item.month === report.month && (
+              <rect
+                x={x - 27}
+                y="4"
+                width="54"
+                height="192"
+                rx="6"
+                fill="var(--nav-active)"
+              />
+            )}
+            <rect
+              x={x - 19}
+              y={176 - gain}
+              width="18"
+              height={gain}
+              rx="3"
+              fill="var(--ok-strong)"
+            >
+              <title>
+                {monthLabel(item.month)}: novos {formatBRL(item.gain)}
+              </title>
+            </rect>
+            <rect
+              x={x + 1}
+              y={176 - loss}
+              width="18"
+              height={loss}
+              rx="3"
+              fill="var(--err-strong)"
+            >
+              <title>
+                {monthLabel(item.month)}: perdidos {formatBRL(item.loss)}
+              </title>
+            </rect>
+            <text
+              x={x}
+              y="194"
+              textAnchor="middle"
+              fontSize="11"
+              fontWeight={item.month === report.month ? 800 : 600}
+              fill="var(--text-muted)"
+            >
+              {monthLabel(item.month).split(' ')[0].slice(0, 3)}
+            </text>
+            {(index === 0 || item.month.endsWith('-01')) && (
+              <text
+                x={x}
+                y="208"
+                textAnchor="middle"
+                fontSize="10"
+                fill="var(--text-subtle)"
+              >
+                {item.month.slice(0, 4)}
+              </text>
+            )}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+function ReportDialog({
+  report,
+  catalog,
+  authorName,
+  onClose,
+}: {
+  report: ProcessMonthlyReport
+  catalog: ProcessCatalog
+  authorName: string
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+  useOverlayDialog(ref, onClose)
+  async function save() {
+    setError('')
+    setIsSaving(true)
+    try {
+      await downloadProcessReportPdf(report, catalog, authorName)
+    } catch {
+      setError('Não foi possível gerar o PDF. Tente novamente.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+  return createPortal(
+    <div className="processes-module">
+      <div className="overlay" onClick={onClose} />
+      <div
+        ref={ref}
+        className="modal report"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="process-report-title"
+        tabIndex={-1}
+      >
+        <div className="rhero">
+          <img src={logoUrl} className="rlogo" alt="Jaralcon" />
+          <button
+            className="icon-btn rx"
+            data-overlay-close
+            aria-label="Fechar relatório"
+            onClick={onClose}
+          >
+            <ProcessIcon name="x" />
+          </button>
+          <div className="rkick">Movimentações Empresariais</div>
+          <h2 id="process-report-title">{monthLabel(report.month)}</h2>
+          <svg
+            className="rwave"
+            viewBox="0 0 820 30"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M0 24Q205 0 410 16T820 8"
+              fill="none"
+              stroke="#DEAC29"
+              strokeWidth="2"
+            />
+          </svg>
+        </div>
+        <div className="rbody">
+          <div className="process-report-metrics">
+            <ReportMetrics report={report} />
+          </div>
+          <p className="rsum">{processReportSummary(report)}</p>
+          <div className="rsec">
+            <h3>Evolução dos honorários</h3>
+            <HistoryChart
+              report={{ ...report, history: report.history.slice(-6) }}
+              slots={6}
+            />
+            <div className="rleg">
+              <span>
+                <i className="g" />
+                Ganhos de honorários
+              </span>
+              <span>
+                <i className="l" />
+                Honorários perdidos
+              </span>
+            </div>
+          </div>
+          <div className="rsec">
+            <h3>Ganhos de honorários</h3>
+            <ReportRows items={report.entries} catalog={catalog} sign={1} />
+          </div>
+          <div className="rsec">
+            <h3>Honorários perdidos</h3>
+            <ReportRows items={report.exits} catalog={catalog} sign={-1} />
+          </div>
+          {Object.keys(report.lossesByType).length > 0 && (
+            <div className="rsec">
+              <h3>Perdas por tipo de processo</h3>
+              <LossBreakdown report={report} catalog={catalog} />
+            </div>
+          )}
+          {report.missingValues > 0 && (
+            <p className="rmuted">
+              {report.missingValues} processos sem valor informado não entram
+              nos totais.
+            </p>
+          )}
+        </div>
+        <div className="m-foot process-report-footer">
+          <span role="alert" className="err-msg">
+            {error}
+          </span>
+          <button className="btn" onClick={onClose}>
+            Fechar
+          </button>
+          <button
+            className="btn primary rbtn"
+            onClick={() => void save()}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Gerando…' : 'Baixar PDF'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+function ReportRows({
+  items,
+  catalog,
+  sign,
+}: {
+  items: ProcessMovementItem[]
+  catalog: ProcessCatalog
+  sign: number
+}) {
+  return items.length ? (
+    items.map((item) => (
+      <div className="rr" key={item.processId}>
+        <div>
+          <b>{item.empresa}</b>
+          <small>
+            <ProcessTypeBadge catalog={catalog} tipo={item.tipo} />
+          </small>
+        </div>
+        <span className={item.value == null ? 'na' : sign > 0 ? 'up' : 'down'}>
+          {item.value == null
+            ? 'Valor não informado'
+            : `${sign > 0 ? '+ ' : '− '}${formatBRL(item.value)}`}
+        </span>
+      </div>
+    ))
+  ) : (
+    <p className="rmuted">Nenhuma movimentação no mês.</p>
+  )
+}

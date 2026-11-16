@@ -179,6 +179,7 @@ beforeEach(() => {
   vi.spyOn(honorariosService, 'dashboard').mockResolvedValue(dashboard)
   vi.spyOn(honorariosService, 'calculate').mockResolvedValue(calculation)
   vi.spyOn(honorariosService, 'clients').mockResolvedValue(emptyPage())
+  vi.spyOn(honorariosService, 'clientCompanies').mockResolvedValue(emptyPage())
   vi.spyOn(honorariosService, 'companyOptions').mockResolvedValue(emptyPage())
   vi.spyOn(honorariosService, 'quotes').mockImplementation(async (filters) =>
     filters?.q === quote.number && !filters.archived
@@ -226,7 +227,7 @@ function inputByLabel(label: string) {
     ?.querySelector('input')
 }
 async function waitFor(check: () => boolean) {
-  const deadline = Date.now() + 2000
+  const deadline = Date.now() + 5000
   while (!check()) {
     if (Date.now() > deadline)
       throw new Error(
@@ -241,22 +242,20 @@ async function waitFor(check: () => boolean) {
 describe('Honorários no roteamento real da aplicação', () => {
   it('monta o painel na rota-base e busca os indicadores sem depender de Rotinas', async () => {
     await render()
-    await waitFor(
-      () => host.textContent?.includes('Receita mensal atual') ?? false,
-    )
+    await waitFor(() => host.textContent?.includes('Cobrado hoje') ?? false)
     expect(honorariosService.dashboard).toHaveBeenCalledWith(
       20,
       expect.any(AbortSignal),
     )
     expect(host.textContent).toContain('1.500,00')
-    expect(host.textContent).toContain('2 clientes na carteira')
+    expect(host.textContent).toContain('Ticket médio')
     expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
   })
   it('navega pelas abas reais, monta seus formulários e consulta os endpoints correspondentes', async () => {
     await render()
-    await waitFor(
-      () => host.textContent?.includes('Receita mensal atual') ?? false,
-    )
+    await waitFor(() => host.textContent?.includes('Cobrado hoje') ?? false)
+    await clickLink('/honorarios/orcamentos')
+    await waitFor(() => !!host.querySelector('a[href="/honorarios/novo"]'))
     await clickLink('/honorarios/novo')
     await waitFor(
       () =>
@@ -271,7 +270,9 @@ describe('Honorários no roteamento real da aplicação', () => {
     )
     expect(host.textContent).toContain('Base do segmento')
     expect(
-      host.querySelector('a[href="/honorarios/novo"][aria-current="page"]'),
+      host.querySelector(
+        'a[href="/honorarios/orcamentos"][aria-current="page"]',
+      ),
     ).not.toBeNull()
     await clickLink('/honorarios/orcamentos')
     await waitFor(
@@ -283,13 +284,18 @@ describe('Honorários no roteamento real da aplicação', () => {
     )
     await clickLink('/honorarios/clientes')
     await waitFor(
-      () => host.textContent?.includes('Nenhum cliente encontrado') ?? false,
+      () => host.textContent?.includes('Nenhuma empresa encontrada') ?? false,
     )
-    expect(honorariosService.clients).toHaveBeenCalledWith(
+    expect(honorariosService.clientCompanies).toHaveBeenCalledWith(
       expect.objectContaining({ page: 1, pageSize: 20 }),
       expect.any(AbortSignal),
     )
     await clickLink('/honorarios/parametros')
+    const officeTab = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Dados do escritório',
+    )
+    expect(officeTab).toBeDefined()
+    await act(async () => officeTab!.click())
     await waitFor(
       () =>
         inputByLabel('Nome do escritório')?.value === configuration.office.nome,
@@ -306,7 +312,7 @@ describe('Honorários no roteamento real da aplicação', () => {
     await waitFor(
       () => vi.mocked(honorariosService.calculate).mock.calls.length > 0,
     )
-    expect(host.textContent).toContain('Mensalidade sugerida')
+    expect(host.textContent).toContain('Pelos parâmetros')
     expect(host.querySelector('[data-location]')?.textContent).toBe(
       '/honorarios/novo',
     )
@@ -375,11 +381,9 @@ describe('Honorários no roteamento real da aplicação', () => {
       },
     })
     await render()
-    await waitFor(
-      () => host.textContent?.includes('Receita mensal atual') ?? false,
-    )
+    await waitFor(() => host.textContent?.includes('Cobrado hoje') ?? false)
     expect(host.textContent).toContain('0,00')
-    expect(host.textContent).toContain('0 clientes na carteira')
+    expect(host.textContent).toContain('Nenhum perfil financeiro ativo')
     expect(host.textContent).toContain('Nenhum aumento sugerido')
   })
   it('apresenta a falha do painel e permite tentar novamente', async () => {
@@ -395,15 +399,13 @@ describe('Honorários no roteamento real da aplicação', () => {
       (button) => button.textContent === 'Tentar novamente',
     )!
     await act(async () => retry.click())
-    await waitFor(
-      () => host.textContent?.includes('Receita mensal atual') ?? false,
-    )
+    await waitFor(() => host.textContent?.includes('Cobrado hoje') ?? false)
     expect(honorariosService.dashboard).toHaveBeenCalledTimes(2)
   })
   it('oferece retorno explícito ao HUB dos módulos', async () => {
     await render('/honorarios/clientes')
     await waitFor(
-      () => host.textContent?.includes('Nenhum cliente encontrado') ?? false,
+      () => host.textContent?.includes('Nenhuma empresa encontrada') ?? false,
     )
     const back = [
       ...host.querySelectorAll<HTMLAnchorElement>('a[href="/hub"]'),

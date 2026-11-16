@@ -80,7 +80,7 @@ function RoutineListQuickActions({
               <span className="text-xs">{actionShortLabels[action]}</span>
             )}
             {showCounts && count > 0 && !showLabels && (
-              <span className="absolute -right-1.5 -top-1.5 grid min-w-4 place-items-center rounded-full bg-[var(--color-brand)] px-1 text-[9px] font-bold leading-4 text-white ring-2 ring-[var(--color-list-muted-bg)]">
+              <span className="absolute -right-1.5 -top-1.5 grid min-w-4 place-items-center rounded-full bg-[var(--color-brand)] px-1 text-[9px] font-bold leading-4 text-[var(--color-on-brand)] ring-2 ring-[var(--color-list-muted-bg)]">
                 {count}
               </span>
             )}

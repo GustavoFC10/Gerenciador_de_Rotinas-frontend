@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
+import './primitives.css'
 
 interface FloatingMenuProps {
   anchorRef: RefObject<HTMLElement | null>
@@ -143,7 +144,7 @@ function FloatingMenu({
       id={id}
       role="menu"
       aria-label={ariaLabel}
-      className={`fixed z-[130] max-h-[calc(100dvh-1rem)] overflow-y-auto ${className}`}
+      className={`ui-floating-menu fixed z-[130] max-h-[calc(100dvh-1rem)] overflow-y-auto ${className}`}
       style={style}
       data-floating-menu
     >

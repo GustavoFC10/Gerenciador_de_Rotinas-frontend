@@ -1,0 +1,31 @@
+{
+  "checks": [
+    {
+      "name": "P03 acabamento compacto mantém controles40px e reserva de erro",
+      "pass": true
+    },
+    {
+      "name": "P01 tema e abas originais são demonstráveis",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "footer": 739.390625,
+      "fields": [40, 40, 40],
+      "error": "16px"
+    },
+    {
+      "case": "1280",
+      "footer": 739.390625,
+      "scrollWidth": 1265,
+      "width": 1280
+    },
+    {
+      "case": "P01-dark-sidebar",
+      "bg": "rgb(17, 24, 39)"
+    }
+  ],
+  "exceptions": [],
+  "network": []
+}

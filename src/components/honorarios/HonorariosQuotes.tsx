@@ -1,3 +1,4 @@
+import CurrencyField from './CurrencyField'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
@@ -95,6 +96,7 @@ function useLatestQuote(
 }
 
 export function HonorariosQuotes({ scopeKey, onDenied }: Props) {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const page = Math.max(1, Number(searchParams.get('page')) || 1)
   const search = searchParams.get('q') ?? ''
@@ -123,17 +125,7 @@ export function HonorariosQuotes({ scopeKey, onDenied }: Props) {
     })
   }
   return (
-    <Panel
-      title="Orçamentos"
-      actions={
-        <Link
-          to="/honorarios/novo"
-          className="text-sm font-bold text-[var(--color-brand)]"
-        >
-          Abrir calculadora →
-        </Link>
-      }
-    >
+    <Panel>
       <div className="mb-5 grid items-end gap-4 sm:grid-cols-3">
         <TextField
           label="Buscar proposta"
@@ -188,7 +180,7 @@ export function HonorariosQuotes({ scopeKey, onDenied }: Props) {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="hon-quotes-table w-full text-left text-sm">
                 <thead className="text-xs text-[var(--color-text-muted)]">
                   <tr>
                     {[
@@ -209,6 +201,18 @@ export function HonorariosQuotes({ scopeKey, onDenied }: Props) {
                   {query.data.results.map((quote) => (
                     <tr
                       key={quote.id}
+                      tabIndex={0}
+                      role="link"
+                      aria-label={`Abrir orçamento ${quote.number}`}
+                      onClick={() =>
+                        navigate(`/honorarios/orcamentos/${quote.id}`)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          navigate(`/honorarios/orcamentos/${quote.id}`)
+                        }
+                      }}
                       className="border-t border-[var(--color-panel-border)]"
                     >
                       <td className="px-3 py-4 font-semibold">
@@ -340,6 +344,9 @@ function QuoteEditor({
   )
   const [start, setStart] = useState(saved?.inicioCobranca ?? 1)
   const [opening, setOpening] = useState(saved?.aberturaValor ?? '0.00')
+  const [openingEnabled, setOpeningEnabled] = useState(
+    Number(saved?.aberturaValor ?? 0) > 0,
+  )
   const [installments, setInstallments] = useState(saved?.aberturaParcelas ?? 1)
   const [offerPlans, setOfferPlans] = useState(!!saved?.plans.length)
   const [planValues, setPlanValues] = useState<Record<string, string>>(() =>
@@ -357,6 +364,11 @@ function QuoteEditor({
     configuration.version,
     onDenied,
   )
+  const lastCalculation = useRef(calculation.data)
+  useEffect(() => {
+    if (calculation.data) lastCalculation.current = calculation.data
+  }, [calculation.data])
+  const displayCalculation = calculation.data ?? lastCalculation.current
   const total = calculation.data?.calculation.total
   const finalValue = value === '' ? (total ?? '') : value
   const discount =
@@ -374,7 +386,7 @@ function QuoteEditor({
       validityDays,
       decimoTerceiro: decimo,
       inicioCobranca: start,
-      aberturaValor: Number(opening).toFixed(2),
+      aberturaValor: openingEnabled ? Number(opening).toFixed(2) : '0.00',
       aberturaParcelas: installments,
       offerPlans,
       planValues: offerPlans
@@ -417,7 +429,7 @@ function QuoteEditor({
     }
   }
   return (
-    <form onSubmit={submit} className="space-y-6">
+    <form onSubmit={submit} className="hon-quote-form space-y-6">
       {(showIntro || source) && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -451,17 +463,130 @@ function QuoteEditor({
           continuará disponível.
         </Notice>
       )}
-      <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <Panel title="Perfil da empresa">
-          <ProfileFields
-            profile={profile}
-            params={configuration.params}
-            onChange={setProfile}
-            disabled={locked}
-          />
-        </Panel>
-        <div className="space-y-6">
-          <Panel title="Composição do honorário">
+      <div className="hon-quote-layout">
+        <div className="hon-quote-fields">
+          {' '}
+          <Panel title="Dados do orçamento e cobrança">
+            <fieldset disabled={locked || !canEdit} className="space-y-5">
+              <div className="grid gap-5">
+                <div className="space-y-4">
+                  <TextField
+                    label="Empresa ou pessoa interessada"
+                    required
+                    maxLength={200}
+                    value={prospect}
+                    onChange={(e) => setProspect(e.target.value)}
+                  />
+                  <TextField
+                    label="Contato da negociação"
+                    maxLength={500}
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                  />
+                  <details>
+                    <summary className="cursor-pointer text-sm font-semibold text-[var(--color-brand)]">
+                      Vincular a uma empresa existente (opcional)
+                    </summary>
+                    <div className="mt-3">
+                      <CompanyPicker
+                        value={company}
+                        onChange={(next) => {
+                          setCompany(next)
+                          if (next && !prospect) setProspect(next.name)
+                        }}
+                        disabled={locked || !canEdit}
+                        onDenied={onDenied}
+                      />
+                      {company && (
+                        <Button
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => setCompany(null)}
+                        >
+                          Remover vínculo
+                        </Button>
+                      )}
+                    </div>
+                  </details>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <TextField
+                    label="Validade (dias)"
+                    type="number"
+                    min="1"
+                    max="365"
+                    required
+                    value={validityDays}
+                    onChange={(e) => setValidityDays(Number(e.target.value))}
+                  />
+                  <Select
+                    label="Início da cobrança"
+                    value={start}
+                    onChange={(e) => setStart(Number(e.target.value))}
+                  >
+                    <option value="0">No ato</option>
+                    <option value="1">1ª competência</option>
+                    <option value="2">2ª competência · benefício</option>
+                    <option value="3">3ª competência · benefício</option>
+                  </Select>
+                  <div className="sm:col-span-2">
+                    <label className="hon-toggle">
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        checked={openingEnabled}
+                        onChange={(event) =>
+                          setOpeningEnabled(event.target.checked)
+                        }
+                      />
+                      <span>Orçar honorário de abertura</span>
+                    </label>
+                  </div>
+                  {openingEnabled && (
+                    <>
+                      {' '}
+                      <CurrencyField
+                        label="Abertura de empresa (R$)"
+                        required
+                        value={opening}
+                        onValueChange={setOpening}
+                      />
+                      <TextField
+                        label="Parcelas da abertura"
+                        type="number"
+                        min="1"
+                        max="12"
+                        required
+                        value={installments}
+                        onChange={(e) =>
+                          setInstallments(Number(e.target.value))
+                        }
+                      />
+                    </>
+                  )}
+                  <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={decimo}
+                      onChange={(e) => setDecimo(e.target.checked)}
+                    />
+                    Honorário adicional anual (13 cobranças)
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+          </Panel>
+          <Panel title="Perfil de cálculo">
+            <ProfileFields
+              profile={profile}
+              params={configuration.params}
+              onChange={setProfile}
+              disabled={locked}
+            />
+          </Panel>
+        </div>
+        <div className="hon-quote-summary space-y-6">
+          <Panel>
             {calculation.isPending && (
               <p
                 role="status"
@@ -478,22 +603,31 @@ function QuoteEditor({
                 </Button>
               </Notice>
             ) : null}
-            {calculation.data && (
+            {displayCalculation && (
               <>
-                <div className="mb-5 rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] p-5">
+                <div className="mb-5 rounded-[var(--radius-control)] hon-proposal-price">
                   <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-brand)]">
-                    Mensalidade sugerida
+                    Pelos parâmetros
                   </p>
                   <p className="mt-2 text-3xl font-black text-[var(--color-brand)]">
-                    {money(total)}
+                    {money(displayCalculation.calculation.total)}
                   </p>
                   <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                    {money(calculation.data.calculation.anual)} por ano · Tabela
-                    v{calculation.data.paramsVersion}
+                    {money(displayCalculation.calculation.anual)} por ano ·
+                    Tabela v{displayCalculation.paramsVersion}
                   </p>
                 </div>
+                <CurrencyField
+                  label="Valor a propor (R$)"
+                  required
+                  value={
+                    finalValue || displayCalculation?.calculation.total || ''
+                  }
+                  disabled={locked || !canEdit}
+                  onValueChange={setValue}
+                />
                 <dl className="space-y-3 text-sm">
-                  {calculation.data.calculation.linhas.map((line, index) => (
+                  {displayCalculation.calculation.linhas.map((line, index) => (
                     <div key={index} className="flex justify-between gap-3">
                       <dt className="text-[var(--color-text-muted)]">
                         {line.label}
@@ -506,24 +640,14 @@ function QuoteEditor({
                 </dl>
                 {profile.usarHoras && (
                   <p className="mt-4 border-t border-[var(--color-panel-border)] pt-3 text-xs text-[var(--color-text-muted)]">
-                    Custo: {money(calculation.data.calculation.custo)} · Valor
-                    por horas: {money(calculation.data.calculation.valorHoras)}
+                    Custo: {money(displayCalculation.calculation.custo)} · Valor
+                    por horas:{' '}
+                    {money(displayCalculation.calculation.valorHoras)}
                   </p>
                 )}
               </>
             )}
-          </Panel>
-          <Panel title="Valor da proposta">
-            <TextField
-              label="Honorário mensal negociado (R$)"
-              type="number"
-              min="0"
-              step="0.01"
-              required
-              value={finalValue}
-              disabled={locked || !canEdit}
-              onChange={(e) => setValue(e.target.value)}
-            />
+
             {discount > configuration.params.descontoMax && (
               <div className="mt-3">
                 <Notice>
@@ -533,7 +657,7 @@ function QuoteEditor({
                 </Notice>
               </div>
             )}
-            {calculation.data?.plans.length ? (
+            {displayCalculation?.plans.length ? (
               <div className="mt-5 space-y-3">
                 <label className="flex gap-2 text-sm font-semibold">
                   <input
@@ -544,7 +668,7 @@ function QuoteEditor({
                   />
                   Ofertar planos
                 </label>
-                {calculation.data.plans.map((plan) => (
+                {displayCalculation.plans.map((plan) => (
                   <div
                     key={plan.id}
                     className="rounded-[var(--radius-control)] border border-[var(--color-panel-border)] p-3"
@@ -586,147 +710,62 @@ function QuoteEditor({
                   </div>
                 ))}
               </div>
+            ) : (
+              <label className="hon-toggle">
+                <input type="checkbox" role="switch" disabled checked={false} />
+                <span>Ofertar em 3 planos</span>
+                <small>Indisponível nos parâmetros atuais</small>
+              </label>
+            )}
+            {error ? (
+              <Notice tone="error">
+                {getErrorPresentation(error).message}
+                {isApiError(error) &&
+                  error.status === 409 &&
+                  ' Recarregue a revisão e confira os dados antes de tentar novamente.'}
+              </Notice>
             ) : null}
+            {locked && !saving && (
+              <Notice>
+                A tentativa foi preservada para reenviar os mesmos dados sem
+                duplicar a proposta.{' '}
+                <a
+                  href={
+                    source
+                      ? `/honorarios/orcamentos/${source.id}/revisar`
+                      : '/honorarios/novo'
+                  }
+                  className="underline"
+                >
+                  Descartar tentativa e iniciar nova criação
+                </a>
+              </Notice>
+            )}
+            {canEdit && (
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  A proposta salva será exibida para conferência.
+                </p>
+                <Button
+                  tone="primary"
+                  type="submit"
+                  disabled={
+                    saving || calculation.isPending || !calculation.data
+                  }
+                >
+                  {saving
+                    ? 'Salvando…'
+                    : locked
+                      ? 'Reenviar tentativa'
+                      : source
+                        ? 'Salvar nova revisão'
+                        : 'Salvar proposta'}
+                </Button>
+              </div>
+            )}
           </Panel>
         </div>
       </div>
-      <Panel title="Destinatário e condições comerciais">
-        <fieldset disabled={locked || !canEdit} className="space-y-5">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="space-y-4">
-              <TextField
-                label="Empresa ou pessoa interessada"
-                required
-                maxLength={200}
-                value={prospect}
-                onChange={(e) => setProspect(e.target.value)}
-              />
-              <TextField
-                label="Contato da negociação"
-                maxLength={500}
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-              />
-              <details>
-                <summary className="cursor-pointer text-sm font-semibold text-[var(--color-brand)]">
-                  Vincular a uma empresa existente (opcional)
-                </summary>
-                <div className="mt-3">
-                  <CompanyPicker
-                    value={company}
-                    onChange={(next) => {
-                      setCompany(next)
-                      if (next && !prospect) setProspect(next.name)
-                    }}
-                    disabled={locked || !canEdit}
-                    onDenied={onDenied}
-                  />
-                  {company && (
-                    <Button
-                      size="sm"
-                      className="mt-2"
-                      onClick={() => setCompany(null)}
-                    >
-                      Remover vínculo
-                    </Button>
-                  )}
-                </div>
-              </details>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TextField
-                label="Validade (dias)"
-                type="number"
-                min="1"
-                max="365"
-                required
-                value={validityDays}
-                onChange={(e) => setValidityDays(Number(e.target.value))}
-              />
-              <Select
-                label="Início da cobrança"
-                value={start}
-                onChange={(e) => setStart(Number(e.target.value))}
-              >
-                <option value="0">No ato</option>
-                <option value="1">1ª competência</option>
-                <option value="2">2ª competência · benefício</option>
-                <option value="3">3ª competência · benefício</option>
-              </Select>
-              <TextField
-                label="Abertura de empresa (R$)"
-                type="number"
-                min="0"
-                step="0.01"
-                required
-                value={opening}
-                onChange={(e) => setOpening(e.target.value)}
-              />
-              <TextField
-                label="Parcelas da abertura"
-                type="number"
-                min="1"
-                max="12"
-                required
-                value={installments}
-                onChange={(e) => setInstallments(Number(e.target.value))}
-              />
-              <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={decimo}
-                  onChange={(e) => setDecimo(e.target.checked)}
-                />
-                Honorário adicional anual (13 cobranças)
-              </label>
-            </div>
-          </div>
-        </fieldset>
-      </Panel>
-      {error ? (
-        <Notice tone="error">
-          {getErrorPresentation(error).message}
-          {isApiError(error) &&
-            error.status === 409 &&
-            ' Recarregue a revisão e confira os dados antes de tentar novamente.'}
-        </Notice>
-      ) : null}
-      {locked && !saving && (
-        <Notice>
-          A tentativa foi preservada para reenviar os mesmos dados sem duplicar
-          a proposta.{' '}
-          <a
-            href={
-              source
-                ? `/honorarios/orcamentos/${source.id}/revisar`
-                : '/honorarios/novo'
-            }
-            className="underline"
-          >
-            Descartar tentativa e iniciar nova criação
-          </a>
-        </Notice>
-      )}
-      {canEdit && (
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <p className="text-xs text-[var(--color-text-muted)]">
-            A proposta salva será exibida para conferência.
-          </p>
-          <Button
-            tone="primary"
-            type="submit"
-            disabled={saving || calculation.isPending || !calculation.data}
-          >
-            {saving
-              ? 'Salvando…'
-              : locked
-                ? 'Reenviar tentativa'
-                : source
-                  ? 'Salvar nova revisão'
-                  : 'Salvar proposta'}
-          </Button>
-        </div>
-      )}
     </form>
   )
 }

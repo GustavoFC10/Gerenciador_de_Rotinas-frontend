@@ -44,6 +44,8 @@ export function useOverlayDialog(
       dialog.querySelector<HTMLElement>('[data-overlay-close]') ?? dialog
     ).focus()
     function handleKeyDown(event: KeyboardEvent) {
+      // Only the active overlay owns the keyboard when dialogs are stacked.
+      if (dialog.inert || dialog.closest('[inert]')) return
       if (event.key === 'Escape') {
         event.preventDefault()
         event.stopImmediatePropagation()

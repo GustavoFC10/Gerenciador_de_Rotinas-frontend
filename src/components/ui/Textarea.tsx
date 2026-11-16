@@ -1,5 +1,5 @@
-import { focusRing } from '../../constants/designTokens'
 import type { ReactNode, TextareaHTMLAttributes } from 'react'
+import './primitives.css'
 
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: ReactNode
@@ -7,14 +7,9 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
 
 function Textarea({ label, className = '', ...props }: TextareaProps) {
   return (
-    <label
-      className={`block text-sm font-medium text-[var(--color-text-muted)] ${className}`}
-    >
-      {label && <span className="mb-1.5 block">{label}</span>}
-      <textarea
-        className={`w-full resize-y rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2 text-sm text-[var(--color-control-text)] outline-none transition placeholder:text-[var(--color-control-placeholder)] focus:border-[var(--color-control-focus)] focus:ring-2 focus:ring-[var(--color-focus-ring)] aria-invalid:border-[var(--status-error-border)] aria-invalid:focus:border-[var(--status-error-dot)] aria-invalid:focus:ring-[var(--status-error-soft-bg)] ${focusRing}`}
-        {...props}
-      />
+    <label className={`ui-field ${className}`}>
+      {label && <span className="ui-field-label">{label}</span>}
+      <textarea className="ui-control ui-textarea" {...props} />
     </label>
   )
 }

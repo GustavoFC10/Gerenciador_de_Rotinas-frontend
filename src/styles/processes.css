@@ -165,7 +165,7 @@
 }
 .processes-module .side-head:hover .logo {
   background: var(--brand);
-  color: #fff;
+  color: var(--color-on-brand);
 }
 .processes-module .side-head:focus-visible {
   outline: 2px solid var(--brand);
@@ -527,7 +527,7 @@
 .processes-module .btn.primary {
   background: var(--brand);
   border-color: var(--brand);
-  color: #fff;
+  color: var(--color-on-brand);
 }
 .processes-module .btn.primary:hover {
   background: var(--brand-hover);
@@ -1738,7 +1738,7 @@
 .processes-module .stage.cur .snum {
   background: var(--brand);
   border-color: var(--brand);
-  color: #fff;
+  color: var(--color-on-brand);
 }
 .processes-module .stage-h .tt {
   flex: 1;
@@ -1866,7 +1866,7 @@
 .processes-module .dec .on {
   background: var(--brand);
   border-color: var(--brand);
-  color: #fff;
+  color: var(--color-on-brand);
 }
 .processes-module .feed {
   padding: 4px 20px 16px;
@@ -1990,7 +1990,7 @@
 }
 .processes-module .seg button[aria-pressed='true'] {
   background: var(--brand);
-  color: #fff;
+  color: var(--color-on-brand);
 }
 .processes-module .seg button:disabled {
   cursor: not-allowed;
@@ -2596,7 +2596,7 @@
 }
 .processes-module .pill.brand {
   background: var(--brand);
-  color: #fff;
+  color: var(--color-on-brand);
   box-shadow: none;
 }
 .processes-module .prow.mine {
@@ -2999,7 +2999,7 @@
 .processes-module .chk[aria-pressed='true'] .box {
   background: var(--brand);
   border-color: var(--brand);
-  color: #fff;
+  color: var(--color-on-brand);
 }
 .processes-module .chk:focus {
   outline: none;

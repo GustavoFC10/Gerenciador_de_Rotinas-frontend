@@ -115,11 +115,11 @@ export const routineListStatusTone: Record<
       'border-[var(--status-completed-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--status-completed-dot)] focus:ring-[var(--color-focus-ring)]',
   },
   no_movement: {
-    card: 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] hover:bg-[var(--color-accent-soft)]',
-    accent: 'bg-[var(--color-brand)]',
-    border: 'border-l-[var(--color-brand)]',
-    code: 'bg-[var(--color-accent-soft)] text-[var(--color-brand)]',
+    card: 'border-[var(--status-no-movement-border)] bg-[var(--status-no-movement-bg)] hover:bg-[var(--status-no-movement-hover-bg)]',
+    accent: 'bg-[var(--status-no-movement-strong-bg)]',
+    border: 'border-l-[var(--status-no-movement-border)]',
+    code: 'bg-[var(--status-no-movement-code-bg)] text-[var(--status-no-movement-text)]',
     field:
-      'border-[var(--color-brand)] bg-[var(--color-list-field-bg)] focus:border-[var(--color-brand)] focus:ring-[var(--color-focus-ring)]',
+      'border-[var(--status-no-movement-border)] bg-[var(--color-list-field-bg)] focus:border-[var(--status-no-movement-border)] focus:ring-[var(--color-focus-ring)]',
   },
 }

@@ -3,6 +3,8 @@ import type {
   HonorariosAdjustmentInput,
   HonorariosCalculateResponse,
   HonorariosClient,
+  HonorariosClientCompany,
+  HonorariosClientCompanyFilters,
   HonorariosClientFilters,
   HonorariosClientInput,
   HonorariosClientPatch,
@@ -211,6 +213,49 @@ export class HonorariosService {
       'company-options/',
       { query: { q: q || undefined, pageSize: 100, ...pagination }, signal },
       page(checkCompany),
+    )
+  }
+  clientCompanies(
+    filters: HonorariosClientCompanyFilters = {},
+    signal?: AbortSignal,
+  ) {
+    return this.json(
+      'client-companies/',
+      { query: { ...filters }, signal },
+      page((value, path): HonorariosClientCompany => {
+        const result = object(value, path)
+        for (const key of ['id', 'name', 'legalName', 'cnpj'])
+          string(result[key], path + '.' + key)
+        if (result.code !== null) string(result.code, path + '.code')
+        if (typeof result.hasFinancialProfile !== 'boolean')
+          throw new HonorariosContractError(path + '.hasFinancialProfile')
+        if (result.hasFinancialProfile) {
+          const profile = object(
+            result.financialProfile,
+            path + '.financialProfile',
+          )
+          string(profile.id, path + '.financialProfile.id')
+          if (profile.companyId !== result.id)
+            throw new HonorariosContractError(
+              path + '.financialProfile.companyId',
+            )
+          money(profile.currentFee, path + '.financialProfile.currentFee')
+          money(profile.difference, path + '.financialProfile.difference')
+          money(
+            object(profile.calculation, path + '.financialProfile.calculation')
+              .total,
+            path + '.financialProfile.calculation.total',
+          )
+          if (
+            !['abaixo', 'alinhado', 'acima'].includes(String(profile.alignment))
+          )
+            throw new HonorariosContractError(
+              path + '.financialProfile.alignment',
+            )
+        } else if (result.financialProfile !== null)
+          throw new HonorariosContractError(path + '.financialProfile')
+        return result as unknown as HonorariosClientCompany
+      }),
     )
   }
   clients(filters: HonorariosClientFilters = {}, signal?: AbortSignal) {

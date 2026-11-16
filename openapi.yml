@@ -7970,6 +7970,2540 @@ paths:
               schema:
                 type: string
                 maxLength: 64
+  /api/v1/honorarios/calculate/:
+    post:
+      operationId: honorarios_calculate_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Calculate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/client-companies/:
+    get:
+      operationId: honorarios_client_companies_list
+      description: Company catalog for the Clients screen, enriched with optional
+        fee profile.
+      parameters:
+      - in: query
+        name: archived
+        schema:
+          type: boolean
+          default: false
+      - in: query
+        name: ordering
+        schema:
+          enum:
+          - name
+          - -name
+          - code
+          - -code
+          - cnpj
+          - -cnpj
+          type: string
+          default: name
+          minLength: 1
+        description: |-
+          * `name` - name
+          * `-name` - -name
+          * `code` - code
+          * `-code` - -code
+          * `cnpj` - cnpj
+          * `-cnpj` - -cnpj
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+      - in: query
+        name: profile
+        schema:
+          enum:
+          - with
+          - without
+          - all
+          type: string
+          default: all
+          minLength: 1
+        description: |-
+          * `with` - with
+          * `without` - without
+          * `all` - all
+      - in: query
+        name: q
+        schema:
+          type: string
+          maxLength: 200
+          minLength: 1
+      - name: search
+        required: false
+        in: query
+        description: Um termo de busca.
+        schema:
+          type: string
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResultList'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/clients/:
+    get:
+      operationId: honorarios_clients_list
+      parameters:
+      - in: query
+        name: alignment
+        schema:
+          enum:
+          - abaixo
+          - alinhado
+          - acima
+          type: string
+          minLength: 1
+        description: |-
+          * `abaixo` - abaixo
+          * `alinhado` - alinhado
+          * `acima` - acima
+      - in: query
+        name: archived
+        schema:
+          type: boolean
+          default: false
+      - name: ordering
+        required: false
+        in: query
+        description: Qual campo usar ao ordenar os resultados.
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+      - in: query
+        name: q
+        schema:
+          type: string
+          maxLength: 200
+          minLength: 1
+      - in: query
+        name: regime
+        schema:
+          enum:
+          - mei
+          - simples
+          - presumido
+          - real
+          type: string
+          minLength: 1
+        description: |-
+          * `mei` - mei
+          * `simples` - simples
+          * `presumido` - presumido
+          * `real` - real
+      - name: search
+        required: false
+        in: query
+        description: Um termo de busca.
+        schema:
+          type: string
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResultList'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+    post:
+      operationId: honorarios_clients_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientInput'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/clients/{id}/:
+    get:
+      operationId: honorarios_clients_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee client.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+    patch:
+      operationId: honorarios_clients_partial_update
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee client.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedClientPatch'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/clients/{id}/adjust/:
+    post:
+      operationId: honorarios_clients_adjust_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee client.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Adjustment'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/clients/{id}/archive/:
+    post:
+      operationId: honorarios_clients_archive_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee client.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeeVersion'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/clients/{id}/history/:
+    get:
+      operationId: honorarios_clients_history_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee client.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/clients/{id}/restore/:
+    post:
+      operationId: honorarios_clients_restore_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee client.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeeVersion'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/clients/export/:
+    get:
+      operationId: honorarios_clients_export_retrieve
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Carteira CSV UTF-8 com BOM e separador ponto e vírgula.
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+      parameters:
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+  /api/v1/honorarios/clients/import/:
+    post:
+      operationId: honorarios_clients_import_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Import'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/company-options/:
+    get:
+      operationId: honorarios_company_options_list
+      parameters:
+      - in: query
+        name: archived
+        schema:
+          type: boolean
+          default: false
+      - name: ordering
+        required: false
+        in: query
+        description: Qual campo usar ao ordenar os resultados.
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+      - in: query
+        name: q
+        schema:
+          type: string
+          maxLength: 200
+          minLength: 1
+      - name: search
+        required: false
+        in: query
+        description: Um termo de busca.
+        schema:
+          type: string
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResultList'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/configuration/:
+    get:
+      operationId: honorarios_configuration_retrieve
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+      parameters:
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+    put:
+      operationId: honorarios_configuration_update
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Configuration'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/configuration-history/:
+    get:
+      operationId: honorarios_configuration_history_list
+      parameters:
+      - in: query
+        name: archived
+        schema:
+          type: boolean
+          default: false
+      - name: ordering
+        required: false
+        in: query
+        description: Qual campo usar ao ordenar os resultados.
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+      - in: query
+        name: q
+        schema:
+          type: string
+          maxLength: 200
+          minLength: 1
+      - name: search
+        required: false
+        in: query
+        description: Um termo de busca.
+        schema:
+          type: string
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResultList'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/dashboard/:
+    get:
+      operationId: honorarios_dashboard_retrieve
+      parameters:
+      - in: query
+        name: maxIncreasePct
+        schema:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/quotes/:
+    get:
+      operationId: honorarios_quotes_list
+      parameters:
+      - in: query
+        name: allRevisions
+        schema:
+          type: boolean
+          default: false
+      - in: query
+        name: archived
+        schema:
+          type: boolean
+          default: false
+      - name: ordering
+        required: false
+        in: query
+        description: Qual campo usar ao ordenar os resultados.
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+      - in: query
+        name: q
+        schema:
+          type: string
+          maxLength: 200
+          minLength: 1
+      - name: search
+        required: false
+        in: query
+        description: Um termo de busca.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          enum:
+          - rascunho
+          - enviado
+          - aceito
+          - recusado
+          type: string
+          minLength: 1
+        description: |-
+          * `rascunho` - rascunho
+          * `enviado` - enviado
+          * `aceito` - aceito
+          * `recusado` - recusado
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResultList'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+    post:
+      operationId: honorarios_quotes_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteInput'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/quotes/{id}/:
+    get:
+      operationId: honorarios_quotes_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee quote.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/quotes/{id}/archive/:
+    post:
+      operationId: honorarios_quotes_archive_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee quote.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeeVersion'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/quotes/{id}/convert/:
+    post:
+      operationId: honorarios_quotes_convert_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee quote.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Convert'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/quotes/{id}/history/:
+    get:
+      operationId: honorarios_quotes_history_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee quote.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/quotes/{id}/proposal/:
+    get:
+      operationId: honorarios_quotes_proposal_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee quote.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/quotes/{id}/restore/:
+    post:
+      operationId: honorarios_quotes_restore_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee quote.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeeVersion'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+  /api/v1/honorarios/quotes/{id}/state/:
+    post:
+      operationId: honorarios_quotes_state_create
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: Token obtido em GET /api/v1/auth/csrf/. Envie também o cookie
+          CSRF recebido nessa resposta.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este fee quote.
+        required: true
+      - in: header
+        name: X-Request-ID
+        required: false
+        description: 'Identificador de correlação opcional. Aceita 1 a 64 caracteres
+          alfanuméricos ou . _ : -; o servidor gera outro valor quando ausente ou
+          inválido.'
+        schema:
+          type: string
+          maxLength: 64
+      tags:
+      - honorarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteState'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          description: ''
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '400':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '403':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '404':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
+        '409':
+          description: Erro de validação, permissão, recurso ou versão.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            X-Request-ID:
+              description: Identificador de correlação efetivamente usado pelo servidor.
+              schema:
+                type: string
+                maxLength: 64
   /api/v1/membership-invitations/:
     post:
       operationId: membership_invitations_create
@@ -15878,6 +18412,23 @@ components:
       required:
       - email
       - name
+    Adjustment:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        version:
+          type: integer
+          minimum: 0
+        mode:
+          $ref: '#/components/schemas/ModeEnum'
+        paramsVersion:
+          type: integer
+          minimum: 0
+      required:
+      - mode
+      - paramsVersion
+      - version
+      additionalProperties: false
     AgendaColumn:
       type: object
       properties:
@@ -16184,6 +18735,15 @@ components:
       - etag
       - fileId
       - version
+    Calculate:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        profile:
+          $ref: '#/components/schemas/Profile'
+      required:
+      - profile
+      additionalProperties: false
     CampoEnum:
       enum:
       - custo
@@ -16509,6 +19069,36 @@ components:
       - details
       - id
       - kind
+    ClientInput:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        profile:
+          $ref: '#/components/schemas/Profile'
+        currentFee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        adjustmentDate:
+          type: string
+          format: date
+          nullable: true
+        contact:
+          type: string
+          default: ''
+          maxLength: 500
+        notes:
+          type: string
+          default: ''
+          maxLength: 5000
+      required:
+      - companyId
+      - currentFee
+      - profile
+      additionalProperties: false
     ClientPermissions:
       type: object
       properties:
@@ -16863,6 +19453,35 @@ components:
       description: |-
         * `projected` - Projetada
         * `finalized` - Finalizada
+    Configuration:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        version:
+          type: integer
+          minimum: 0
+        params: {}
+        office:
+          $ref: '#/components/schemas/Office'
+      required:
+      - office
+      - params
+      - version
+      additionalProperties: false
+    Convert:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        version:
+          type: integer
+          minimum: 0
+        companyId:
+          type: string
+          format: uuid
+      required:
+      - companyId
+      - version
+      additionalProperties: false
     CsrfToken:
       type: object
       properties:
@@ -16998,6 +19617,16 @@ components:
       - multipart/form-data
       type: string
       description: '* `multipart/form-data` - multipart/form-data'
+    FeeVersion:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        version:
+          type: integer
+          minimum: 0
+      required:
+      - version
+      additionalProperties: false
     File:
       type: object
       properties:
@@ -17140,6 +19769,18 @@ components:
         * `pending` - Pendente
         * `completed` - Cobrança realizada
         * `resolved` - Encerrada automaticamente
+    HonorariosRegimeEnum:
+      enum:
+      - mei
+      - simples
+      - presumido
+      - real
+      type: string
+      description: |-
+        * `mei` - mei
+        * `simples` - simples
+        * `presumido` - presumido
+        * `real` - real
     ImageReference:
       type: object
       properties:
@@ -17168,6 +19809,18 @@ components:
       required:
       - file
       - version
+    Import:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientInput'
+          maxItems: 1000
+      required:
+      - rows
+      additionalProperties: false
     Indicators:
       type: object
       properties:
@@ -17640,6 +20293,16 @@ components:
       - POST
       type: string
       description: '* `POST` - POST'
+    ModeEnum:
+      enum:
+      - indice
+      - parametro
+      - manter
+      type: string
+      description: |-
+        * `indice` - indice
+        * `parametro` - parametro
+        * `manter` - manter
     ModuleAccessDelete:
       type: object
       description: Reject input keys that are not part of the public API contract.
@@ -17724,11 +20387,13 @@ components:
       - routines
       - processes
       - companies
+      - honorarios
       type: string
       description: |-
         * `routines` - routines
         * `processes` - processes
         * `companies` - companies
+        * `honorarios` - honorarios
     ModuleSector:
       type: object
       properties:
@@ -17949,6 +20614,79 @@ components:
     NullEnum:
       enum:
       - null
+    Office:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfficeUnit'
+          maxItems: 20
+        site:
+          type: string
+          default: ''
+          maxLength: 200
+        validadeDias:
+          type: integer
+          maximum: 365
+          minimum: 1
+          default: 15
+        nome:
+          type: string
+          maxLength: 200
+        crc:
+          type: string
+          default: ''
+          maxLength: 120
+        cidade:
+          type: string
+          default: ''
+          maxLength: 200
+        telefone:
+          type: string
+          default: ''
+          maxLength: 80
+        email:
+          oneOf:
+          - type: string
+            format: email
+            default: ''
+          - type: string
+            maxLength: 0
+        logo:
+          type: string
+          default: ''
+          maxLength: 200000
+        condicoes:
+          type: string
+          default: ''
+          maxLength: 10000
+        escopoExtra:
+          type: string
+          default: ''
+          maxLength: 10000
+      required:
+      - nome
+      additionalProperties: false
+    OfficeUnit:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        address:
+          type: string
+          maxLength: 500
+        phone:
+          type: string
+          maxLength: 80
+      required:
+      - address
+      - name
+      - phone
+      additionalProperties: false
     OperationalModuleNameEnum:
       enum:
       - routines
@@ -18384,6 +21122,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RecipientOption'
+    PaginatedResultList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Result'
     PaginatedRoutineList:
       type: object
       required:
@@ -18599,6 +21360,32 @@ components:
         mobilePhone:
           type: string
           maxLength: 32
+    PatchedClientPatch:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        version:
+          type: integer
+          minimum: 0
+        profile:
+          $ref: '#/components/schemas/Profile'
+        currentFee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        adjustmentDate:
+          type: string
+          format: date
+          nullable: true
+        contact:
+          type: string
+          maxLength: 500
+        notes:
+          type: string
+          maxLength: 5000
+      additionalProperties: false
+      required:
+      - version
     PatchedOrganizationMemberPatch:
       type: object
       description: Reject input keys that are not part of the public API contract.
@@ -18640,24 +21427,6 @@ components:
           type: string
           format: date
           nullable: true
-        competenciaInicioAtividade:
-          type: string
-          format: year-month
-          pattern: ^\d{4}-(0[1-9]|1[0-2])$
-          nullable: true
-          description: Competência de início da atividade, no formato AAAA-MM.
-        competenciaInicioInatividade:
-          type: string
-          format: year-month
-          pattern: ^\d{4}-(0[1-9]|1[0-2])$
-          nullable: true
-          description: Competência de início da inatividade, no formato AAAA-MM.
-        ultimaCompetenciaTrabalho:
-          type: string
-          format: year-month
-          pattern: ^\d{4}-(0[1-9]|1[0-2])$
-          nullable: true
-          description: Última competência de trabalho, no formato AAAA-MM.
         obs:
           type: string
           maxLength: 5000
@@ -18726,7 +21495,7 @@ components:
         regime:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/RegimeEnum'
+          - $ref: '#/components/schemas/ProcessRegimeEnum'
           - $ref: '#/components/schemas/NullEnum'
         regimeObs:
           type: string
@@ -18949,24 +21718,6 @@ components:
           type: string
           format: date
           nullable: true
-        competenciaInicioAtividade:
-          type: string
-          format: year-month
-          pattern: ^\d{4}-(0[1-9]|1[0-2])$
-          nullable: true
-          description: Competência de início da atividade, no formato AAAA-MM.
-        competenciaInicioInatividade:
-          type: string
-          format: year-month
-          pattern: ^\d{4}-(0[1-9]|1[0-2])$
-          nullable: true
-          description: Competência de início da inatividade, no formato AAAA-MM.
-        ultimaCompetenciaTrabalho:
-          type: string
-          format: year-month
-          pattern: ^\d{4}-(0[1-9]|1[0-2])$
-          nullable: true
-          description: Última competência de trabalho, no formato AAAA-MM.
         obs:
           type: string
           maxLength: 5000
@@ -19035,7 +21786,7 @@ components:
         regime:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/RegimeEnum'
+          - $ref: '#/components/schemas/ProcessRegimeEnum'
           - $ref: '#/components/schemas/NullEnum'
         regimeObs:
           type: string
@@ -19230,6 +21981,16 @@ components:
       - sectors
       - viewFinancial
       - viewMovements
+    ProcessRegimeEnum:
+      enum:
+      - simples
+      - presumido
+      - real
+      type: string
+      description: |-
+        * `simples` - simples
+        * `presumido` - presumido
+        * `real` - real
     ProcessResponse:
       type: object
       description: Reject input keys that are not part of the public API contract.
@@ -19258,24 +22019,6 @@ components:
           type: string
           format: date
           nullable: true
-        competenciaInicioAtividade:
-          type: string
-          format: year-month
-          pattern: ^\d{4}-(0[1-9]|1[0-2])$
-          nullable: true
-          description: Competência de início da atividade, no formato AAAA-MM.
-        competenciaInicioInatividade:
-          type: string
-          format: year-month
-          pattern: ^\d{4}-(0[1-9]|1[0-2])$
-          nullable: true
-          description: Competência de início da inatividade, no formato AAAA-MM.
-        ultimaCompetenciaTrabalho:
-          type: string
-          format: year-month
-          pattern: ^\d{4}-(0[1-9]|1[0-2])$
-          nullable: true
-          description: Última competência de trabalho, no formato AAAA-MM.
         obs:
           type: string
           maxLength: 5000
@@ -19344,7 +22087,7 @@ components:
         regime:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/RegimeEnum'
+          - $ref: '#/components/schemas/ProcessRegimeEnum'
           - $ref: '#/components/schemas/NullEnum'
         regimeObs:
           type: string
@@ -19372,9 +22115,8 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
-          readOnly: true
-          description: Novo menos anterior, somente nos reajustes e para quem pode
-            visualizar financeiro.
+          description: 'Calculado e somente leitura: novo menos anterior, nos reajustes
+            e para leitores financeiros.'
         id:
           type: string
           format: uuid
@@ -19465,7 +22207,6 @@ components:
       - criadoPor
       - empresa
       - etapas
-      - honVariacao
       - id
       - leggacy
       - organizationId
@@ -19625,6 +22366,80 @@ components:
         * `feito` - feito
         * `na` - na
         * `pending` - pending
+    Profile:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        regime:
+          $ref: '#/components/schemas/HonorariosRegimeEnum'
+        segmento:
+          type: string
+          maxLength: 80
+        inativa:
+          type: boolean
+          default: false
+        funcionarios:
+          type: integer
+          maximum: 100000
+          minimum: 0
+          default: 0
+        socios:
+          type: integer
+          maximum: 100000
+          minimum: 0
+          default: 1
+        xml:
+          type: integer
+          maximum: 10000000
+          minimum: 0
+          default: 0
+        notas:
+          type: integer
+          maximum: 10000000
+          minimum: 0
+          default: 0
+        filiais:
+          type: integer
+          maximum: 100000
+          minimum: 0
+          default: 0
+        filiaisInativas:
+          type: integer
+          maximum: 100000
+          minimum: 0
+          default: 0
+        faturamento:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          default: '0.00'
+        horas:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          default: '0.00'
+        usarHoras:
+          type: boolean
+          default: false
+        emiteNF:
+          type: boolean
+          default: false
+        servicos:
+          type: array
+          items:
+            type: string
+            maxLength: 80
+          maxItems: 100
+        anomalias:
+          type: array
+          items:
+            type: string
+            maxLength: 80
+          maxItems: 100
+      required:
+      - regime
+      - segmento
+      additionalProperties: false
     ProjectionCompany:
       type: object
       properties:
@@ -19717,6 +22532,101 @@ components:
         * `task_attachment` - Anexo
         * `member_avatar` - Foto do membro
         * `department_image` - Imagem de departamento
+    QuoteInput:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        revisionOf:
+          type: string
+          format: uuid
+        sourceVersion:
+          type: integer
+          minimum: 1
+        companyId:
+          type: string
+          format: uuid
+          nullable: true
+        prospect:
+          type: string
+          maxLength: 200
+        contact:
+          type: string
+          default: ''
+          maxLength: 500
+        profile:
+          $ref: '#/components/schemas/Profile'
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        validityDays:
+          type: integer
+          maximum: 365
+          minimum: 1
+        decimoTerceiro:
+          type: boolean
+        inicioCobranca:
+          type: integer
+          maximum: 3
+          minimum: 0
+          default: 1
+        aberturaValor:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          default: '0.00'
+        aberturaParcelas:
+          type: integer
+          maximum: 12
+          minimum: 1
+          default: 1
+        offerPlans:
+          type: boolean
+          default: false
+        planValues:
+          type: object
+          additionalProperties:
+            type: string
+            format: decimal
+            pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - profile
+      - prospect
+      - requestId
+      - value
+      additionalProperties: false
+    QuoteState:
+      type: object
+      description: Reject input keys that are not part of the public API contract.
+      properties:
+        version:
+          type: integer
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/QuoteStateStatusEnum'
+        selectedPlan:
+          type: string
+          default: ''
+          maxLength: 80
+      required:
+      - status
+      - version
+      additionalProperties: false
+    QuoteStateStatusEnum:
+      enum:
+      - rascunho
+      - enviado
+      - aceito
+      - recusado
+      type: string
+      description: |-
+        * `rascunho` - rascunho
+        * `enviado` - enviado
+        * `aceito` - aceito
+        * `recusado` - recusado
     Recipient:
       type: object
       properties:
@@ -19773,16 +22683,12 @@ components:
       required:
       - version
       additionalProperties: false
-    RegimeEnum:
-      enum:
-      - simples
-      - presumido
-      - real
-      type: string
-      description: |-
-        * `simples` - simples
-        * `presumido` - presumido
-        * `real` - real
+    Result:
+      type: object
+      properties:
+        data: {}
+      required:
+      - data
     ReuniaoEnum:
       enum:
       - alinhamento

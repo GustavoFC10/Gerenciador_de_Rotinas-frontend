@@ -1,0 +1,173 @@
+{
+  "checks": [
+    {
+      "name": "P16 quatro organizações com mesmo conjunto e recortes",
+      "pass": true
+    },
+    {
+      "name": "P16 galeria registra escolha própria e integra resumo geral",
+      "pass": true
+    },
+    {
+      "name": "P16 notebook sem overflow da página e cabeçalhos de campo alinhados",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "case": "paridadeP16",
+      "cases": {
+        "A": {
+          "ids": [
+            "review-process-1",
+            "review-process-10",
+            "review-process-11",
+            "review-process-12",
+            "review-process-13",
+            "review-process-14",
+            "review-process-15",
+            "review-process-16",
+            "review-process-17",
+            "review-process-18",
+            "review-process-2",
+            "review-process-3",
+            "review-process-4",
+            "review-process-5",
+            "review-process-6",
+            "review-process-7",
+            "review-process-8",
+            "review-process-9"
+          ],
+          "fila": 3,
+          "responsabilidade": 4,
+          "outrosSetores": 6
+        },
+        "B": {
+          "ids": [
+            "review-process-1",
+            "review-process-10",
+            "review-process-11",
+            "review-process-12",
+            "review-process-13",
+            "review-process-14",
+            "review-process-15",
+            "review-process-16",
+            "review-process-17",
+            "review-process-18",
+            "review-process-2",
+            "review-process-3",
+            "review-process-4",
+            "review-process-5",
+            "review-process-6",
+            "review-process-7",
+            "review-process-8",
+            "review-process-9"
+          ],
+          "fila": 3,
+          "responsabilidade": 4,
+          "outrosSetores": 6
+        },
+        "C": {
+          "ids": [
+            "review-process-1",
+            "review-process-10",
+            "review-process-11",
+            "review-process-12",
+            "review-process-13",
+            "review-process-14",
+            "review-process-15",
+            "review-process-16",
+            "review-process-17",
+            "review-process-18",
+            "review-process-2",
+            "review-process-3",
+            "review-process-4",
+            "review-process-5",
+            "review-process-6",
+            "review-process-7",
+            "review-process-8",
+            "review-process-9"
+          ],
+          "fila": 3,
+          "responsabilidade": 4,
+          "outrosSetores": 6
+        },
+        "D": {
+          "ids": [
+            "review-process-1",
+            "review-process-10",
+            "review-process-11",
+            "review-process-12",
+            "review-process-13",
+            "review-process-14",
+            "review-process-15",
+            "review-process-16",
+            "review-process-17",
+            "review-process-18",
+            "review-process-2",
+            "review-process-3",
+            "review-process-4",
+            "review-process-5",
+            "review-process-6",
+            "review-process-7",
+            "review-process-8",
+            "review-process-9"
+          ],
+          "fila": 3,
+          "responsabilidade": 4,
+          "outrosSetores": 6
+        }
+      }
+    },
+    {
+      "idea": "A",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "tops": [266, 266, 266, 266]
+    },
+    {
+      "idea": "B",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "tops": [266, 266, 266, 266]
+    },
+    {
+      "idea": "C",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "tops": [266, 266, 266, 266]
+    },
+    {
+      "idea": "D",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "tops": [266, 266, 266, 266]
+    },
+    {
+      "idea": "A",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "tops": [266, 266, 266, 266]
+    },
+    {
+      "idea": "B",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "tops": [266, 266, 266, 266]
+    },
+    {
+      "idea": "C",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "tops": [266, 266, 266, 266]
+    },
+    {
+      "idea": "D",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "tops": [266, 266, 266, 266]
+    }
+  ],
+  "exceptions": [],
+  "network": []
+}

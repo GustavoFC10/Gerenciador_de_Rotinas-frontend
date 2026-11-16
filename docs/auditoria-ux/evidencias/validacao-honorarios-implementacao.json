@@ -1,0 +1,57 @@
+{
+  "checks": [
+    {
+      "name": "React atual /honorarios/novo",
+      "pass": true
+    },
+    {
+      "name": "React atual /honorarios/orcamentos",
+      "pass": true
+    },
+    {
+      "name": "React atual /honorarios/clientes",
+      "pass": true
+    },
+    {
+      "name": "React atual /honorarios/parametros",
+      "pass": true
+    },
+    {
+      "name": "React atual /honorarios",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "path": "/honorarios/novo",
+      "text": "\n    Pular para o conteúdoHonoráriosJaralcon · demonstraçãoVoltar aos módulosGestão de honoráriosPainelOrçamentosClientesParâmetrosAAnademo-diretoria@preview.exampleSairHonorários/Novo orçamentoAtualizarNovo orçamentoAdministração Dados do orçamento e cobrançaEmpresa ou pessoa interessadaContato da negociaçãoVincular a uma empresa existente (opcional)Empresa do cadastro centralCadastrar empresa no catálogo geral ↗Validade (dias)Início da cobrançaNo ato1ª competência2ª competência · benefício3ª competência · benefícioOrçar honorário de aberturaHonorário adicional anual (13 cobranças)Perfil de cálculoPerfil de cálculoEmpresaSegmentoPrestação de serviçosComércioIndústriaSaúde (clínicas e consul",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "path": "/honorarios/orcamentos",
+      "text": "\n    Pular para o conteúdoHonoráriosJaralcon · demonstraçãoVoltar aos módulosGestão de honoráriosPainelOrçamentosClientesParâmetrosAAnademo-diretoria@preview.exampleSairHonorários/OrçamentosAtualizarNovo orçamentoOrçamentosAdministraçãoBuscar propostaStatusTodos os statusRascunhoEnviadoAceitoRecusadoExibirAtivosArquivadosIncluir revisões anterioresPropostaEmpresa ou prospectValor mensalStatusValidade2026-011Revisão 2Prospect preservadoContato preservadoR$ 450,00Rascunho27/11/2026Abrir1 registro(s) · Página 1 de 1AnteriorPróximaPreview local · dados fictícios\n    \n  \n\n",
+      "width": 1280,
+      "scrollWidth": 1280
+    },
+    {
+      "path": "/honorarios/clientes",
+      "text": "\n    Pular para o conteúdoHonoráriosJaralcon · demonstraçãoVoltar aos módulosGestão de honoráriosPainelOrçamentosClientesParâmetrosAAnademo-diretoria@preview.exampleSairHonorários/ClientesAtualizarClientesAdministraçãoCarteira de clientesCompare os honorários atuais com a tabela e acompanhe os reajustes.Exportar perfis CSVImportar carteiraNovo clienteEmpresas e honoráriosConsultaTodas as empresas ativasPerfis financeiros — filtros e arquivadosBuscar empresaDados financeirosTodas as empresasCom perfil financeiroSem perfil financeiroOrdenar porNomeCódigoCNPJBuscar clienteEmpresaHonorário atualPelos parâmetrosDiferença mensalEmpresa de demonstração11222333000181 · Código 001——Sem dados financei",
+      "width": 1280,
+      "scrollWidth": 1280
+    },
+    {
+      "path": "/honorarios/parametros",
+      "text": "\n    Pular para o conteúdoHonoráriosJaralcon · demonstraçãoVoltar aos módulosGestão de honoráriosPainelOrçamentosClientesParâmetrosAAnademo-diretoria@preview.exampleSairHonorários/ParâmetrosAtualizarParâmetrosAdministraçãoParâmetros de honoráriosTabela versão 4. Alterações ficam em rascunho até salvar.Dados do escritórioHistórico da configuraçãoRestaurar padrãoValores baseAdicionaisRegime e horasFaturamentoServiçosExceçõesPlanosCobrança e reajusteRegrasValores baseValor base por segmento e regime+ SegmentoPonto de partida do honorário. Cada regime tem seu valor porque o grau de exigência das obrigações acessórias muda. Deixe 0 onde o regime não se aplica.SegmentoMEISimples NacionalLucro Pres",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "path": "/honorarios",
+      "text": "\n    Pular para o conteúdoHonoráriosJaralcon · demonstraçãoVoltar aos módulosGestão de honoráriosPainelOrçamentosClientesParâmetrosAAnademo-diretoria@preview.exampleSairHonorários/Painel de honoráriosAtualizarPainel de honoráriosAdministraçãoVisão geral dos honoráriosCarregando indicadores…Preview local · dados fictícios\n    \n  \n\n",
+      "width": 1280,
+      "scrollWidth": 1280
+    }
+  ],
+  "exceptions": []
+}

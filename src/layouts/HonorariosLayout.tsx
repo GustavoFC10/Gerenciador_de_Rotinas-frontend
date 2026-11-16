@@ -43,11 +43,6 @@ const links: Array<{
 }> = [
   { to: ROUTES.HONORARIOS, label: 'Painel', icon: 'home', end: true },
   {
-    to: `${ROUTES.HONORARIOS}/novo`,
-    label: 'Novo orçamento',
-    icon: 'calculator',
-  },
-  {
     to: `${ROUTES.HONORARIOS}/orcamentos`,
     label: 'Orçamentos',
     icon: 'quotes',
@@ -172,11 +167,11 @@ export default function HonorariosLayout({
 
   return (
     <div
-      className={`honorarios-workspace min-h-dvh font-[Inter,ui-sans-serif,system-ui,sans-serif] ${appThemeClass.shell}`}
+      className={`workspace-shell honorarios-workspace min-h-dvh ${appThemeClass.shell}`}
     >
       <a
         href="#honorarios-main"
-        className={`fixed left-3 top-3 z-[80] -translate-y-20 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-4 py-2 text-sm font-bold text-[var(--color-button-primary-text)] focus:translate-y-0 ${focusRing}`}
+        className={`fixed left-3 top-3 z-[80] -translate-y-20 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-button-primary-text)] focus:translate-y-0 ${focusRing}`}
       >
         Pular para o conteúdo
       </a>
@@ -195,7 +190,7 @@ export default function HonorariosLayout({
           role={navigationOpen ? 'dialog' : undefined}
           aria-modal={navigationOpen || undefined}
           aria-label={navigationOpen ? 'Menu de Honorários' : undefined}
-          className={`fixed inset-y-0 left-0 z-[60] flex h-dvh w-[min(var(--size-sidebar-expanded),calc(100vw-1.5rem))] shrink-0 flex-col border-r shadow-[var(--shadow-floating)] transition-transform duration-200 motion-reduce:transition-none lg:sticky lg:top-0 lg:z-30 lg:visible lg:w-[var(--size-sidebar-expanded)] lg:translate-x-0 lg:shadow-none ${navigationOpen ? 'visible translate-x-0' : 'invisible -translate-x-full'} ${appThemeClass.sidebar}`}
+          className={`workspace-sidebar fixed inset-y-0 left-0 z-[60] flex h-dvh w-[min(var(--size-sidebar-expanded),calc(100vw-1.5rem))] shrink-0 flex-col border-r shadow-[var(--shadow-floating)] transition-transform duration-200 motion-reduce:transition-none lg:sticky lg:top-0 lg:z-30 lg:visible lg:w-[var(--size-sidebar-expanded)] lg:translate-x-0 lg:shadow-none ${navigationOpen ? 'visible translate-x-0' : 'invisible -translate-x-full'} ${appThemeClass.sidebar}`}
         >
           <div className="flex min-h-[4.5rem] items-center gap-2 border-b border-[var(--color-sidebar-border)] px-3">
             <Link
@@ -208,7 +203,7 @@ export default function HonorariosLayout({
                 <Icon name="calculator" />
               </span>
               <span className="min-w-0">
-                <span className="block text-lg font-extrabold leading-5 text-[var(--color-text-strong)]">
+                <span className="block text-lg font-bold leading-5 text-[var(--color-text-strong)]">
                   Honorários
                 </span>
                 <span className="mt-0.5 block truncate text-xs font-medium text-[var(--color-text-muted)]">
@@ -233,7 +228,7 @@ export default function HonorariosLayout({
             <Link
               to={ROUTES.HUB}
               onClick={() => setNavigationOpen(false)}
-              className={`mb-4 flex min-h-11 items-center gap-3 rounded-[var(--radius-nav-item)] px-3 text-sm font-semibold text-[var(--color-nav-item-text)] hover:bg-[var(--color-nav-item-hover-bg)] ${focusRing}`}
+              className={`mb-4 flex min-h-10 items-center gap-3 rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 text-sm font-semibold text-[var(--color-nav-item-text)] transition hover:bg-[var(--color-control-hover-bg)] ${focusRing}`}
             >
               <Icon name="modules" />
               Voltar aos módulos
@@ -245,17 +240,36 @@ export default function HonorariosLayout({
             <ul className="space-y-1">
               {links.map((link) => (
                 <li key={link.to}>
-                  <NavLink
-                    to={link.to}
-                    end={link.end}
-                    onClick={() => setNavigationOpen(false)}
-                    className={({ isActive }) =>
-                      `flex min-h-11 items-center gap-3 rounded-[var(--radius-nav-item)] border px-3 text-sm font-semibold transition ${focusRing} ${isActive ? 'border-[var(--color-brand-border)] bg-[var(--color-nav-item-active-bg)] text-[var(--color-nav-item-active-text)]' : 'border-transparent text-[var(--color-nav-item-text)] hover:bg-[var(--color-nav-item-hover-bg)] hover:text-[var(--color-text-strong)]'}`
-                    }
-                  >
-                    <Icon name={link.icon} />
-                    {link.label}
-                  </NavLink>
+                  {link.to.endsWith('/orcamentos') &&
+                  location.pathname === '/honorarios/novo' ? (
+                    <Link
+                      to={link.to}
+                      aria-current="page"
+                      onClick={() => setNavigationOpen(false)}
+                      className={`flex min-h-11 items-center gap-3 rounded-[var(--radius-nav-item)] border border-[var(--color-brand-border)] bg-[var(--color-nav-item-active-bg)] px-3 text-sm font-semibold text-[var(--color-nav-item-active-text)] ${focusRing}`}
+                    >
+                      <Icon name={link.icon} />
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <NavLink
+                      to={link.to}
+                      end={link.end}
+                      aria-current={
+                        link.to.endsWith('/orcamentos') &&
+                        location.pathname === '/honorarios/novo'
+                          ? 'page'
+                          : undefined
+                      }
+                      onClick={() => setNavigationOpen(false)}
+                      className={({ isActive }) =>
+                        `flex min-h-11 items-center gap-3 rounded-[var(--radius-nav-item)] border px-3 text-sm font-semibold transition ${focusRing} ${isActive || (link.to.endsWith('/orcamentos') && location.pathname === '/honorarios/novo') ? 'border-[var(--color-brand-border)] bg-[var(--color-nav-item-active-bg)] text-[var(--color-nav-item-active-text)]' : 'border-transparent text-[var(--color-nav-item-text)] hover:bg-[var(--color-nav-item-hover-bg)] hover:text-[var(--color-text-strong)]'}`
+                      }
+                    >
+                      <Icon name={link.icon} />
+                      {link.label}
+                    </NavLink>
+                  )}
                 </li>
               ))}
             </ul>
@@ -290,12 +304,12 @@ export default function HonorariosLayout({
             >
               <span
                 aria-hidden="true"
-                className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--color-brand-soft)] text-xs font-extrabold text-[var(--color-brand)]"
+                className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--color-brand-soft)] text-xs font-bold text-[var(--color-brand)]"
               >
                 {initials}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold text-[var(--color-text-strong)]">
+                <span className="block truncate text-sm font-semibold text-[var(--color-text-strong)]">
                   {name}
                 </span>
                 <span className="block truncate text-xs text-[var(--color-text-muted)]">
@@ -321,7 +335,7 @@ export default function HonorariosLayout({
           aria-hidden={navigationOpen || undefined}
         >
           <header
-            className={`sticky top-0 z-40 flex min-h-[4.5rem] flex-wrap items-center justify-between gap-3 border-b px-4 py-3 backdrop-blur sm:px-6 lg:px-8 ${appThemeClass.topbar}`}
+            className={`workspace-header sticky top-0 z-40 flex min-h-[4.5rem] flex-wrap items-center justify-between gap-3 border-b px-4 py-3 backdrop-blur sm:px-6 lg:px-8 ${appThemeClass.topbar}`}
           >
             <div className="flex min-w-0 items-center gap-3">
               <IconButton
@@ -363,7 +377,6 @@ export default function HonorariosLayout({
             </div>
             <div className="flex min-w-0 items-center gap-2">
               <Button
-                size="sm"
                 aria-label="Atualizar Honorários"
                 title="Atualizar Honorários"
                 disabled={isRefreshing || !!pending}
@@ -376,21 +389,22 @@ export default function HonorariosLayout({
                 />
                 <span className="hidden sm:inline">Atualizar</span>
               </Button>
-              {canEdit && (
-                <Link
-                  to={`${ROUTES.HONORARIOS}/novo`}
-                  className={`inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-3 text-xs font-bold text-[var(--color-button-primary-text)] hover:bg-[var(--color-button-primary-hover-bg)] ${focusRing}`}
-                >
-                  <Icon name="plus" />
-                  <span>Novo orçamento</span>
-                </Link>
-              )}
+              {canEdit &&
+                location.pathname === `${ROUTES.HONORARIOS}/orcamentos` && (
+                  <Link
+                    to={`${ROUTES.HONORARIOS}/novo`}
+                    className={`inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-3 text-sm font-semibold text-[var(--color-button-primary-text)] transition hover:bg-[var(--color-button-primary-hover-bg)] ${focusRing}`}
+                  >
+                    <Icon name="plus" />
+                    <span>Novo orçamento</span>
+                  </Link>
+                )}
             </div>
           </header>
           <main
             id="honorarios-main"
             tabIndex={-1}
-            className="flex-1 px-4 py-4 outline-none sm:px-6 sm:py-5 lg:px-8"
+            className="honorarios-workspace workspace-main flex-1 px-4 py-4 outline-none sm:px-6 sm:py-5 lg:px-8"
           >
             <WorkspaceBar title={title} meta={<Badge>{roleLabel}</Badge>} />
             {description && (

@@ -330,7 +330,7 @@ function TaskContentSection({
             <button
               type="submit"
               disabled={isSaving}
-              className="min-h-9 rounded-[var(--radius-control)] bg-[var(--color-brand)] px-3 text-sm font-bold text-white hover:brightness-95 disabled:opacity-60"
+              className="min-h-9 rounded-[var(--radius-control)] bg-[var(--color-brand)] px-3 text-sm font-bold text-[var(--color-on-brand)] hover:brightness-95 disabled:opacity-60"
             >
               {isSaving ? 'Salvando…' : 'Salvar conteúdo'}
             </button>

@@ -92,10 +92,10 @@ export default function HonorariosDashboard({
               Carteira de clientes
             </Link>
             <Link
-              to="/honorarios/novo"
+              to="/honorarios/orcamentos"
               className={`${actionClass} ${buttonTone.primary}`}
             >
-              {canEdit ? 'Novo orçamento' : 'Abrir calculadora'}
+              {canEdit ? 'Orçamentos' : 'Consultar orçamentos'}
             </Link>
           </div>
         </div>
@@ -133,26 +133,26 @@ export default function HonorariosDashboard({
       >
         {[
           [
-            'Receita mensal atual',
+            'Total de clientes',
+            String(clients.count),
+            clients.count
+              ? 'Ticket médio ' + money(Number(clients.current) / clients.count)
+              : 'Nenhum perfil financeiro ativo',
+          ],
+          [
+            'Cobrado hoje',
             money(clients.current),
-            `${clients.count} clientes na carteira`,
+            'Receita mensal da carteira',
           ],
           [
-            'Potencial de crescimento',
+            'Pelos parâmetros',
+            money(clients.suggested),
+            'Referência da tabela vigente',
+          ],
+          [
+            'Potencial de aumento',
             money(clients.potential),
-            'Comparação com a tabela atual',
-          ],
-          [
-            'Negociações abertas',
-            money(quotes.openValue),
-            `${quotes.openCount} propostas em negociação`,
-          ],
-          [
-            'Taxa de aceite',
-            quotes.acceptanceRate === null
-              ? '—'
-              : `${Math.round(Number(quotes.acceptanceRate) * 100)}%`,
-            `Propostas decididas em ${year}`,
+            'Oportunidade mensal da carteira',
           ],
         ].map(([label, value, caption]) => (
           <Card key={label} variant="metric" className="p-5">
@@ -190,12 +190,12 @@ export default function HonorariosDashboard({
             )}
             {(
               [
-                ['abaixo', 'Abaixo da tabela'],
+                ['abaixo', 'Podem aumentar'],
                 ['alinhado', 'Alinhados'],
-                ['acima', 'Acima da tabela'],
+                ['acima', 'Acima'],
               ] as const
             ).map(([id, label]) => (
-              <div key={id}>
+              <div key={id} data-fee-alignment={id}>
                 <div className="mb-2 flex justify-between text-sm">
                   <span>{label}</span>
                   <strong>{clients.byAlignment[id]}</strong>
@@ -247,6 +247,14 @@ export default function HonorariosDashboard({
           </div>
           <p className="mt-4 text-sm text-[var(--color-text-muted)]">
             Valor mensal aceito: <strong>{money(quotes.acceptedValue)}</strong>
+            <br />
+            Em negociação: {quotes.openCount} proposta(s) ·{' '}
+            {money(quotes.openValue)}
+            <br />
+            Taxa de aceite:{' '}
+            {quotes.acceptanceRate === null
+              ? '—'
+              : Math.round(Number(quotes.acceptanceRate) * 100) + '%'}
           </p>
         </Panel>
       </div>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Jaralcon · Revisão das propostas de interface</title>
+    <link rel="stylesheet" href="index.css" />
+    <script defer src="index.js"></script>
+  </head>
+  <body>
+    <header class="review-header">
+      <a class="review-brand" href="index.html"
+        ><img
+          src="../../src/assets/jaralcon-report-logo.png"
+          alt="Jaralcon"
+        /><span>Revisão de interfaces</span></a
+      >
+      <nav aria-label="Documentos da revisão">
+        <a href="../base-components/index.html"
+          >Componentes base implementados ↗</a
+        >
+        <a href="PLANO.md">Plano de implementação ↗</a
+        ><a href="../../docs/auditoria-ux/honorarios-fidelidade.md"
+          >Fidelidade de Honorários ↗</a
+        ><a href="../../docs/auditoria-ux/README.md"
+          >Auditoria e referências ↗</a
+        ><a href="../../docs/auditoria-ux/empresas-organizacao.md"
+          >Empresas entre módulos ↗</a
+        ><a href="../../docs/auditoria-ux/mudancas-funcionais.md"
+          >Mudanças funcionais ↗</a
+        >
+      </nav>
+    </header>
+    <div class="review-layout">
+      <aside class="review-index">
+        <p class="rail-label">Ordem de avaliação</p>
+        <nav id="proposal-navigation" aria-label="Propostas"></nav>
+        <div class="rail-tip">
+          Abra a prévia, experimente os controles e registre sua decisão em cada
+          proposta.
+        </div>
+      </aside>
+      <main id="review-main">
+        <div class="review-intro">
+          <div>
+            <p class="eyebrow">Rodada 6 · Decisões dos módulos</p>
+            <h1>Uma proposta de cada vez</h1>
+            <p>
+              Componentes base implementados no React. Ajustes para avaliar:
+              página completa no catálogo de Empresas, janela dentro de Rotinas
+              e os dois grupos de Processos inicialmente abertos. As outras 16
+              propostas estão aprovadas. A troca de módulo segue via HUB.
+            </p>
+          </div>
+          <a class="document-link" href="PLANO.md"
+            >Ler o plano <span aria-hidden="true">→</span></a
+          >
+        </div>
+        <section class="review-summary" aria-label="Progresso da avaliação">
+          <div>
+            <strong id="reviewed-count">0 de 18</strong><span>avaliadas</span>
+          </div>
+          <div>
+            <strong id="approved-count">0</strong><span>aprovadas</span>
+          </div>
+          <div>
+            <strong id="changes-count">0</strong><span>com ajustes</span>
+          </div>
+          <div><strong id="keep-count">0</strong><span>manter atual</span></div>
+          <button type="button" class="button" id="copy-summary">
+            Copiar resumo</button
+          ><button type="button" class="button ghost" id="download-summary">
+            Baixar resumo
+          </button>
+        </section>
+        <div class="review-tools">
+          <label
+            ><span class="sr-only">Buscar proposta</span
+            ><input
+              id="review-search"
+              type="search"
+              placeholder="Buscar por módulo, assunto ou código" /></label
+          ><label
+            ><span class="sr-only">Filtrar decisão</span
+            ><select id="review-filter">
+              <option value="all">Todas as propostas</option>
+              <option value="pending">Para avaliar</option>
+              <option value="approve">Aprovadas</option>
+              <option value="adjust">Com ajustes</option>
+              <option value="keep">Manter atual</option>
+            </select></label
+          ><span id="visible-count">18 propostas</span>
+        </div>
+        <p id="storage-notice" class="storage-notice" hidden></p>
+        <div id="proposal-cards" class="proposal-cards"></div>
+        <section id="summary-fallback" class="summary-fallback" hidden>
+          <div>
+            <h2>Resumo da sua revisão</h2>
+            <button type="button" class="button ghost" id="close-summary">
+              Fechar
+            </button>
+          </div>
+          <p>Selecione e copie o texto abaixo.</p>
+          <textarea
+            id="summary-text"
+            rows="12"
+            readonly
+            aria-label="Resumo para copiar"
+          ></textarea>
+        </section>
+        <footer class="review-footer">
+          Dados demonstrativos. Nenhum acesso a contas, envio de mensagens ou
+          gravação no backend. Referências e critérios completos no
+          <a href="PLANO.md">plano</a>.
+        </footer>
+      </main>
+    </div>
+    <div id="gallery-toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

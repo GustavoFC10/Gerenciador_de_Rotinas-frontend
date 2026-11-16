@@ -1,0 +1,149 @@
+/* Shared financial comparison: below green, aligned blue, above red. */
+.hon-preview {
+  --portfolio-below: #087f5b;
+  --portfolio-below-bg: #ecfdf5;
+  --portfolio-below-line: #8dd8bb;
+  --portfolio-aligned: #2563eb;
+  --portfolio-aligned-bg: #eff6ff;
+  --portfolio-aligned-line: #a8c7fa;
+  --portfolio-above: #b42335;
+  --portfolio-above-bg: #fff1f2;
+  --portfolio-above-line: #efa1aa;
+}
+:root[data-theme='dark'] .hon-preview {
+  --portfolio-below: #62d6a9;
+  --portfolio-below-bg: #1c3933;
+  --portfolio-below-line: #3c7c66;
+  --portfolio-aligned: #8bb7ff;
+  --portfolio-aligned-bg: #233853;
+  --portfolio-aligned-line: #426992;
+  --portfolio-above: #ffa1ad;
+  --portfolio-above-bg: #442630;
+  --portfolio-above-line: #94505b;
+}
+.hon-preview .hon-tone-abaixo {
+  --alignment-color: var(--portfolio-below);
+  --alignment-bg: var(--portfolio-below-bg);
+  --alignment-line: var(--portfolio-below-line);
+}
+.hon-preview .hon-tone-alinhado {
+  --alignment-color: var(--portfolio-aligned);
+  --alignment-bg: var(--portfolio-aligned-bg);
+  --alignment-line: var(--portfolio-aligned-line);
+}
+.hon-preview .hon-tone-acima {
+  --alignment-color: var(--portfolio-above);
+  --alignment-bg: var(--portfolio-above-bg);
+  --alignment-line: var(--portfolio-above-line);
+}
+.hon-preview .hon-difference {
+  color: var(--alignment-color);
+  font-variant-numeric: tabular-nums;
+}
+.hon-preview .hon-client-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  padding: 3px 8px;
+  border: 1px solid var(--alignment-line);
+  border-radius: 999px;
+  color: var(--alignment-color);
+  background: var(--alignment-bg);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.hon-preview .hon-client-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.hon-preview .hon-client-comparison {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border-color: var(--line);
+}
+.hon-preview .hon-client-comparison > div {
+  padding: 18px;
+}
+.hon-preview .hon-client-comparison .hon-client-gap {
+  border-left: 3px solid var(--alignment-color);
+  background: var(--alignment-bg);
+}
+.hon-preview .hon-client-gap strong {
+  color: var(--alignment-color);
+}
+.hon-preview tr[data-client],
+.hon-preview tr[data-quote] {
+  cursor: pointer;
+}
+.hon-preview tr[data-client]:hover,
+.hon-preview tr[data-quote]:hover {
+  background: var(--soft);
+}
+.hon-preview tr[data-client]:focus-visible,
+.hon-preview tr[data-quote]:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -3px;
+  background: var(--brand-soft);
+}
+.hon-preview .hon-kpi:nth-child(1),
+.hon-preview .hon-kpi:nth-child(2) {
+  border-top-color: var(--brand);
+}
+.hon-preview .hon-kpi:nth-child(3) {
+  border-top-color: var(--portfolio-below);
+}
+.hon-preview .hon-kpi:nth-child(3) strong,
+.hon-preview .hon-revenue strong,
+.hon-preview .hon-opportunity-bars strong {
+  color: var(--portfolio-below);
+}
+.hon-preview .hon-kpi:nth-child(4) {
+  border-top-color: var(--portfolio-above);
+}
+.hon-preview .hon-bar-track i {
+  background: var(--portfolio-below);
+}
+.hon-preview .hon-alignment div[data-alignment='abaixo'] {
+  background: var(--portfolio-below);
+}
+.hon-preview .hon-alignment div[data-alignment='alinhado'] {
+  background: var(--portfolio-aligned);
+}
+.hon-preview .hon-alignment div[data-alignment='acima'] {
+  background: var(--portfolio-above);
+}
+.hon-preview .hon-alignment-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--alignment-color);
+}
+.hon-preview .hon-alignment-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.hon-preview .hon-quote-tools {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 200px;
+  align-items: end;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.hon-preview .hon-quote-tools .field {
+  margin: 0;
+}
+@media (max-width: 760px) {
+  .hon-preview .hon-quote-tools {
+    grid-template-columns: 1fr;
+  }
+}

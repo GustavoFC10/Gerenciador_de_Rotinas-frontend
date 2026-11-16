@@ -6,6 +6,22 @@ export type HonorariosQuoteStatus =
   'rascunho' | 'enviado' | 'aceito' | 'recusado'
 export type HonorariosAdjustmentMode = 'indice' | 'parametro' | 'manter'
 
+/** Company identity projection; absence of a profile is not a zero fee. */
+export interface HonorariosClientCompany {
+  id: string
+  name: string
+  legalName: string
+  cnpj: string
+  code: string | null
+  hasFinancialProfile: boolean
+  financialProfile: HonorariosClientCompanyProfile | null
+}
+export interface HonorariosClientCompanyFilters extends HonorariosPageFilters {
+  q?: string
+  ordering?: string
+  profile?: 'all' | 'with' | 'without'
+}
+
 export interface HonorariosProfile {
   regime: HonorariosRegime
   segmento: string
@@ -318,4 +334,20 @@ export interface HonorariosDashboard {
     expiringCount: number
     acceptanceRate: number | null
   }
+}
+
+export type HonorariosClientCompanyProfile = Pick<
+  HonorariosClient,
+  | 'id'
+  | 'paramsVersion'
+  | 'companyId'
+  | 'company'
+  | 'currentFee'
+  | 'difference'
+  | 'alignment'
+  | 'version'
+  | 'archivedAt'
+> & {
+  profile: Pick<HonorariosProfile, 'regime' | 'segmento'>
+  calculation: { total: string }
 }

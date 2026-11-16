@@ -1,0 +1,316 @@
+{
+  "checks": [
+    {
+      "name": "Acabamento C alinhado; D hierarquia inicial e colapso preservado",
+      "pass": true
+    },
+    {
+      "name": "Clientes sem perfil não têm valores nem contam no painel",
+      "pass": true
+    },
+    {
+      "name": "Todas as páginas 1280/1366 sem overflow e imagens quebradas",
+      "pass": true
+    },
+    {
+      "name": "HUB leva aos dashboards; contexto e aprovação preservados",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "case": "empresaSemPerfil",
+      "row": "empresa-13"
+    },
+    {
+      "file": "index",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "base-visual",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "navegacao",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "catalogo-rotinas",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "rotinas",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "processos",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "honorarios",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "clientes-honorarios",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "parametros",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "painel-honorarios",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "orcamentos-honorarios",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "vinculo-orcamento",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "empresas",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "equipe",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "estados",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "dashboard-rotinas",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "dashboard-processos",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "movimentacoes-processos",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "empresas-modulos",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "organizacao-processos",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=A",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=B",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=C",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=D",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "missingImages": []
+    },
+    {
+      "file": "index",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "base-visual",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "navegacao",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "catalogo-rotinas",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "rotinas",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "processos",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "missingImages": []
+    },
+    {
+      "file": "honorarios",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "clientes-honorarios",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "parametros",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "painel-honorarios",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "orcamentos-honorarios",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "missingImages": []
+    },
+    {
+      "file": "vinculo-orcamento",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "empresas",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "equipe",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "estados",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "dashboard-rotinas",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "dashboard-processos",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "movimentacoes-processos",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "empresas-modulos",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "organizacao-processos",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=A",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=B",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=C",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=D",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "missingImages": []
+    }
+  ],
+  "exceptions": [],
+  "network": []
+}

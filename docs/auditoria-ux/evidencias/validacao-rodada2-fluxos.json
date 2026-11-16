@@ -1,0 +1,424 @@
+{
+  "observations": [
+    {
+      "type": "abertura",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "prazo",
+        "competenciaInicioAtividade",
+        "contato",
+        "regimeObs",
+        "custo",
+        "pagador",
+        "honorario",
+        "honCobranca",
+        "trab",
+        "reunAlinh",
+        "reunAcomp",
+        "obs"
+      ]
+    },
+    {
+      "type": "mei",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "prazo",
+        "competenciaInicioAtividade",
+        "contato",
+        "regimeObs",
+        "custo",
+        "pagador",
+        "honorario",
+        "honCobranca",
+        "trab",
+        "reunAlinh",
+        "reunAcomp",
+        "obs"
+      ]
+    },
+    {
+      "type": "outro",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "prazo",
+        "competenciaInicioAtividade",
+        "contato",
+        "regimeObs",
+        "honorario",
+        "honCobranca",
+        "trab",
+        "reunAlinh",
+        "reunAcomp",
+        "obs"
+      ]
+    },
+    {
+      "type": "alteracao",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "prazo",
+        "altDesc",
+        "contato",
+        "custo",
+        "pagador",
+        "obs"
+      ]
+    },
+    {
+      "type": "inatividade",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "inicioInat",
+        "ultimaCompetenciaTrabalho",
+        "contato",
+        "honPerdido",
+        "motivoObs",
+        "obs"
+      ]
+    },
+    {
+      "type": "inativa",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "inicioInat",
+        "competenciaInicioInatividade",
+        "contato",
+        "honAnterior",
+        "honorario",
+        "honCobranca",
+        "motivoObs",
+        "obs"
+      ]
+    },
+    {
+      "type": "reativacao",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "prazo",
+        "competenciaInicioAtividade",
+        "contato",
+        "honorario",
+        "honCobranca",
+        "trab",
+        "reatJunta",
+        "reunAlinh",
+        "reunAcomp",
+        "obs"
+      ]
+    },
+    {
+      "type": "baixa",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "prazo",
+        "ultimaCompetenciaTrabalho",
+        "contato",
+        "custo",
+        "pagador",
+        "honPerdido",
+        "motivoObs",
+        "obs"
+      ]
+    },
+    {
+      "type": "saida",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "prazo",
+        "ultimaCompetenciaTrabalho",
+        "contato",
+        "honPerdido",
+        "motivoObs",
+        "novoContador",
+        "obs"
+      ]
+    },
+    {
+      "type": "exclusao",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "prazo",
+        "ultimaCompetenciaTrabalho",
+        "contato",
+        "honPerdido",
+        "motivoObs",
+        "obs"
+      ]
+    },
+    {
+      "type": "aumento_honorarios",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "contato",
+        "honAnterior",
+        "honorario",
+        "honCobranca"
+      ]
+    },
+    {
+      "type": "reducao_honorarios",
+      "fields": [
+        "empresa",
+        "cnpj",
+        "contato",
+        "honAnterior",
+        "honorario",
+        "honCobranca"
+      ]
+    },
+    {
+      "type": "outros",
+      "fields": [
+        "empresa",
+        "contato",
+        "descricaoProcesso",
+        "valorProcesso",
+        "departamentoSolicitado",
+        "acionarLeggacy"
+      ]
+    },
+    {
+      "case": "P05-access",
+      "selector": "#hon-plans",
+      "top": 501.53125,
+      "bottom": 525.53125,
+      "height": 720,
+      "visible": true
+    },
+    {
+      "case": "P05-access",
+      "selector": "[type=submit][form=hon-quote-form]",
+      "top": 575.53125,
+      "bottom": 615.53125,
+      "height": 720,
+      "visible": true
+    },
+    {
+      "file": "index",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "base-visual",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "navegacao",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "catalogo-rotinas",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "rotinas",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "processos",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "honorarios",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "clientes-honorarios",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "parametros",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "painel-honorarios",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "orcamentos-honorarios",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "vinculo-orcamento",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "empresas",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "equipe",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "estados",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "images": []
+    },
+    {
+      "file": "index",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "base-visual",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "navegacao",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "catalogo-rotinas",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "rotinas",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "processos",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "images": []
+    },
+    {
+      "file": "honorarios",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "clientes-honorarios",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "parametros",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "painel-honorarios",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "orcamentos-honorarios",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "images": []
+    },
+    {
+      "file": "vinculo-orcamento",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "empresas",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "equipe",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    },
+    {
+      "file": "estados",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "images": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "P01 abas reais, navegação recolhível e Agenda",
+      "pass": true
+    },
+    {
+      "name": "P02 mantém HUB e cartões navegam para as prévias",
+      "pass": true
+    },
+    {
+      "name": "P03 catálogo → ficha → edição e busca preservada",
+      "pass": true
+    },
+    {
+      "name": "P03 wizard valida, preserva dados e exibe três etapas",
+      "pass": true
+    },
+    {
+      "name": "P04 treze tipos e definições da Diretoria restauradas",
+      "pass": true
+    },
+    {
+      "name": "P05 opções de planos e salvar alcançáveis em notebook",
+      "pass": true
+    },
+    {
+      "name": "Galeria preserva aprovações e feedback",
+      "pass": true
+    },
+    {
+      "name": "Todas as prévias sem overflow da página em1280/1366",
+      "pass": true
+    }
+  ],
+  "exceptions": [],
+  "network": []
+}

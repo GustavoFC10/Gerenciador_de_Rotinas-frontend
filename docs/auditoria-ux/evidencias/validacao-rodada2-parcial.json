@@ -1,0 +1,142 @@
+{
+  "observations": [
+    {
+      "id": "P01",
+      "file": "base-visual",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "title": "P01 · Rotinas — estrutura React preservada",
+      "body": "\n    ← PropostasP01Rotinas · estrutura atual preservadaAtual ↗Catálogo de rotinas ↗O que avaliarTema escuroPular para o conteúdoRotinasDepartamentosTrocar móduloInícioMinhas tarefasDepartamentosFiscalAgendasFiscalListagensEmpresasRotinasTar",
+      "images": 0,
+      "headings": ["Fiscal"]
+    },
+    {
+      "id": "P02",
+      "file": "navegacao",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "title": "P02 · Troca de módulo via HUB",
+      "body": "\n    ← PropostasP02Troca de módulo via HUBAtual ↗O que avaliarTema escuroÁreas de trabalhoJaralconMariana CostaSairSeu escritórioOnde vamos trabalhar?Escolha um módulo para continuar. Você pode voltar a esta página para trocar de área a qua",
+      "images": 0,
+      "headings": ["Onde vamos trabalhar?"]
+    },
+    {
+      "id": "P05",
+      "file": "honorarios",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "title": "P05 · Orçamento genérico",
+      "body": "\n    Ir para o conteúdo← PropostasP05OrçarModelo HTML ↗Cobranças ativadasResposta lentaAtual ↗O que avaliarTema escuroP05 · OrçarRestauração da organização do HTML aprovado: Dados do orçamento → Abertura e início da cobrança → Empresa → Dep",
+      "images": 0,
+      "headings": ["Orçar"]
+    },
+    {
+      "id": "P11",
+      "file": "clientes-honorarios",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "title": "P11 · Gestão de clientes",
+      "body": "\n    Ir para o conteúdo← PropostasP11Gestão de clientesModelo HTML ↗Atual ↗O que avaliarTema escuroP11 · Gestão de clientesRestauração da organização do HTML aprovado. Esta prévia usa dados fictícios, valores de cenário e nenhuma API.O cada",
+      "images": 0,
+      "headings": ["Gestão de clientes"]
+    },
+    {
+      "id": "P12",
+      "file": "painel-honorarios",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "title": "P12 · Painel da carteira",
+      "body": "\n    Ir para o conteúdo← PropostasP12Painel da carteiraModelo HTML ↗Atual ↗O que avaliarTema escuroP12 · Painel da carteiraRestauração da organização do HTML aprovado. Esta prévia usa dados fictícios, valores de cenário e nenhuma API.O cada",
+      "images": 0,
+      "headings": ["Painel da carteira"]
+    },
+    {
+      "id": "P13",
+      "file": "orcamentos-honorarios",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "title": "P13 · Orçamentos salvos",
+      "body": "\n    Ir para o conteúdo← PropostasP13OrçarModelo HTML ↗Atual ↗O que avaliarTema escuroP13 · OrçarRestauração da organização do HTML aprovado. Esta prévia usa dados fictícios, valores de cenário e nenhuma API.O cadastro central de empresas é",
+      "images": 0,
+      "headings": ["Orçar"]
+    },
+    {
+      "id": "P08",
+      "file": "empresas",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "title": "P08 · Empresas — revisão de UX",
+      "body": "\n    Ir para o conteúdo← PropostasP08EmpresasAtual ↗Atual 2 ↗O que avaliarTema escuroP08 · EmpresasP08 · Busca, filtro e página são preservados ao consultar ou editar.Somente demonstração local: não altera dados reais nem envia convites.300",
+      "images": 0,
+      "headings": ["Empresas"]
+    },
+    {
+      "id": "P09",
+      "file": "equipe",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "title": "P09 · Equipe — revisão de UX",
+      "body": "\n    Ir para o conteúdo← PropostasP09EquipeAtual ↗Atual 2 ↗Atual 3 ↗O que avaliarTema escuroP09 · EquipeP09 · Filtro de situação, consulta antes de editar e acessos compactos.Somente demonstração local: não altera dados reais nem envia conv",
+      "images": 0,
+      "headings": ["Equipe"]
+    },
+    {
+      "case": "cores-legend",
+      "colors": [
+        {
+          "id": "abaixo",
+          "bg": "rgb(148, 98, 0)",
+          "legend": "rgb(148, 98, 0)"
+        },
+        {
+          "id": "alinhado",
+          "bg": "rgb(8, 127, 91)",
+          "legend": "rgb(8, 127, 91)"
+        },
+        {
+          "id": "acima",
+          "bg": "rgb(37, 99, 235)",
+          "legend": "rgb(37, 99, 235)"
+        }
+      ]
+    },
+    {
+      "case": "preco-estavel",
+      "before": 496.28125,
+      "during": 496.28125,
+      "after": 496.28125
+    }
+  ],
+  "checks": [
+    {
+      "name": "Linhas P08/P09/P11/P13 abrem por teclado e mouse",
+      "pass": true
+    },
+    {
+      "name": "Selecionar texto de uma linha não abre registro",
+      "pass": true
+    },
+    {
+      "name": "Busca/filtros preservados na ficha",
+      "pass": true
+    },
+    {
+      "name": "P12 cores da legenda correspondem às barras",
+      "pass": true
+    },
+    {
+      "name": "P05 planos visíveis e desativados; reset contextual",
+      "pass": true
+    },
+    {
+      "name": "P05 cálculo não desloca campo de preço",
+      "pass": true
+    },
+    {
+      "name": "P05 proposta utiliza template original",
+      "pass": true
+    }
+  ],
+  "exceptions": [],
+  "network": []
+}

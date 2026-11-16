@@ -1,0 +1,133 @@
+{
+  "checks": [
+    {
+      "name": "Base React: medidas, temas, popup e diálogo",
+      "pass": true
+    },
+    {
+      "name": "P11: campo único, seleção estrita por CNPJ, teclado e cancelamento",
+      "pass": true
+    },
+    {
+      "name": "P16: dez acessos, quatro alternativas e mesma listagem",
+      "pass": true
+    },
+    {
+      "name": "P18: catálogos reais, busca, cadastro e ligação",
+      "pass": true
+    },
+    {
+      "name": "Galerias e notebooks sem overflow horizontal",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "case": "P16 parity",
+      "counts": {
+        "fila": 3,
+        "responsabilidade": 4,
+        "outrosSetores": 6,
+        "ativos": 12,
+        "andamento": 6,
+        "atrasados": 3,
+        "agendados": 3,
+        "concluidos": 5,
+        "encerrados": 1,
+        "todos": 18
+      }
+    },
+    {
+      "file": "index.html",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "empresas-rotinas.html",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "empresas-rotinas.html?catalogo=rotinas",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "organizacao-processos.html",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "clientes-honorarios.html",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=A",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=B",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=C",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=D",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "index.html",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "empresas-rotinas.html",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "empresas-rotinas.html?catalogo=rotinas",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "organizacao-processos.html",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "clientes-honorarios.html",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=A",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=B",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=C",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "organizacao-processos-ideia.html?ideia=D",
+      "width": 1366,
+      "scrollWidth": 1351
+    }
+  ],
+  "exceptions": [],
+  "network": []
+}

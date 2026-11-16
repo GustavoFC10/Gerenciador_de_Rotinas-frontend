@@ -1,0 +1,84 @@
+/* Review controls only. Product layout, dimensions, colors and icons come from src. */
+.original-review-bar {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-height: 40px;
+  padding: 7px 20px;
+  color: #ecebff;
+  background: #242146;
+  font:
+    12px/1.4 'Segoe UI',
+    sans-serif;
+}
+:root:not([data-theme='dark']) body[data-proposal='P01'] {
+  --color-app-bg: #f3f5f9;
+  --color-sidebar-bg: #edf0f7;
+}
+body:is([data-proposal='P01'], [data-proposal='P18']) #app-sidebar {
+  top: 40px;
+  height: calc(100dvh - 40px);
+}
+body:is([data-proposal='P01'], [data-proposal='P18']) header.sticky {
+  top: 40px;
+}
+.original-review-bar > div {
+  display: flex;
+  gap: 17px;
+  align-items: center;
+  margin-left: auto;
+}
+.original-review-bar a {
+  color: inherit;
+  text-decoration: none;
+}
+.original-review-bar button {
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+.original-review-bar a:hover,
+.original-review-bar button:hover {
+  text-decoration: underline;
+}
+.original-review-bar :focus-visible {
+  outline: 2px solid #d7ceff;
+  outline-offset: 3px;
+}
+.original-review-notes {
+  position: fixed;
+  top: 48px;
+  right: 20px;
+  z-index: 100;
+  width: min(540px, calc(100vw - 40px));
+  padding: 22px;
+  color: #29354b;
+  background: #fff;
+  border: 1px solid #d4dce8;
+  box-shadow: 0 16px 50px #1c254526;
+  border-radius: 8px;
+  font:
+    14px/1.65 'Segoe UI',
+    sans-serif;
+}
+.original-review-notes h2 {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.original-review-notes p {
+  margin-bottom: 12px;
+}
+.original-review-notes button {
+  padding: 7px 12px;
+  border: 1px solid #cad3df;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
