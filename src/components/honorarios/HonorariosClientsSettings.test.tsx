@@ -125,6 +125,68 @@ async function click(label: string) {
 }
 
 describe('Honorários: parâmetros e carteira', () => {
+  it('keeps the selected company fixed in the named profile window and submits its ID', async () => {
+    const company = {
+      ...client.company,
+      legalName: 'Cliente Ltda.',
+      code: '001',
+      hasFinancialProfile: false,
+      financialProfile: null,
+    }
+    vi.mocked(honorariosService.clientCompanies).mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [company],
+    })
+    const options = vi.spyOn(honorariosService, 'companyOptions')
+    const create = vi
+      .spyOn(honorariosService, 'createClient')
+      .mockResolvedValue(client)
+    vi.spyOn(honorariosService, 'client').mockResolvedValue(client)
+    await render(
+      <HonorariosClients
+        configuration={configuration}
+        canEdit
+        canManage
+        scopeKey={['company-context']}
+      />,
+    )
+    for (let i = 0; i < 30 && !document.querySelector('tr[role="button"]'); i++)
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      })
+    await act(async () => {
+      document.querySelector<HTMLElement>('tr[role="button"]')!.click()
+    })
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
+    expect(
+      document.getElementById(dialog.getAttribute('aria-labelledby')!)
+        ?.textContent,
+    ).toBe(client.company.name)
+    expect(dialog.querySelector('[role="combobox"]')).toBeNull()
+    expect(dialog.textContent).toContain('12.345.678/0001-00')
+    expect(dialog.querySelector('a')?.getAttribute('href')).toBe(
+      '/cadastro-empresas/company-1',
+    )
+    expect(
+      [...dialog.querySelectorAll('button')].filter(
+        (button) => button.textContent === 'Cancelar',
+      ),
+    ).toHaveLength(1)
+    await act(async () => {
+      dialog
+        .querySelector('form')!
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ companyId: 'company-1' }),
+      expect.any(AbortSignal),
+    )
+    expect(options).not.toHaveBeenCalled()
+  })
+
   it('abre o cadastro de cliente pelo atalho inicial do painel', async () => {
     vi.spyOn(honorariosService, 'clients').mockResolvedValue({
       count: 0,

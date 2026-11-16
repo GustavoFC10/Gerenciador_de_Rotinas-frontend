@@ -94,14 +94,12 @@ describe('HonorariosLayout', () => {
       ]),
     ).toEqual([
       ['Voltar aos módulos', '/hub'],
-      ['Painel', '/honorarios'],
+      ['Home', '/honorarios'],
       ['Orçamentos', '/honorarios/orcamentos'],
       ['Clientes', '/honorarios/clientes'],
       ['Parâmetros', '/honorarios/parametros'],
     ])
-    expect(nav.querySelector('[aria-current="page"]')?.textContent).toBe(
-      'Painel',
-    )
+    expect(nav.querySelector('[aria-current="page"]')?.textContent).toBe('Home')
     expect(host.querySelector('[data-sidebar-profile]')?.textContent).toContain(
       'Ana Souza',
     )
@@ -168,7 +166,7 @@ describe('HonorariosLayout', () => {
     expect(host.querySelector('header a[href="/honorarios/novo"]')).toBeNull()
     expect(host.textContent).toContain('Consulta')
   })
-  it('troca de organização pelo fluxo autenticado existente e apresenta erro de saída', async () => {
+  it('mantém o contexto atual sem seletor de organização e apresenta erro de saída', async () => {
     await render({
       context: {
         ...auth,
@@ -186,13 +184,12 @@ describe('HonorariosLayout', () => {
         ],
       },
     })
-    await act(async () => {
-      const select = host.querySelector<HTMLSelectElement>('select')!
-      select.value = 'member-b'
-      select.dispatchEvent(new Event('change', { bubbles: true }))
-    })
-    expect(switchOrganization).toHaveBeenCalledWith('member-b')
-    expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
+    expect(host.querySelector('nav select')).toBeNull()
+    expect(host.textContent).not.toContain('Organização ativa')
+    expect(switchOrganization).not.toHaveBeenCalled()
+    expect(host.querySelector('[data-location]')?.textContent).toBe(
+      '/honorarios',
+    )
     logout.mockRejectedValueOnce(
       new Error('Não foi possível encerrar a sessão.'),
     )

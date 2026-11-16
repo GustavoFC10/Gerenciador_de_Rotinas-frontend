@@ -1,0 +1,47 @@
+{
+  "checks": [
+    {
+      "name": "React atual /honorarios/clientes",
+      "pass": true
+    },
+    {
+      "name": "Company-specific financial profile window",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "path": "/honorarios/clientes",
+      "text": "\n    Pular para o conteúdoHonoráriosJaralcon · demonstraçãoVoltar aos módulosGestão de honoráriosPainelOrçamentosClientesParâmetrosAAnademo-diretoria@preview.exampleSairHonorários/ClientesAtualizarClientesAdministraçãoExportar perfis CSVImportar carteiraNovo clienteCarregando empresas…Diferença = honorário atual menos o valor sugerido. Tabela versão 4.Preview local · dados fictícios\n    \n  \n\n",
+      "width": 1280,
+      "scrollWidth": 1280
+    },
+    {
+      "width": 1280,
+      "dialog": {
+        "left": 192,
+        "right": 1088,
+        "top": 24,
+        "bottom": 696,
+        "buttonBottom": 679,
+        "buttonTop": 639,
+        "scroll": 894,
+        "client": 894
+      }
+    },
+    {
+      "width": 1366,
+      "dialog": {
+        "left": 235,
+        "right": 1131,
+        "top": 24,
+        "bottom": 744,
+        "buttonBottom": 727,
+        "buttonTop": 687,
+        "scroll": 894,
+        "client": 894
+      }
+    }
+  ],
+  "exceptions": []
+}
