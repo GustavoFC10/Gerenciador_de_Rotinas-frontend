@@ -3,13 +3,35 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
+import { fileURLToPath } from 'node:url'
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'public/vendor/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'coverage/**',
+      'public/vendor/**',
+      'previews/revisao-ux/**/vendor/**',
+      'previews/base-components/vendor/**',
+      '**/.venv/**',
+      '**/.mypy_cache/**',
+      '**/.pytest_cache/**',
+      '**/.ruff_cache/**',
+      '**/__pycache__/**',
+      'reports/uv-cache/**',
+      'reports/pedro-format-*/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: fileURLToPath(new URL('.', import.meta.url)),
+      },
+    },
+  },
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {

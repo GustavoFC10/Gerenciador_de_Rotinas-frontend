@@ -26,6 +26,14 @@ Propostas antigas usam exclusivamente os dados preservados pelo backend. O HTML 
 
 Status, conversão, edição, arquivamento e reajuste usam as versões retornadas pelo servidor. O reajuste envia também a versão da tabela e exige nova conferência após conflito. A conversão envia somente versão e empresa, sem um novo valor de honorário. Nenhum fluxo cria empresas ou Processos.
 
+## Organização dos parâmetros
+
+A tela inicia em **Valores base** e segue as nove abas da referência: Valores base, Adicionais, Regime e horas, Faturamento, Serviços, Exceções, Planos, Cobrança e reajuste e Regras. A edição usa a matriz de segmento por regime, cartões de adicionais e tabelas de faixas, serviços e exceções; não expõe os identificadores internos como campos de cadastro. Dados do escritório e histórico têm acessos separados das nove abas.
+
+A troca de abas preserva o rascunho completo. Restaurar padrão exige confirmação, modifica somente o rascunho de parâmetros e preserva o escritório. A gravação continua explícita, com versão e permissões, em Salvar parâmetros. Os descontos de pacote aceitam ajuste negativo até -100%, conforme o contrato.
+
+Há uma diferença funcional do backend em relação ao HTML: ele aceita somente os métodos de horas `maior` e `horas`. O método `tabela` do protótipo, que usa horas apenas para mostrar a margem, é rejeitado pela validação da API e não é oferecido como uma configuração salvável. Essa limitação não exige alterar o agrupamento das telas.
+
 ## Importação
 
 CSV e XLSX são interpretados localmente, sem biblioteca externa ou execução de fórmulas. A prévia exige empresas existentes, resolvidas por UUID, CNPJ/código exatos ou seleção explícita. O nome nunca é usado como vínculo automático. As linhas preservam o `profile` JSON da exportação.
@@ -65,6 +73,6 @@ O `App.tsx` montava Honorários diretamente, sem a rota pai `/honorarios/*`. Por
 
 `src/AppHonorarios.test.tsx` usa o App e as telas reais, sem criar a rota pai no teste. Ele reproduziu a falha antes da correção e agora cobre a entrada no painel, todas as abas, links diretos para propostas e revisões, consultas à API, erro com repetição e retorno ao HUB. Há também testes de painel vazio, estados de carregamento, simulação e menu móvel. A falha de consulta da proposta de origem agora apresenta erro e repetição, sem ficar carregando indefinidamente.
 
-Resultado da validação: 90 arquivos e 779 testes aprovados. O build mantém o aviso não bloqueante sobre o tamanho do bundle principal.
+Resultado da validação: 91 arquivos e 792 testes aprovados. Os testes adicionais de Parâmetros verificam a organização original, o rascunho entre abas, restauração confirmada e a gravação com versão. O build mantém o aviso não bloqueante sobre o tamanho do bundle principal.
 
-Também foi feita verificação em Edge headless, usando a aplicação real em desktop (1440 px) e celular (390 px), com respostas simuladas exclusivamente no transporte do navegador. Foram conferidos painel com dados e vazio, temas claro/escuro, navegação por todas as abas, menu móvel, retorno ao HUB e chamada POST de cálculo com CSRF. As capturas estão em `reports/honorarios-desktop.png`, `reports/honorarios-mobile.png` e `reports/honorarios-mobile-menu.png`. Isso não substitui a conferência com sessão autenticada contra o backend de implantação. As correções não foram publicadas automaticamente.
+Também foi feita verificação em Edge headless, usando a aplicação real em desktop (1440 px) e celular (390 px), com respostas simuladas exclusivamente no transporte do navegador. Foram conferidos painel com dados e vazio, temas claro/escuro, navegação por todas as abas, menu móvel, retorno ao HUB e chamada POST de cálculo com CSRF. Em Parâmetros, todas as nove abas apresentaram formulários válidos, o rascunho persistiu entre abas e não houve PUT automático; os cartões da matriz foram ajustados à largura móvel, com rolagem interna da tabela. As capturas estão em `reports/honorarios-desktop.png`, `reports/honorarios-mobile.png`, `reports/honorarios-mobile-menu.png`, `reports/honorarios-parametros.png` e `reports/honorarios-parametros-mobile.png`. Isso não substitui a conferência com sessão autenticada contra o backend de implantação. As correções não foram publicadas automaticamente.

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import './primitives.css'
 
 const cardVariantClass = {
   panel:
@@ -18,7 +19,7 @@ interface CardProps {
 function Card({ children, className = '', variant = 'panel' }: CardProps) {
   return (
     <section
-      className={`overflow-hidden ${cardVariantClass[variant] ?? cardVariantClass.panel} ${className}`}
+      className={`ui-card ${cardVariantClass[variant] ?? cardVariantClass.panel} ${className}`}
     >
       {children}
     </section>

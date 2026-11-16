@@ -4,6 +4,7 @@ import {
   focusRing,
 } from '../../constants/designTokens'
 import type { ButtonHTMLAttributes } from 'react'
+import './primitives.css'
 
 type ButtonTone = keyof typeof buttonTone
 type ButtonSize = keyof typeof controlSize
@@ -24,7 +25,7 @@ function Button({
   return (
     <button
       type={type}
-      className={`inline-flex items-center justify-center rounded-[var(--radius-control)] font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${controlSize[size]} ${buttonTone[tone]} ${focusRing} ${className}`}
+      className={`ui-button ${controlSize[size]} ${buttonTone[tone]} ${focusRing} ${className}`}
       {...props}
     >
       {children}

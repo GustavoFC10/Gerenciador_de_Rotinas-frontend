@@ -117,10 +117,10 @@ function AppLayout({ spreadsheets, agendas }: AppLayoutProps) {
   }, [isMobileSidebarOpen])
 
   return (
-    <div className={`min-h-screen ${appThemeClass.shell}`}>
+    <div className={`workspace-shell min-h-screen ${appThemeClass.shell}`}>
       <a
         href="#main-content"
-        className={`fixed left-3 top-3 z-[80] -translate-y-20 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-4 py-2 text-sm font-bold text-[var(--color-button-primary-text)] transition-transform focus:translate-y-0 ${focusRing}`}
+        className={`fixed left-3 top-3 z-[80] -translate-y-20 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-button-primary-text)] transition-transform focus:translate-y-0 ${focusRing}`}
       >
         Pular para o conteúdo
       </a>
@@ -160,7 +160,7 @@ function AppLayout({ spreadsheets, agendas }: AppLayoutProps) {
           <main
             id="main-content"
             tabIndex={-1}
-            className="flex flex-1 px-4 py-4 outline-none sm:px-6 sm:py-5 lg:px-8"
+            className="workspace-main flex flex-1 px-4 py-4 outline-none sm:px-6 sm:py-5 lg:px-8"
           >
             <div className="flex w-full min-w-0 flex-1 flex-col">
               <Outlet />

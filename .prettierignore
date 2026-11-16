@@ -12,3 +12,15 @@ dados-atuais.json
 processos-jaralcon (1).html
 honorarios-claude/
 docs/honorarios_base/
+# Generated assets for the isolated React visual preview.
+previews/revisao-ux/**/vendor/
+previews/base-components/vendor/
+# Local Python environments and generated caches are outside frontend formatting.
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+reports/uv-cache/
+# Temporary formatter review checkouts are not frontend source.
+reports/pedro-format-*/

@@ -65,6 +65,85 @@ function json(data: unknown) {
 }
 
 describe('HonorariosService', () => {
+  it('lists companies with and without financial profiles without inventing zero fees', async () => {
+    const page = {
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        {
+          id: 'company-1',
+          name: 'Cliente',
+          legalName: 'Cliente Ltda.',
+          cnpj: '',
+          code: '001',
+          hasFinancialProfile: true,
+          financialProfile: clientRecord,
+        },
+        {
+          id: 'company-2',
+          name: 'Sem perfil',
+          legalName: '',
+          cnpj: '',
+          code: null,
+          hasFinancialProfile: false,
+          financialProfile: null,
+        },
+      ],
+    }
+    const { service, fetchMock } = setup([json(page)])
+    const signal = new AbortController().signal
+    await expect(
+      service.clientCompanies(
+        {
+          q: 'Cliente',
+          ordering: 'name',
+          profile: 'all',
+          page: 1,
+          pageSize: 20,
+        },
+        signal,
+      ),
+    ).resolves.toEqual(page)
+    const url = new URL(String(fetchMock.mock.calls[0][0]))
+    expect(url.pathname).toBe('/api/v1/honorarios/client-companies/')
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({
+      q: 'Cliente',
+      ordering: 'name',
+      profile: 'all',
+      page: '1',
+      pageSize: '20',
+    })
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      credentials: 'include',
+      signal,
+    })
+  })
+
+  it('rejects a financial profile associated with another company', async () => {
+    const { service } = setup([
+      json({
+        count: 1,
+        next: null,
+        previous: null,
+        results: [
+          {
+            id: 'another-company',
+            name: 'Outra empresa',
+            legalName: '',
+            cnpj: '',
+            code: null,
+            hasFinancialProfile: true,
+            financialProfile: clientRecord,
+          },
+        ],
+      }),
+    ])
+    await expect(service.clientCompanies()).rejects.toBeInstanceOf(
+      HonorariosContractError,
+    )
+  })
+
   it('uses the envelope, cookies, CSRF and AbortSignal for authoritative calculation', async () => {
     const result = { paramsVersion: 3, calculation, plans: [] }
     const { service, fetchMock } = setup([json(result)])

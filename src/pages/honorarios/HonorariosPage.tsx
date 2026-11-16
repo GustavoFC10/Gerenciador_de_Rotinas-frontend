@@ -111,7 +111,7 @@ function HonorariosWorkspace() {
       'Consulte e configure as regras de precificação do escritório.',
     ],
   }
-  const [title, description] =
+  const [title] =
     titles[route] ??
     (route.endsWith('/revisar')
       ? [
@@ -125,7 +125,7 @@ function HonorariosWorkspace() {
   return (
     <HonorariosLayout
       title={title}
-      description={description}
+      description={undefined}
       roleLabel={
         canManage ? 'Administração' : canEdit ? 'Operação' : 'Consulta'
       }

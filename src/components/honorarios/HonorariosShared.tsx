@@ -1,7 +1,19 @@
-import { useEffect, useId, useState, type ReactNode } from 'react'
+import CurrencyField from './CurrencyField'
+import { Link } from 'react-router'
+import { AuthContext } from '../../contexts/authContextDefinition'
+import {
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
+import Combobox from '../ui/Combobox'
+import './honorarios.css'
 import TextField from '../ui/TextField'
 import Select from '../ui/Select'
 import { honorariosService } from '../../services/honorariosService'
@@ -59,7 +71,7 @@ export function Panel({
   actions?: ReactNode
 }) {
   return (
-    <Card className="p-5 sm:p-6">
+    <Card className="honorarios-panel p-5 sm:p-6">
       {(title || actions) && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-base font-bold text-[var(--color-text-strong)]">
@@ -121,131 +133,181 @@ export function ProfileFields({
   onChange: (profile: HonorariosProfile) => void
   disabled?: boolean
 }) {
+  const extraDraft = useRef({
+    servicos: [...profile.servicos],
+    anomalias: [...profile.anomalias],
+  })
+  const [servicesOpen, setServicesOpen] = useState(profile.servicos.length > 0)
+  const [exceptionsOpen, setExceptionsOpen] = useState(
+    profile.anomalias.length > 0,
+  )
   function set<K extends keyof HonorariosProfile>(
     key: K,
     value: HonorariosProfile[K],
   ) {
     onChange({ ...profile, [key]: value })
   }
-  const counts = [
-    ['funcionarios', 'Funcionários'],
-    ['socios', 'Sócios'],
-    ['xml', 'XMLs por mês'],
-    ['notas', 'Notas por mês'],
-    ['filiais', 'Filiais ativas'],
-    ['filiaisInativas', 'Filiais inativas'],
-  ] as const
+  const count = (
+    key:
+      | 'funcionarios'
+      | 'socios'
+      | 'xml'
+      | 'notas'
+      | 'filiais'
+      | 'filiaisInativas',
+    label: string,
+  ) => (
+    <TextField
+      label={label}
+      type="number"
+      min="0"
+      step="1"
+      required
+      value={profile[key]}
+      onChange={(e) => set(key, Number(e.target.value))}
+    />
+  )
+  const toggle = (key: 'inativa' | 'emiteNF' | 'usarHoras', label: string) => (
+    <label className="hon-toggle">
+      <input
+        type="checkbox"
+        role="switch"
+        checked={profile[key]}
+        onChange={(e) => set(key, e.target.checked)}
+      />
+      <span>{label}</span>
+    </label>
+  )
   return (
-    <fieldset disabled={disabled} className="space-y-5 disabled:opacity-70">
+    <fieldset
+      disabled={disabled}
+      className="hon-profile-fields disabled:opacity-70"
+    >
       <legend className="sr-only">Perfil de cálculo</legend>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Select
-          label="Regime tributário"
-          value={profile.regime}
-          onChange={(e) =>
-            set('regime', e.target.value as HonorariosProfile['regime'])
-          }
-        >
-          {Object.entries(regimeNames).map(([id, name]) => (
-            <option key={id} value={id}>
-              {name}
-            </option>
-          ))}
-        </Select>
-        <Select
-          label="Segmento"
-          value={profile.segmento}
-          onChange={(e) => set('segmento', e.target.value)}
-        >
-          {params.segmentos.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.nome}
-            </option>
-          ))}
-        </Select>
-        <TextField
-          label="Faturamento mensal (R$)"
-          type="number"
-          min="0"
-          step="0.01"
-          required
-          value={profile.faturamento}
-          onChange={(e) => set('faturamento', e.target.value)}
-        />
-        {counts.map(([key, label]) => (
+      <section>
+        <h3>Empresa</h3>
+        <div className="hon-field-grid">
+          <Select
+            label="Segmento"
+            value={profile.segmento}
+            onChange={(e) => set('segmento', e.target.value)}
+          >
+            {params.segmentos.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.nome}
+              </option>
+            ))}
+          </Select>
+          <fieldset className="hon-regimes">
+            <legend>Regime tributário</legend>
+            <div>
+              {Object.entries(regimeNames).map(([id, name]) => (
+                <label key={id}>
+                  <input
+                    type="radio"
+                    name={`regime-${profile.segmento}`}
+                    value={id}
+                    checked={profile.regime === id}
+                    onChange={() =>
+                      set('regime', id as HonorariosProfile['regime'])
+                    }
+                  />
+                  <span>{name}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <CurrencyField
+            label="Faturamento mensal (R$)"
+            required
+            value={profile.faturamento}
+            onValueChange={(value) => set('faturamento', value)}
+          />
+        </div>
+        {toggle('inativa', 'Empresa inativa')}
+      </section>
+      {!profile.inativa && (
+        <>
+          <section>
+            <h3>Departamento pessoal</h3>
+            <div className="hon-field-grid">
+              {count('funcionarios', 'Funcionários')}
+              {params.socios.ativo && count('socios', 'Sócios')}
+            </div>
+          </section>
+          <section>
+            <h3>Fiscal</h3>
+            <div className="hon-field-grid">
+              {params.xml.ativo && count('xml', 'XMLs por mês')}
+            </div>
+            {toggle('emiteNF', 'Escritório emite notas')}
+            {profile.emiteNF && count('notas', 'Notas por mês')}
+          </section>
+          <section>
+            <h3>Filiais</h3>
+            <div className="hon-field-grid">
+              {count('filiais', 'Filiais ativas')}
+              {count('filiaisInativas', 'Filiais inativas')}
+            </div>
+          </section>
+        </>
+      )}
+      <section>
+        <h3>Ajustes do honorário</h3>
+        {toggle('usarHoras', 'Comparar custo por horas')}
+        {profile.usarHoras && (
           <TextField
-            key={key}
-            label={label}
+            label="Horas mensais estimadas"
             type="number"
             min="0"
-            step="1"
+            step="0.01"
             required
-            value={profile[key]}
-            onChange={(e) => set(key, Number(e.target.value))}
+            value={profile.horas}
+            onChange={(e) => set('horas', e.target.value)}
           />
-        ))}
-        <TextField
-          label="Horas mensais estimadas"
-          type="number"
-          min="0"
-          step="0.01"
-          required
-          value={profile.horas}
-          onChange={(e) => set('horas', e.target.value)}
-        />
-      </div>
-      <div className="flex flex-wrap gap-4 text-sm">
-        {(
-          [
-            ['inativa', 'Empresa inativa'],
-            ['emiteNF', 'Escritório emite notas'],
-            ['usarHoras', 'Comparar custo por horas'],
-          ] as const
-        ).map(([key, label]) => (
-          <label key={key} className="flex items-center gap-2">
+        )}
+      </section>
+      {(['servicos', 'anomalias'] as const).map((key) => (
+        <section key={key}>
+          <label className="hon-toggle">
             <input
               type="checkbox"
-              checked={profile[key]}
-              onChange={(e) => set(key, e.target.checked)}
+              role="switch"
+              checked={key === 'servicos' ? servicesOpen : exceptionsOpen}
+              onChange={(event) => {
+                const enabled = event.target.checked
+                if (!enabled) extraDraft.current[key] = [...profile[key]]
+                set(key, enabled ? extraDraft.current[key] : [])
+                if (key === 'servicos') setServicesOpen(enabled)
+                else setExceptionsOpen(enabled)
+              }}
             />
-            {label}
+            <span>
+              {key === 'servicos' ? 'Serviços adicionais' : 'Taxa de exceção'}
+            </span>
           </label>
-        ))}
-      </div>
-      {(
-        [
-          ['servicos', 'Serviços adicionais'],
-          ['anomalias', 'Exceções do atendimento'],
-        ] as const
-      ).map(([key, label]) => (
-        <fieldset key={key}>
-          <legend className="mb-2 text-sm font-semibold text-[var(--color-text-strong)]">
-            {label}
-          </legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {params[key].map((item) => (
-              <label
-                key={item.id}
-                className="flex items-start gap-2 rounded-[var(--radius-control)] bg-[var(--color-panel-soft-bg)] p-3 text-sm"
-              >
-                <input
-                  className="mt-1"
-                  type="checkbox"
-                  checked={profile[key].includes(item.id)}
-                  onChange={(e) =>
-                    set(
-                      key,
-                      e.target.checked
-                        ? [...profile[key], item.id]
-                        : profile[key].filter((id) => id !== item.id),
-                    )
-                  }
-                />
-                {item.nome}
-              </label>
-            ))}
+          <div hidden={!(key === 'servicos' ? servicesOpen : exceptionsOpen)}>
+            <div className="hon-field-grid">
+              {params[key].map((item) => (
+                <label className="hon-option" key={item.id}>
+                  <input
+                    type="checkbox"
+                    checked={profile[key].includes(item.id)}
+                    onChange={(e) =>
+                      set(
+                        key,
+                        e.target.checked
+                          ? [...profile[key], item.id]
+                          : profile[key].filter((id) => id !== item.id),
+                      )
+                    }
+                  />
+                  <span>{item.nome}</span>
+                </label>
+              ))}
+            </div>
           </div>
-        </fieldset>
+        </section>
       ))}
     </fieldset>
   )
@@ -262,6 +324,9 @@ export function CompanyPicker({
   disabled?: boolean
   onDenied?: (error: unknown) => void
 }) {
+  const auth = useContext(AuthContext)
+  const getModule = (module: string) =>
+    auth?.activeMembership?.modules?.find((item) => item.module === module)
   const [search, setSearch] = useState('')
   const [options, setOptions] = useState<HonorariosCompanyOption[]>([])
   const [loading, setLoading] = useState(false)
@@ -295,45 +360,32 @@ export function CompanyPicker({
   }, [search, disabled, onDenied])
   return (
     <div className="space-y-3">
-      <TextField
-        label="Buscar empresa por nome, CNPJ ou código"
-        value={search}
-        disabled={disabled}
-        onChange={(e) => {
-          setSearch(e.target.value)
-          setOptions([])
-        }}
-        aria-controls={id}
-      />
-      <Select
+      <Combobox
         id={id}
         label="Empresa do cadastro central"
-        value={value?.id ?? ''}
-        disabled={disabled || loading}
-        onChange={(e) =>
+        placeholder="Nome, código ou CNPJ"
+        disabled={disabled}
+        value={value?.id ?? null}
+        options={[
+          ...(value && !options.some((item) => item.id === value.id)
+            ? [value]
+            : []),
+          ...options,
+        ].map((item) => ({
+          value: item.id,
+          label: item.name,
+          description: [item.cnpj, item.code].filter(Boolean).join(' · '),
+          keywords: [item.code ?? '', item.cnpj.replace(/\D/g, '')],
+        }))}
+        onValueChange={(id) =>
           onChange(
-            options.find((item) => item.id === e.target.value) ??
-              (e.target.value === value?.id ? value : null),
+            options.find((item) => item.id === id) ??
+              (value?.id === id ? value : null),
           )
         }
-      >
-        <option value="">
-          {loading
-            ? 'Consultando empresas…'
-            : 'Selecione uma empresa existente'}
-        </option>
-        {value && !options.some((item) => item.id === value.id) && (
-          <option value={value.id}>
-            {value.name} · {value.cnpj || 'Sem CNPJ'}
-          </option>
-        )}
-        {options.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.code ? `${item.code} · ` : ''}
-            {item.name} · {item.cnpj || 'Sem CNPJ'}
-          </option>
-        ))}
-      </Select>
+        onSearchChange={setSearch}
+      />
+      {loading && <p role="status">Buscando empresas…</p>}
       {error ? (
         <Notice tone="error">{getErrorPresentation(error).message}</Notice>
       ) : null}
@@ -347,6 +399,22 @@ export function CompanyPicker({
           CNPJ: {value.cnpj || 'Não informado'} · Nome e CNPJ vêm do cadastro
           central.
         </p>
+      )}
+      {value && getModule('companies')?.actions.includes('read') && (
+        <Link
+          className="inline-flex min-h-10 items-center text-sm font-semibold text-[var(--color-brand)] underline"
+          to={`/cadastro-empresas/${encodeURIComponent(value.id)}`}
+        >
+          Cadastro geral da empresa ↗
+        </Link>
+      )}
+      {!value && getModule('companies')?.actions.includes('create') && (
+        <Link
+          className="inline-flex min-h-10 items-center text-sm font-semibold text-[var(--color-brand)] underline"
+          to="/cadastro-empresas/nova"
+        >
+          Cadastrar empresa no catálogo geral ↗
+        </Link>
       )}
     </div>
   )

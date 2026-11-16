@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 
-import { focusRing } from '../../constants/designTokens'
+import { buttonTone, focusRing } from '../../constants/designTokens'
+import '../ui/primitives.css'
 
 interface CatalogListProps {
   title: string
@@ -30,7 +31,7 @@ export function CatalogList({
     <div className="mx-auto w-full max-w-[90rem]">
       <header className="mb-4 flex min-h-11 flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="text-xl font-extrabold tracking-tight text-[var(--color-text-strong)] sm:text-2xl">
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-strong)] sm:text-2xl">
             {title}
           </h1>
           <span className="text-sm font-semibold text-[var(--color-text-muted)]">
@@ -113,7 +114,7 @@ export function CatalogHeader({
 }) {
   return (
     <div
-      className={`hidden items-center gap-3 border-b border-[var(--color-list-border)] bg-[var(--color-panel-soft-bg)] px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[var(--color-text-subtle)] lg:grid ${gridClass}`}
+      className={`hidden items-center gap-3 border-b border-[var(--color-list-border)] bg-[var(--color-panel-soft-bg)] px-4 py-3 text-xs font-medium text-[var(--color-text-muted)] lg:grid ${gridClass}`}
       aria-hidden="true"
     >
       {children}
@@ -175,7 +176,7 @@ export function CatalogDatum({
     <span
       className={`min-w-0 text-sm text-[var(--color-text-muted)] ${className}`}
     >
-      <span className="mb-0.5 block text-[10px] font-extrabold uppercase tracking-[0.1em] text-[var(--color-text-subtle)] lg:sr-only">
+      <span className="mb-0.5 block text-xs font-medium text-[var(--color-text-muted)] lg:sr-only">
         {label}
       </span>
       {children}
@@ -192,7 +193,7 @@ export function CatalogPrimary({
 }) {
   return (
     <span className="min-w-0">
-      <span className="block truncate text-sm font-extrabold text-[var(--color-text-strong)] group-hover:text-[var(--color-brand)]">
+      <span className="block truncate text-sm font-semibold text-[var(--color-text-strong)] group-hover:text-[var(--color-brand)]">
         {title}
       </span>
       {description && (
@@ -260,7 +261,7 @@ export function CatalogAction({
   return (
     <Link
       to={to}
-      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-4 text-sm font-bold text-[var(--color-button-primary-text)] transition hover:bg-[var(--color-button-primary-hover-bg)] ${focusRing}`}
+      className={`ui-button ui-button--md ${buttonTone.primary} ${focusRing}`}
     >
       <PlusIcon />
       {children}
@@ -278,7 +279,7 @@ export function CatalogSecondaryAction({
   return (
     <Link
       to={to}
-      className={`inline-flex min-h-10 items-center justify-center rounded-[var(--radius-control)] border border-[var(--color-button-neutral-border)] bg-[var(--color-button-neutral-bg)] px-4 text-sm font-bold text-[var(--color-button-neutral-text)] transition hover:bg-[var(--color-button-neutral-hover-bg)] ${focusRing}`}
+      className={`ui-button ui-button--md ${buttonTone.neutral} ${focusRing}`}
     >
       {children}
     </Link>

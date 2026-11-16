@@ -1,0 +1,63 @@
+@import 'tailwindcss/theme' layer(theme);
+@import 'tailwindcss/utilities' layer(utilities);
+@source '../../../src/components/ui/Combobox.tsx';
+
+/* Match the approved local preview without importing an application preflight. */
+.jaral-combobox,
+[data-combobox-popup] {
+  --color-text-main: var(--ink);
+  --color-text-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-control-bg: var(--surface);
+  --color-control-hover-bg: var(--soft);
+  --color-control-border: var(--line);
+  --color-control-text: var(--ink);
+  --color-control-placeholder: var(--muted);
+  --color-control-focus: var(--brand);
+  --color-focus-ring: #29256c24;
+  --color-panel-bg: var(--surface);
+  --color-panel-soft-bg: var(--soft);
+  --color-divider: var(--line);
+  --status-error-border: #df9eaa;
+  --status-error-text: #a62939;
+  --radius-control: 6px;
+  --shadow-floating: var(--shadow);
+  font-size: 14px;
+}
+.jaral-combobox input[role='combobox'] {
+  height: 40px;
+  min-height: 40px;
+  padding: 8px 80px 8px 12px;
+  border-color: var(--color-control-border);
+  background: var(--color-control-bg);
+  color: var(--color-control-text);
+  font-size: 13px;
+}
+.jaral-combobox > label {
+  font-size: 13px;
+  margin-bottom: 7px;
+}
+.jaral-combobox [aria-label='Limpar seleção'] {
+  padding: 0;
+  min-width: 28px;
+  min-height: 28px;
+}
+[data-combobox-popup] ul {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+}
+[data-combobox-popup] [role='option'] {
+  font-size: 13px;
+}
+[data-combobox-popup] p {
+  margin: 0;
+  font-size: 11px;
+}
+:root[data-theme='dark'] .jaral-combobox,
+:root[data-theme='dark'] [data-combobox-popup] {
+  --color-focus-ring: #b8b4ff35;
+  --status-error-border: #94505b;
+  --status-error-text: #ffa1ad;
+}

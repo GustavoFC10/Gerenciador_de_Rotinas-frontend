@@ -1,0 +1,280 @@
+.honorarios-workspace {
+  font-size: 14px;
+}
+.hon-quote-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.hon-quote-fields {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.hon-regimes {
+  grid-column: 1/-1;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.hon-regimes legend {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.hon-regimes > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--color-control-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.hon-regimes label {
+  position: relative;
+  display: grid;
+  min-height: 40px;
+  place-items: center;
+  text-align: center;
+  font-size: 12px;
+  cursor: pointer;
+  border-right: 1px solid var(--color-control-border);
+}
+.hon-regimes label:last-child {
+  border-right: 0;
+}
+.hon-regimes label:has(:checked) {
+  background: var(--color-button-primary-bg);
+  color: var(--color-button-primary-text);
+}
+.hon-regimes input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.hon-regimes label:has(:focus-visible) {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: -3px;
+}
+.hon-proposal-price {
+  padding: 0 0 20px;
+  border-bottom: 1px solid var(--color-divider);
+}
+.hon-quote-summary > .honorarios-panel > .hon-currency-field input {
+  height: 52px;
+  font-size: 24px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.hon-quote-summary > .honorarios-panel {
+  min-height: 420px;
+}
+.hon-quote-summary dl {
+  margin-top: 22px;
+}
+@media (max-width: 1023px) {
+  .hon-quote-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.hon-company-tools {
+  display: grid;
+  grid-template-columns: minmax(240px, 2fr) minmax(180px, 1fr) minmax(
+      150px,
+      1fr
+    );
+  gap: 16px;
+  align-items: end;
+}
+@media (max-width: 900px) {
+  .hon-company-tools {
+    grid-template-columns: 1fr;
+  }
+}
+.honorarios-workspace .honorarios-panel {
+  overflow: visible;
+}
+.honorarios-panel > div:first-child:has(> h2) {
+  padding: 0 0 16px;
+  margin: 0 0 20px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.honorarios-panel table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.honorarios-panel th {
+  background: var(--color-panel-soft-bg);
+  padding: 12px 16px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.honorarios-panel td {
+  padding: 14px 16px;
+}
+.honorarios-panel tr[role='link'] {
+  cursor: pointer;
+}
+.honorarios-panel tr[role='link']:hover {
+  background: var(--color-panel-soft-bg);
+}
+.honorarios-panel tr[role='link']:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: -2px;
+}
+.hon-profile-fields {
+  border: 0;
+  margin: 0 !important;
+  padding: 0;
+  min-width: 0;
+}
+.hon-profile-fields > section {
+  padding: 20px;
+  border-bottom: 1px solid var(--color-divider);
+}
+.hon-profile-fields > section:last-child {
+  border: 0;
+}
+.hon-profile-fields h3 {
+  font-size: 14px;
+  font-weight: 650;
+  margin: 0 0 18px;
+}
+.hon-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 16px;
+}
+.hon-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  margin-top: 14px;
+  font-size: 13px;
+}
+.hon-toggle input {
+  appearance: none;
+  width: 36px;
+  height: 21px;
+  border: 1px solid var(--color-control-border);
+  border-radius: 20px;
+  background: var(--color-control-border);
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.hon-toggle input::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 15px;
+  height: 15px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.15s;
+}
+.hon-toggle input:checked {
+  background: var(--color-button-primary-bg);
+  border-color: var(--color-button-primary-bg);
+}
+.hon-toggle input:checked::after {
+  transform: translateX(15px);
+}
+.hon-toggle input:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 3px;
+}
+.hon-toggle input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.hon-toggle small {
+  color: var(--color-text-muted);
+}
+.hon-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-divider);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.hon-option input {
+  margin-top: 3px;
+  accent-color: var(--color-button-primary-bg);
+}
+.hon-quote-summary {
+  position: sticky;
+  top: 92px;
+}
+.hon-quote-summary .text-3xl {
+  font-size: 36px;
+  font-weight: 750;
+  color: var(--color-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+[data-fee-alignment='abaixo'] {
+  --hon-alignment: var(--color-fee-below);
+}
+[data-fee-alignment='alinhado'] {
+  --hon-alignment: var(--color-fee-aligned);
+}
+[data-fee-alignment='acima'] {
+  --hon-alignment: var(--color-fee-above);
+}
+[data-fee-alignment] > .mb-2 {
+  color: var(--hon-alignment);
+}
+[data-fee-alignment] .h-full {
+  background: var(--hon-alignment);
+}
+@media (max-width: 1023px) {
+  .hon-quote-summary {
+    position: static;
+  }
+}
+
+.hon-quotes-table th:last-child,
+.hon-quotes-table td:last-child,
+.honorarios-panel table:has([data-fee-alignment]) th:last-child,
+.honorarios-panel table:has([data-fee-alignment]) td:last-child {
+  display: none;
+}
+tr[data-fee-alignment] {
+  cursor: pointer;
+}
+tr[data-fee-alignment]:hover {
+  background: var(--color-panel-soft-bg);
+}
+tr[data-company-alignment='abaixo'] {
+  --hon-alignment: var(--color-fee-below);
+}
+tr[data-company-alignment='alinhado'] {
+  --hon-alignment: var(--color-fee-aligned);
+}
+tr[data-company-alignment='acima'] {
+  --hon-alignment: var(--color-fee-above);
+}
+tr[data-company-alignment] td:last-child {
+  color: var(--hon-alignment);
+}
+.honorarios-panel tr[role='button'] {
+  cursor: pointer;
+}
+.honorarios-panel tr[role='button']:hover {
+  background: var(--color-panel-soft-bg);
+}
+.honorarios-panel tr[role='button']:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: -2px;
+}
+tr[data-fee-alignment] td:nth-child(4) {
+  color: var(--hon-alignment);
+  font-weight: 600;
+}

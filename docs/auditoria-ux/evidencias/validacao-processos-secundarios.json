@@ -1,0 +1,57 @@
+{
+  "checks": [
+    {
+      "name": "P15 execução separada de agendados e barras preservadas",
+      "pass": true
+    },
+    {
+      "name": "P17 mantém totais, valores ausentes e navegação mensal",
+      "pass": true
+    },
+    {
+      "name": "P17 PDF original é gerado localmente",
+      "pass": true
+    },
+    {
+      "name": "Rota de responsabilidade mantém setor ao filtrar e limpar",
+      "pass": true
+    },
+    {
+      "name": "P15/P17 sem overflow em1280 e1366, temas utilizáveis",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "case": "PDF",
+      "name": "Movimentacoes-Empresariais-2026-11.pdf",
+      "bytes": 315844
+    },
+    {
+      "file": "dashboard-processos",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "broken": []
+    },
+    {
+      "file": "movimentacoes-processos",
+      "width": 1280,
+      "scrollWidth": 1265,
+      "broken": []
+    },
+    {
+      "file": "dashboard-processos",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "broken": []
+    },
+    {
+      "file": "movimentacoes-processos",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "broken": []
+    }
+  ],
+  "exceptions": [],
+  "network": []
+}

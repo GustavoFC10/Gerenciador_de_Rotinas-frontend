@@ -1,0 +1,19 @@
+{
+  "checks": [
+    {
+      "name": "Perfil existente repercute em P12 sem duplicar empresa",
+      "pass": true
+    },
+    {
+      "name": "Empresa arquivada e perfil arquivado são estados distintos",
+      "pass": true
+    },
+    {
+      "name": "Carteira sem perfil ativo não produz NaN",
+      "pass": true
+    }
+  ],
+  "observations": [],
+  "exceptions": [],
+  "network": []
+}

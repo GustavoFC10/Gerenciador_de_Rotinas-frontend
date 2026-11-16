@@ -1,0 +1,46 @@
+{
+  "checks": [
+    {
+      "name": "P05/P13: criação pela lista, sem aba própria",
+      "pass": true
+    },
+    {
+      "name": "P08: janela centralizada, contexto e máscara preservados",
+      "pass": true
+    },
+    {
+      "name": "P16: dois grupos no padrão de Processos e seletor simples",
+      "pass": true
+    },
+    {
+      "name": "Galeria registra as quinze aprovações e aponta a opção escolhida",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "case": "company window",
+      "width": 980,
+      "viewportWidth": 1265,
+      "left": 142.5,
+      "right": 1122.5,
+      "top": 24,
+      "bottom": 696,
+      "scrollWidth": 978,
+      "clientWidth": 978
+    },
+    {
+      "case": "company window",
+      "width": 980,
+      "viewportWidth": 1351,
+      "left": 185.5,
+      "right": 1165.5,
+      "top": 24,
+      "bottom": 744,
+      "scrollWidth": 978,
+      "clientWidth": 978
+    }
+  ],
+  "exceptions": [],
+  "network": []
+}

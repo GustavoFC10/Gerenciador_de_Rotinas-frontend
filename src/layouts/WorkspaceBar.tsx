@@ -25,7 +25,7 @@ function WorkspaceBar({
   actions,
 }: WorkspaceBarProps) {
   return (
-    <header className="mb-4 flex min-h-12 flex-wrap items-center justify-between gap-3">
+    <header className="workspace-heading mb-4 flex min-h-12 flex-wrap items-center justify-between gap-3">
       <div className="min-w-0">
         {(context || label) && (
           <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold">
@@ -64,7 +64,7 @@ function WorkspaceBar({
           </div>
         )}
         <h1
-          className={`truncate text-xl font-extrabold leading-7 tracking-tight sm:text-2xl ${appThemeClass.strongText}`}
+          className={`truncate text-xl font-bold leading-7 tracking-tight sm:text-2xl ${appThemeClass.strongText}`}
           aria-label={label ? `${label} ${title}` : undefined}
         >
           {title}

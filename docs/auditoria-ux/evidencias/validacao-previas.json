@@ -1,0 +1,195 @@
+{
+  "observations": [
+    {
+      "id": "P05",
+      "file": "honorarios",
+      "title": "P05 · Orçamento genérico",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "headings": ["Orçar"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P07",
+      "file": "parametros",
+      "title": "P07 · Parâmetros",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "headings": ["Parâmetros"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P11",
+      "file": "clientes-honorarios",
+      "title": "P11 · Gestão de clientes",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "headings": ["Gestão de clientes"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P12",
+      "file": "painel-honorarios",
+      "title": "P12 · Painel da carteira",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "headings": ["Painel da carteira"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P13",
+      "file": "orcamentos-honorarios",
+      "title": "P13 · Orçamentos salvos",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "headings": ["Orçar"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P06",
+      "file": "vinculo-orcamento",
+      "title": "P06 · Vínculo com empresa existente",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "headings": ["Orçamento 2026-018"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P01",
+      "file": "base-visual",
+      "title": "P01 · Base visual",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "headings": ["Fiscal"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P02",
+      "file": "navegacao",
+      "title": "P02 · Comparar navegação",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "headings": ["Áreas de trabalho"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P03",
+      "file": "rotinas",
+      "title": "P03 · Formulário de Rotinas",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "headings": ["Nova rotina"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P04",
+      "file": "processos",
+      "title": "P04 · Escolha e formulário de Processos",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "headings": ["Processos · Escolha e formulário"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P08",
+      "file": "empresas",
+      "title": "P08 · Empresas — revisão de UX",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "headings": ["Empresas"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P09",
+      "file": "equipe",
+      "title": "P09 · Equipe — revisão de UX",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "headings": ["Equipe"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "id": "P10",
+      "file": "estados",
+      "title": "P10 · Estados de interface",
+      "width": 1366,
+      "scrollWidth": 1351,
+      "headings": ["Configurações"],
+      "images": 0,
+      "main": true
+    },
+    {
+      "case": "calculo-estavel",
+      "before": 483.75,
+      "during": 483.75,
+      "after": 483.75
+    }
+  ],
+  "checks": [
+    {
+      "name": "P05 grupos do modelo e condições de XML/sócios",
+      "pass": true
+    },
+    {
+      "name": "P05 recálculo com geometria estável",
+      "pass": true
+    },
+    {
+      "name": "P07 nove abas, rascunho preservado e escritório completo",
+      "pass": true
+    },
+    {
+      "name": "P11 filtro e busca preservados ao abrir/fechar cliente",
+      "pass": true
+    },
+    {
+      "name": "P08 lista/ficha com sidebar, 300 empresas e filtros preservados",
+      "pass": true
+    },
+    {
+      "name": "P09 filtros pendentes, convite e acessos na ficha",
+      "pass": true
+    },
+    {
+      "name": "Máscaras CNPJ e telefone aceitam apenas números",
+      "pass": true
+    },
+    {
+      "name": "Moeda numérica, edição no meio e round-trip de parâmetros",
+      "pass": true
+    },
+    {
+      "name": "Horas fracionárias preservadas na ficha do cliente",
+      "pass": true
+    },
+    {
+      "name": "Planilha preserva círculos e SVGs do React",
+      "pass": true
+    },
+    {
+      "name": "Galeria de 13 propostas, filtros e decisões",
+      "pass": true
+    },
+    {
+      "name": "Notebook 1280 sem overflow de página",
+      "pass": true
+    },
+    {
+      "name": "Inventário do HTML original",
+      "pass": true
+    }
+  ],
+  "exceptions": []
+}

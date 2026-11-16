@@ -1,0 +1,88 @@
+{
+  "checks": [
+    {
+      "name": "P03 edição direta sem etapas; validar/cancelar/confirmar grupo",
+      "pass": true
+    },
+    {
+      "name": "P03 criar mantém etapas e revisão editável",
+      "pass": true
+    },
+    {
+      "name": "P12 semântica verde azul vermelho preserva P11",
+      "pass": true
+    },
+    {
+      "name": "P14 métricas e tarefas filtram; competência chega à planilha",
+      "pass": true
+    },
+    {
+      "name": "P03 P12 P14 sem overflow 1280 e1366",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "case": "P12",
+      "colors": [
+        {
+          "id": "abaixo",
+          "bg": "rgb(8, 127, 91)",
+          "legend": "rgb(8, 127, 91)"
+        },
+        {
+          "id": "alinhado",
+          "bg": "rgb(37, 99, 235)",
+          "legend": "rgb(37, 99, 235)"
+        },
+        {
+          "id": "acima",
+          "bg": "rgb(180, 35, 53)",
+          "legend": "rgb(180, 35, 53)"
+        }
+      ]
+    },
+    {
+      "file": "rotinas.html?mode=edit&id=routine-1",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "rotinas.html",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "painel-honorarios.html",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "dashboard-rotinas.html",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "rotinas.html?mode=edit&id=routine-1",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "rotinas.html",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "painel-honorarios.html",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "dashboard-rotinas.html",
+      "width": 1366,
+      "scrollWidth": 1351
+    }
+  ],
+  "exceptions": [],
+  "network": []
+}

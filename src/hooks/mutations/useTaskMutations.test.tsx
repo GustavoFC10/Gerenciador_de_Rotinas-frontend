@@ -202,7 +202,9 @@ describe('useTaskMutations status transitions', () => {
       status: 'pending',
       indicators: { attachments: 3 },
     })
-    expect(getCard().className).toContain('--color-list-panel-bg')
+    expect(getCard().getAttribute('aria-label')).toContain(
+      'Status: Pendente. 3 anexos',
+    )
   })
 
   it('preserves a newer task version when an older request fails', async () => {

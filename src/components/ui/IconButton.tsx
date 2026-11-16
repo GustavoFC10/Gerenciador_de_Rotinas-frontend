@@ -1,6 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
 import { buttonTone, focusRing } from '../../constants/designTokens'
+import './primitives.css'
 
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode
@@ -26,7 +27,7 @@ const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         type={type}
         aria-label={label}
         title={label}
-        className={`grid size-8 place-items-center rounded-[var(--radius-control)] transition disabled:cursor-not-allowed disabled:opacity-60 ${buttonTone[tone]} ${focusRing} ${className}`}
+        className={`ui-icon-button ${buttonTone[tone]} ${focusRing} ${className}`}
         {...props}
       >
         {children}

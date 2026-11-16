@@ -25,7 +25,7 @@ function Topbar({
 
   return (
     <header
-      className={`sticky top-0 z-40 flex min-h-[4.5rem] items-stretch border-b backdrop-blur ${appThemeClass.topbar}`}
+      className={`workspace-header sticky top-0 z-40 flex min-h-[4.5rem] items-stretch border-b backdrop-blur ${appThemeClass.topbar}`}
     >
       <button
         ref={menuButtonRef}
@@ -43,14 +43,14 @@ function Topbar({
         <button
           type="button"
           onClick={goToPreviousCompetence}
-          className={`group ml-14 flex min-w-0 items-center justify-self-start px-2 text-sm font-bold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] sm:px-4 lg:ml-0 lg:px-8 ${focusRing}`}
+          className={`group ml-14 flex min-w-0 items-center justify-self-start px-2 text-sm font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] sm:px-4 lg:ml-0 lg:px-8 ${focusRing}`}
           aria-label="Competência anterior"
         >
           <ChevronIcon direction="left" />
           <span className="ml-2 hidden sm:inline">Anterior</span>
         </button>
         <span
-          className="inline-flex items-center justify-center px-1 text-center text-sm font-extrabold tracking-tight text-[var(--color-text-strong)] max-[479px]:max-w-22 sm:px-4 sm:text-lg"
+          className="inline-flex items-center justify-center px-1 text-center text-sm font-bold tracking-tight text-[var(--color-text-strong)] max-[479px]:max-w-22 sm:px-4 sm:text-lg"
           aria-label={`Competência atual: ${competenceLabel || formattedCompetence}`}
         >
           {competenceLabel || formattedCompetence}
@@ -59,7 +59,7 @@ function Topbar({
           <button
             type="button"
             onClick={goToNextCompetence}
-            className={`group flex min-w-0 items-center px-2 text-sm font-bold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] sm:px-4 ${focusRing}`}
+            className={`group flex min-w-0 items-center px-2 text-sm font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] sm:px-4 ${focusRing}`}
             aria-label="Próxima competência"
           >
             <span className="mr-2 hidden sm:inline">Próxima</span>

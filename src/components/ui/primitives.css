@@ -1,0 +1,189 @@
+/* Component defaults stay below utilities so existing layout overrides keep working. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .ui-button,
+  .ui-icon-button {
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: var(--radius-control);
+    font-weight: 600;
+    line-height: 1.25rem;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease;
+  }
+
+  .ui-button {
+    display: inline-flex;
+    gap: 0.5rem;
+  }
+
+  .ui-button--sm {
+    min-height: 2rem;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .ui-button--md {
+    min-height: 2.5rem;
+    padding: 0.25rem 0.875rem;
+    font-size: 0.875rem;
+  }
+
+  .ui-button--lg {
+    min-height: 2.75rem;
+    padding: 0.375rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .ui-icon-button {
+    display: inline-grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+  }
+
+  .ui-button > svg,
+  .ui-icon-button > svg {
+    flex-shrink: 0;
+  }
+
+  .ui-button:disabled,
+  .ui-icon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .ui-field {
+    display: block;
+    min-width: 0;
+    color: var(--color-text-main);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.125rem;
+  }
+
+  .ui-field-label {
+    display: block;
+    min-height: 1.125rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .ui-control {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 2.5rem;
+    border: 1px solid var(--color-control-border);
+    border-radius: var(--radius-control);
+    outline: none;
+    background: var(--color-control-bg);
+    padding: 0.5rem 0.6875rem;
+    color: var(--color-control-text);
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.25rem;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+  }
+
+  input.ui-control:not([type='file']),
+  select.ui-control:not([multiple]):not([size]) {
+    height: 2.5rem;
+  }
+
+  .ui-control::placeholder {
+    color: var(--color-control-placeholder);
+    opacity: 1;
+  }
+
+  .ui-control:enabled:hover {
+    border-color: var(
+      --color-control-hover-border,
+      var(--color-control-border)
+    );
+  }
+
+  .ui-control:focus {
+    border-color: var(--color-control-focus);
+    box-shadow: 0 0 0 3px var(--color-focus-ring);
+  }
+
+  .ui-control[aria-invalid='true'] {
+    border-color: var(--status-error-dot);
+  }
+
+  .ui-control[aria-invalid='true']:focus {
+    border-color: var(--status-error-dot);
+    box-shadow: 0 0 0 3px var(--status-error-soft-bg);
+  }
+
+  .ui-control:disabled {
+    cursor: not-allowed;
+    background: var(--color-panel-soft-bg);
+    opacity: 0.65;
+  }
+
+  .ui-control[readonly] {
+    background: var(--color-panel-soft-bg);
+  }
+
+  .ui-control[type='file'] {
+    padding: 0.3125rem;
+  }
+
+  .ui-control::file-selector-button {
+    margin-right: 0.625rem;
+    border: 0;
+    border-radius: calc(var(--radius-control) - 2px);
+    background: var(--color-panel-soft-bg);
+    padding: 0.25rem 0.625rem;
+    color: var(--color-text-main);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .ui-textarea {
+    min-height: 4.5rem;
+    resize: vertical;
+  }
+
+  .ui-card {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .ui-badge {
+    display: inline-flex;
+    min-height: 1.5rem;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.1875rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1rem;
+  }
+
+  .ui-floating-menu {
+    max-width: calc(100vw - 1rem);
+    border: 1px solid var(--color-panel-border);
+    border-radius: var(--radius-control);
+    background: var(--color-panel-bg);
+    padding: 0.25rem;
+    box-shadow: var(--shadow-floating);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ui-button,
+    .ui-icon-button,
+    .ui-control {
+      transition: none;
+    }
+  }
+}

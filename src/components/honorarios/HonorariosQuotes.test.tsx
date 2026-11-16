@@ -215,9 +215,12 @@ function button(text: string): HTMLButtonElement {
 function field<T extends HTMLInputElement | HTMLSelectElement>(
   label: string,
 ): T {
-  const found = [...host.querySelectorAll('label')]
-    .find((item) => item.textContent?.includes(label))
-    ?.querySelector('input,select')
+  const labelElement = [...host.querySelectorAll('label')].find((item) =>
+    item.textContent?.includes(label),
+  )
+  const found =
+    labelElement?.querySelector('input,select') ??
+    document.getElementById(labelElement?.htmlFor ?? '')
   if (!found) throw new Error(`Campo ausente: ${label}`)
   return found as T
 }

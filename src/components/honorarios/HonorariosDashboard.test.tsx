@@ -175,9 +175,9 @@ describe('Painel de Honorários', () => {
       () => !!host.querySelector('[aria-label="Indicadores de honorários"]'),
     )
     expect(host.textContent).toContain('Comece a organizar seus honorários')
-    expect(host.querySelector('a[href="/honorarios/novo"]')?.textContent).toBe(
-      'Novo orçamento',
-    )
+    expect(
+      host.querySelector('a[href="/honorarios/orcamentos"]')?.textContent,
+    ).toBe('Orçamentos')
     expect(
       host.querySelector('a[href="/honorarios/clientes?novo=true"]')
         ?.textContent,
@@ -186,8 +186,8 @@ describe('Painel de Honorários', () => {
       '[aria-label="Indicadores de honorários"]',
     )!
     expect(metrics.querySelectorAll('section')).toHaveLength(4)
-    expect(metrics.textContent).toContain('0 clientes na carteira')
-    expect(metrics.textContent).toContain('0 propostas em negociação')
+    expect(metrics.textContent).toContain('Total de clientes')
+    expect(metrics.textContent).toContain('Nenhum perfil financeiro ativo')
     expect(metrics.textContent).toContain('0,00')
     expect(host.textContent).toContain('Nenhuma proposta registrada neste ano')
     expect(host.textContent).toContain('Nenhum aumento sugerido')
@@ -212,9 +212,9 @@ describe('Painel de Honorários', () => {
     expect(
       host.querySelector('a[href="/honorarios/clientes?novo=true"]'),
     ).toBeNull()
-    expect(host.querySelector('a[href="/honorarios/novo"]')?.textContent).toBe(
-      'Abrir calculadora',
-    )
+    expect(
+      host.querySelector('a[href="/honorarios/orcamentos"]')?.textContent,
+    ).toBe('Consultar orçamentos')
   })
 
   it('renders the real portfolio, alerts, quote rates and client links', async () => {
@@ -227,7 +227,7 @@ describe('Painel de Honorários', () => {
     )
     expect(host.textContent).toContain('1.200,30')
     expect(host.textContent).toContain('75%')
-    expect(host.textContent).toContain('3 clientes na carteira')
+    expect(host.textContent).toContain('Ticket médio')
     expect(host.textContent).toContain(
       '1 cliente(s) com reajuste próximo ou vencido',
     )

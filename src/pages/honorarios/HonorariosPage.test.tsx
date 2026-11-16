@@ -143,12 +143,26 @@ function officeName() {
     ?.querySelector('input')
 }
 
+async function openOffice() {
+  await waitFor(() =>
+    [...host.querySelectorAll('button')].some(
+      (button) => button.textContent === 'Dados do escritório',
+    ),
+  )
+  await act(async () =>
+    [...host.querySelectorAll('button')]
+      .find((button) => button.textContent === 'Dados do escritório')!
+      .click(),
+  )
+}
+
 describe('Honorários workspace isolation', () => {
   it('removes financial screens and cached records when an active module request returns 403', async () => {
     const getConfiguration = vi
       .spyOn(honorariosService, 'configuration')
       .mockResolvedValue(configuration('Escritório confidencial A'))
     await render('a')
+    await openOffice()
     await waitFor(() => officeName()?.value === 'Escritório confidencial A')
     client.setQueryData([...scope('a'), 'private-record'], {
       currentFee: '1200.00',
@@ -184,6 +198,7 @@ describe('Honorários workspace isolation', () => {
       .mockResolvedValueOnce(configuration('Escritório A'))
       .mockImplementationOnce(() => pendingB)
     await render('a')
+    await openOffice()
     await waitFor(() => officeName()?.value === 'Escritório A')
     await act(async () => {
       const input = officeName()!
@@ -198,6 +213,7 @@ describe('Honorários workspace isolation', () => {
     expect(officeName()).toBeUndefined()
     expect(host.textContent).not.toContain('Rascunho financeiro secreto A')
     await act(async () => resolveB(configuration('Escritório B')))
+    await openOffice()
     await waitFor(() => officeName()?.value === 'Escritório B')
     expect(getConfiguration).toHaveBeenCalledTimes(2)
     expect(

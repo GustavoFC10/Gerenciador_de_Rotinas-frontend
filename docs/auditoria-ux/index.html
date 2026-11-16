@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Auditoria de UX — estado atual</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, sans-serif;
+        color: #172537;
+        background: #edf1f5;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      header,
+      main {
+        width: min(1440px, 100%);
+        margin: auto;
+        padding: 24px;
+      }
+      header {
+        padding-top: 40px;
+      }
+      h1 {
+        font-size: clamp(24px, 3vw, 36px);
+        margin: 8px 0 16px;
+      }
+      p {
+        line-height: 1.6;
+        max-width: 92ch;
+      }
+      a {
+        color: #1757b4;
+      }
+      .eyebrow {
+        color: #465b70;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .notice {
+        border: 1px solid #a9bfd5;
+        background: #f8fbff;
+        padding: 16px 20px;
+        border-radius: 8px;
+      }
+      .notice p {
+        margin: 0;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 20px;
+        margin: 20px 0;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: end;
+        padding-bottom: 20px;
+      }
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      select {
+        font: inherit;
+        min-height: 40px;
+        border: 1px solid #9badbf;
+        border-radius: 6px;
+        padding: 6px 32px 6px 10px;
+        background: white;
+        color: inherit;
+      }
+      #count {
+        margin: 0 0 9px;
+        color: #465b70;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+        gap: 20px;
+      }
+      .card {
+        background: white;
+        border: 1px solid #cbd5df;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .card[hidden] {
+        display: none;
+      }
+      .image-link {
+        display: block;
+        height: 240px;
+        overflow: hidden;
+        background: #dce4ec;
+        border-bottom: 1px solid #d9e1e9;
+      }
+      .image-link img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: top;
+      }
+      .card-body {
+        padding: 18px;
+      }
+      .meta {
+        font-size: 12px;
+        color: #465b70;
+        margin: 0;
+      }
+      h2 {
+        font-size: 18px;
+        line-height: 1.4;
+        margin: 6px 0 10px;
+      }
+      .card p {
+        font-size: 14px;
+        margin: 0 0 12px;
+      }
+      .card .route {
+        overflow-wrap: anywhere;
+        font-size: 12px;
+        color: #465b70;
+      }
+      .card a {
+        font-size: 14px;
+      }
+      .limits {
+        padding: 20px;
+        margin-top: 32px;
+        border: 1px solid #cbd5df;
+        background: white;
+        border-radius: 8px;
+      }
+      .limits h2 {
+        margin-top: 0;
+      }
+      .limits li {
+        line-height: 1.7;
+        margin: 8px 0;
+      }
+      footer {
+        font-size: 13px;
+        color: #465b70;
+        margin-top: 28px;
+      }
+      :focus-visible {
+        outline: 3px solid #1757b4;
+        outline-offset: 3px;
+      }
+      @media (max-width: 600px) {
+        header,
+        main {
+          padding: 16px;
+        }
+        .image-link {
+          height: 210px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="eyebrow">12/11/2026 · evidências da auditoria</div>
+      <h1>Estado atual do site</h1>
+      <p>
+        Capturas dos componentes atuais, executados localmente com dados
+        fictícios. As notas distinguem o que foi observado visualmente de riscos
+        identificados no código. Clique em uma imagem para examinar a captura
+        completa.
+      </p>
+      <div class="notice">
+        <p>
+          <strong>Esta galeria é um registro de diagnóstico.</strong> As
+          propostas de alteração e o plano serão preparados depois das respostas
+          às perguntas enviadas no chat. Nenhuma tela de produção foi alterada
+          nesta auditoria.
+        </p>
+      </div>
+      <nav aria-label="Documentação da auditoria">
+        <a href="README.md">Relatório consolidado e referências</a>
+        <a href="rotinas.md">Rotinas</a>
+        <a href="processos-honorarios.md">Processos e Honorários</a>
+        <a href="cadastros-hub.md">Empresas, Equipe e áreas comuns</a>
+      </nav>
+    </header>
+    <main>
+      <div class="toolbar">
+        <label for="module"
+          >Área<select id="module">
+            <option value="all">Todas as áreas</option>
+            <option>Rotinas</option>
+            <option>Processos</option>
+            <option>Honorários</option>
+            <option>Empresas</option>
+            <option>Equipe</option>
+            <option>Áreas comuns</option>
+          </select></label
+        >
+        <label for="size"
+          >Viewport<select id="size">
+            <option value="all">Todas as larguras</option>
+            <option value="1440">Desktop · 1440 px</option>
+            <option value="1024">Notebook · 1024 px</option>
+            <option value="390">Celular · 390 px</option>
+          </select></label
+        >
+        <p id="count" role="status" aria-live="polite"></p>
+      </div>
+      <div id="gallery" class="grid"></div>
+      <noscript
+        ><p>
+          Ative JavaScript para visualizar o índice. As imagens também estão
+          disponíveis na pasta <a href="evidencias/">evidencias</a>.
+        </p></noscript
+      >
+      <aside class="limits" aria-labelledby="limits-title">
+        <h2 id="limits-title">Cobertura e limites</h2>
+        <ul>
+          <li>
+            32 combinações de tela/largura, mais calculadora em atualização e
+            perfil de colaborador. Os filtros mostram também os dois registros
+            de Agenda sem uma tela demonstrativa selecionada.
+          </li>
+          <li>
+            Agenda: o ambiente local não oferece uma agenda válida. As imagens
+            07 e 32 mostram a orientação de seleção; a avaliação do quadro de
+            tarefas é baseada no código.
+          </li>
+          <li>
+            Login e administração interna foram avaliados por código. Não há,
+            nesta galeria, evidência visual autenticada de produção ou avaliação
+            com usuários.
+          </li>
+          <li>
+            A calculadora foi observada com latência controlada: o cartão de
+            valor mudou de 562 para 326 e voltou para 562 px.
+            <a href="evidencias/medicao-calculadora.json">Medição completa</a>.
+          </li>
+          <li>
+            Os riscos de descarte de rascunho e de abrir um perfil acima de uma
+            lista longa estão documentados por código. Não são apresentados como
+            testes comportamentais concluídos nesta rodada.
+          </li>
+        </ul>
+        <p>
+          <a href="evidencias/observacoes-browser.json"
+            >Dados de captura: rotas, medidas, cabeçalhos e controles</a
+          >
+        </p>
+      </aside>
+      <footer>
+        Dados de demonstração. Os estudos anteriores em previews/empresas-equipe
+        são propostas separadas, não o estado atual capturado aqui.
+      </footer>
+    </main>
+    <script>
+      const captures = [
+        [
+          '01-hub-atual',
+          'Áreas comuns',
+          1440,
+          'HUB de módulos',
+          '/hub',
+          'Comparar a orientação global com as estruturas internas dos módulos. O texto inicial repete a função de escolher uma área.',
+        ],
+        [
+          '02-rotinas-inicio',
+          'Rotinas',
+          1440,
+          'Início de Rotinas',
+          '/',
+          'Referência de hierarquia operacional a preservar. A revisão deve concentrar mudanças onde há dificuldade concreta.',
+        ],
+        [
+          '03-rotinas-planilha',
+          'Rotinas',
+          1440,
+          'Planilha de trabalho',
+          '/planilha?screenId=demo-screen',
+          'Preservar comparação por empresa e competência, coluna fixa e atalhos. Não substituir a grade por cartões de forma indiscriminada.',
+        ],
+        [
+          '04-rotinas-lista',
+          'Rotinas',
+          1440,
+          'Listagem de tarefas',
+          '/tarefas-fiscal?screenId=demo-screen',
+          'Outra representação do trabalho. Avaliar densidade e legibilidade sem perder o contexto de setor/competência.',
+        ],
+        [
+          '05-rotinas-nova',
+          'Rotinas',
+          1440,
+          'Criação de rotina',
+          '/rotinas/nova',
+          'Formulário e prévia ocupam duas áreas. A edição do mesmo objeto tem outra organização; uso e frequência da prévia precisam ser confirmados.',
+        ],
+        [
+          '06-rotinas-catalogo',
+          'Rotinas',
+          1440,
+          'Catálogo de rotinas',
+          '/rotinas',
+          'Distinguir rotina, vínculos e tarefas geradas. O significado do contador de empresas precisa ser validado com o contrato e a operação.',
+        ],
+        [
+          '07-rotinas-agenda',
+          'Rotinas',
+          1440,
+          'Agenda — limite do ambiente',
+          '/agenda',
+          'Não há uma agenda válida selecionada no mock. Esta imagem documenta a limitação da amostra e não o quadro real.',
+        ],
+        [
+          '08-rotinas-empresa-nova',
+          'Rotinas',
+          1440,
+          'Configurar empresa em Rotinas',
+          '/empresas/nova',
+          'A separação em etapas já existe. Preservar o encadeamento de identificação, vínculo e revisão.',
+        ],
+        [
+          '09-configuracoes',
+          'Áreas comuns',
+          1440,
+          'Preferências',
+          '/configuracoes',
+          'Tema e densidade parecem preferências permanentes, mas ficam apenas em memória no código atual. Confirmar o alcance esperado.',
+        ],
+        [
+          '10-processos-inicio',
+          'Processos',
+          1440,
+          'Início de Processos',
+          '/processos',
+          'Preservar conceitos e estrutura aprovados. Harmonizar navegação e ações globais com os outros módulos.',
+        ],
+        [
+          '11-processos-lista',
+          'Processos',
+          1440,
+          'Listagem de processos',
+          '/processos/lista?situacao=todos',
+          'Avaliar contraste de notas necessárias, consistência de controles e visibilidade dos estados.',
+        ],
+        [
+          '12-processos-avisos',
+          'Processos',
+          1440,
+          'Avisos de Processos',
+          '/processos/avisos',
+          'O sistema já diferencia avisos de dados operacionais. Cor deve continuar informando situação, além de texto e ícone.',
+        ],
+        [
+          '13-empresas-lista',
+          'Empresas',
+          1440,
+          'Diretório de empresas',
+          '/cadastro-empresas',
+          'A listagem não tem cabeçalhos para as colunas; o código pode se repetir conforme os dados disponíveis.',
+        ],
+        [
+          '14-empresas-nova',
+          'Empresas',
+          1440,
+          'Cadastro de empresa',
+          '/cadastro-empresas/nova',
+          'Campos de comprimentos muito diferentes recebem espaço semelhante. Salvar e Cancelar têm destaque próximo.',
+        ],
+        [
+          '15-equipe-lista',
+          'Equipe',
+          1440,
+          'Diretório de equipe',
+          '/equipe',
+          'Departamentos/acessos se repetem junto à identidade e na coluna própria. O resumo compete com nome e e-mail.',
+        ],
+        [
+          '16-equipe-convite',
+          'Equipe',
+          1440,
+          'Convidar colaborador',
+          '/equipe/novo',
+          'Separar identidade, papel organizacional e acesso operacional. O código e as descrições ainda precisam refletir todos os módulos disponíveis.',
+        ],
+        [
+          '17-equipe-acessos',
+          'Equipe',
+          1440,
+          'Gerenciar acessos',
+          '/equipe/acessos',
+          'A seleção pode se alongar com departamentos e membros. Trocar de pessoa descarta o rascunho pelo caminho atual de código.',
+        ],
+        [
+          '18-perfil',
+          'Áreas comuns',
+          1440,
+          'Meu perfil',
+          '/hub/perfil',
+          'Revisar vocabulário, hierarquia de dados pessoais e retorno ao contexto. Evitar ampliar esta área sem uma tarefa identificada.',
+        ],
+        [
+          '19-processos-form-tipo',
+          'Processos',
+          1440,
+          'Abertura: escolha do tipo',
+          '/processos',
+          'Os cartões apresentam o catálogo completo. A escolha visual não é um defeito por si; a frequência de cada tipo determina a oportunidade de simplificar.',
+        ],
+        [
+          '20-processos-form-abertura',
+          'Processos',
+          1440,
+          'Abertura: dados do processo',
+          '/processos',
+          'Após escolher o tipo, o catálogo completo permanece antes dos campos. Controles locais diferem dos compartilhados.',
+        ],
+        [
+          '21-honorarios-painel',
+          'Honorários',
+          1440,
+          'Painel de Honorários',
+          '/honorarios',
+          'Preservar indicadores úteis e tratamento explícito de dados ausentes. Evitar adicionar gráficos sem decisão operacional associada.',
+        ],
+        [
+          '22-honorarios-orcamento',
+          'Honorários',
+          1440,
+          'Novo orçamento',
+          '/honorarios/novo',
+          'O perfil mantém campos que podem não se aplicar à combinação selecionada. Toggles de aplicabilidade vêm depois dos dados que controlam.',
+        ],
+        [
+          '23-honorarios-clientes',
+          'Honorários',
+          1440,
+          'Carteira de clientes',
+          '/honorarios/clientes',
+          'O código insere o detalhe acima da lista sem foco/rolagem explícitos. O risco em lista longa precisa de validação com volume real.',
+        ],
+        [
+          '24-honorarios-parametros',
+          'Honorários',
+          1440,
+          'Parâmetros',
+          '/honorarios/parametros',
+          'Há repetição entre breadcrumb, título, descrição e cabeçalho interno. Preservar as nove abas e as regras financeiras necessárias.',
+        ],
+        [
+          '25-notebook-rotina-nova',
+          'Rotinas',
+          1024,
+          'Criação de rotina em notebook',
+          '/rotinas/nova',
+          'A prévia lateral disputa largura com os campos. Comparar com uma organização adaptável, conforme seu uso real.',
+        ],
+        [
+          '26-notebook-convite',
+          'Equipe',
+          1024,
+          'Convite em notebook',
+          '/equipe/novo',
+          'Avaliar largura útil, reflow dos seletores e seções de acesso sem comprimir identidade e contato.',
+        ],
+        [
+          '27-notebook-orcamento',
+          'Honorários',
+          1024,
+          'Orçamento em notebook',
+          '/honorarios/novo',
+          'Rótulos quebram em quantidades diferentes de linhas e desalinham os campos da mesma linha. O segmento aparece truncado.',
+        ],
+        [
+          '28-mobile-rotina-nova',
+          'Rotinas',
+          390,
+          'Criação de rotina no celular',
+          '/rotinas/nova',
+          'A comparação da criação com a edição deve incluir ordem de leitura, rolagem e acesso à ação de salvar.',
+        ],
+        [
+          '29-mobile-empresas',
+          'Empresas',
+          390,
+          'Cadastro de empresa no celular',
+          '/cadastro-empresas/nova',
+          'Avaliar agrupamento dos dados, espa?o ?til dos campos e localiza??o do erro e da a??o de salvar em uma coluna.',
+        ],
+        [
+          '30-mobile-convite',
+          'Equipe',
+          390,
+          'Convite no celular',
+          '/equipe/novo',
+          'Os acessos ampliam a extensão do formulário. Prioridade depende do uso real de celular e da frequência dos convites.',
+        ],
+        [
+          '31-mobile-honorarios',
+          'Honorários',
+          390,
+          'Orçamento no celular',
+          '/honorarios/novo',
+          'Avaliar seções, ajuda necessária e estabilidade durante o recálculo. A extensão atual não justifica por si só criar um assistente em etapas.',
+        ],
+        [
+          '32-mobile-agenda',
+          'Rotinas',
+          390,
+          'Agenda no celular — limite',
+          '/agenda',
+          'Também sem agenda válida no mock. A hipótese de rolagem bidimensional do quadro vem do código, não desta captura.',
+        ],
+        [
+          '33-honorarios-recalculo',
+          'Honorários',
+          1440,
+          'Calculadora durante atualização',
+          '/honorarios/orcamentos/novo',
+          'Reproduzido: a composição sai do fluxo enquanto calcula e o cartão de valor sobe 236 px, retornando após a resposta.',
+        ],
+        [
+          '34-equipe-perfil-atual',
+          'Equipe',
+          1440,
+          'Perfil de colaborador',
+          '/equipe',
+          'A ficha abre com campos editáveis. O caminho de fechamento sem proteção de alterações foi identificado no código.',
+        ],
+      ]
+      const gallery = document.getElementById('gallery')
+      for (const [name, module, width, title, route, note] of captures) {
+        const article = document.createElement('article')
+        article.className = 'card'
+        article.dataset.module = module
+        article.dataset.width = String(width)
+        const imageLink = document.createElement('a')
+        imageLink.className = 'image-link'
+        imageLink.href = `evidencias/${name}.png`
+        imageLink.setAttribute('aria-label', `Abrir captura completa: ${title}`)
+        const image = document.createElement('img')
+        image.src = imageLink.href
+        image.alt = `${title}, largura de ${width} pixels`
+        image.loading = 'lazy'
+        imageLink.append(image)
+        const content = document.createElement('div')
+        content.className = 'card-body'
+        for (const [tag, className, value] of [
+          ['p', 'meta', `${module} · ${width} px · ${name.slice(0, 2)}`],
+          ['h2', '', title],
+          ['p', '', note],
+          ['p', 'route', route],
+        ]) {
+          const element = document.createElement(tag)
+          element.className = className
+          element.textContent = value
+          content.append(element)
+        }
+        const full = document.createElement('a')
+        full.href = imageLink.href
+        full.textContent = 'Abrir imagem completa'
+        content.append(full)
+        article.append(imageLink, content)
+        gallery.append(article)
+      }
+      function filter() {
+        const selectedModule = document.getElementById('module').value
+        const selectedSize = document.getElementById('size').value
+        let visible = 0
+        for (const card of gallery.children) {
+          card.hidden = !(
+            (selectedModule === 'all' ||
+              card.dataset.module === selectedModule) &&
+            (selectedSize === 'all' || card.dataset.width === selectedSize)
+          )
+          if (!card.hidden) visible += 1
+        }
+        document.getElementById('count').textContent =
+          `${visible} de ${captures.length} capturas`
+      }
+      document.getElementById('module').addEventListener('change', filter)
+      document.getElementById('size').addEventListener('change', filter)
+      filter()
+    </script>
+  </body>
+</html>

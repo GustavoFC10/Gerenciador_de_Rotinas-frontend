@@ -75,7 +75,7 @@ function Sidebar({
     <aside
       id="app-sidebar"
       ref={navigationRef}
-      className={`fixed inset-y-0 left-0 z-[60] flex h-dvh w-[min(var(--size-sidebar-expanded),calc(100vw-1.5rem))] shrink-0 flex-col border-r shadow-[var(--shadow-floating)] transition-[width,transform] duration-200 motion-reduce:transition-none lg:sticky lg:top-0 lg:z-30 lg:visible lg:translate-x-0 lg:shadow-none ${
+      className={`workspace-sidebar fixed inset-y-0 left-0 z-[60] flex h-dvh w-[min(var(--size-sidebar-expanded),calc(100vw-1.5rem))] shrink-0 flex-col border-r shadow-[var(--shadow-floating)] transition-[width,transform] duration-200 motion-reduce:transition-none lg:sticky lg:top-0 lg:z-30 lg:visible lg:translate-x-0 lg:shadow-none ${
         isMobileOpen ? 'visible translate-x-0' : 'invisible -translate-x-full'
       } ${
         isCollapsed
@@ -104,7 +104,7 @@ function Sidebar({
             <NavigationIcon name="spreadsheet" className="size-5" />
           </span>
           <div className={`min-w-0 ${collapsedLabelClass}`}>
-            <p className="truncate text-lg font-extrabold leading-5 text-[var(--color-text-strong)]">
+            <p className="truncate text-lg font-bold leading-5 text-[var(--color-text-strong)]">
               Rotinas
             </p>
             <p className="mt-0.5 truncate text-xs font-medium text-[var(--color-text-muted)]">
@@ -117,7 +117,7 @@ function Sidebar({
           ref={closeButtonRef}
           type="button"
           onClick={onMobileClose}
-          className={`grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-nav-item-hover-bg)] hover:text-[var(--color-text-strong)] lg:hidden ${focusRing}`}
+          className={`grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-nav-item-hover-bg)] hover:text-[var(--color-text-strong)] lg:hidden ${focusRing}`}
           aria-label="Fechar navegação"
         >
           <NavigationIcon name="close" className="size-5" />
@@ -126,7 +126,7 @@ function Sidebar({
         <button
           type="button"
           onClick={onCollapseToggle}
-          className={`hidden size-8 shrink-0 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-nav-item-hover-bg)] hover:text-[var(--color-text-strong)] lg:grid ${focusRing}`}
+          className={`hidden size-10 shrink-0 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-nav-item-hover-bg)] hover:text-[var(--color-text-strong)] lg:grid ${focusRing}`}
           aria-label={isCollapsed ? 'Expandir navegação' : 'Recolher navegação'}
           title={isCollapsed ? 'Expandir navegação' : 'Recolher navegação'}
           aria-controls="app-sidebar"
@@ -327,7 +327,7 @@ function SidebarProfile({
           <UserAvatar avatarUrl={user.avatarUrl} initials={initials} />
         )}
         <span className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}>
-          <span className="block truncate text-sm font-bold text-[var(--color-text-strong)]">
+          <span className="block truncate text-sm font-semibold text-[var(--color-text-strong)]">
             {user.name}
           </span>
           <span className="block truncate text-xs font-medium text-[var(--color-text-muted)]">
@@ -364,7 +364,7 @@ function UserAvatar({
 
   return (
     <span
-      className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--color-sidebar-icon-bg)] text-xs font-extrabold text-[var(--color-sidebar-icon-text)] ring-1 ring-[var(--color-control-border)]"
+      className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--color-sidebar-icon-bg)] text-xs font-bold text-[var(--color-sidebar-icon-text)] ring-1 ring-[var(--color-control-border)]"
       aria-hidden="true"
     >
       {initials}
@@ -501,7 +501,7 @@ function SpreadsheetLink({
           <NavigationIcon name="spreadsheet" className="size-[1.35rem]" />
         </span>
         <span className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}>
-          <span className="block truncate text-[1.05rem] font-extrabold leading-5">
+          <span className="block truncate text-[1.05rem] font-bold leading-5">
             {spreadsheet.name}
           </span>
           {spreadsheet.description && (
@@ -556,7 +556,7 @@ function AgendaLink({
           <NavigationIcon name="calendar" className="size-[1.35rem]" />
         </span>
         <span className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}>
-          <span className="block truncate text-[1.05rem] font-extrabold leading-5">
+          <span className="block truncate text-[1.05rem] font-bold leading-5">
             {agenda.name}
           </span>
           {agenda.description && (

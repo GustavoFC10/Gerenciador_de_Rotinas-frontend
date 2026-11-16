@@ -1,0 +1,193 @@
+{
+  "base": {
+    "headings": [
+      "Valor base por segmento e regime",
+      "Empresa inativa (sem movimento)"
+    ],
+    "paths": [
+      "segmentos.0.nome",
+      "segmentos.0.base.mei",
+      "segmentos.0.base.simples",
+      "segmentos.0.base.presumido",
+      "segmentos.0.base.real",
+      "segmentos.1.nome",
+      "segmentos.1.base.mei",
+      "segmentos.1.base.simples",
+      "segmentos.1.base.presumido",
+      "segmentos.1.base.real",
+      "segmentos.2.nome",
+      "segmentos.2.base.mei",
+      "segmentos.2.base.simples",
+      "segmentos.2.base.presumido",
+      "segmentos.2.base.real",
+      "segmentos.3.nome",
+      "segmentos.3.base.mei",
+      "segmentos.3.base.simples",
+      "segmentos.3.base.presumido",
+      "segmentos.3.base.real",
+      "segmentos.4.nome",
+      "segmentos.4.base.mei",
+      "segmentos.4.base.simples",
+      "segmentos.4.base.presumido",
+      "segmentos.4.base.real",
+      "segmentos.5.nome",
+      "segmentos.5.base.mei",
+      "segmentos.5.base.simples",
+      "segmentos.5.base.presumido",
+      "segmentos.5.base.real",
+      "inativa.mei",
+      "inativa.simples",
+      "inativa.presumido",
+      "inativa.real"
+    ]
+  },
+  "adicionais": {
+    "headings": [
+      "Funcionários",
+      "Sócios com pró-labore",
+      "Blocos de XML",
+      "Emissão de notas fiscais",
+      "Filiais"
+    ],
+    "paths": [
+      "funcionarios.incluidos",
+      "funcionarios.valor",
+      "socios.ativo",
+      "socios.incluidos",
+      "socios.valor",
+      "xml.ativo",
+      "xml.franquia",
+      "xml.bloco",
+      "xml.valorBloco",
+      "nf.fixo",
+      "nf.franquia",
+      "nf.porNota",
+      "filial.modo",
+      "filial.modo",
+      "filial.valor",
+      "filial.valorInativa"
+    ]
+  },
+  "complexidade": {
+    "headings": ["Fator de complexidade por regime", "Horas × mão de obra"],
+    "paths": [
+      "fatorRegime.mei",
+      "fatorRegime.simples",
+      "fatorRegime.presumido",
+      "fatorRegime.real",
+      "horas.custoHora",
+      "horas.margem",
+      "horas.metodo"
+    ]
+  },
+  "faixas": {
+    "headings": ["Simples Nacional", "Lucro Presumido", "Lucro Real"],
+    "paths": [
+      "faixasSimples.0.ate",
+      "faixasSimples.0.pct",
+      "faixasSimples.1.ate",
+      "faixasSimples.1.pct",
+      "faixasSimples.2.ate",
+      "faixasSimples.2.pct",
+      "faixasSimples.3.ate",
+      "faixasSimples.3.pct",
+      "faixasPresumido.0.ate",
+      "faixasPresumido.0.pct",
+      "faixasPresumido.1.ate",
+      "faixasPresumido.1.pct",
+      "faixasPresumido.2.ate",
+      "faixasPresumido.2.pct",
+      "faixasPresumido.3.ate",
+      "faixasPresumido.3.pct",
+      "faixasPresumido.4.pct",
+      "faixasReal.0.ate",
+      "faixasReal.0.pct",
+      "faixasReal.1.ate",
+      "faixasReal.1.pct",
+      "faixasReal.2.ate",
+      "faixasReal.2.pct",
+      "faixasReal.3.ate",
+      "faixasReal.3.pct",
+      "faixasReal.4.pct"
+    ]
+  },
+  "servicos": {
+    "headings": ["Serviços adicionais"],
+    "paths": [
+      "servicos.0.nome",
+      "servicos.0.valor",
+      "servicos.1.nome",
+      "servicos.1.valor",
+      "servicos.2.nome",
+      "servicos.2.valor",
+      "servicos.3.nome",
+      "servicos.3.valor",
+      "servicos.4.nome",
+      "servicos.4.valor"
+    ]
+  },
+  "anomalias": {
+    "headings": ["Taxas de exceção"],
+    "paths": [
+      "anomalias.0.nome",
+      "anomalias.0.pct",
+      "anomalias.1.nome",
+      "anomalias.1.pct",
+      "anomalias.2.nome",
+      "anomalias.2.pct"
+    ]
+  },
+  "planos": {
+    "headings": ["Planos de venda"],
+    "paths": [
+      "planos.ativo",
+      "planos.niveis.0.ativo",
+      "planos.niveis.0.nome",
+      "planos.niveis.0.descricao",
+      "planos.niveis.0.emiteNF",
+      "planos.niveis.0.ajuste",
+      "planos.niveis.1.ativo",
+      "planos.niveis.1.nome",
+      "planos.niveis.1.descricao",
+      "planos.niveis.1.emiteNF",
+      "planos.niveis.1.ajuste",
+      "planos.niveis.2.ativo",
+      "planos.niveis.2.nome",
+      "planos.niveis.2.descricao",
+      "planos.niveis.2.emiteNF",
+      "planos.niveis.2.ajuste"
+    ]
+  },
+  "cobranca": {
+    "headings": [
+      "Parcelas por ano",
+      "Dia de vencimento",
+      "Limite do reajuste",
+      "Quando reajustar",
+      "Percentual do reajuste anual",
+      "Descontos e reajustes"
+    ],
+    "paths": [
+      "decimoTerceiro",
+      "decimoTerceiro",
+      "vencimento",
+      "vencimento",
+      "reajusteTeto",
+      "indices.periodicidade",
+      "indices.periodicidade",
+      "indices.usar",
+      "indices.usar",
+      "indices.usar",
+      "indices.ipca.pct",
+      "indices.igpm.pct",
+      "indices.fixo.pct",
+      "indices.referencia",
+      "descontoMax",
+      "reajusteMax"
+    ]
+  },
+  "regras": {
+    "headings": ["Arredondamento", "Tolerância da comparação"],
+    "paths": ["arredondamento", "tolerancia"]
+  }
+}

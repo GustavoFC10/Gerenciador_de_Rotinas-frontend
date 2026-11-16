@@ -95,7 +95,6 @@ describe('HonorariosLayout', () => {
     ).toEqual([
       ['Voltar aos módulos', '/hub'],
       ['Painel', '/honorarios'],
-      ['Novo orçamento', '/honorarios/novo'],
       ['Orçamentos', '/honorarios/orcamentos'],
       ['Clientes', '/honorarios/clientes'],
       ['Parâmetros', '/honorarios/parametros'],
@@ -163,7 +162,9 @@ describe('HonorariosLayout', () => {
   })
   it('mantém a calculadora disponível para consulta e retira a criação rápida no acesso de consulta', async () => {
     await render({ canEdit: false })
-    expect(host.querySelector('nav a[href="/honorarios/novo"]')).not.toBeNull()
+    expect(
+      host.querySelector('nav a[href="/honorarios/orcamentos"]'),
+    ).not.toBeNull()
     expect(host.querySelector('header a[href="/honorarios/novo"]')).toBeNull()
     expect(host.textContent).toContain('Consulta')
   })

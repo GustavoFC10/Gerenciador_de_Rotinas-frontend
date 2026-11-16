@@ -54,9 +54,9 @@ export default function ModuleWorkspaceLayout({
   }
 
   return (
-    <div className="min-h-dvh bg-[var(--color-app-bg)] text-[var(--color-text-main)]">
-      <header className="border-b border-[var(--color-panel-border)] bg-[var(--color-panel-bg)]">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
+    <div className="workspace-shell min-h-dvh bg-[var(--color-app-bg)] text-[var(--color-text-main)]">
+      <header className="workspace-header border-b border-[var(--color-divider)] bg-[var(--color-topbar-bg)]">
+        <div className="mx-auto flex min-h-[calc(4.5rem-1px)] max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Link
             to={ROUTES.HUB}
             className={`flex min-w-0 items-center gap-3 rounded-[var(--radius-control)] ${focusRing}`}
@@ -77,7 +77,7 @@ export default function ModuleWorkspaceLayout({
               </svg>
             </span>
             <span className="min-w-0">
-              <span className="block text-base font-black text-[var(--color-text-strong)]">
+              <span className="block text-base font-bold text-[var(--color-text-strong)]">
                 Áreas de trabalho
               </span>
               <span className="block truncate text-xs text-[var(--color-text-muted)]">
@@ -105,7 +105,7 @@ export default function ModuleWorkspaceLayout({
             )}
             <Link
               to={ROUTES.HUB_PROFILE}
-              className={`rounded text-sm font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-brand)] ${focusRing}`}
+              className={`inline-flex min-h-10 items-center rounded-[var(--radius-control)] px-2 text-sm font-semibold text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-brand)] ${focusRing}`}
             >
               {activeMembership?.displayName}
             </Link>
@@ -118,7 +118,7 @@ export default function ModuleWorkspaceLayout({
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+      <main className="workspace-main mx-auto max-w-6xl px-4 py-8 sm:px-6">
         {error && (
           <p
             role="alert"

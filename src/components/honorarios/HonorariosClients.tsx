@@ -1,3 +1,5 @@
+import Dialog from '../ui/Dialog'
+import CurrencyField from './CurrencyField'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router'
@@ -47,9 +49,9 @@ interface Props {
 }
 
 const alignmentNames = {
-  abaixo: 'Abaixo da tabela',
+  abaixo: 'Podem aumentar',
   alinhado: 'Alinhado à tabela',
-  acima: 'Acima da tabela',
+  acima: 'Acima',
 }
 
 export default function HonorariosClients(props: Props) {
@@ -57,6 +59,11 @@ export default function HonorariosClients(props: Props) {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [query, setQuery] = useState('')
+  const [companyView, setCompanyView] = useState(true)
+  const [presence, setPresence] = useState<'all' | 'with' | 'without'>('all')
+  const [ordering, setOrdering] = useState('name')
+  const [initialCompany, setInitialCompany] =
+    useState<HonorariosCompanyOption | null>(null)
   const [regime, setRegime] = useState('')
   const [alignment, setAlignment] = useState('')
   const [archived, setArchived] = useState(false)
@@ -96,6 +103,7 @@ export default function HonorariosClients(props: Props) {
       : {}),
   }
   const clients = useQuery({
+    enabled: !companyView,
     queryKey: [...scopeKey, 'clients', filters],
     queryFn: ({ signal }) => honorariosService.clients(filters, signal),
     retry: false,
@@ -103,6 +111,26 @@ export default function HonorariosClients(props: Props) {
   useEffect(() => {
     if (clients.error) onDenied?.(clients.error)
   }, [clients.error, onDenied])
+  const companies = useQuery({
+    queryKey: [
+      ...scopeKey,
+      'client-companies',
+      query,
+      presence,
+      ordering,
+      page,
+    ],
+    queryFn: ({ signal }) =>
+      honorariosService.clientCompanies(
+        { q: query, profile: presence, ordering, page, pageSize: 20 },
+        signal,
+      ),
+    enabled: companyView,
+    retry: false,
+  })
+  useEffect(() => {
+    if (companies.error) onDenied?.(companies.error)
+  }, [companies.error, onDenied])
   async function refresh(client?: HonorariosClient) {
     if (client) {
       setSelected(client.id)
@@ -144,7 +172,7 @@ export default function HonorariosClients(props: Props) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => void exportCsv()} disabled={exporting}>
-            {exporting ? 'Exportando…' : 'Exportar CSV'}
+            {exporting ? 'Exportando…' : 'Exportar perfis CSV'}
           </Button>
           {canEdit && (
             <>
@@ -160,6 +188,7 @@ export default function HonorariosClients(props: Props) {
               <Button
                 tone="primary"
                 onClick={() => {
+                  setInitialCompany(null)
                   setCreating(true)
                   setSelected('')
                   setImporting(false)
@@ -184,77 +213,256 @@ export default function HonorariosClients(props: Props) {
         />
       )}
       {creating && canEdit && (
-        <ClientForm
-          {...props}
-          onCancel={() => setCreating(false)}
-          onSaved={(client) => void refresh(client)}
-        />
+        <Dialog
+          open
+          title="Configurar honorários"
+          size="lg"
+          onClose={() => setCreating(false)}
+        >
+          <ClientForm
+            {...props}
+            initialCompany={initialCompany}
+            onCancel={() => {
+              setCreating(false)
+              setInitialCompany(null)
+            }}
+            onSaved={(client) => void refresh(client)}
+          />
+        </Dialog>
       )}
       {selected && (
-        <ClientDetails
-          key={selected}
-          {...props}
-          id={selected}
+        <Dialog
+          open
+          title="Ficha financeira"
+          size="lg"
           onClose={() => setSelected('')}
-          onChanged={() => void refresh()}
-        />
+        >
+          <ClientDetails
+            key={selected}
+            {...props}
+            id={selected}
+            onClose={() => setSelected('')}
+            onChanged={() => void refresh()}
+          />
+        </Dialog>
       )}
-      <Panel title="Clientes vinculados">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Panel
+        title={companyView ? 'Empresas e honorários' : 'Perfis financeiros'}
+      >
+        <Select
+          label="Consulta"
+          value={companyView ? 'companies' : 'profiles'}
+          onChange={(event) => {
+            setCompanyView(event.target.value === 'companies')
+            setPage(1)
+          }}
+        >
+          <option value="companies">Todas as empresas ativas</option>
+          <option value="profiles">
+            Perfis financeiros — filtros e arquivados
+          </option>
+        </Select>
+        {companyView && (
+          <div className="hon-company-tools mt-4">
+            <TextField
+              label="Buscar empresa"
+              placeholder="Nome, código ou CNPJ"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <Select
+              label="Dados financeiros"
+              value={presence}
+              onChange={(event) => {
+                setPresence(event.target.value as typeof presence)
+                setPage(1)
+              }}
+            >
+              <option value="all">Todas as empresas</option>
+              <option value="with">Com perfil financeiro</option>
+              <option value="without">Sem perfil financeiro</option>
+            </Select>
+            <Select
+              label="Ordenar por"
+              value={ordering}
+              onChange={(event) => {
+                setOrdering(event.target.value)
+                setPage(1)
+              }}
+            >
+              <option value="name">Nome</option>
+              <option value="code">Código</option>
+              <option value="cnpj">CNPJ</option>
+            </Select>
+          </div>
+        )}
+        <div
+          style={{ display: companyView ? 'none' : undefined }}
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        >
           <TextField
             label="Buscar cliente"
             placeholder="Nome, CNPJ ou contato"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
-          <Select
-            label="Regime tributário"
-            value={regime}
-            onChange={(event) => {
-              setRegime(event.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="">Todos os regimes</option>
-            {Object.entries(regimeNames).map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </Select>
-          <Select
-            label="Comparação com a tabela"
-            value={alignment}
-            onChange={(event) => {
-              setAlignment(event.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="">Todas as situações</option>
-            {Object.entries(alignmentNames).map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </Select>
-          <Select
-            label="Situação do perfil"
-            value={archived ? 'true' : 'false'}
-            onChange={(event) => {
-              setArchived(event.target.value === 'true')
-              setPage(1)
-            }}
-          >
-            <option value="false">Ativos</option>
-            <option value="true">Arquivados</option>
-          </Select>
+          {!companyView && (
+            <>
+              <Select
+                label="Regime tributário"
+                value={regime}
+                onChange={(event) => {
+                  setRegime(event.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="">Todos os regimes</option>
+                {Object.entries(regimeNames).map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                label="Comparação com a tabela"
+                value={alignment}
+                onChange={(event) => {
+                  setAlignment(event.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="">Todas as situações</option>
+                {Object.entries(alignmentNames).map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                label="Situação do perfil"
+                value={archived ? 'true' : 'false'}
+                onChange={(event) => {
+                  setArchived(event.target.value === 'true')
+                  setPage(1)
+                }}
+              >
+                <option value="false">Ativos</option>
+                <option value="true">Arquivados</option>
+              </Select>
+            </>
+          )}
         </div>
-        {clients.isPending && (
+        {companyView && companies.isPending && (
+          <p role="status">Carregando empresas…</p>
+        )}
+        {companyView && companies.error && (
+          <Notice tone="error">
+            {getErrorPresentation(companies.error).message}
+            <Button onClick={() => void companies.refetch()}>
+              Tentar novamente
+            </Button>
+          </Notice>
+        )}
+        {companyView && companies.data && (
+          <>
+            <div className="overflow-x-auto mt-5">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr>
+                    <th>Empresa</th>
+                    <th>Honorário atual</th>
+                    <th>Pelos parâmetros</th>
+                    <th>Diferença mensal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {companies.data.results.map((company) => {
+                    const financial = company.financialProfile
+                    const open = () => {
+                      if (financial) {
+                        setSelected(financial.id)
+                        setCreating(false)
+                      } else if (canEdit) {
+                        setSelected('')
+                        setInitialCompany(company)
+                        setCreating(true)
+                      }
+                    }
+                    return (
+                      <tr
+                        key={company.id}
+                        tabIndex={financial || canEdit ? 0 : undefined}
+                        role={financial || canEdit ? 'button' : undefined}
+                        aria-label={
+                          financial
+                            ? `Abrir ficha de ${company.name}`
+                            : `Configurar honorários de ${company.name}`
+                        }
+                        data-company-alignment={financial?.alignment}
+                        onClick={open}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            open()
+                          }
+                        }}
+                      >
+                        <td>
+                          <strong>{company.name}</strong>
+                          <small className="block text-[var(--color-text-muted)]">
+                            {company.cnpj || 'CNPJ não informado'} · Código{' '}
+                            {company.code || 'não informado'}
+                          </small>
+                        </td>
+                        <td>{financial ? money(financial.currentFee) : '—'}</td>
+                        <td>
+                          {financial ? money(financial.calculation.total) : '—'}
+                        </td>
+                        <td>
+                          {financial ? (
+                            <>
+                              <strong>{money(financial.difference)}</strong>
+                              <small className="block">
+                                {alignmentNames[financial.alignment]}
+                              </small>
+                            </>
+                          ) : (
+                            <>
+                              <strong>Sem dados financeiros</strong>
+                              <small className="block">
+                                {canEdit
+                                  ? 'Configurar honorários'
+                                  : 'Perfil não cadastrado'}
+                              </small>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {!companies.data.results.length && (
+              <EmptyState
+                title="Nenhuma empresa encontrada"
+                description="Ajuste a busca ou o filtro de perfil financeiro."
+              />
+            )}
+            <Pagination
+              page={page}
+              count={companies.data.count}
+              onChange={setPage}
+            />
+          </>
+        )}
+
+        {!companyView && clients.isPending && (
           <p role="status" className="py-8 text-sm">
             Carregando carteira…
           </p>
         )}
-        {clients.error && (
+        {!companyView && clients.error && (
           <Notice tone="error">
             {getErrorPresentation(clients.error).message}
             <Button size="sm" onClick={() => void clients.refetch()}>
@@ -262,7 +470,7 @@ export default function HonorariosClients(props: Props) {
             </Button>
           </Notice>
         )}
-        {clients.data && !clients.data.results.length && (
+        {!companyView && clients.data && !clients.data.results.length && (
           <div className="mt-5">
             <EmptyState
               title="Nenhum cliente encontrado"
@@ -270,7 +478,7 @@ export default function HonorariosClients(props: Props) {
             />
           </div>
         )}
-        {clients.data && clients.data.results.length > 0 && (
+        {!companyView && clients.data && clients.data.results.length > 0 && (
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-180 text-left text-sm">
               <thead className="border-b border-[var(--color-panel-border)] text-xs text-[var(--color-text-muted)]">
@@ -295,68 +503,88 @@ export default function HonorariosClients(props: Props) {
                 </tr>
               </thead>
               <tbody>
-                {clients.data.results.map((client) => (
-                  <tr
-                    key={client.id}
-                    className="border-b border-[var(--color-panel-border)]"
-                  >
-                    <td className="px-3 py-4">
-                      <p className="font-bold text-[var(--color-text-strong)]">
-                        {client.company.name}
-                      </p>
-                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                        {client.company.cnpj || 'CNPJ não informado'} ·{' '}
-                        {regimeNames[client.profile.regime]}
-                      </p>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 font-semibold">
-                      {money(client.currentFee)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4">
-                      {money(client.calculation.total)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4">
-                      {money(client.difference)}
-                    </td>
-                    <td className="px-3 py-4">
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-semibold ${client.alignment === 'abaixo' ? 'bg-[var(--status-pending-bg)] text-[var(--status-pending-text)]' : 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'}`}
-                      >
-                        {alignmentNames[client.alignment]}
-                      </span>
-                    </td>
-                    <td className="px-3 py-4">
-                      {client.adjustment?.notice ? (
-                        <span className="font-semibold text-[var(--status-pending-text)]">
-                          {(client.adjustment.days ?? 0) < 0
-                            ? 'Vencido'
-                            : 'Próximo'}{' '}
-                          · {date(client.adjustment.dueDate)}
-                        </span>
-                      ) : (
-                        date(client.adjustment?.dueDate)
-                      )}
-                    </td>
-                    <td className="px-3 py-4">
-                      <Button
-                        size="sm"
-                        onClick={() => {
+                {!companyView &&
+                  clients.data.results.map((client) => (
+                    <tr
+                      key={client.id}
+                      data-fee-alignment={client.alignment}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`Abrir ficha de ${client.company.name}`}
+                      onClick={() => {
+                        setSelected(client.id)
+                        setCreating(false)
+                        setImporting(false)
+                        setMessage('')
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
                           setSelected(client.id)
                           setCreating(false)
                           setImporting(false)
                           setMessage('')
-                        }}
-                      >
-                        Ver perfil
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                        }
+                      }}
+                      className="border-b border-[var(--color-panel-border)]"
+                    >
+                      <td className="px-3 py-4">
+                        <p className="font-bold text-[var(--color-text-strong)]">
+                          {client.company.name}
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                          {client.company.cnpj || 'CNPJ não informado'} ·{' '}
+                          {regimeNames[client.profile.regime]}
+                        </p>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 font-semibold">
+                        {money(client.currentFee)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4">
+                        {money(client.calculation.total)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4">
+                        {money(client.difference)}
+                      </td>
+                      <td className="px-3 py-4">
+                        <span
+                          className={`rounded-full px-2 py-1 text-xs font-semibold ${client.alignment === 'abaixo' ? 'bg-[var(--status-pending-bg)] text-[var(--status-pending-text)]' : 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'}`}
+                        >
+                          {alignmentNames[client.alignment]}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4">
+                        {client.adjustment?.notice ? (
+                          <span className="font-semibold text-[var(--status-pending-text)]">
+                            {(client.adjustment.days ?? 0) < 0
+                              ? 'Vencido'
+                              : 'Próximo'}{' '}
+                            · {date(client.adjustment.dueDate)}
+                          </span>
+                        ) : (
+                          date(client.adjustment?.dueDate)
+                        )}
+                      </td>
+                      <td className="px-3 py-4">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelected(client.id)
+                            setCreating(false)
+                            setImporting(false)
+                            setMessage('')
+                          }}
+                        >
+                          Ver perfil
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
         )}
-        {clients.data && (
+        {!companyView && clients.data && (
           <Pagination
             page={page}
             count={clients.data.count}
@@ -373,6 +601,7 @@ export default function HonorariosClients(props: Props) {
 }
 
 function ClientForm({
+  initialCompany,
   configuration,
   canEdit,
   onDenied,
@@ -380,12 +609,13 @@ function ClientForm({
   onSaved,
   onCancel,
 }: Props & {
+  initialCompany?: HonorariosCompanyOption | null
   client?: HonorariosClient
   onSaved: (client: HonorariosClient) => void
   onCancel: () => void
 }) {
   const [company, setCompany] = useState<HonorariosCompanyOption | null>(
-    client?.company ?? null,
+    client?.company ?? initialCompany ?? null,
   )
   const [profile, setProfile] = useState(() =>
     structuredClone(client?.profile ?? defaultProfile(configuration.params)),
@@ -482,14 +712,11 @@ function ClientForm({
             />
           )}
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
+            <CurrencyField
               label="Honorário atual (R$)"
-              type="number"
-              min="0"
-              step="0.01"
               required
               value={currentFee}
-              onChange={(event) => setCurrentFee(event.target.value)}
+              onValueChange={setCurrentFee}
             />
             <TextField
               label="Data-base de reajuste"

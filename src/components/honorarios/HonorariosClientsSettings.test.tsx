@@ -76,6 +76,12 @@ const client: HonorariosClient = {
 }
 let host: HTMLDivElement, root: Root, cache: QueryClient
 beforeEach(() => {
+  vi.spyOn(honorariosService, 'clientCompanies').mockResolvedValue({
+    count: 0,
+    next: null,
+    previous: null,
+    results: [],
+  })
   host = document.createElement('div')
   document.body.append(host)
   root = createRoot(host)
@@ -100,14 +106,14 @@ async function render(node: React.ReactNode, path = '/') {
   })
 }
 async function click(label: string) {
-  let button = [...host.querySelectorAll('button')].find(
+  let button = [...document.querySelectorAll('button')].find(
     (node) => node.textContent?.trim() === label,
   )
   for (let attempt = 0; !button && attempt < 30; attempt++) {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
     })
-    button = [...host.querySelectorAll('button')].find(
+    button = [...document.querySelectorAll('button')].find(
       (node) => node.textContent?.trim() === label,
     )
   }
@@ -141,9 +147,9 @@ describe('Honorários: parâmetros e carteira', () => {
       />,
       '/honorarios/clientes?novo=true',
     )
-    expect(host.querySelector('form')).not.toBeNull()
-    expect(host.textContent).toContain('Empresa do cadastro central')
-    expect(host.textContent).toContain('Salvar perfil')
+    expect(document.querySelector('form')).not.toBeNull()
+    expect(document.body.textContent).toContain('Empresa do cadastro central')
+    expect(document.body.textContent).toContain('Salvar perfil')
   })
 
   it('mantém a edição de parâmetros em rascunho e salva o payload completo com a versão', async () => {
@@ -160,7 +166,8 @@ describe('Honorários: parâmetros e carteira', () => {
         onConfigurationSaved={onSaved}
       />,
     )
-    const name = [...host.querySelectorAll('label')]
+    await click('Dados do escritório')
+    const name = [...document.querySelectorAll('label')]
       .find((label) => label.textContent?.includes('Nome do escritório'))!
       .querySelector('input')!
     await act(async () => {
@@ -203,15 +210,15 @@ describe('Honorários: parâmetros e carteira', () => {
         scopeKey={['viewer']}
       />,
     )
-    expect(host.textContent).toContain(
+    expect(document.body.textContent).toContain(
       'A edição está disponível à administração de Honorários',
     )
     expect(
-      [...host.querySelectorAll('button')].some(
+      [...document.querySelectorAll('button')].some(
         (button) => button.textContent === 'Salvar parâmetros',
       ),
     ).toBe(false)
-    expect(host.querySelector('fieldset[disabled]')).not.toBeNull()
+    expect(document.querySelector('fieldset[disabled]')).not.toBeNull()
   })
 
   it('preserva rascunho dos parâmetros quando chega uma nova versão da configuração', async () => {
@@ -225,7 +232,8 @@ describe('Honorários: parâmetros e carteira', () => {
         onConfigurationSaved={onSaved}
       />,
     )
-    const name = [...host.querySelectorAll('label')]
+    await click('Dados do escritório')
+    const name = [...document.querySelectorAll('label')]
       .find((label) => label.textContent?.includes('Nome do escritório'))!
       .querySelector('input')!
     await act(async () => {
@@ -249,9 +257,9 @@ describe('Honorários: parâmetros e carteira', () => {
       />,
     )
     expect(name.value).toBe('Meu rascunho')
-    expect(host.textContent).toContain('Seu rascunho foi preservado')
+    expect(document.body.textContent).toContain('Seu rascunho foi preservado')
     expect(
-      [...host.querySelectorAll('button')].find(
+      [...document.querySelectorAll('button')].find(
         (button) => button.textContent === 'Salvar parâmetros',
       )!.disabled,
     ).toBe(true)
@@ -318,7 +326,8 @@ describe('Honorários: parâmetros e carteira', () => {
         'carteira.csv',
         { type: 'text/csv' },
       )
-      const input = host.querySelector<HTMLInputElement>('input[type="file"]')!
+      const input =
+        document.querySelector<HTMLInputElement>('input[type="file"]')!
       await act(async () => {
         Object.defineProperty(input, 'files', { value: [file] })
         input.dispatchEvent(new Event('change', { bubbles: true }))
@@ -330,15 +339,15 @@ describe('Honorários: parâmetros e carteira', () => {
         'company-1',
         'company-2',
       ])
-      expect(host.textContent).toContain(
+      expect(document.body.textContent).toContain(
         networkError
           ? 'Não foi possível confirmar o resultado deste lote'
           : 'O lote em processamento não foi importado',
       )
-      expect(host.textContent).toContain('0 já importada(s)')
-      expect(host.textContent).not.toContain('Importação concluída')
+      expect(document.body.textContent).toContain('0 já importada(s)')
+      expect(document.body.textContent).not.toContain('Importação concluída')
       if (networkError) {
-        const submit = [...host.querySelectorAll('button')].find(
+        const submit = [...document.querySelectorAll('button')].find(
           (button) =>
             button.textContent === 'Confirmar importação de 2 perfil(is)',
         )!
@@ -382,7 +391,30 @@ describe('Honorários: parâmetros e carteira', () => {
         scopeKey={['adjustment']}
       />,
     )
-    await click('Ver perfil')
+    vi.mocked(honorariosService.clientCompanies).mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        {
+          ...client.company,
+          legalName: '',
+          code: null,
+          hasFinancialProfile: true,
+          financialProfile: client,
+        },
+      ],
+    })
+    await act(async () => {
+      await cache.invalidateQueries({ queryKey: ['adjustment'] })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    const row = document.querySelector<HTMLElement>('tr[role="button"]')!
+    expect(row).not.toBeNull()
+    await act(async () => {
+      row.click()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
     await click('Aplicar reajuste')
     expect(adjust).not.toHaveBeenCalled()
     await click('Confirmar')
@@ -396,9 +428,9 @@ describe('Honorários: parâmetros e carteira', () => {
       },
       expect.any(AbortSignal),
     )
-    expect(host.textContent).toContain('A prévia foi recarregada')
+    expect(document.body.textContent).toContain('A prévia foi recarregada')
     expect(
-      host.querySelector('[aria-label="Confirmação da alteração"]'),
+      document.querySelector('[aria-label="Confirmação da alteração"]'),
     ).toBeNull()
     await click('Aplicar reajuste')
     await click('Confirmar')

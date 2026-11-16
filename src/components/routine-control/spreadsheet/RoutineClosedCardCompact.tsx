@@ -11,7 +11,7 @@ import type { KeyboardEvent, MouseEvent } from 'react'
 
 const roundCellClass: Record<RoutineStatus, string> = {
   [ROUTINE_STATUS.PENDING]:
-    'border border-[var(--color-control-border)] bg-[var(--color-list-panel-bg)] text-[var(--color-text-strong)] hover:bg-[var(--color-control-hover-bg)]',
+    'border border-[var(--status-pending-border)] bg-[var(--status-pending-bg)] text-[var(--color-text-strong)] hover:bg-[var(--status-pending-hover-bg)]',
   [ROUTINE_STATUS.IN_PROGRESS]:
     'bg-[var(--status-progress-strong-bg)] text-white hover:bg-[var(--status-progress-dot)]',
   [ROUTINE_STATUS.ERROR]:
@@ -19,7 +19,7 @@ const roundCellClass: Record<RoutineStatus, string> = {
   [ROUTINE_STATUS.COMPLETED]:
     'bg-[var(--status-completed-strong-bg)] text-white hover:bg-[var(--status-completed-dot)]',
   [ROUTINE_STATUS.NO_MOVEMENT]:
-    'bg-[var(--color-brand)] text-white hover:bg-[var(--color-brand-strong)]',
+    'bg-[var(--status-no-movement-strong-bg)] text-white hover:bg-[var(--status-no-movement-strong-hover-bg)]',
 }
 
 function RoutineClosedCardCompact({

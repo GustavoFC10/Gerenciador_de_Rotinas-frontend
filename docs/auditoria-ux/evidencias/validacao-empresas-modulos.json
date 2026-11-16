@@ -1,0 +1,81 @@
+{
+  "checks": [
+    {
+      "name": "P11 todas empresas e estados sem perfil",
+      "pass": true
+    },
+    {
+      "name": "Perfil em empresa existente não duplica cadastro",
+      "pass": true
+    },
+    {
+      "name": "Novo cliente cria empresa e vincula perfil explicitamente",
+      "pass": true
+    },
+    {
+      "name": "CNPJ existente oferece reaproveitar cadastro",
+      "pass": true
+    },
+    {
+      "name": "Ficha central mantém identidade e acessos contextuais",
+      "pass": true
+    },
+    {
+      "name": "Rotinas usa mesma empresa e mantém múltiplos departamentos",
+      "pass": true
+    },
+    {
+      "name": "Previews em1280/1366 sem overflow ou erros",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "file": "empresas",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "clientes-honorarios",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "empresas-modulos",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "equipe",
+      "width": 1280,
+      "scrollWidth": 1265
+    },
+    {
+      "file": "empresas",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "clientes-honorarios",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "empresas-modulos",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "file": "equipe",
+      "width": 1366,
+      "scrollWidth": 1351
+    },
+    {
+      "top": 34.421875,
+      "bottom": 685.5625,
+      "height": 720
+    }
+  ],
+  "exceptions": [],
+  "network": []
+}

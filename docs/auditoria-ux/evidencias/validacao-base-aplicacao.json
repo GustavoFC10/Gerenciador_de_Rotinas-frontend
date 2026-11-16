@@ -1,0 +1,145 @@
+{
+  "checks": [
+    {
+      "name": "Aplicação real: HUB, Rotinas, Processos, Empresas e Equipe",
+      "pass": true
+    },
+    {
+      "name": "Aplicação real: controles do formulário, sidebar e troca pelo HUB",
+      "pass": true
+    }
+  ],
+  "observations": [
+    {
+      "path": "/hub",
+      "headings": ["Onde vamos trabalhar?"],
+      "width": 1280,
+      "scrollWidth": 1265,
+      "main": "Seu escritórioOnde vamos trabalhar?Escolha um módulo para continuar. Você pode voltar a esta página para trocar de área a qualquer momento.E",
+      "headerHeight": 72
+    },
+    {
+      "path": "/minhas-tarefas",
+      "headings": ["Minhas tarefas"],
+      "width": 1280,
+      "scrollWidth": 1280,
+      "main": "Minhas tarefasNova tarefaBuscar nesta lista0 itens•0 com erro•0 em andamento•0 pendentesItemPrazoResponsávelExecuçãoNenhum item encontradoNã",
+      "headerHeight": 72
+    },
+    {
+      "path": "/empresas",
+      "headings": ["Empresas"],
+      "width": 1280,
+      "scrollWidth": 1265,
+      "main": "Empresas11 cadastradasNova empresaBuscar empresas11 de 11CódigoEmpresaCNPJRotinasSituaçãoCódigoEMP-001Aurora Comércio de AlimentosAurora Com",
+      "headerHeight": 72
+    },
+    {
+      "path": "/rotinas",
+      "headings": ["Rotinas"],
+      "width": 1280,
+      "scrollWidth": 1280,
+      "main": "Rotinas2 cadastradasNova rotinaBuscar rotinas2 de 2RotinaDepartamentoRecorrênciaAgenda e prazoEmpresasSituaçãoApuração de impostosRotina dem",
+      "headerHeight": 72
+    },
+    {
+      "path": "/cadastro-empresas",
+      "headings": ["Empresas"],
+      "width": 1280,
+      "scrollWidth": 1265,
+      "main": "← Trocar móduloCadastro geralAdicionar empresaCadastro principalEmpresasCadastre e mantenha os dados gerais usados pelos módulos.Adicionar e",
+      "headerHeight": 72
+    },
+    {
+      "path": "/cadastro-empresas/nova",
+      "headings": ["Adicionar empresa"],
+      "width": 1280,
+      "scrollWidth": 1265,
+      "main": "← Trocar móduloCadastro geralAdicionar empresaNovo cadastroAdicionar empresaNome fantasia *Razão socialCódigoCNPJE-mailTelefoneRegime tribut",
+      "headerHeight": 72
+    },
+    {
+      "path": "/equipe",
+      "headings": ["Equipe"],
+      "width": 1280,
+      "scrollWidth": 1265,
+      "main": "← Trocar móduloEquipeAdicionar colaboradorCargos e acessosEquipe5 cadastradosCargos e permissõesAdicionar colaboradorBuscar na equipe5 de 5C",
+      "headerHeight": 72
+    },
+    {
+      "path": "/processos",
+      "headings": ["Início"],
+      "width": 1280,
+      "scrollWidth": 1265,
+      "main": "InícioVisão da equipe · indicadores globaisAguardando vocêAções liberadas para Diretoria5AtrasadoAteliê HorizonteEtapa 1 · 0 de 13 tarefasDe"
+    },
+    {
+      "path": "/hub",
+      "headings": ["Onde vamos trabalhar?"],
+      "width": 1366,
+      "scrollWidth": 1351,
+      "main": "Seu escritórioOnde vamos trabalhar?Escolha um módulo para continuar. Você pode voltar a esta página para trocar de área a qualquer momento.E",
+      "headerHeight": 72
+    },
+    {
+      "path": "/minhas-tarefas",
+      "headings": ["Minhas tarefas"],
+      "width": 1366,
+      "scrollWidth": 1366,
+      "main": "Minhas tarefasNova tarefaBuscar nesta lista0 itens•0 com erro•0 em andamento•0 pendentesItemPrazoResponsávelExecuçãoNenhum item encontradoNã",
+      "headerHeight": 72
+    },
+    {
+      "path": "/empresas",
+      "headings": ["Empresas"],
+      "width": 1366,
+      "scrollWidth": 1351,
+      "main": "Empresas11 cadastradasNova empresaBuscar empresas11 de 11CódigoEmpresaCNPJRotinasSituaçãoCódigoEMP-001Aurora Comércio de AlimentosAurora Com",
+      "headerHeight": 72
+    },
+    {
+      "path": "/rotinas",
+      "headings": ["Rotinas"],
+      "width": 1366,
+      "scrollWidth": 1366,
+      "main": "Rotinas2 cadastradasNova rotinaBuscar rotinas2 de 2RotinaDepartamentoRecorrênciaAgenda e prazoEmpresasSituaçãoApuração de impostosRotina dem",
+      "headerHeight": 72
+    },
+    {
+      "path": "/cadastro-empresas",
+      "headings": ["Empresas"],
+      "width": 1366,
+      "scrollWidth": 1351,
+      "main": "← Trocar móduloCadastro geralAdicionar empresaCadastro principalEmpresasCadastre e mantenha os dados gerais usados pelos módulos.Adicionar e",
+      "headerHeight": 72
+    },
+    {
+      "path": "/cadastro-empresas/nova",
+      "headings": ["Adicionar empresa"],
+      "width": 1366,
+      "scrollWidth": 1366,
+      "main": "← Trocar móduloCadastro geralAdicionar empresaNovo cadastroAdicionar empresaNome fantasia *Razão socialCódigoCNPJE-mailTelefoneRegime tribut",
+      "headerHeight": 72
+    },
+    {
+      "path": "/equipe",
+      "headings": ["Equipe"],
+      "width": 1366,
+      "scrollWidth": 1366,
+      "main": "← Trocar móduloEquipeAdicionar colaboradorCargos e acessosEquipe5 cadastradosCargos e permissõesAdicionar colaboradorBuscar na equipe5 de 5C",
+      "headerHeight": 72
+    },
+    {
+      "path": "/processos",
+      "headings": ["Início"],
+      "width": 1366,
+      "scrollWidth": 1351,
+      "main": "InícioVisão da equipe · indicadores globaisAguardando vocêAções liberadas para Diretoria5AtrasadoAteliê HorizonteEtapa 1 · 0 de 13 tarefasDe"
+    },
+    {
+      "planilha": "\n    Pular para o conteúdoRotinasDepartamentosTrocar móduloInícioMinhas tarefasDepartamentosFiscal1 telaListagensEmpresasRotinasTarefasGestãoVisão geralConfiguraçõesAAnademo-diretoria@preview.exampleAnteriorNovembro de 2026PróximaEnviosDepartamentoFiscalPlanilha Fiscal · 11 empresas · 2 rotinasPlanilha FiscalTela de fiscalPlanilha FiscalPlanilha Fi"
+    }
+  ],
+  "exceptions": [],
+  "unexpectedNetwork": []
+}
