@@ -4,7 +4,8 @@ import { Link, NavLink, useLocation } from 'react-router'
 import { appThemeClass, focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
-import PrivateImage from '../components/files/PrivateImage'
+import SidebarProfileLink from '../components/common/SidebarProfileLink'
+import ModulesReturnLink from '../components/common/ModulesReturnLink'
 import type { EntityId } from '../types/domain'
 import type {
   ScreenNavigationItem,
@@ -145,20 +146,18 @@ function Sidebar({
         }`}
         aria-label="Navegação principal"
       >
+        <div className="mb-4 border-b border-[var(--color-sidebar-border)] pb-4">
+          <ModulesReturnLink
+            isCollapsed={isCollapsed}
+            onNavigate={onMobileClose}
+          />
+        </div>
         <ul
-          className={`mb-4 border-b border-[var(--color-sidebar-border)] pb-4 ${
+          className={`mb-4 space-y-1 border-b border-[var(--color-sidebar-border)] pb-4 ${
             isCollapsed ? 'lg:mx-0.5' : ''
           }`}
           aria-label="Acesso global"
         >
-          <NavigationLink
-            to={ROUTES.HUB}
-            label="Trocar módulo"
-            icon="building"
-            isCollapsed={isCollapsed}
-            end
-            onNavigate={onMobileClose}
-          />
           <NavigationLink
             to={ROUTES.HOME}
             label="Início"
@@ -299,8 +298,6 @@ function SidebarProfile({
   onNavigate: () => void
   user: ReturnType<typeof useAppState>['user']
 }) {
-  const initials = getUserInitials(user.name)
-
   return (
     <div
       className={`shrink-0 border-t border-[var(--color-sidebar-border)] p-3 ${
@@ -308,80 +305,16 @@ function SidebarProfile({
       }`}
       data-sidebar-profile
     >
-      <Link
-        to={ROUTES.PROFILE}
-        onClick={onNavigate}
-        title={isCollapsed ? `Perfil: ${user.name}` : undefined}
-        aria-label={`Abrir perfil de ${user.name}`}
-        className={`group flex min-h-12 items-center gap-3 rounded-[var(--radius-nav-item)] p-2 transition motion-reduce:transition-none hover:bg-[var(--color-nav-item-hover-bg)] ${
-          isCollapsed ? 'lg:justify-center lg:p-1' : ''
-        } ${focusRing}`}
-      >
-        {user.avatar ? (
-          <PrivateImage
-            reference={user.avatar}
-            label={user.name}
-            className="size-9"
-          />
-        ) : (
-          <UserAvatar avatarUrl={user.avatarUrl} initials={initials} />
-        )}
-        <span className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}>
-          <span className="block truncate text-sm font-semibold text-[var(--color-text-strong)]">
-            {user.name}
-          </span>
-          <span className="block truncate text-xs font-medium text-[var(--color-text-muted)]">
-            {user.email}
-          </span>
-        </span>
-        <NavigationIcon
-          name="chevron-right"
-          className={`size-4 shrink-0 text-[var(--color-text-muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--color-text-strong)] motion-reduce:transition-none ${
-            isCollapsed ? 'lg:hidden' : ''
-          }`}
-        />
-      </Link>
+      <SidebarProfileLink
+        name={user.name}
+        description={user.email}
+        avatar={user.avatar}
+        avatarUrl={user.avatarUrl}
+        isCollapsed={isCollapsed}
+        onNavigate={onNavigate}
+      />
     </div>
   )
-}
-
-function UserAvatar({
-  avatarUrl,
-  initials,
-}: {
-  avatarUrl: string
-  initials: string
-}) {
-  if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl}
-        alt=""
-        className="size-9 shrink-0 rounded-full object-cover ring-1 ring-[var(--color-control-border)]"
-      />
-    )
-  }
-
-  return (
-    <span
-      className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--color-sidebar-icon-bg)] text-xs font-bold text-[var(--color-sidebar-icon-text)] ring-1 ring-[var(--color-control-border)]"
-      aria-hidden="true"
-    >
-      {initials}
-    </span>
-  )
-}
-
-function getUserInitials(name: string): string {
-  const initials = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('')
-
-  return initials || 'U'
 }
 
 function getSelectedSpreadsheetId(
@@ -455,7 +388,7 @@ function NavigationSection({
   return (
     <section className={className} aria-label={title}>
       <h2
-        className={`mb-2 px-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-sidebar-section-text)] ${
+        className={`app-nav-section mb-2 px-3 ${
           isCollapsed ? 'lg:sr-only' : ''
         }`}
       >
@@ -501,11 +434,11 @@ function SpreadsheetLink({
           <NavigationIcon name="spreadsheet" className="size-[1.35rem]" />
         </span>
         <span className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}>
-          <span className="block truncate text-[1.05rem] font-bold leading-5">
+          <span className="app-nav-label block truncate">
             {spreadsheet.name}
           </span>
           {spreadsheet.description && (
-            <span className="mt-1 block truncate text-xs font-medium text-[var(--color-sidebar-primary-muted-text)]">
+            <span className="app-caption mt-1 block truncate text-[var(--color-sidebar-primary-muted-text)]">
               {spreadsheet.description}
             </span>
           )}
@@ -556,11 +489,9 @@ function AgendaLink({
           <NavigationIcon name="calendar" className="size-[1.35rem]" />
         </span>
         <span className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}>
-          <span className="block truncate text-[1.05rem] font-bold leading-5">
-            {agenda.name}
-          </span>
+          <span className="app-nav-label block truncate">{agenda.name}</span>
           {agenda.description && (
-            <span className="mt-1 block truncate text-xs font-medium text-[var(--color-sidebar-primary-muted-text)]">
+            <span className="app-caption mt-1 block truncate text-[var(--color-sidebar-primary-muted-text)]">
               {agenda.description}
             </span>
           )}
@@ -599,7 +530,7 @@ function NavigationLink({
         title={isCollapsed ? label : undefined}
         onClick={onNavigate}
         className={({ isActive }) =>
-          `flex min-h-[var(--size-nav-item)] items-center gap-3 rounded-[var(--radius-nav-item)] px-3 text-[0.95rem] font-semibold transition motion-reduce:transition-none ${
+          `flex min-h-[var(--size-nav-item)] items-center gap-3 rounded-[var(--radius-nav-item)] app-nav-label px-3 transition motion-reduce:transition-none ${
             isCollapsed ? 'lg:justify-center lg:px-2' : ''
           } ${
             isActive

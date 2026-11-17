@@ -21,7 +21,6 @@ import HomePage from '../pages/HomePage'
 import ListPage from '../pages/ListPage'
 import MyTasksPage from '../pages/MyTasksPage'
 import PlaceholderPage from '../pages/PlaceholderPage'
-import ProfilePage from '../pages/ProfilePage'
 import RoutinesPage from '../pages/RoutinesPage'
 import ScreensPage from '../pages/ScreensPage'
 import SettingsRoutes from '../pages/settings/SettingsRoutes'
@@ -125,7 +124,6 @@ function AuthenticatedRoutes({
         }
       >
         <Route path={ROUTES.AGENDA} element={<AgendaPage />} />
-        <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
         {data ? (
           renderOperationalRoutes({
             data,

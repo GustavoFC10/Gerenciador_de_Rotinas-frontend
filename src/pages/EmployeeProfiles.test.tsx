@@ -9,17 +9,13 @@ import EmployeeProfilePanel from '../components/forms/EmployeeProfilePanel'
 import {
   organizationMemberService,
   type OrganizationMemberResource,
+  type MembershipInvitationInput,
 } from '../services/organizationMemberService'
-import type { MembershipInvitationInput } from '../services/organizationMemberService'
-
 vi.mock('../hooks/useAppState', () => ({
   useAppState: () => ({ user: { role: 'owner' } }),
 }))
 vi.mock('../components/files/ImageEditor', () => ({ default: () => null }))
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-let host: HTMLDivElement
-let root: Root
-let client: QueryClient
 const departments = [{ id: 'fiscal', name: 'Fiscal' }]
 const member: OrganizationMemberResource = {
   id: 'member-1',
@@ -43,12 +39,20 @@ const member: OrganizationMemberResource = {
     },
   ],
 }
+const response = (data: OrganizationMemberResource) => ({
+  data,
+  status: 200,
+  etag: null,
+  requestId: null,
+  headers: new Headers(),
+})
+let host: HTMLDivElement, root: Root, client: QueryClient
 beforeEach(() => {
+  window.confirm = vi.fn(() => true)
   host = document.createElement('div')
-  document.body.appendChild(host)
+  document.body.append(host)
   root = createRoot(host)
   client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-  vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
 })
 afterEach(async () => {
   await act(async () => root.unmount())
@@ -57,19 +61,28 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 async function render(element: React.ReactNode) {
-  await act(async () => {
+  await act(async () =>
     root.render(
       <QueryClientProvider client={client}>
         <MemoryRouter>{element}</MemoryRouter>
       </QueryClientProvider>,
-    )
+    ),
+  )
+}
+async function click(text: string) {
+  await act(async () => {
+    const item = [
+      ...document.body.querySelectorAll<HTMLButtonElement>('button'),
+    ].find((button) => button.textContent?.trim() === text)
+    if (!item) throw new Error('Missing button ' + text)
+    item.click()
   })
 }
 async function change(id: string, value: string) {
   await act(async () => {
     const field = document.getElementById(id) as
-      HTMLSelectElement | HTMLInputElement
-    if (!field) throw new Error('Missing field: ' + id)
+      HTMLInputElement | HTMLSelectElement
+    if (!field) throw new Error('Missing field ' + id)
     if (field instanceof HTMLInputElement)
       Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype,
@@ -83,6 +96,13 @@ async function change(id: string, value: string) {
     )
   })
 }
+async function check(id: string) {
+  await act(async () => {
+    const field = document.getElementById(id) as HTMLInputElement
+    if (!field) throw new Error('Missing checkbox ' + id)
+    field.click()
+  })
+}
 async function submit() {
   await act(async () => {
     document
@@ -91,39 +111,56 @@ async function submit() {
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
 }
-const response = (data: OrganizationMemberResource) => ({
-  data,
-  status: 200,
-  etag: null,
-  requestId: null,
-  headers: new Headers(),
-})
+async function profile(
+  target = member,
+  canAssignOwner = true,
+  onClose = vi.fn(),
+  onMemberChange = vi.fn(async () => {}),
+) {
+  await render(
+    <EmployeeProfilePanel
+      member={target}
+      departments={departments}
+      canManage
+      canAssignOwner={canAssignOwner}
+      onMemberChange={onMemberChange}
+      onClose={onClose}
+    />,
+  )
+  return { onClose, onMemberChange }
+}
+async function editAccess() {
+  await click('Acessos')
+  await click('Editar acessos')
+}
 
 describe('general collaborator profiles', () => {
+  it('opens in consultation and requires an explicit edit action', async () => {
+    await profile()
+    expect(document.body.textContent).toContain('maria@example.com')
+    expect(document.querySelector('input')).toBeNull()
+    await click('Editar')
+    expect(document.getElementById('employee-profile-name')).not.toBeNull()
+  })
   it.each(['viewer', 'editor', 'manager'] as const)(
-    'saves the %s Honorários role independently from Empresas and without sectors',
+    'saves Honorários %s independently from Empresas',
     async (role) => {
-      const configured: OrganizationMemberResource = {
+      const configured = {
         ...member,
         moduleAccesses: [
-          { module: 'companies', enabled: true, role: 'manager' },
-          { module: 'honorarios', enabled: false },
+          {
+            module: 'companies' as const,
+            enabled: true,
+            role: 'manager' as const,
+          },
+          { module: 'honorarios' as const, enabled: false },
         ],
       }
       const update = vi
         .spyOn(organizationMemberService, 'update')
         .mockResolvedValue(response(configured))
-      await render(
-        <EmployeeProfilePanel
-          member={configured}
-          departments={departments}
-          canManage
-          canAssignOwner
-          onMemberChange={async () => {}}
-          onClose={() => {}}
-        />,
-      )
-      expect(host.querySelector('[id^="member-sector-honorarios"]')).toBeNull()
+      await profile(configured)
+      await editAccess()
       await change('member-module-honorarios', role)
       await submit()
       expect(update).toHaveBeenCalledExactlyOnceWith('member-1', {
@@ -137,11 +174,10 @@ describe('general collaborator profiles', () => {
       })
     },
   )
-  it('includes Processos configuration and optional titles in the initial invitation', async () => {
+  it('sends an invitation with direct sector selection and optional titles', async () => {
     const invite = vi.fn(async (input: MembershipInvitationInput) => ({
       ...input,
       id: 'invitation',
-      memberId: 'member-2',
       expiresAt: '2026-10-30T12:00:00Z',
       createdAt: '',
     }))
@@ -154,8 +190,7 @@ describe('general collaborator profiles', () => {
     )
     await change('employee-name', 'Nova pessoa')
     await change('employee-email', 'nova@example.com')
-    await change('member-module-processes', 'sectors')
-    await change('member-sector-processes-fin', 'fin')
+    await check('member-sector-processes-fin')
     await change('member-title-fin', 'Analista')
     await submit()
     expect(invite).toHaveBeenCalledWith({
@@ -173,37 +208,23 @@ describe('general collaborator profiles', () => {
         },
       ],
     })
-    expect(host.textContent).toContain('Convite enviado')
+    expect(document.body.textContent).toContain('Convite enviado')
   })
-  it('shows existing sector titles and saves profile, role, and replacement grants in one request', async () => {
+  it('preserves profile and other grants while removing one Processos sector', async () => {
     const update = vi
       .spyOn(organizationMemberService, 'update')
       .mockResolvedValue(response(member))
-    const onChange = vi.fn(async () => {})
-    await render(
-      <EmployeeProfilePanel
-        member={member}
-        departments={departments}
-        canManage
-        canAssignOwner
-        onMemberChange={onChange}
-        onClose={() => {}}
-      />,
-    )
+    await profile()
+    await editAccess()
     expect(
       (document.getElementById('member-title-fin') as HTMLInputElement).value,
     ).toBe('Analista financeiro')
-    expect(document.body.textContent).toContain('maria@example.com')
-    await change('employee-profile-name', 'Maria Silva')
-    await change('employee-profile-role', 'member')
-    await change('member-sector-processes-fin', '')
-    await change('member-module-routines', 'departments')
-    await change('member-sector-routines-fiscal', 'viewer')
+    await check('member-sector-processes-fin')
     await submit()
     expect(update).toHaveBeenCalledExactlyOnceWith('member-1', {
-      displayName: 'Maria Silva',
-      role: 'member',
+      displayName: 'Maria',
       moduleAccesses: [
+        { module: 'routines', enabled: false },
         { module: 'companies', enabled: false },
         { module: 'honorarios', enabled: false },
         {
@@ -211,56 +232,57 @@ describe('general collaborator profiles', () => {
           enabled: true,
           sectors: [{ sector: 'reg', role: 'reg', jobTitle: 'Apoio' }],
         },
-        {
-          module: 'routines',
-          enabled: true,
-          role: 'departments',
-          sectors: [{ sector: 'fiscal', role: 'viewer' }],
-        },
       ],
     })
-    expect(onChange).toHaveBeenCalledWith(member)
   })
-  it('can revoke both modules independently of an organizational administrator role', async () => {
+  it('revokes Processos when its last sector is deselected', async () => {
     const update = vi
       .spyOn(organizationMemberService, 'update')
       .mockResolvedValue(response(member))
-    await render(
-      <EmployeeProfilePanel
-        member={member}
-        departments={departments}
-        canManage
-        canAssignOwner
-        onMemberChange={async () => {}}
-        onClose={() => {}}
-      />,
-    )
-    await change('member-module-processes', 'none')
+    await profile()
+    await editAccess()
+    await check('member-sector-processes-fin')
+    await check('member-sector-processes-reg')
     await submit()
-    expect(update).toHaveBeenCalledWith('member-1', {
-      displayName: 'Maria',
-      moduleAccesses: [
-        { module: 'routines', enabled: false },
-        { module: 'companies', enabled: false },
-        { module: 'honorarios', enabled: false },
-        { module: 'processes', enabled: false },
-      ],
-    })
+    expect(update).toHaveBeenCalledWith(
+      'member-1',
+      expect.objectContaining({
+        moduleAccesses: expect.arrayContaining([
+          { module: 'processes', enabled: false },
+        ]),
+      }),
+    )
   })
-  it('keeps drafts after a failed atomic save', async () => {
+  it('saves profile changes without changing grants', async () => {
+    const update = vi
+      .spyOn(organizationMemberService, 'update')
+      .mockResolvedValue(response(member))
+    await profile()
+    await click('Editar')
+    await change('employee-profile-name', 'Maria Silva')
+    await change('employee-profile-role', 'member')
+    await submit()
+    expect(update).toHaveBeenCalledWith(
+      'member-1',
+      expect.objectContaining({
+        displayName: 'Maria Silva',
+        role: 'member',
+        moduleAccesses: expect.arrayContaining([
+          {
+            module: 'processes',
+            enabled: true,
+            sectors: member.moduleAccesses![1]!.sectors,
+          },
+        ]),
+      }),
+    )
+  })
+  it('keeps drafts after a failed save and asks before discarding them', async () => {
     vi.spyOn(organizationMemberService, 'update').mockRejectedValue(
       new Error('Departamento indisponível.'),
     )
-    await render(
-      <EmployeeProfilePanel
-        member={member}
-        departments={departments}
-        canManage
-        canAssignOwner
-        onMemberChange={async () => {}}
-        onClose={() => {}}
-      />,
-    )
+    const { onClose } = await profile()
+    await click('Editar')
     await change('employee-profile-name', 'Maria Silva')
     await submit()
     expect(document.body.textContent).toContain('Departamento indisponível.')
@@ -268,28 +290,35 @@ describe('general collaborator profiles', () => {
       (document.getElementById('employee-profile-name') as HTMLInputElement)
         .value,
     ).toBe('Maria Silva')
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    await act(async () =>
+      document
+        .querySelector<HTMLButtonElement>('button[aria-label="Fechar perfil"]')!
+        .click(),
+    )
+    expect(confirm).toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
   })
-  it('prevents an administrator from modifying an owner', async () => {
-    const update = vi.spyOn(organizationMemberService, 'update')
-    await render(
-      <EmployeeProfilePanel
-        member={{ ...member, role: 'owner' }}
-        departments={departments}
-        canManage
-        canAssignOwner={false}
-        onMemberChange={async () => {}}
-        onClose={() => {}}
-      />,
+  it('does not offer editing an owner to an administrator', async () => {
+    await profile({ ...member, role: 'owner' }, false)
+    expect(
+      [...document.querySelectorAll('button')].some(
+        (button) => button.textContent?.trim() === 'Editar',
+      ),
+    ).toBe(false)
+    await click('Acessos')
+    expect(document.getElementById('member-sector-processes-fin')).toBeNull()
+  })
+  it('does not offer access editing for an inactive member', async () => {
+    await profile({ ...member, status: 'inactive' })
+    await click('Acessos')
+    expect(document.body.textContent).toContain(
+      'contas ativas ou com convite pendente',
     )
     expect(
-      (document.getElementById('employee-profile-name') as HTMLInputElement)
-        .disabled,
-    ).toBe(true)
-    expect(
-      (document.getElementById('member-module-processes') as HTMLSelectElement)
-        .disabled,
-    ).toBe(true)
-    await submit()
-    expect(update).not.toHaveBeenCalled()
+      [...document.querySelectorAll('button')].some(
+        (button) => button.textContent?.trim() === 'Editar acessos',
+      ),
+    ).toBe(false)
   })
 })

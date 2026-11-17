@@ -24,9 +24,11 @@ type ImageDestination = Exclude<FileTarget, { purpose: 'task_attachment' }>
 export default function ImageEditor({
   destination,
   label,
+  showPreview = true,
 }: {
   destination: ImageDestination
   label: string
+  showPreview?: boolean
 }) {
   const { activeMembership, user, refreshSession } = useAuth()
   if (!activeMembership || !user) return null
@@ -36,6 +38,7 @@ export default function ImageEditor({
       key={identity}
       destination={destination}
       label={label}
+      showPreview={showPreview}
       scope={{
         organizationId: activeMembership.organization.id,
         membershipId: activeMembership.id,
@@ -49,12 +52,14 @@ export default function ImageEditor({
 function ImageEditorContent({
   destination,
   label,
+  showPreview,
   scope,
   user,
   refreshSession,
 }: {
   destination: ImageDestination
   label: string
+  showPreview: boolean
   scope: OrganizationQueryScope
   user: AppUser
   refreshSession: () => Promise<void>
@@ -161,7 +166,7 @@ function ImageEditorContent({
       }
       className="flex max-w-full flex-wrap items-center gap-3"
     >
-      {reference && (
+      {reference && showPreview && (
         <PrivateImage
           reference={reference}
           label={label}

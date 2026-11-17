@@ -1,474 +1,231 @@
-import { useMemo, useState, type FormEvent } from 'react'
-
-import {
-  CreationErrorSummary,
-  CreationSuccess,
-  FieldError,
-} from '../components/forms/CreationFeedback'
+﻿import { useRef, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import MemberModuleFields from '../components/forms/MemberModuleFields'
 import {
   initialModuleAccesses,
   moduleAccessError,
   moduleAccessPayload,
 } from '../utils/memberModuleAccess'
-import type { Department } from '../types/domain'
-import { MODULE_LABELS } from '../types/modules'
+import type { Department, OrganizationRole } from '../types/domain'
 import Button from '../components/ui/Button'
-import Card from '../components/ui/Card'
 import TextField from '../components/ui/TextField'
-import { ORGANIZATION_ROLE } from '../constants/roles'
-import { ROUTES } from '../constants/routes'
-import { focusRing } from '../constants/designTokens'
+import Select from '../components/ui/Select'
 import { useAppState } from '../hooks/useAppState'
-import WorkspaceBar from '../layouts/WorkspaceBar'
+import { useOverlayDialog } from '../hooks/useOverlayDialog'
+import { confirmDiscard, useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import type {
   MembershipInvitationInput,
   MembershipInvitationResource,
 } from '../services/organizationMemberService'
-import type { OrganizationRole } from '../types/domain'
 import { isOwner } from '../utils/permissions'
+import '../components/catalog/directory.css'
 
-interface CreateEmployeePageProps {
+export default function CreateEmployeePage({
+  onInvite,
+  onCancel,
+  departments = [],
+}: {
   departments?: Department[]
   onInvite: (
     input: MembershipInvitationInput,
   ) => Promise<MembershipInvitationResource>
   onCancel: () => void
-}
-
-interface InvitationDraft {
-  displayName: string
-  email: string
-  role: OrganizationRole
-}
-
-type InvitationField = 'displayName' | 'email' | 'role' | 'modules' | 'submit'
-type InvitationErrors = Partial<Record<InvitationField, string>>
-
-const initialDraft: InvitationDraft = {
-  displayName: '',
-  email: '',
-  role: ORGANIZATION_ROLE.MEMBER,
-}
-
-const invitationRoles: Array<{
-  value: OrganizationRole
-  label: string
-  description: string
-  permissionSummary: string
-}> = [
-  {
-    value: ORGANIZATION_ROLE.MEMBER,
-    label: 'Colaborador',
-    description: 'Trabalha nos módulos e setores que receberem acesso.',
-    permissionSummary: 'Acessos definidos por módulo',
-  },
-  {
-    value: ORGANIZATION_ROLE.ADMIN,
-    label: 'Administrador',
-    description:
-      'Administra contas e recursos da organização. Os módulos são configurados separadamente.',
-    permissionSummary: 'Acesso administrativo',
-  },
-  {
-    value: ORGANIZATION_ROLE.OWNER,
-    label: 'Proprietário',
-    description:
-      'Mantém a administração máxima da organização e seus integrantes.',
-    permissionSummary: 'Acesso administrativo máximo',
-  },
-]
-
-function CreateEmployeePage({
-  onInvite,
-  onCancel,
-  departments = [],
-}: CreateEmployeePageProps) {
+}) {
   const { user } = useAppState()
-  const [moduleAccesses, setModuleAccesses] = useState(initialModuleAccesses)
-  const [draft, setDraft] = useState<InvitationDraft>(initialDraft)
-  const [errors, setErrors] = useState<InvitationErrors>({})
-  const [submitAttempt, setSubmitAttempt] = useState(0)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const ref = useRef<HTMLElement>(null)
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<OrganizationRole>('member')
+  const [accesses, setAccesses] = useState(initialModuleAccesses)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
   const [invitation, setInvitation] =
     useState<MembershipInvitationResource | null>(null)
-
-  const allowedRoles = useMemo(
-    () =>
-      invitationRoles.filter(
-        (role) => role.value !== ORGANIZATION_ROLE.OWNER || isOwner(user),
-      ),
-    [user],
-  )
-  const selectedRole =
-    allowedRoles.find((role) => role.value === draft.role) ??
-    invitationRoles[0]!
-
-  if (invitation) {
-    return (
-      <div className="mx-auto w-full max-w-[90rem]">
-        <WorkspaceBar
-          context={{ label: 'Equipe', to: ROUTES.EMPLOYEES }}
-          label="Equipe"
-          title="Adicionar colaborador"
-        />
-        <CreationSuccess
-          eyebrow="Convite enviado"
-          title={invitation.displayName}
-          description="O convite foi enviado por e-mail. A pessoa cria o próprio acesso ao aceitar; os acessos configurados estarão disponíveis após a ativação."
-          detail={
-            selectedRole.label +
-            ' · expira em ' +
-            formatInvitationExpiry(invitation.expiresAt)
-          }
-          primaryAction={{ label: 'Ir para equipe', to: ROUTES.EMPLOYEES }}
-          secondaryAction={{
-            label: 'Convidar outra pessoa',
-            onClick: () => {
-              setDraft(initialDraft)
-              setModuleAccesses(initialModuleAccesses())
-              setErrors({})
-              setInvitation(null)
-            },
-          }}
-        />
-      </div>
-    )
+  const dirty =
+    !invitation &&
+    (!!name ||
+      !!email ||
+      role !== 'member' ||
+      accesses.some((access) => access.enabled))
+  useUnsavedChanges(dirty)
+  function close() {
+    if (!busy && confirmDiscard(dirty)) onCancel()
   }
-
-  function updateDraft<K extends keyof InvitationDraft>(
-    field: K,
-    value: InvitationDraft[K],
-  ) {
-    setDraft((current) => ({ ...current, [field]: value }))
-    if (field in errors) {
-      setErrors((current) => ({ ...current, [field]: undefined }))
-    }
-  }
-
-  function validate(): InvitationErrors {
-    const nextErrors: InvitationErrors = {}
-    const email = draft.email.trim().toLocaleLowerCase('pt-BR')
-
-    if (!draft.displayName.trim()) {
-      nextErrors.displayName = 'Informe o nome da pessoa.'
-    }
-
-    if (!email) {
-      nextErrors.email = 'Informe o e-mail que receberá o convite.'
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      nextErrors.email = 'Use um endereço de e-mail válido.'
-    }
-
-    if (!allowedRoles.some((role) => role.value === draft.role)) {
-      nextErrors.role = 'Escolha um cargo organizacional permitido.'
-    }
-
-    const moduleError = moduleAccessError(moduleAccesses)
-    if (moduleError) nextErrors.modules = moduleError
-    return nextErrors
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  useOverlayDialog(ref, close)
+  async function submit(event: FormEvent) {
     event.preventDefault()
-    if (isSubmitting) return
-    setSubmitAttempt((current) => current + 1)
-    const nextErrors = validate()
-    setErrors(nextErrors)
-
-    if (Object.keys(nextErrors).length > 0) return
-
-    setIsSubmitting(true)
+    if (busy) return
+    const normalizedEmail = email.trim().toLocaleLowerCase('pt-BR')
+    const problem = !name.trim()
+      ? 'Informe o nome da pessoa.'
+      : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
+        ? 'Use um endereço de e-mail válido.'
+        : role === 'owner' && !isOwner(user)
+          ? 'Escolha um papel permitido.'
+          : moduleAccessError(accesses)
+    if (problem) {
+      setError(problem)
+      return
+    }
+    setError('')
+    setBusy(true)
     try {
-      const createdInvitation = await onInvite({
-        displayName: draft.displayName.trim(),
-        email: draft.email.trim().toLocaleLowerCase('pt-BR'),
-        role: draft.role,
-        moduleAccesses: moduleAccessPayload(moduleAccesses),
-      })
-      setErrors({})
-      setInvitation(createdInvitation)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    } catch (error) {
-      setErrors({
-        submit:
-          error instanceof Error
-            ? error.message
-            : 'Não foi possível enviar o convite.',
-      })
+      setInvitation(
+        await onInvite({
+          displayName: name.trim(),
+          email: normalizedEmail,
+          role,
+          moduleAccesses: moduleAccessPayload(accesses),
+        }),
+      )
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : 'Não foi possível enviar o convite.',
+      )
     } finally {
-      setIsSubmitting(false)
+      setBusy(false)
     }
   }
-
-  return (
-    <div className="mx-auto w-full max-w-[90rem]">
-      <WorkspaceBar
-        context={{ label: 'Equipe', to: ROUTES.EMPLOYEES }}
-        label="Equipe"
-        title="Adicionar colaborador"
-        meta="Convite e acesso"
-      />
-
-      <form onSubmit={(event) => void handleSubmit(event)} noValidate>
-        <CreationErrorSummary
-          focusKey={submitAttempt}
-          messages={Object.values(errors).filter((message): message is string =>
-            Boolean(message),
-          )}
-        />
-
-        <div
-          className={
-            'grid items-start gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(19rem,0.65fr)] ' +
-            (Object.values(errors).some(Boolean) ? 'mt-4' : '')
-          }
-        >
-          <div className="space-y-5">
-            <Card>
-              <SectionHeader
-                eyebrow="Identidade"
-                title="Dados do convite"
-                description="O e-mail identifica o convite. A senha e o acesso à conta são definidos pela própria pessoa após aceitar."
-              />
-              <div className="grid gap-4 px-5 py-5 sm:grid-cols-2 sm:px-6">
-                <div className="sm:col-span-2">
-                  <TextField
-                    disabled={isSubmitting}
-                    id="employee-name"
-                    label="Nome completo *"
-                    value={draft.displayName}
-                    onChange={(event) =>
-                      updateDraft('displayName', event.target.value)
-                    }
-                    autoComplete="name"
-                    aria-invalid={Boolean(errors.displayName)}
-                    aria-describedby={
-                      errors.displayName ? 'employee-name-error' : undefined
-                    }
-                    placeholder="Ex.: Mariana Costa"
-                    required
-                  />
-                  <FieldError id="employee-name-error">
-                    {errors.displayName}
-                  </FieldError>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <TextField
-                    disabled={isSubmitting}
-                    id="employee-email"
-                    label="E-mail para convite *"
-                    type="email"
-                    value={draft.email}
-                    onChange={(event) =>
-                      updateDraft('email', event.target.value)
-                    }
-                    autoComplete="email"
-                    aria-invalid={Boolean(errors.email)}
-                    aria-describedby={
-                      errors.email
-                        ? 'employee-email-error'
-                        : 'employee-email-hint'
-                    }
-                    placeholder="mariana@empresa.com.br"
-                    required
-                  />
-                  <p
-                    id="employee-email-hint"
-                    className="mt-1.5 text-xs text-[var(--color-text-muted)]"
-                  >
-                    O backend envia o convite para este endereço.
-                  </p>
-                  <FieldError id="employee-email-error">
-                    {errors.email}
-                  </FieldError>
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <SectionHeader
-                eyebrow="Permissões"
-                title="Cargo organizacional"
-                description="O cargo controla a administração da organização. Configure os acessos a Rotinas e Processos abaixo."
-              />
-              <fieldset
-                className="space-y-2 px-5 py-5 sm:px-6"
-                aria-invalid={Boolean(errors.role)}
-                aria-describedby={
-                  errors.role ? 'employee-role-error' : undefined
-                }
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[70] flex justify-end bg-[var(--color-overlay-bg)]"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) close()
+      }}
+    >
+      <aside
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="invitation-title"
+        tabIndex={-1}
+        className="flex h-dvh w-full max-w-2xl flex-col border-l border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] shadow-[var(--shadow-floating)]"
+      >
+        <header className="flex items-center justify-between gap-4 border-b border-[var(--color-divider)] p-4 sm:px-6">
+          <h1 id="invitation-title" className="app-page-title">
+            Convidar pessoa
+          </h1>
+          <Button
+            aria-label="Fechar convite"
+            data-overlay-close
+            disabled={busy}
+            onClick={close}
+          >
+            ×
+          </Button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+          {invitation ? (
+            <section role="status" className="space-y-4">
+              <h2 className="app-section-title">Convite enviado</h2>
+              <p>
+                {invitation.displayName} · {invitation.email}
+              </p>
+              <p className="app-description">
+                A pessoa receberá um e-mail para criar o próprio acesso.
+              </p>
+              <Button
+                onClick={() => {
+                  setName('')
+                  setEmail('')
+                  setRole('member')
+                  setAccesses(initialModuleAccesses())
+                  setInvitation(null)
+                }}
               >
-                <legend className="sr-only">Cargo organizacional</legend>
-                {allowedRoles.map((role) => {
-                  const selected = draft.role === role.value
-
-                  return (
-                    <label
-                      key={role.value}
-                      className={
-                        'flex cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border p-4 transition ' +
-                        (selected
-                          ? 'border-[var(--color-control-focus)] bg-[var(--color-brand-soft)]'
-                          : 'border-[var(--color-divider)] bg-[var(--color-panel-bg)] hover:bg-[var(--color-control-hover-bg)]') +
-                        ' ' +
-                        focusRing
-                      }
-                    >
-                      <input
-                        disabled={isSubmitting}
-                        type="radio"
-                        name="employee-role"
-                        value={role.value}
-                        checked={selected}
-                        onChange={() => updateDraft('role', role.value)}
-                        className="mt-1 size-4 accent-[var(--color-brand)]"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-black text-[var(--color-text-strong)]">
-                            {role.label}
-                          </span>
-                          {role.value !== ORGANIZATION_ROLE.MEMBER && (
-                            <span className="rounded-full bg-[var(--status-progress-bg)] px-2 py-0.5 text-[11px] font-black text-[var(--status-progress-text)] ring-1 ring-[var(--status-progress-border)]">
-                              Acesso elevado
-                            </span>
-                          )}
-                        </span>
-                        <span className="mt-1 block text-sm leading-5 text-[var(--color-text-muted)]">
-                          {role.description}
-                        </span>
-                      </span>
-                    </label>
-                  )
-                })}
-                <FieldError id="employee-role-error">{errors.role}</FieldError>
-              </fieldset>
-            </Card>
-
-            <Card>
-              <SectionHeader
-                eyebrow="Módulos"
-                title="Acessos de trabalho"
-                description="Uma conta pode acessar apenas Rotinas, apenas Processos, ambos ou nenhum módulo."
-              />
-              <div className="px-5 py-5 sm:px-6">
-                <MemberModuleFields
-                  value={moduleAccesses}
-                  onChange={setModuleAccesses}
-                  departments={departments}
-                  disabled={isSubmitting}
-                />
-                <FieldError id="employee-modules-error">
-                  {errors.modules}
-                </FieldError>
-              </div>
-            </Card>
-          </div>
-
-          <Card className="xl:sticky xl:top-5">
-            <div className="border-b border-[var(--color-divider)] px-5 py-4">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
-                Resumo do convite
-              </p>
-              <h2 className="mt-1 text-lg font-black text-[var(--color-text-strong)]">
-                {draft.displayName.trim() || 'Nova pessoa'}
-              </h2>
-              <p className="mt-1 truncate text-sm text-[var(--color-text-muted)]">
-                {draft.email.trim() || 'E-mail ainda não informado'}
-              </p>
-            </div>
-            <dl className="space-y-4 px-5 py-5">
-              <div>
-                <dt className="text-xs font-bold text-[var(--color-text-muted)]">
-                  Cargo
-                </dt>
-                <dd className="mt-1 text-sm font-black text-[var(--color-text-strong)]">
-                  {selectedRole.label}
-                </dd>
-                <dd className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
-                  {selectedRole.permissionSummary}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-bold text-[var(--color-text-muted)]">
-                  Módulos
-                </dt>
-                <dd className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">
-                  {moduleAccesses
-                    .filter((access) => access.enabled)
-                    .map((access) => MODULE_LABELS[access.module])
-                    .join(' · ') || 'Sem acesso aos módulos'}
-                </dd>
-              </div>
-            </dl>
-            {draft.role !== ORGANIZATION_ROLE.MEMBER && (
-              <div className="border-t border-[var(--status-progress-border)] bg-[var(--status-progress-bg)] px-5 py-4">
-                <p className="text-sm font-bold text-[var(--status-progress-text)]">
-                  Este convite concede acesso organizacional elevado. Confirme o
-                  cargo antes de enviar.
-                </p>
-              </div>
-            )}
-          </Card>
-        </div>
-
-        <div className="sticky bottom-0 z-10 mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[color-mix(in_srgb,var(--color-panel-bg)_94%,transparent)] px-4 py-3 shadow-[var(--shadow-floating)] backdrop-blur sm:px-5">
-          <p className="text-sm text-[var(--color-text-muted)]">
-            Campos marcados com * são obrigatórios.
-          </p>
-          <div className="ml-auto flex gap-2">
-            <Button
-              type="button"
-              tone="neutral"
-              disabled={isSubmitting}
-              onClick={onCancel}
+                Convidar outra pessoa
+              </Button>
+            </section>
+          ) : (
+            <form
+              id="employee-invitation-form"
+              onSubmit={(event) => void submit(event)}
+              noValidate
             >
-              Cancelar
-            </Button>
-            <Button type="submit" tone="primary" disabled={isSubmitting}>
-              {isSubmitting ? 'Enviando…' : 'Enviar convite'}
-            </Button>
-          </div>
+              {error && (
+                <p
+                  role="alert"
+                  className="mb-4 text-sm text-[var(--status-error-text)]"
+                >
+                  {error}
+                </p>
+              )}
+              <fieldset disabled={busy} className="record-section min-w-0">
+                <legend className="app-component-title mb-4">
+                  Identificação
+                </legend>
+                <div className="space-y-4">
+                  <TextField
+                    id="employee-name"
+                    label="Nome"
+                    value={name}
+                    maxLength={160}
+                    required
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                  <TextField
+                    id="employee-email"
+                    type="email"
+                    label="E-mail"
+                    value={email}
+                    maxLength={254}
+                    required
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <Select
+                    id="employee-role"
+                    label="Papel na organização"
+                    value={role}
+                    onChange={(e) =>
+                      setRole(e.target.value as OrganizationRole)
+                    }
+                  >
+                    <option value="member">Colaborador</option>
+                    <option value="admin">Administrador</option>
+                    {isOwner(user) && (
+                      <option value="owner">Proprietário</option>
+                    )}
+                  </Select>
+                </div>
+              </fieldset>
+              <section className="record-section">
+                <h2>Acessos aos módulos</h2>
+                <MemberModuleFields
+                  value={accesses}
+                  onChange={setAccesses}
+                  departments={departments}
+                  disabled={busy}
+                />
+              </section>
+            </form>
+          )}
         </div>
-      </form>
-    </div>
+        <footer className="record-actions">
+          <span className="app-caption">
+            {invitation
+              ? 'Convite enviado por e-mail'
+              : 'O papel não concede acesso automático aos módulos.'}
+          </span>
+          <div className="flex gap-2">
+            <Button disabled={busy} onClick={close}>
+              {invitation ? 'Ir para equipe' : 'Cancelar'}
+            </Button>
+            {!invitation && (
+              <Button
+                tone="primary"
+                type="submit"
+                form="employee-invitation-form"
+                disabled={busy}
+              >
+                {busy ? 'Enviando…' : 'Enviar convite'}
+              </Button>
+            )}
+          </div>
+        </footer>
+      </aside>
+    </div>,
+    document.body,
   )
 }
-
-function SectionHeader({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string
-  title: string
-  description: string
-}) {
-  return (
-    <div className="border-b border-[var(--color-divider)] px-5 py-4 sm:px-6">
-      <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--color-brand)]">
-        {eyebrow}
-      </p>
-      <h2 className="mt-1 text-lg font-black text-[var(--color-text-strong)]">
-        {title}
-      </h2>
-      <p className="mt-1 max-w-3xl text-sm leading-5 text-[var(--color-text-muted)]">
-        {description}
-      </p>
-    </div>
-  )
-}
-
-function formatInvitationExpiry(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-
-  return new Intl.DateTimeFormat('pt-BR', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
-}
-
-export default CreateEmployeePage

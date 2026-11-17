@@ -124,6 +124,9 @@ function ModuleRouter({
 
   if (location.pathname === ROUTES.HUB) return <HubPage />
   if (location.pathname === ROUTES.HUB_PROFILE)
+    return <Navigate to={ROUTES.PROFILE} replace />
+
+  if (location.pathname === ROUTES.PROFILE)
     return (
       <ModuleWorkspaceLayout>
         <ProfilePage />

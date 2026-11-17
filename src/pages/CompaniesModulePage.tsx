@@ -1,43 +1,46 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useRef, useState, type FormEvent } from 'react'
+﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   Link,
-  NavLink,
   Navigate,
   Route,
   Routes,
+  useLocation,
   useNavigate,
   useParams,
 } from 'react-router'
 import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
+import Select from '../components/ui/Select'
+import TextField from '../components/ui/TextField'
 import LoadingState from '../components/common/LoadingState'
+import CompanyModuleSummary from '../components/catalog/CompanyModuleSummary'
+import {
+  DirectoryEmpty,
+  DirectoryHeading,
+  DirectoryPager,
+  DirectoryPanel,
+  DirectoryStatus,
+  DirectoryToolbar,
+  RecordDatum,
+  useDirectoryQuery,
+} from '../components/catalog/Directory'
 import { focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { useAuth } from '../hooks/useAuth'
 import { useModuleAccess } from '../hooks/useModuleAccess'
-import ModuleWorkspaceLayout from '../layouts/ModuleWorkspaceLayout'
+import { confirmDiscard, useUnsavedChanges } from '../hooks/useUnsavedChanges'
+import { useDirectoryScroll } from '../hooks/useDirectoryScroll'
+import DirectoryWorkspaceLayout from '../layouts/DirectoryWorkspaceLayout'
 import { queryKeys } from '../query/queryKeys'
 import {
   companyService,
   type ClientCompanyInput,
   type ClientCompanyResource,
+  type CompanyPermissions,
 } from '../services/companyService'
-import { normalizeSearch } from '../utils/normalizeSearch'
-
-const fields: {
-  key: keyof ClientCompanyInput
-  label: string
-  type?: string
-  required?: boolean
-}[] = [
-  { key: 'name', label: 'Nome fantasia', required: true },
-  { key: 'legalName', label: 'Razão social' },
-  { key: 'code', label: 'Código' },
-  { key: 'cnpj', label: 'CNPJ' },
-  { key: 'email', label: 'E-mail', type: 'email' },
-  { key: 'mobilePhone', label: 'Telefone' },
-  { key: 'taxRegime', label: 'Regime tributário' },
-]
+import type { ModuleSummary } from '../types/modules'
+import { formatCnpj, isValidCnpj } from '../utils/companyIdentity'
 
 export default function CompaniesModulePage() {
   const { activeMembership } = useAuth()
@@ -46,339 +49,696 @@ export default function CompaniesModulePage() {
   if (access.isLoading) return <LoadingState message="Carregando acessos…" />
   if (access.error)
     return (
-      <div role="alert">
-        Não foi possível atualizar seus acessos.
-        <Button onClick={() => void access.refetch()}>Tentar novamente</Button>
-      </div>
+      <QueryError
+        message="Não foi possível atualizar seus acessos."
+        retry={() => void access.refetch()}
+      />
     )
   const companies = access.getModule('companies')
   if (!companies?.actions.includes('read'))
     return <Navigate to={ROUTES.HUB} replace />
   return (
-    <CompaniesWorkspace
-      canCreate={companies.actions.includes('create')}
-      canEdit={companies.actions.includes('edit')}
-    />
+    <DirectoryWorkspaceLayout module="companies">
+      <CompaniesWorkspace access={companies} />
+    </DirectoryWorkspaceLayout>
   )
 }
 
-function CompaniesWorkspace({
-  canCreate,
-  canEdit,
-}: {
-  canCreate: boolean
-  canEdit: boolean
-}) {
+function CompaniesWorkspace({ access }: { access: ModuleSummary }) {
   const { activeMembership } = useAuth()
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const scope = {
     organizationId: activeMembership!.organization.id,
     membershipId: activeMembership!.id,
   }
-  const companiesKey = [...queryKeys.scope(scope), 'general-companies']
-  const pendingCreation = useRef<{ fingerprint: string; key: string } | null>(
-    null,
-  )
-  const companies = useQuery({
-    queryKey: companiesKey,
-    queryFn: () => companyService.listAll(),
+  const catalog = useQuery({
+    queryKey: [...queryKeys.scope(scope), 'company-catalog'],
+    queryFn: () => companyService.catalog(),
   })
-  const create = useMutation({
-    mutationFn: async (input: ClientCompanyInput) => {
-      const fingerprint = JSON.stringify([
-        scope.organizationId,
-        scope.membershipId,
-        input,
-      ])
-      if (pendingCreation.current?.fingerprint !== fingerprint)
-        pendingCreation.current = { fingerprint, key: crypto.randomUUID() }
-      const response = await companyService.create(
-        input,
-        pendingCreation.current.key,
-      )
-      pendingCreation.current = null
-      return response
-    },
-    onSuccess: async () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: companiesKey }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.routineControlRoot(scope),
-        }),
-      ]),
-  })
-  const update = useMutation({
-    mutationFn: async ({
-      id,
-      input,
-    }: {
-      id: string
-      input: ClientCompanyInput
-    }) => {
-      const current = await companyService.get(id)
-      if (!current.etag)
-        throw new Error('A API não informou a versão atual da empresa.')
-      return companyService.update(id, input, current.etag)
-    },
-    onSuccess: async () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: companiesKey }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.routineControlRoot(scope),
-        }),
-      ]),
-  })
-
+  if (catalog.isPending) return <LoadingState message="Carregando empresas…" />
+  if (catalog.error)
+    return (
+      <QueryError
+        message="Não foi possível carregar o cadastro de empresas."
+        retry={() => void catalog.refetch()}
+      />
+    )
+  if (!catalog.data.data.permissions.read)
+    return <p role="alert">Você não tem acesso ao cadastro de empresas.</p>
+  const permissions = Object.fromEntries(
+    Object.entries(catalog.data.data.permissions).map(([key, value]) => [
+      key,
+      typeof value === 'boolean'
+        ? value && (key === 'read' || access.actions.includes(key))
+        : value,
+    ]),
+  ) as unknown as CompanyPermissions
+  const baseKey = [...queryKeys.scope(scope), 'general-companies']
   return (
-    <ModuleWorkspaceLayout>
-      <Link
-        to={ROUTES.HUB}
-        className={`text-sm font-bold text-[var(--color-brand)] hover:underline ${focusRing}`}
-      >
-        ← Trocar módulo
-      </Link>
-      <nav
-        aria-label="Navegação de Empresas"
-        className="my-6 flex flex-wrap gap-2 border-b border-[var(--color-divider)] pb-4"
-      >
-        {[
-          { to: ROUTES.COMPANY_REGISTRY, label: 'Cadastro geral', end: true },
-          { to: ROUTES.COMPANY_REGISTRY_CREATE, label: 'Adicionar empresa' },
-        ]
-          .filter((item) => item.end || canCreate)
-          .map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `rounded-[var(--radius-control)] px-3 py-2 text-sm font-bold ${focusRing} ${isActive ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)]'}`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-      </nav>
-      {companies.isPending ? (
-        <LoadingState message="Carregando empresas…" />
-      ) : companies.error ? (
-        <div
-          role="alert"
-          className="space-y-3 text-sm text-[var(--status-error-text)]"
-        >
-          <p>
-            Não foi possível carregar as empresas. {companies.error.message}
-          </p>
-          <Button onClick={() => void companies.refetch()}>
-            Tentar novamente
-          </Button>
-        </div>
-      ) : (
-        <Routes>
-          <Route
-            path={ROUTES.COMPANY_REGISTRY}
-            element={
-              <CompanyRegistry
-                companies={companies.data}
-                onCreate={
-                  canCreate
-                    ? () => navigate(ROUTES.COMPANY_REGISTRY_CREATE)
-                    : undefined
-                }
-              />
-            }
-          />
-          <Route
-            path={ROUTES.COMPANY_REGISTRY_CREATE}
-            element={
-              canCreate ? (
-                <CompanyEditor
-                  busy={create.isPending}
-                  error={create.error}
-                  onSave={async (input) => {
-                    const result = await create.mutateAsync(input)
-                    navigate(
-                      `${ROUTES.COMPANY_REGISTRY}/${encodeURIComponent(result.data.id)}`,
-                      { replace: true },
-                    )
-                  }}
-                  onCancel={() => navigate(ROUTES.COMPANY_REGISTRY)}
-                />
-              ) : (
-                <Navigate to={ROUTES.COMPANY_REGISTRY} replace />
-              )
-            }
-          />
-          <Route
-            path={ROUTES.COMPANY_REGISTRY_DETAILS}
-            element={
-              <CompanyDetails
-                companies={companies.data}
-                readOnly={!canEdit}
-                busy={update.isPending}
-                error={update.error}
-                onSave={async (id, input) => {
-                  await update.mutateAsync({ id, input })
-                  await companies.refetch()
-                }}
-                onCancel={() => navigate(ROUTES.COMPANY_REGISTRY)}
-              />
-            }
-          />
-          <Route
-            path="*"
-            element={<Navigate to={ROUTES.COMPANY_REGISTRY} replace />}
-          />
-        </Routes>
-      )}
-    </ModuleWorkspaceLayout>
+    <Routes>
+      <Route
+        path={ROUTES.COMPANY_REGISTRY}
+        element={
+          <CompanyRegistry baseKey={baseKey} permissions={permissions} />
+        }
+      />
+      <Route
+        path={ROUTES.COMPANY_REGISTRY_CREATE}
+        element={
+          permissions.create ? (
+            <CompanyRecord
+              baseKey={baseKey}
+              permissions={permissions}
+              creating
+            />
+          ) : (
+            <Navigate to={ROUTES.COMPANY_REGISTRY} replace />
+          )
+        }
+      />
+      <Route
+        path={ROUTES.COMPANY_REGISTRY_DETAILS}
+        element={<CompanyRecord baseKey={baseKey} permissions={permissions} />}
+      />
+      <Route
+        path="*"
+        element={<Navigate to={ROUTES.COMPANY_REGISTRY} replace />}
+      />
+    </Routes>
   )
 }
 
 function CompanyRegistry({
-  companies,
-  onCreate,
+  baseKey,
+  permissions,
 }: {
-  companies: ClientCompanyResource[]
-  onCreate?: () => void
+  baseKey: readonly unknown[]
+  permissions: CompanyPermissions
 }) {
-  const [search, setSearch] = useState('')
-  const filtered = useMemo(() => {
-    const query = normalizeSearch(search)
-    return companies.filter((company) =>
-      normalizeSearch(
-        [
-          company.code,
-          company.name,
-          company.legalName,
-          company.cnpj,
-          company.email,
-        ].join(' '),
-      ).includes(query),
+  const state = useDirectoryQuery('active')
+  const location = useLocation()
+  const status =
+    permissions.readArchived && ['archived', 'all'].includes(state.status)
+      ? state.status
+      : 'active'
+  const filters = {
+    search: state.query,
+    status:
+      status === 'all'
+        ? (['active', 'archived'] as const)
+        : ([status] as Array<'active' | 'archived'>),
+    page: state.page,
+    pageSize: 20,
+    ordering: 'name' as const,
+  }
+  const companies = useQuery({
+    queryKey: [...baseKey, 'list', filters],
+    queryFn: () =>
+      companyService.list({ ...filters, status: [...filters.status] }),
+  })
+  const data = companies.data?.data
+  useDirectoryScroll(JSON.stringify([baseKey, state.search]), !!data)
+  useEffect(() => {
+    const maxPage = data ? Math.max(1, Math.ceil(data.count / 20)) : undefined
+    if (maxPage && state.page > maxPage)
+      state.change({ pagina: String(maxPage) })
+  }, [data, state])
+  useEffect(() => {
+    const focusId = location.state?.focusCompany as string | undefined
+    if (!data || !focusId) return
+    const frame = requestAnimationFrame(() =>
+      [...document.querySelectorAll<HTMLAnchorElement>('a[data-company-id]')]
+        .find((anchor) => anchor.dataset.companyId === focusId)
+        ?.focus({ preventScroll: true }),
     )
-  }, [companies, search])
-
+    return () => cancelAnimationFrame(frame)
+  }, [data, location.state])
   return (
-    <section className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--color-brand)]">
-            Cadastro principal
-          </p>
-          <h1 className="mt-2 text-3xl font-black text-[var(--color-text-strong)]">
-            Empresas
-          </h1>
-          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-            Cadastre e mantenha os dados gerais usados pelos módulos.
-          </p>
-        </div>
-        {onCreate && <Button onClick={onCreate}>Adicionar empresa</Button>}
-      </header>
-      <div className="rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-4 shadow-[var(--shadow-panel)] sm:p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm font-bold text-[var(--color-text-muted)]">
-            {filtered.length} de {companies.length} empresas
-          </p>
-          <label className="w-full sm:max-w-sm">
-            <span className="sr-only">Buscar empresas</span>
-            <input
-              className="w-full rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2 text-sm text-[var(--color-text-main)]"
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar por nome, código, CNPJ ou e-mail"
-            />
-          </label>
-        </div>
-        <div className="divide-y divide-[var(--color-divider)]">
-          {filtered.map((company) => (
+    <>
+      <DirectoryHeading
+        title="Empresas"
+        count={data ? `${data.count} empresas` : undefined}
+        action={
+          permissions.create ? (
             <Link
-              key={company.id}
-              to={`${ROUTES.COMPANY_REGISTRY}/${encodeURIComponent(company.id)}`}
-              className={`grid gap-2 rounded-[var(--radius-control)] px-3 py-4 hover:bg-[var(--color-control-hover-bg)] sm:grid-cols-[minmax(0,1.4fr)_minmax(9rem,1fr)_minmax(9rem,1fr)] sm:items-center ${focusRing}`}
+              to={ROUTES.COMPANY_REGISTRY_CREATE + state.search}
+              className={`ui-button ui-button--md border border-transparent bg-[var(--color-button-primary-bg)] text-[var(--color-button-primary-text)] hover:bg-[var(--color-button-primary-hover-bg)] ${focusRing}`}
             >
-              <span className="min-w-0">
-                <span className="block truncate font-bold text-[var(--color-text-strong)]">
-                  {company.name}
-                </span>
-                <span className="block truncate text-xs text-[var(--color-text-muted)]">
-                  {company.legalName || company.code || 'Sem razão social'}
-                </span>
-              </span>
-              <span className="text-sm text-[var(--color-text-muted)]">
-                {company.code || 'Sem código'}
-              </span>
-              <span className="text-sm text-[var(--color-text-muted)]">
-                {company.cnpj || 'CNPJ não informado'}
-              </span>
+              Adicionar empresa
             </Link>
-          ))}
-          {filtered.length === 0 && (
-            <p className="py-10 text-center text-sm text-[var(--color-text-muted)]">
-              {search
-                ? `Nenhuma empresa encontrada para “${search}”.`
-                : 'Nenhuma empresa cadastrada.'}
-            </p>
-          )}
-        </div>
-      </div>
-    </section>
+          ) : undefined
+        }
+      />
+      <DirectoryPanel label="Diretório de empresas">
+        <DirectoryToolbar
+          searchLabel="Buscar empresa"
+          placeholder="Nome, código, CNPJ ou e-mail"
+          query={state.query}
+          onQuery={(q) => state.change({ q, pagina: '' })}
+          status={status}
+          statuses={[
+            { value: 'active', label: 'Ativas' },
+            ...(permissions.readArchived
+              ? [
+                  { value: 'archived', label: 'Arquivadas' },
+                  { value: 'all', label: 'Todas' },
+                ]
+              : []),
+          ]}
+          onStatus={(situacao) => state.change({ situacao, pagina: '' })}
+          count={data?.count}
+        />
+        {companies.isPending ? (
+          <LoadingState message="Carregando empresas…" />
+        ) : companies.error ? (
+          <QueryError
+            message="Não foi possível carregar as empresas."
+            retry={() => void companies.refetch()}
+          />
+        ) : !data?.results.length ? (
+          <DirectoryEmpty
+            noun="empresa"
+            filtered={!!state.query || status !== 'active'}
+            onClear={() =>
+              state.change({ q: '', situacao: 'active', pagina: '' })
+            }
+          />
+        ) : (
+          <table className="directory-table">
+            <thead>
+              <tr>
+                <th style={{ width: '35%' }}>Empresa</th>
+                <th className="directory-hide-small" style={{ width: '10%' }}>
+                  Código
+                </th>
+                <th className="directory-hide-small" style={{ width: '20%' }}>
+                  CNPJ
+                </th>
+                <th className="directory-hide-medium" style={{ width: '25%' }}>
+                  E-mail
+                </th>
+                <th style={{ width: '10%' }}>Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.results.map((company) => (
+                <tr key={company.id}>
+                  <td>
+                    <Link
+                      className={`directory-identity ${focusRing}`}
+                      data-company-id={company.id}
+                      to={`${ROUTES.COMPANY_REGISTRY}/${encodeURIComponent(company.id)}${state.search}`}
+                    >
+                      <span>
+                        <strong>{company.name}</strong>
+                        <small>
+                          {company.legalName || 'Razão social não informada'}
+                        </small>
+                        <span className="directory-mobile-meta app-caption mt-1">
+                          {[
+                            company.code && `Código ${company.code}`,
+                            company.cnpj,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
+                      </span>
+                    </Link>
+                  </td>
+                  <td className="directory-hide-small tabular-nums">
+                    {company.code || '—'}
+                  </td>
+                  <td className="directory-hide-small tabular-nums">
+                    {company.cnpj || '—'}
+                  </td>
+                  <td className="directory-hide-medium">
+                    {company.email || '—'}
+                  </td>
+                  <td>
+                    <DirectoryStatus status={company.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {data && (
+          <DirectoryPager
+            page={state.page}
+            count={data.count}
+            busy={companies.isFetching}
+            onPage={(page) => state.change({ pagina: String(page) })}
+          />
+        )}
+      </DirectoryPanel>
+    </>
   )
 }
 
-function CompanyDetails({
-  companies,
-  readOnly,
-  busy,
-  error,
-  onSave,
-  onCancel,
+function CompanyRecord({
+  baseKey,
+  permissions,
+  creating = false,
 }: {
-  companies: ClientCompanyResource[]
-  readOnly: boolean
-  busy: boolean
-  error: Error | null
-  onSave: (id: string, input: ClientCompanyInput) => Promise<void>
-  onCancel: () => void
+  baseKey: readonly unknown[]
+  permissions: CompanyPermissions
+  creating?: boolean
 }) {
   const { companyId = '' } = useParams()
-  const company = companies.find((item) => item.id === companyId)
-  if (!company)
+  const query = useQuery({
+    queryKey: [...baseKey, 'record', companyId],
+    queryFn: () => companyService.get(companyId),
+    enabled: !creating && !!companyId,
+    refetchOnWindowFocus: false,
+  })
+  if (!creating && query.isPending)
+    return <LoadingState message="Carregando empresa…" />
+  if (!creating && query.error)
     return (
-      <div role="alert" className="space-y-3">
-        <p>Empresa não encontrada nesta organização.</p>
-        <Button onClick={onCancel}>Voltar para empresas</Button>
-      </div>
+      <QueryError
+        message="Não foi possível consultar esta empresa."
+        retry={() => void query.refetch()}
+      />
     )
+  const company = creating ? undefined : query.data?.data
+  if (company?.permissions && !company.permissions.read)
+    return <p role="alert">Você não tem acesso a esta empresa.</p>
+  if (!creating && !company) return <p role="alert">Empresa não encontrada.</p>
   return (
-    <CompanyEditor
+    <CompanyRecordContent
+      key={creating ? 'new' : companyId}
+      baseKey={baseKey}
       company={company}
-      readOnly={readOnly}
-      busy={busy}
-      error={error}
-      onSave={(input) => onSave(company.id, input)}
-      onCancel={onCancel}
+      etag={query.data?.etag}
+      permissions={permissions}
+      onRefresh={() => query.refetch()}
     />
   )
 }
 
-function CompanyEditor({
+function CompanyRecordContent({
+  baseKey,
   company,
-  readOnly = false,
-  busy,
-  error,
-  onSave,
-  onCancel,
+  etag,
+  permissions,
+  onRefresh,
 }: {
+  baseKey: readonly unknown[]
   company?: ClientCompanyResource
-  readOnly?: boolean
-  busy: boolean
-  error: Error | null
-  onSave: (input: ClientCompanyInput) => Promise<void>
-  onCancel: () => void
+  etag?: string | null
+  permissions: CompanyPermissions
+  onRefresh: () => Promise<unknown>
 }) {
-  const [values, setValues] = useState<ClientCompanyInput>(() => ({
+  const navigate = useNavigate()
+  const location = useLocation()
+  const client = useQueryClient()
+  const [editing, setEditing] = useState(!company)
+  const [values, setValues] = useState(() => companyValues(company))
+  const [error, setError] = useState('')
+  const pendingCreation = useRef<{ fingerprint: string; key: string } | null>(
+    null,
+  )
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+    titleRef.current?.focus()
+  }, [company?.id])
+  const baseline = companyValues(company)
+  const dirty = editing && JSON.stringify(values) !== JSON.stringify(baseline)
+  useUnsavedChanges(dirty)
+  const canEdit =
+    permissions.edit &&
+    (company?.permissions?.edit ?? true) &&
+    company?.status !== 'archived'
+  const canArchive =
+    permissions.archive && (company?.permissions?.archive ?? true)
+  const canRestore =
+    permissions.restore && (company?.permissions?.restore ?? true)
+  const save = useMutation({
+    mutationFn: async () => {
+      const input = Object.fromEntries(
+        Object.entries(values).map(([key, value]) => [
+          key,
+          key === 'code'
+            ? String(value ?? '').trim() || null
+            : String(value ?? '').trim(),
+        ]),
+      ) as unknown as ClientCompanyInput
+      if (!company) {
+        const fingerprint = JSON.stringify(input)
+        if (pendingCreation.current?.fingerprint !== fingerprint)
+          pendingCreation.current = { fingerprint, key: crypto.randomUUID() }
+        const response = await companyService.create(
+          input,
+          pendingCreation.current.key,
+        )
+        pendingCreation.current = null
+        return response
+      }
+      if (!etag)
+        throw new Error(
+          'A API não informou a versão atual da empresa. Recarregue a ficha.',
+        )
+      return companyService.update(company.id, input, etag)
+    },
+  })
+  const archive = useMutation({
+    mutationFn: async () => {
+      if (!company || !etag)
+        throw new Error(
+          'Recarregue a ficha para obter a versão atual da empresa.',
+        )
+      return company.status === 'archived'
+        ? companyService.restore(company.id, etag)
+        : companyService.archive(company.id, etag)
+    },
+  })
+  const busy = save.isPending || archive.isPending
+  function back() {
+    if (!busy && confirmDiscard(dirty))
+      navigate(ROUTES.COMPANY_REGISTRY + location.search, {
+        state: { focusCompany: company?.id },
+      })
+  }
+  function cancel() {
+    if (!busy && confirmDiscard(dirty)) {
+      if (!company) navigate(ROUTES.COMPANY_REGISTRY + location.search)
+      else {
+        setValues(companyValues(company))
+        setEditing(false)
+        setError('')
+      }
+    }
+  }
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if (
+      !editing ||
+      !dirty ||
+      busy ||
+      (company ? !canEdit : !permissions.create)
+    )
+      return
+    if (!values.name.trim()) {
+      setError('Informe o nome fantasia.')
+      return
+    }
+    const cnpj = values.cnpj.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+    if (cnpj && !isValidCnpj(cnpj)) {
+      setError(
+        'Informe um CNPJ válido, com base alfanumérica e dígitos verificadores.',
+      )
+      return
+    }
+    setError('')
+    try {
+      const result = await save.mutateAsync()
+      await client.invalidateQueries({ queryKey: baseKey })
+      await client.invalidateQueries({
+        queryKey: [...baseKey.slice(0, -1), 'routine-control'],
+      })
+      await client.invalidateQueries({
+        queryKey: [...baseKey.slice(0, -1), 'honorarios'],
+      })
+      setValues(companyValues(result.data))
+      setEditing(false)
+      if (result.etag)
+        client.setQueryData([...baseKey, 'record', result.data.id], result)
+      if (!company)
+        navigate(
+          `${ROUTES.COMPANY_REGISTRY}/${encodeURIComponent(result.data.id)}${location.search}`,
+          { replace: true },
+        )
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : 'Não foi possível salvar a empresa.',
+      )
+    }
+  }
+  async function changeStatus() {
+    if (
+      !company ||
+      busy ||
+      (company.status === 'archived' ? !canRestore : !canArchive)
+    )
+      return
+    if (
+      !window.confirm(
+        `${company.status === 'archived' ? 'Restaurar' : 'Arquivar'} ${company.name}?`,
+      )
+    )
+      return
+    setError('')
+    try {
+      await archive.mutateAsync()
+      await client.invalidateQueries({ queryKey: baseKey })
+      await client.invalidateQueries({
+        queryKey: [...baseKey.slice(0, -1), 'routine-control'],
+      })
+      if (!permissions.readArchived && company.status === 'active') {
+        navigate(ROUTES.COMPANY_REGISTRY + location.search)
+        return
+      }
+      await onRefresh()
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : 'Não foi possível alterar a situação.',
+      )
+    }
+  }
+  return (
+    <Card>
+      <div className="px-4 pt-4 sm:px-6">
+        <Button onClick={back} disabled={busy}>
+          ← Voltar às empresas
+        </Button>
+      </div>
+      <header className="border-b border-[var(--color-divider)] px-4 py-5 sm:px-6">
+        <h1
+          ref={titleRef}
+          tabIndex={-1}
+          className="app-page-title outline-none"
+        >
+          {company?.name ?? 'Adicionar empresa'}
+        </h1>
+        {company && (
+          <p className="app-description mt-2">
+            Código {company.code || 'não informado'} ·{' '}
+            {company.status === 'archived' ? 'Arquivada' : 'Ativa'}
+          </p>
+        )}
+      </header>
+      <form
+        id="company-record-form"
+        onSubmit={(event) => void submit(event)}
+        className="p-4 sm:p-6"
+      >
+        {error && (
+          <p
+            className="mb-5 text-sm text-[var(--status-error-text)]"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+        {editing ? (
+          <>
+            <section className="record-section">
+              <h2>Identificação</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField
+                  label="Nome fantasia"
+                  required
+                  value={values.name}
+                  maxLength={160}
+                  disabled={busy}
+                  className="sm:col-span-2"
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, name: e.target.value }))
+                  }
+                />
+                <TextField
+                  label="Razão social"
+                  value={values.legalName}
+                  maxLength={200}
+                  disabled={busy}
+                  className="sm:col-span-2"
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, legalName: e.target.value }))
+                  }
+                />
+                <TextField
+                  label="Código"
+                  value={values.code}
+                  maxLength={32}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, code: e.target.value }))
+                  }
+                />
+                <TextField
+                  label="CNPJ"
+                  value={values.cnpj}
+                  maxLength={18}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setValues((v) => ({
+                      ...v,
+                      cnpj: formatCnpj(e.target.value),
+                    }))
+                  }
+                />
+                <Select
+                  label="Regime tributário"
+                  value={values.taxRegime}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, taxRegime: e.target.value }))
+                  }
+                >
+                  <option value="">Não informado</option>
+                  {[
+                    ...new Set([
+                      'Simples Nacional',
+                      'Lucro Presumido',
+                      'Lucro Real',
+                      'MEI',
+                      ...(values.taxRegime ? [values.taxRegime] : []),
+                    ]),
+                  ].map((regime) => (
+                    <option key={regime} value={regime}>
+                      {regime}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </section>
+            <section className="record-section">
+              <h2>Contato</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField
+                  type="email"
+                  label="E-mail"
+                  value={values.email}
+                  maxLength={254}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, email: e.target.value }))
+                  }
+                />
+                <TextField
+                  type="tel"
+                  label="Telefone"
+                  value={values.mobilePhone}
+                  maxLength={32}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, mobilePhone: e.target.value }))
+                  }
+                />
+              </div>
+            </section>
+          </>
+        ) : (
+          company && (
+            <>
+              <section className="record-section">
+                <h2>Identificação</h2>
+                <dl className="record-data">
+                  <RecordDatum label="Nome fantasia" wide>
+                    {company.name}
+                  </RecordDatum>
+                  <RecordDatum label="Razão social" wide>
+                    {company.legalName}
+                  </RecordDatum>
+                  <RecordDatum label="Código">{company.code}</RecordDatum>
+                  <RecordDatum label="CNPJ">{company.cnpj}</RecordDatum>
+                  <RecordDatum label="Regime tributário">
+                    {company.taxRegime}
+                  </RecordDatum>
+                  <RecordDatum label="Situação">
+                    <DirectoryStatus status={company.status} />
+                  </RecordDatum>
+                </dl>
+              </section>
+              <section className="record-section">
+                <h2>Contato</h2>
+                <dl className="record-data">
+                  <RecordDatum label="E-mail">{company.email}</RecordDatum>
+                  <RecordDatum label="Telefone">
+                    {company.mobilePhone}
+                  </RecordDatum>
+                </dl>
+              </section>
+              <CompanyModuleSummary company={company} />
+            </>
+          )
+        )}
+      </form>
+      <footer className="record-actions">
+        <span className="app-caption" role="status">
+          {editing
+            ? dirty
+              ? 'Alterações não salvas'
+              : 'Nenhuma alteração pendente'
+            : 'Consulta'}
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {editing ? (
+            <>
+              <Button disabled={busy} onClick={cancel}>
+                Cancelar
+              </Button>
+              <Button
+                tone="primary"
+                type="submit"
+                form="company-record-form"
+                disabled={busy || !dirty}
+              >
+                {busy
+                  ? 'Salvando…'
+                  : company
+                    ? 'Salvar alterações'
+                    : 'Cadastrar empresa'}
+              </Button>
+            </>
+          ) : (
+            <>
+              {company &&
+                (company.status === 'archived' ? canRestore : canArchive) && (
+                  <Button
+                    tone="ghost"
+                    disabled={busy}
+                    onClick={() => void changeStatus()}
+                  >
+                    {company.status === 'archived' ? 'Restaurar' : 'Arquivar'}
+                  </Button>
+                )}
+              <Button onClick={back}>Voltar à lista</Button>
+              {canEdit && (
+                <Button
+                  tone="primary"
+                  onClick={() => {
+                    setValues(companyValues(company))
+                    setEditing(true)
+                  }}
+                >
+                  Editar
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      </footer>
+    </Card>
+  )
+}
+
+function companyValues(company?: ClientCompanyResource) {
+  return {
     name: company?.name ?? '',
     legalName: company?.legalName ?? '',
     code: company?.code ?? '',
@@ -386,153 +746,19 @@ function CompanyEditor({
     email: company?.email ?? '',
     mobilePhone: company?.mobilePhone ?? '',
     taxRegime: company?.taxRegime ?? '',
-  }))
-  const [saveError, setSaveError] = useState('')
-  async function submit(event: FormEvent) {
-    event.preventDefault()
-    if (readOnly) return
-    setSaveError('')
-    const cnpj = values.cnpj?.replace(/[./\s-]/g, '').toUpperCase() ?? ''
-    if (cnpj && !isValidCnpj(cnpj)) {
-      setSaveError(
-        'Informe um CNPJ válido, com base alfanumérica e dígitos verificadores.',
-      )
-      return
-    }
-    try {
-      await onSave(
-        Object.fromEntries(
-          Object.entries(values).map(([key, value]) => [
-            key,
-            key === 'cnpj'
-              ? formatCnpj(String(value ?? ''))
-              : typeof value === 'string'
-                ? value.trim()
-                : value,
-          ]),
-        ) as ClientCompanyInput,
-      )
-    } catch (caught) {
-      setSaveError(
-        caught instanceof Error
-          ? caught.message
-          : 'Não foi possível salvar os dados da empresa.',
-      )
-    }
   }
+}
+function QueryError({
+  message,
+  retry,
+}: {
+  message: string
+  retry: () => void
+}) {
   return (
-    <section className="mx-auto max-w-3xl space-y-5">
-      <header>
-        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--color-brand)]">
-          {company ? 'Dados gerais' : 'Novo cadastro'}
-        </p>
-        <h1 className="mt-2 text-3xl font-black text-[var(--color-text-strong)]">
-          {company
-            ? readOnly
-              ? company.name
-              : `Editar ${company.name}`
-            : 'Adicionar empresa'}
-        </h1>
-      </header>
-      <form
-        onSubmit={(event) => void submit(event)}
-        className="grid gap-4 rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-5 shadow-[var(--shadow-panel)] sm:grid-cols-2 sm:p-7"
-      >
-        {fields.map(({ key, label, type, required }) => (
-          <label key={key} className="block space-y-1.5">
-            <span className="text-sm font-bold text-[var(--color-text-strong)]">
-              {label}
-              {required && (
-                <span className="text-[var(--status-error-text)]"> *</span>
-              )}
-            </span>
-            <input
-              className="w-full rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 py-2.5 text-sm text-[var(--color-text-main)]"
-              type={type ?? 'text'}
-              value={values[key] ?? ''}
-              required={required}
-              inputMode={key === 'code' ? 'numeric' : undefined}
-              maxLength={
-                key === 'name'
-                  ? 160
-                  : key === 'legalName'
-                    ? 200
-                    : key === 'cnpj'
-                      ? 18
-                      : key === 'code' || key === 'mobilePhone'
-                        ? 32
-                        : key === 'taxRegime'
-                          ? 80
-                          : 254
-              }
-              disabled={busy || readOnly}
-              onChange={(event) =>
-                setValues((current) => ({
-                  ...current,
-                  [key]:
-                    key === 'cnpj'
-                      ? formatCnpj(event.target.value)
-                      : event.target.value,
-                }))
-              }
-            />
-          </label>
-        ))}
-        {(saveError || error) && (
-          <p
-            role="alert"
-            className="sm:col-span-2 text-sm text-[var(--status-error-text)]"
-          >
-            {saveError || error?.message}
-          </p>
-        )}
-        <div className="flex flex-wrap justify-end gap-3 sm:col-span-2">
-          <Button type="button" onClick={onCancel} disabled={busy}>
-            Cancelar
-          </Button>
-          {!readOnly && (
-            <Button type="submit" disabled={busy}>
-              {busy
-                ? 'Salvando…'
-                : company
-                  ? 'Salvar alterações'
-                  : 'Cadastrar empresa'}
-            </Button>
-          )}
-        </div>
-      </form>
-    </section>
+    <div className="space-y-3 p-4" role="alert">
+      <p>{message}</p>
+      <Button onClick={retry}>Tentar novamente</Button>
+    </div>
   )
-}
-
-function isValidCnpj(value: string) {
-  if (!/^[A-Z0-9]{12}\d{2}$/.test(value) || /^(\d)\1{13}$/.test(value))
-    return false
-  const digit = (base: string, weights: number[]) => {
-    const sum = [...base].reduce(
-      (total, number, index) =>
-        total + (number.charCodeAt(0) - 48) * weights[index]!,
-      0,
-    )
-    const remainder = sum % 11
-    return remainder < 2 ? 0 : 11 - remainder
-  }
-  const first = digit(value.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
-  const second = digit(
-    value.slice(0, 12) + first,
-    [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2],
-  )
-  return value.endsWith(`${first}${second}`)
-}
-
-function formatCnpj(value: string) {
-  const digits = value
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-    .slice(0, 14)
-  return digits
-    .replace(/^([A-Z0-9]{2})([A-Z0-9])/, '$1.$2')
-    .replace(/^([A-Z0-9]{2})\.([A-Z0-9]{3})([A-Z0-9])/, '$1.$2.$3')
-    .replace(/\.([A-Z0-9]{3})([A-Z0-9])/, '.$1/$2')
-    .replace(/([A-Z0-9]{4})([A-Z0-9])/, '$1-$2')
 }

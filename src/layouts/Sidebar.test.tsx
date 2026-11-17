@@ -55,6 +55,8 @@ describe('Sidebar', () => {
     expect(markup).toContain('Abrir perfil de Ana Souza')
     expect(markup).toContain('Ana Souza')
     expect(markup).toContain('ana.souza@example.com')
+    expect(markup).toContain('href="/perfil"')
+    expect(markup).not.toContain('href="/hub/perfil"')
   })
 
   it('keeps profile details available visually when the sidebar is expanded', () => {

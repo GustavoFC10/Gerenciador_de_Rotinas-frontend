@@ -5,6 +5,7 @@ import EntityEditModal from '../components/entities/EntityEditModal'
 import type { RoutineEditInput } from '../types/routine'
 import RoutineListComparison from '../components/routine-control/list/RoutineListComparison'
 import Button from '../components/ui/Button'
+import CompanyReturnLink from '../components/common/CompanyReturnLink'
 import {
   getClientTaxRegimeLabel,
   getRoutineRecurrenceLabel,
@@ -130,6 +131,7 @@ function EntityDetailPage({
   if (!entity) {
     return (
       <div className="grid min-h-[24rem] place-items-center">
+        {type === 'client' && <CompanyReturnLink />}
         <div className="max-w-md rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-6 text-center shadow-[var(--shadow-panel)]">
           <h1 className="text-lg font-black text-[var(--color-text-strong)]">
             {type === 'client'
@@ -172,6 +174,7 @@ function EntityDetailPage({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {type === 'client' && <CompanyReturnLink />}
       <WorkspaceBar
         context={{
           label: contextLabel,

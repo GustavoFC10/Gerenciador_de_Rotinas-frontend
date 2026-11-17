@@ -182,11 +182,16 @@ describe('App module routing', () => {
     expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
     expect(host.querySelector('[data-honorarios-module]')).toBeNull()
   })
-  it('keeps profile and preferences accessible without routine module access', async () => {
-    await renderApp('/hub/perfil', [processes])
-    expect(host.textContent).toContain('Perfil compartilhado')
-    expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
-  })
+  it.each(['/perfil', '/hub/perfil'])(
+    'opens the general profile from %s without routine module access',
+    async (path) => {
+      await renderApp(path, [processes])
+      expect(host.querySelector('[data-location]')?.textContent).toBe('/perfil')
+      expect(host.textContent).toContain('Perfil compartilhado')
+      expect(host.querySelector('a[href="/perfil"]')).not.toBeNull()
+      expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
+    },
+  )
   it('defaults an authenticated login to the module HUB', async () => {
     await renderApp('/login', [processes])
     expect(host.querySelector('[data-location]')?.textContent).toBe('/hub')
@@ -273,9 +278,7 @@ describe('App module routing', () => {
   it('redirects legacy access settings into Equipe for an owner', async () => {
     vi.spyOn(organizationMemberService, 'listAll').mockResolvedValue([])
     await renderApp('/configuracoes/modulos?member=selected', [], 'owner')
-    expect(host.querySelector('[data-location]')?.textContent).toBe(
-      '/equipe/acessos',
-    )
+    expect(host.querySelector('[data-location]')?.textContent).toBe('/equipe')
     expect(routineControlService.getRoutineControl).not.toHaveBeenCalled()
   })
   it('does not expose legacy settings to an admin', async () => {

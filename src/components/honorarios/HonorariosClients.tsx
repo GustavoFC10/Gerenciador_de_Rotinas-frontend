@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import Dialog from '../ui/Dialog'
+import CompanyReturnLink from '../common/CompanyReturnLink'
 import CurrencyField from './CurrencyField'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -57,8 +58,9 @@ const alignmentNames = {
 export default function HonorariosClients(props: Props) {
   const { scopeKey, onDenied, canEdit, configuration } = props
   const queryClient = useQueryClient()
-  const [search, setSearch] = useState('')
-  const [query, setQuery] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
+  const [query, setQuery] = useState(() => searchParams.get('q') ?? '')
   const presence = 'all' as const
   const ordering = 'name'
   const [initialCompany, setInitialCompany] =
@@ -67,7 +69,6 @@ export default function HonorariosClients(props: Props) {
   const [detailCompany, setDetailCompany] =
     useState<HonorariosCompanyOption | null>(null)
   const [page, setPage] = useState(1)
-  const [searchParams, setSearchParams] = useSearchParams()
   const selected = searchParams.get('cliente') ?? ''
   function setSelected(id: string) {
     setDetailCompany(null)
@@ -112,6 +113,29 @@ export default function HonorariosClients(props: Props) {
     if (companies.error) onDenied?.(companies.error)
   }, [companies.error, onDenied])
   const companyPage = companies.data
+  const incomingCompany = searchParams.get('empresa') ?? ''
+  const consumedCompany = useRef('')
+  useEffect(() => {
+    if (
+      !incomingCompany ||
+      incomingCompany === consumedCompany.current ||
+      !companyPage ||
+      selected
+    )
+      return
+    const company = companyPage.results.find(
+      (item) => item.id === incomingCompany,
+    )
+    if (!company) return
+    consumedCompany.current = incomingCompany
+    if (company.financialProfile) {
+      setSelected(company.financialProfile.id)
+      setCreating(false)
+    } else if (canEdit) {
+      setInitialCompany(company)
+      setCreating(true)
+    }
+  }, [incomingCompany, companyPage, selected, canEdit])
   const listRequest = companies
   const [actionsHost, setActionsHost] = useState<HTMLElement | null>(null)
   useEffect(
@@ -179,6 +203,7 @@ export default function HonorariosClients(props: Props) {
   )
   return (
     <div className="hon-client-list space-y-5">
+      <CompanyReturnLink />
       {actionsHost ? createPortal(actions, actionsHost) : actions}
       {error && <Notice tone="error">{error}</Notice>}
       {message && <Notice tone="success">{message}</Notice>}

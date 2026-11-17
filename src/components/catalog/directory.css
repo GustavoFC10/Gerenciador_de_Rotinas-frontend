@@ -1,0 +1,189 @@
+@layer components {
+  .directory-panel {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--color-panel-border);
+    border-radius: var(--radius-panel);
+    background: var(--color-panel-bg);
+  }
+  .directory-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 11.25rem auto;
+    align-items: end;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .directory-count {
+    padding-bottom: 0.625rem;
+    white-space: nowrap;
+  }
+  .directory-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.8125rem;
+  }
+  .directory-table th {
+    padding: 0.625rem 1rem;
+    background: var(--color-panel-soft-bg);
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .directory-table td {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--color-divider);
+    vertical-align: middle;
+    overflow-wrap: anywhere;
+  }
+  .directory-table tbody tr:hover {
+    background: var(--color-table-row-hover-bg);
+  }
+  .directory-identity {
+    display: flex;
+    min-width: 0;
+    min-height: 2.5rem;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: var(--radius-control);
+    text-align: left;
+    text-decoration: none;
+    color: var(--color-text-strong);
+  }
+  .directory-identity strong {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  .directory-identity small {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+  .directory-mobile-meta {
+    display: none;
+  }
+  .directory-pager {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.25rem;
+    border-top: 1px solid var(--color-divider);
+  }
+  .directory-status {
+    display: inline-flex;
+    max-width: 100%;
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    color: var(--color-text-muted);
+    background: var(--color-panel-soft-bg);
+    font-size: 0.75rem;
+    line-height: 1.25;
+  }
+  .directory-status--active {
+    color: var(--status-completed-text);
+    background: var(--status-completed-bg);
+  }
+  .directory-status--pending {
+    color: var(--status-progress-text);
+    background: var(--status-progress-soft-bg);
+  }
+  .record-section + .record-section {
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--color-divider);
+    padding-top: 1.25rem;
+  }
+  .record-section > h2,
+  .record-section > h3 {
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-strong);
+  }
+  .record-data {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 1rem;
+    margin: 0;
+  }
+  .record-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    border-top: 1px solid var(--color-divider);
+    background: var(--color-panel-soft-bg);
+    padding: 1rem 1.5rem;
+  }
+  .record-tabs {
+    display: flex;
+    gap: 1rem;
+    border-bottom: 1px solid var(--color-divider);
+    padding-inline: 1.5rem;
+  }
+  .record-tabs > button {
+    min-height: 2.75rem;
+    border-bottom: 2px solid transparent;
+    padding: 0.5rem 0.25rem;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+  }
+  .record-tabs > button[aria-pressed='true'] {
+    border-color: var(--color-brand);
+    color: var(--color-brand);
+    font-weight: 600;
+  }
+  @media (max-width: 63.999rem) {
+    .directory-hide-medium {
+      display: none;
+    }
+  }
+  @media (max-width: 47.999rem) {
+    .directory-toolbar {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.75rem;
+      padding: 1rem;
+    }
+    .directory-count {
+      padding-bottom: 0;
+    }
+    .directory-hide-small {
+      display: none;
+    }
+    .directory-table th:first-child {
+      width: 70% !important;
+    }
+    .directory-table th:last-child {
+      width: 30% !important;
+    }
+    .directory-table td,
+    .directory-table th {
+      padding-inline: 0.875rem;
+    }
+    .directory-mobile-meta {
+      display: block;
+    }
+    .directory-pager {
+      padding: 0.875rem;
+    }
+  }
+  @media (max-width: 39.999rem) {
+    .record-data {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .record-actions {
+      padding: 1rem;
+    }
+  }
+}

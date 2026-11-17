@@ -29,14 +29,10 @@ export function CatalogList({
 }: CatalogListProps) {
   return (
     <div className="mx-auto w-full max-w-[90rem]">
-      <header className="mb-4 flex min-h-11 flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-strong)] sm:text-2xl">
-            {title}
-          </h1>
-          <span className="text-sm font-semibold text-[var(--color-text-muted)]">
-            {countLabel}
-          </span>
+      <header className="mb-4 flex min-h-11 flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1 basis-64">
+          <h1 className="app-page-title">{title}</h1>
+          <span className="app-description mt-2 block">{countLabel}</span>
         </div>
         {action}
       </header>
