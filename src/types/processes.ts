@@ -51,7 +51,7 @@ export interface ProcessFields {
   valorProcesso?: string
   departamentoSolicitado?: 'fin' | 'reg'
   acionarLeggacy?: boolean
-  protocolo?: string
+  entregaDocumentacao?: boolean
   prazo?: string | null
   inicioInat?: string | null
   competenciaInicioAtividade?: string | null
@@ -211,7 +211,6 @@ export interface ProcessSummaryDto {
   companyLinkRequired: boolean
   companyReference: ProcessCompanyReference | null
   cnpj: string
-  protocolo: string
   prazo: string | null
   tipo: ProcessTypeId
   codigo: string

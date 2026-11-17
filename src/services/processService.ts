@@ -136,9 +136,12 @@ export class ProcessService {
     }
     if (!input.empresa.trim() || input.empresa.trim().length > 200)
       throw new Error('Informe o nome da empresa.')
+    validateDeliveryOption(input.entregaDocumentacao)
     const fields = Object.fromEntries(
       Object.entries(input).filter(
-        ([key]) => !['companyId', 'honVariacao'].includes(key),
+        ([key]) =>
+          !['companyId', 'honVariacao'].includes(key) &&
+          (key !== 'entregaDocumentacao' || input.tipo === 'exclusao'),
       ),
     )
     const payload =
@@ -167,6 +170,7 @@ export class ProcessService {
     id: string,
     input: ProcessPatchInput,
   ): Promise<ApiResponse<ProcessResource>> {
+    validateDeliveryOption(input.entregaDocumentacao)
     return this.validated(
       () =>
         this.client.patch(
@@ -408,6 +412,11 @@ export class ProcessService {
 }
 
 export const processService = new ProcessService(httpClient)
+
+function validateDeliveryOption(value: unknown): void {
+  if (value !== undefined && typeof value !== 'boolean')
+    throw new Error('A opção de entrega de documentação deve ser booleana.')
+}
 
 function processPath(id: string): string {
   return `${PROCESSES_ENDPOINT}${encodeURIComponent(id)}/`

@@ -822,11 +822,12 @@ paths:
   /api/v1/client-companies/:
     get:
       operationId: client_companies_list
-      description: Módulo companies com acesso explícito viewer/editor/manager no
-        tenant ativo. Coleção paginada (padrão 50, máximo 100). Status omitido seleciona
-        active; status repetido usa OR. archived exige manager. Também aceita includeArchived
-        (true inclui ambas, false só active), sem combinar com status. ordering aceita
-        legalName e o nome legal_name publicado no frontend; prefixo - é decrescente.
+      description: Módulo companies global para todo membro ativo da organização,
+        sem concessão específica. Coleção paginada (padrão 50, máximo 100). Status
+        omitido seleciona active; status repetido usa OR e todos os membros podem
+        consultar archived. Também aceita includeArchived (true inclui ambas, false
+        só active), sem combinar com status. ordering aceita legalName e o nome legal_name
+        publicado no frontend; prefixo - é decrescente.
       parameters:
       - in: query
         name: includeArchived
@@ -958,7 +959,7 @@ paths:
                 maxLength: 64
     post:
       operationId: client_companies_create
-      description: Editor/manager. Criação exige CSRF; Idempotency-Key é opcional.
+      description: Todo membro ativo. Criação exige CSRF; Idempotency-Key é opcional.
         Repetir a chave e o mesmo corpo retorna 200 com a mesma empresa; corpo diferente
         retorna 409. Nova criação retorna 201 e ETag. Somente name é obrigatório.
         code é textual, numérico e opcional; cnpj aceita letras na base e dígitos
@@ -1109,8 +1110,8 @@ paths:
   /api/v1/client-companies/{companyId}/contacts/:
     get:
       operationId: client_companies_contacts_list
-      description: Viewer/editor/manager. Contatos paginados da empresa. Padrão active;
-        status repetido combina valores com OR e archived exige manager. includeArchived
+      description: Todo membro ativo. Contatos paginados da empresa. Padrão active;
+        status repetido combina valores com OR, inclusive archived. includeArchived
         também é aceito, sem combinar com status. ETag é a versão da empresa, compartilhada
         pelos contatos.
       parameters:
@@ -2444,8 +2445,8 @@ paths:
                 maxLength: 64
     patch:
       operationId: client_companies_partial_update
-      description: Editor/manager. Atualiza apenas os campos enviados, com CSRF e
-        If-Match do cadastro lido. Ausência de If-Match retorna 428; versão antiga,
+      description: Todo membro ativo. Atualiza apenas os campos enviados, com CSRF
+        e If-Match do cadastro lido. Ausência de If-Match retorna 428; versão antiga,
         412. PATCH vazio é um no-op. code=null ou vazio remove o código; campo omitido
         preserva o valor.
       parameters:
@@ -2580,10 +2581,10 @@ paths:
                 maxLength: 64
     delete:
       operationId: client_companies_destroy
-      description: Manager. Arquiva com CSRF e If-Match. Encerra vínculos de rotina
-        vigentes na véspera da data efetiva e cancela os futuros, preservando linhas
-        e histórico. Não exclui tarefas nem encerra processos. Retorna 204 e o novo
-        ETag.
+      description: Todo membro ativo. Arquiva com CSRF e If-Match. Encerra vínculos
+        de rotina vigentes na véspera da data efetiva e cancela os futuros, preservando
+        linhas e histórico. Não exclui tarefas nem encerra processos. Retorna 204
+        e o novo ETag.
       parameters:
       - in: header
         name: If-Match
@@ -2708,9 +2709,10 @@ paths:
   /api/v1/client-companies/{id}/archive-impact/:
     get:
       operationId: client_companies_archive_impact_retrieve
-      description: Manager. Preview do arquivamento com ETag da empresa. Contagens
-        de Rotinas e Processos ficam null quando não autorizadas. Não altera nem bloqueia
-        recursos; a confirmação usa DELETE com If-Match e nova validação transacional.
+      description: Todo membro ativo. Preview do arquivamento com ETag da empresa.
+        Contagens de Rotinas e Processos ficam null quando não autorizadas. Não altera
+        nem bloqueia recursos; a confirmação usa DELETE com If-Match e nova validação
+        transacional.
       parameters:
       - in: path
         name: id
@@ -2801,8 +2803,8 @@ paths:
   /api/v1/client-companies/{id}/entries/:
     get:
       operationId: client_companies_entries_retrieve
-      description: Manager. Auditoria paginada da empresa e dos contatos, mais recente
-        primeiro. Aceita apenas page/pageSize.
+      description: Todo membro ativo. Auditoria paginada da empresa e dos contatos,
+        mais recente primeiro. Aceita apenas page/pageSize.
       parameters:
       - in: path
         name: id
@@ -2887,9 +2889,10 @@ paths:
   /api/v1/client-companies/{id}/restore/:
     post:
       operationId: client_companies_restore_create
-      description: Manager. Restaura com CSRF e If-Match, sem reativar vínculos de
-        rotina ou contatos arquivados. O corpo opcional permite corrigir code ou limpá-lo
-        com null se foi reutilizado. CNPJ permanece reservado inclusive no arquivamento.
+      description: Todo membro ativo. Restaura com CSRF e If-Match, sem reativar vínculos
+        de rotina ou contatos arquivados. O corpo opcional permite corrigir code ou
+        limpá-lo com null se foi reutilizado. CNPJ permanece reservado inclusive no
+        arquivamento.
       parameters:
       - in: header
         name: If-Match
@@ -13565,14 +13568,16 @@ paths:
     post:
       operationId: processes_create
       description: Todos os tipos usam empresa livre obrigatória e cnpj opcional,
-        sem cadastro prévio ou companyId. Em outros, enviar empresa livre, descricaoProcesso,
-        valorProcesso, departamentoSolicitado e acionarLeggacy, sem companyId/CNPJ.
-        Diretoria. Cria processo e notificações atomicamente para os membros ativos
-        com acesso a Processos na organização. Usa remetente/SMTP compartilhados com
-        Rotinas; o conteúdo respeita as permissões financeiras. Envio após commit
-        e recuperação por worker. Replay retorna 200 sem novos e-mails; corpo diferente,
-        409. Falha de e-mail não desfaz a criação. Consulte notifications ou GET notifications/
-        para acompanhar a entrega.
+        sem cadastro prévio ou companyId. Protocolo externo foi removido. Em exclusao,
+        entregaDocumentacao controla a etapa de entrega ao cliente (padrão true);
+        false remove essa etapa do fluxo efetivo. Em outros, enviar empresa livre,
+        descricaoProcesso, valorProcesso, departamentoSolicitado e acionarLeggacy,
+        sem companyId/CNPJ. Diretoria. Cria processo e notificações atomicamente para
+        os membros ativos com acesso a Processos na organização. Usa remetente/SMTP
+        compartilhados com Rotinas; o conteúdo respeita as permissões financeiras.
+        Envio após commit e recuperação por worker. Replay retorna 200 sem novos e-mails;
+        corpo diferente, 409. Falha de e-mail não desfaz a criação. Consulte notifications
+        ou GET notifications/ para acompanhar a entrega.
       parameters:
       - in: header
         name: Idempotency-Key
@@ -21414,11 +21419,11 @@ components:
           $ref: '#/components/schemas/DepartamentoSolicitadoEnum'
         acionarLeggacy:
           type: boolean
-        protocolo:
-          type: string
-          description: Referência externa opcional, preenchida manualmente; não é
-            o código interno nem aciona integrações.
-          maxLength: 160
+        entregaDocumentacao:
+          type: boolean
+          description: Somente exclusao. Inclui a etapa de entrega de documentação
+            ao cliente; padrão true na criação. Com false, a etapa não integra o fluxo
+            nem o progresso.
         prazo:
           type: string
           format: date
@@ -21728,11 +21733,11 @@ components:
           $ref: '#/components/schemas/DepartamentoSolicitadoEnum'
         acionarLeggacy:
           type: boolean
-        protocolo:
-          type: string
-          description: Referência externa opcional, preenchida manualmente; não é
-            o código interno nem aciona integrações.
-          maxLength: 160
+        entregaDocumentacao:
+          type: boolean
+          description: Somente exclusao. Inclui a etapa de entrega de documentação
+            ao cliente; padrão true na criação. Com false, a etapa não integra o fluxo
+            nem o progresso.
         prazo:
           type: string
           format: date
@@ -22052,11 +22057,11 @@ components:
           $ref: '#/components/schemas/DepartamentoSolicitadoEnum'
         acionarLeggacy:
           type: boolean
-        protocolo:
-          type: string
-          description: Referência externa opcional, preenchida manualmente; não é
-            o código interno nem aciona integrações.
-          maxLength: 160
+        entregaDocumentacao:
+          type: boolean
+          description: Somente exclusao. Inclui a etapa de entrega de documentação
+            ao cliente; padrão true na criação. Com false, a etapa não integra o fluxo
+            nem o progresso.
         prazo:
           type: string
           format: date
@@ -22345,8 +22350,6 @@ components:
           nullable: true
         cnpj:
           type: string
-        protocolo:
-          type: string
         prazo:
           type: string
           format: date
@@ -22404,7 +22407,6 @@ components:
       - organizationId
       - permissions
       - prazo
-      - protocolo
       - responsibleSectors
       - status
       - statusChangedAt

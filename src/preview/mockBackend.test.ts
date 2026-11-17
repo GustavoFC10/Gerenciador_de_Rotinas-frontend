@@ -27,6 +27,132 @@ const json = async (
 ) => (await backend.handle(url(path), method, body)).json()
 
 describe('isolated feature preview', () => {
+  it.each([true, false, undefined])(
+    'supports exclusion delivery %s, effective progress, completion and reopening',
+    async (entregaDocumentacao) => {
+      const backend = new PreviewBackend()
+      const created = await backend.handle(
+        url('processes/'),
+        'POST',
+        {
+          tipo: 'exclusao',
+          empresa: 'Cliente Exemplo',
+          honPerdido: '700.00',
+          ...(entregaDocumentacao === undefined ? {} : { entregaDocumentacao }),
+        },
+        new Headers({ 'Idempotency-Key': 'exclusion-test' }),
+      )
+      expect(created.status).toBe(201)
+      let process = parseProcessDetail(await created.json())
+      const delivery = entregaDocumentacao ?? true
+      expect(process.entregaDocumentacao).toBe(delivery)
+      expect(process.analysis.totalTasks).toBe(delivery ? 7 : 6)
+      expect(
+        process.etapas
+          .flatMap((stage) => stage.tasks)
+          .some((task) => task.id === 'ex6'),
+      ).toBe(delivery)
+      expect(process).not.toHaveProperty('protocolo')
+      for (const task of process.etapas
+        .flatMap((stage) => stage.tasks)
+        .filter((task) => task.id !== 'ex6')) {
+        process = parseProcessDetail(
+          await json(
+            backend,
+            `processes/${process.id}/tasks/${task.id}/transition/`,
+            'POST',
+            { version: process.version, state: 'feito' },
+          ),
+        )
+      }
+      process = parseProcessDetail(
+        await json(backend, `processes/${process.id}/`, 'PATCH', {
+          version: process.version,
+          entregaDocumentacao: false,
+        }),
+      )
+      expect(process.status).toBe('concluido')
+      expect(process.analysis).toMatchObject({
+        totalTasks: 6,
+        completedTasks: 6,
+        currentStage: null,
+        pendingSectors: [],
+      })
+      expect(process.tarefas).not.toHaveProperty('ex6')
+      expect(
+        (
+          await backend.handle(
+            url(`processes/${process.id}/tasks/ex6/transition/`),
+            'POST',
+            { version: process.version, state: 'feito' },
+          )
+        ).status,
+      ).toBe(404)
+      process = parseProcessDetail(
+        await json(backend, `processes/${process.id}/`, 'PATCH', {
+          version: process.version,
+          entregaDocumentacao: true,
+        }),
+      )
+      expect(process.status).toBe('andamento')
+      expect(process.analysis).toMatchObject({
+        totalTasks: 7,
+        completedTasks: 6,
+        pendingSectors: ['reg'],
+      })
+      expect(process.etapas.at(-1)?.t).toBe('Entrega de documentação')
+      process = parseProcessDetail(
+        await json(
+          backend,
+          `processes/${process.id}/tasks/ex6/transition/`,
+          'POST',
+          { version: process.version, state: 'feito' },
+        ),
+      )
+      expect(process.status).toBe('concluido')
+      expect(process.analysis.completedTasks).toBe(7)
+      const version = process.version
+      expect(
+        (
+          await backend.handle(url(`processes/${process.id}/`), 'PATCH', {
+            version: version - 1,
+            entregaDocumentacao: false,
+          })
+        ).status,
+      ).toBe(409)
+      process = parseProcessDetail(
+        await json(backend, `processes/${process.id}/`, 'PATCH', {
+          version,
+          empresa: 'Nome atualizado',
+        }),
+      )
+      expect(process.entregaDocumentacao).toBe(true)
+      for (const invalid of [null, 'false', 0]) {
+        expect(
+          (
+            await backend.handle(url(`processes/${process.id}/`), 'PATCH', {
+              version: process.version,
+              entregaDocumentacao: invalid,
+            })
+          ).status,
+        ).toBe(400)
+      }
+      backend.selectActor('demo-regularidade')
+      expect(
+        parseProcessDetail(await json(backend, `processes/${process.id}/`))
+          .entregaDocumentacao,
+      ).toBe(true)
+      expect(
+        (
+          await backend.handle(url(`processes/${process.id}/`), 'PATCH', {
+            version: process.version,
+            entregaDocumentacao: false,
+          })
+        ).status,
+      ).toBe(403)
+    },
+  )
+
   afterEach(() => vi.useRealTimers())
   it('invites a process-only member and persists all profile fields and independent access', async () => {
     const backend = new PreviewBackend()
@@ -278,10 +404,15 @@ describe('isolated feature preview', () => {
     expect(indicators.byStatus.agendado).toBe(1)
     expect(indicators.byStatus.atrasado).toBe(0)
     expect(indicators.byStatus.cancelado).toBe(0)
-    const search = await json(backend, 'processes/?q=PROTO-DEMO-100')
+    const code = list.results[0].codigo
+    const search = await json(
+      backend,
+      `processes/?q=${encodeURIComponent(code)}`,
+    )
+    expect(search.count).toBeGreaterThan(0)
     expect(
-      search.results.every(
-        (item: { protocolo: string }) => item.protocolo === 'PROTO-DEMO-100',
+      search.results.every((item: { codigo: string }) =>
+        item.codigo.includes(code),
       ),
     ).toBe(true)
   })

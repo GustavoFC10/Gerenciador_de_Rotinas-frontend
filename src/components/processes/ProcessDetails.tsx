@@ -1012,7 +1012,7 @@ export default function ProcessDetails({
               </span>
             )}
             <span>
-              Protocolo <b>{process.codigo}</b>
+              Código interno <b>{process.codigo}</b>
             </span>
             <span>
               Aberto em {date(process.criadoEm)} · {age}{' '}
@@ -1286,8 +1286,6 @@ export default function ProcessDetails({
                     ? monthLabel(process[competenceField.key]!)
                     : 'Não informado',
                 )}
-              {process.protocolo &&
-                readonlyField('Protocolo externo', process.protocolo)}
               {readonlyField('Contato do cliente', process.contato)}
               {readonlyField('Aberto por', process.autorAbertura)}
               <div className="field full">

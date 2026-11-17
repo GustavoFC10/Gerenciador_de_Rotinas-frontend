@@ -246,7 +246,6 @@ const summaryFields: Fields = {
     ),
   ),
   cnpj: string,
-  protocolo: string,
   prazo: nullable(date),
   criadoPor: string,
   autorAbertura: string,
@@ -282,6 +281,7 @@ const detailFields: Fields = {
   valorProcesso: optional(decimal),
   departamentoSolicitado: optional(oneOf(['fin', 'reg'])),
   acionarLeggacy: optional(boolean),
+  entregaDocumentacao: optional(boolean),
   inicioInat: optional(nullable(date)),
   competenciaInicioAtividade: optional(nullable(competence)),
   competenciaInicioInatividade: optional(nullable(competence)),
@@ -529,6 +529,11 @@ export function parseProcessDetail(
           requestId,
         )
   }
+  if (result.entregaDocumentacao !== undefined && result.tipo !== 'exclusao')
+    throw new ProcessContractError(
+      'response.entregaDocumentacao (tipo sem exclusão)',
+      requestId,
+    )
   if (
     result.honVariacao !== undefined &&
     !['aumento_honorarios', 'reducao_honorarios'].includes(result.tipo)

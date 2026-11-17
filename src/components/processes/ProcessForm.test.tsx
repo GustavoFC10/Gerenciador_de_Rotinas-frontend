@@ -4,11 +4,112 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { describe, expect, it, vi } from 'vitest'
 import ProcessForm from './ProcessForm'
-import { processTestCatalog } from './processTestFixtures'
+import {
+  makeProcessTestResource,
+  processTestCatalog,
+} from './processTestFixtures'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 describe('ProcessForm', () => {
+  it.each([
+    { editing: false, saved: undefined, toggle: false, expected: true },
+    { editing: false, saved: undefined, toggle: true, expected: false },
+    { editing: true, saved: undefined, toggle: false, expected: true },
+    { editing: true, saved: false, toggle: false, expected: false },
+    { editing: true, saved: true, toggle: true, expected: false },
+    { editing: true, saved: false, toggle: true, expected: true },
+  ])(
+    'submits exclusion delivery $expected (editing=$editing, saved=$saved)',
+    async ({ editing, saved, toggle, expected }) => {
+      const host = document.createElement('div')
+      document.body.append(host)
+      const root = createRoot(host)
+      const submit = vi.fn().mockResolvedValue(undefined)
+      try {
+        await act(async () =>
+          root.render(
+            <ProcessForm
+              catalog={processTestCatalog}
+              scope={{ organizationId: 'org-1', membershipId: 'member-1' }}
+              initialType="exclusao"
+              process={
+                editing
+                  ? makeProcessTestResource({
+                      tipo: 'exclusao',
+                      entregaDocumentacao: saved,
+                      honPerdido: '700.00',
+                    })
+                  : undefined
+              }
+              onSubmit={submit}
+              onClose={vi.fn()}
+            />,
+          ),
+        )
+        const dialog = document.querySelector('[role="dialog"]')!
+        expect(dialog.textContent).not.toContain('Protocolo')
+        const control = dialog.querySelector<HTMLButtonElement>(
+          '[role="switch"][aria-label="Este processo inclui entrega de documentação ao cliente?"]',
+        )!
+        expect(control.getAttribute('aria-checked')).toBe(String(saved ?? true))
+        if (toggle) await act(async () => control.click())
+        if (!editing) {
+          for (const [prefix, value] of [
+            ['Nome da empresa', 'Cliente Exemplo'],
+            ['Honorário mensal que deixa de ser cobrado', '70000'],
+          ]) {
+            const label = [...dialog.querySelectorAll('label')].find((label) =>
+              label.textContent?.startsWith(prefix!),
+            )!
+            const input = document.getElementById(
+              label.htmlFor,
+            ) as HTMLInputElement
+            await act(async () => {
+              Object.getOwnPropertyDescriptor(
+                HTMLInputElement.prototype,
+                'value',
+              )!.set!.call(input, value)
+              input.dispatchEvent(new Event('input', { bubbles: true }))
+            })
+          }
+        }
+        await act(async () => {
+          dialog
+            .querySelector('form')!
+            .dispatchEvent(
+              new Event('submit', { bubbles: true, cancelable: true }),
+            )
+        })
+        expect(submit).toHaveBeenCalledOnce()
+        expect(submit.mock.calls[0]![0]).toMatchObject({
+          tipo: 'exclusao',
+          honPerdido: '700.00',
+          entregaDocumentacao: expected,
+        })
+        expect(submit.mock.calls[0]![0]).not.toHaveProperty('protocolo')
+        if (!editing) {
+          for (const type of processTestCatalog.types.filter(
+            (type) => type.id !== 'exclusao',
+          )) {
+            const option = [
+              ...dialog.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
+            ].find((button) => button.textContent?.includes(type.nome))!
+            await act(async () => option.click())
+            expect(
+              dialog.querySelector(
+                '[role="switch"][aria-label="Este processo inclui entrega de documentação ao cliente?"]',
+              ),
+            ).toBeNull()
+          }
+        }
+      } finally {
+        await act(async () => root.unmount())
+        host.remove()
+      }
+    },
+  )
+
   it.each(['aumento_honorarios', 'reducao_honorarios'] as const)(
     'creates %s with only the simple fields',
     async (tipo) => {

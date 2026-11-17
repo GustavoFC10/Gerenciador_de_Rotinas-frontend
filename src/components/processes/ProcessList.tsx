@@ -135,7 +135,7 @@ export default function ProcessList({
                 value={searchValue ?? filters.q ?? ''}
                 maxLength={200}
                 onChange={(event) => onFilters({ q: event.target.value })}
-                placeholder="Empresa, CNPJ ou protocolo"
+                placeholder="Empresa, CNPJ ou código interno"
               />
             </span>
           </label>

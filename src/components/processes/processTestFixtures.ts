@@ -257,7 +257,6 @@ export function makeProcessTestResource(
     companyLinkRequired: false,
     companyReference: null,
     cnpj: '',
-    protocolo: '',
     prazo: null,
     tipo: 'abertura',
     codigo: 'ABE-2610-TEST',

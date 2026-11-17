@@ -799,7 +799,13 @@
             "id": "ex5",
             "d": "reg",
             "txt": "Desativar os sistemas internos e excluir da planilha geral"
-          },
+          }
+        ]
+      },
+      {
+        "t": "Entrega de documentação",
+        "opcional": "entregaDocumentacao",
+        "tasks": [
           {
             "id": "ex6",
             "d": "reg",
