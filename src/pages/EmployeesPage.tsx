@@ -1,258 +1,286 @@
-import { useMemo, useState } from 'react'
-
+﻿import { useMemo } from 'react'
+import { Link, useSearchParams } from 'react-router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import EmployeeProfilePanel from '../components/forms/EmployeeProfilePanel'
-import { moduleAccessLabels } from '../utils/memberModuleAccess'
-import ErrorState from '../components/common/ErrorState'
-
-import PrivateImage from '../components/files/PrivateImage'
+import {
+  DirectoryEmpty,
+  DirectoryHeading,
+  DirectoryPager,
+  DirectoryPanel,
+  DirectoryStatus,
+  DirectoryToolbar,
+  useDirectoryQuery,
+  DIRECTORY_PAGE_SIZE,
+} from '../components/catalog/Directory'
+import Button from '../components/ui/Button'
+import UserAvatar from '../components/ui/UserAvatar'
 import LoadingState from '../components/common/LoadingState'
 import {
-  CatalogAction,
-  CatalogChevron,
-  CatalogDatum,
-  CatalogEmpty,
-  CatalogHeader,
-  CatalogList,
-  CatalogPrimary,
-  CatalogRow,
-  CatalogRows,
-  CatalogSecondaryAction,
-  CatalogStatus,
-} from '../components/catalog/CatalogList'
-
-import { ORGANIZATION_ROLE } from '../constants/roles'
+  initialModuleAccesses,
+  moduleAccessLabels,
+} from '../utils/memberModuleAccess'
+import { MODULE_LABELS } from '../types/modules'
 import { ROUTES } from '../constants/routes'
+import { focusRing } from '../constants/designTokens'
 import { useOrganizationMembers } from '../hooks/useOrganizationMembers'
 import { useAuth } from '../hooks/useAuth'
-
-import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../query/queryKeys'
-import type {
-  Department,
-  DepartmentAccessRole,
-  OrganizationRole,
-} from '../types/domain'
-import type {
-  OrganizationMemberResource,
-  OrganizationMemberStatus,
+import {
+  organizationMemberService,
+  type OrganizationMemberResource,
 } from '../services/organizationMemberService'
-
+import type { Department } from '../types/domain'
 import { normalizeSearch } from '../utils/normalizeSearch'
-import { useAppState } from '../hooks/useAppState'
-import { canManageEmployees, isOwner } from '../utils/permissions'
 
-const employeeGrid =
-  'lg:grid-cols-[minmax(14rem,1.35fr)_minmax(10rem,1fr)_8rem_minmax(12rem,1fr)_6rem_1.25rem]'
-
-function EmployeesPage({ departments }: { departments: Department[] }) {
-  const { user } = useAppState()
-  const { refreshSession } = useAuth()
-  const queryClient = useQueryClient()
-  const { members, isInitialLoading, error, replaceMember, scope } =
-    useOrganizationMembers()
-  const [search, setSearch] = useState('')
-  const [selectedMember, setSelectedMember] =
-    useState<OrganizationMemberResource | null>(null)
-  const canManage = canManageEmployees(user)
-  const filteredMembers = useMemo(() => {
-    const query = normalizeSearch(search)
-
-    return [...members]
-      .filter((member) =>
-        normalizeSearch(
-          [
-            member.displayName,
-            member.email,
-            getRoleLabel(member.role),
-            ...getDepartmentAccessLabels(member, departments),
-            ...moduleAccessLabels(member),
-          ].join(' '),
-        ).includes(query),
-      )
-      .sort((left, right) =>
-        left.displayName.localeCompare(right.displayName, 'pt-BR'),
-      )
-  }, [departments, members, search])
-
-  if (isInitialLoading) {
-    return <LoadingState message="Carregando a equipe..." />
-  }
-
-  if (error) {
-    return (
-      <ErrorState
-        title="Não foi possível carregar a equipe"
-        description="Verifique suas permissões e tente novamente."
-        error={error}
-      />
+export default function EmployeesPage({
+  departments,
+}: {
+  departments: Department[]
+}) {
+  const { activeMembership, refreshSession } = useAuth()
+  const client = useQueryClient()
+  const {
+    members,
+    isInitialLoading,
+    error,
+    replaceMember,
+    scope,
+    reloadMembers,
+  } = useOrganizationMembers()
+  const state = useDirectoryQuery()
+  const [params, setParams] = useSearchParams()
+  const selectedId = params.get('member') ?? ''
+  const tab = params.get('aba') === 'access' ? 'access' : 'profile'
+  const existing = members.find((member) => member.id === selectedId)
+  const detail = useQuery({
+    queryKey: scope
+      ? queryKeys.member(scope, selectedId)
+      : ['member', selectedId],
+    queryFn: async () => (await organizationMemberService.get(selectedId)).data,
+    enabled: !!selectedId && !!scope && !existing,
+  })
+  const selectedMember = existing ?? detail.data
+  const status = ['active', 'pending', 'inactive', 'suspended'].includes(
+    state.status,
+  )
+    ? state.status
+    : 'all'
+  const filtered = useMemo(
+    () =>
+      members
+        .filter(
+          (member) =>
+            (status === 'all' || member.status === status) &&
+            normalizeSearch(
+              [
+                member.displayName,
+                member.email,
+                roleLabel(member.role),
+                ...moduleAccessLabels(member),
+                ...member.departmentAccesses.map(
+                  (access) => access.departmentName,
+                ),
+              ].join(' '),
+            ).includes(normalizeSearch(state.query)),
+        )
+        .sort((a, b) => a.displayName.localeCompare(b.displayName, 'pt-BR')),
+    [members, status, state.query],
+  )
+  const page = Math.min(
+    state.page,
+    Math.max(1, Math.ceil(filtered.length / DIRECTORY_PAGE_SIZE)),
+  )
+  function close() {
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.delete('member')
+        next.delete('aba')
+        return next
+      },
+      { replace: true },
     )
   }
-
+  const listParams = new URLSearchParams(params)
+  listParams.delete('member')
+  listParams.delete('aba')
   return (
     <>
-      <CatalogList
+      <DirectoryHeading
         title="Equipe"
-        countLabel={`${members.length} cadastrados`}
-        resultLabel={`${filteredMembers.length} de ${members.length}`}
-        searchLabel="Buscar na equipe"
-        searchPlaceholder="Buscar por nome, e-mail, cargo, módulo ou departamento"
-        searchValue={search}
-        onSearchChange={setSearch}
+        count={`${members.length} pessoas`}
         action={
-          canManage ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <CatalogSecondaryAction to={ROUTES.TEAM_ACCESS}>
-                Cargos e permissões
-              </CatalogSecondaryAction>
-              <CatalogAction to={ROUTES.EMPLOYEE_CREATE}>
-                Adicionar colaborador
-              </CatalogAction>
-            </div>
-          ) : undefined
+          <Link
+            className={`ui-button ui-button--md border border-transparent bg-[var(--color-button-primary-bg)] text-[var(--color-button-primary-text)] hover:bg-[var(--color-button-primary-hover-bg)] ${focusRing}`}
+            to={`${ROUTES.EMPLOYEE_CREATE}${listParams.size ? `?${listParams}` : ''}`}
+          >
+            Convidar pessoa
+          </Link>
         }
-      >
-        <CatalogHeader gridClass={employeeGrid}>
-          <span>Colaborador</span>
-          <span>E-mail</span>
-          <span>Cargo</span>
-          <span>Módulos e acessos</span>
-          <span>Situação</span>
-          <span />
-        </CatalogHeader>
-
-        {filteredMembers.length > 0 ? (
-          <CatalogRows>
-            {filteredMembers.map((member) => {
-              const departmentLabels = moduleAccessLabels(member).length
-                ? moduleAccessLabels(member)
-                : getDepartmentAccessLabels(member, departments)
-
-              return (
-                <CatalogRow
-                  key={member.id}
-                  onClick={() => setSelectedMember(member)}
-                  ariaLabel={`Abrir perfil de ${member.displayName}`}
-                  gridClass={employeeGrid}
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <PrivateImage
-                      reference={member.avatar}
-                      label={member.displayName}
-                    />
-                    <CatalogPrimary
-                      title={member.displayName}
-                      description={
-                        departmentLabels.join(' · ') || 'Sem departamento'
-                      }
-                    />
-                  </div>
-                  <CatalogDatum label="E-mail">{member.email}</CatalogDatum>
-                  <CatalogDatum label="Cargo">
-                    {getRoleLabel(member.role)}
-                  </CatalogDatum>
-                  <CatalogDatum label="Módulos e acessos">
-                    {departmentLabels.length > 0
-                      ? departmentLabels.join(', ')
-                      : 'Nenhum'}
-                  </CatalogDatum>
-                  <CatalogDatum label="Situação">
-                    <MemberStatus status={member.status} />
-                  </CatalogDatum>
-                  <CatalogChevron />
-                </CatalogRow>
-              )
-            })}
-          </CatalogRows>
+      />
+      <DirectoryPanel label="Diretório da equipe">
+        <DirectoryToolbar
+          searchLabel="Buscar pessoa"
+          placeholder="Nome, e-mail ou módulo"
+          query={state.query}
+          onQuery={(q) => state.change({ q, pagina: '' })}
+          status={status}
+          statuses={[
+            { value: 'all', label: 'Todas' },
+            { value: 'active', label: 'Ativas' },
+            { value: 'pending', label: 'Convites pendentes' },
+            { value: 'inactive', label: 'Inativas' },
+            { value: 'suspended', label: 'Suspensas' },
+          ]}
+          onStatus={(situacao) => state.change({ situacao, pagina: '' })}
+          count={isInitialLoading ? undefined : filtered.length}
+        />
+        {isInitialLoading ? (
+          <LoadingState message="Carregando a equipe…" />
+        ) : error ? (
+          <div className="space-y-3 p-4" role="alert">
+            <p>Não foi possível carregar a equipe.</p>
+            <Button onClick={() => void reloadMembers()}>
+              Tentar novamente
+            </Button>
+          </div>
+        ) : !filtered.length ? (
+          <DirectoryEmpty
+            noun="pessoa"
+            filtered={!!state.query || status !== 'all'}
+            onClear={() => state.change({ q: '', situacao: 'all', pagina: '' })}
+          />
         ) : (
-          <CatalogEmpty
-            title={
-              search
-                ? `Nenhum colaborador encontrado para “${search}”.`
-                : 'Nenhum colaborador cadastrado na equipe.'
-            }
-            searchValue={search}
-            onClear={() => setSearch('')}
+          <table className="directory-table">
+            <thead>
+              <tr>
+                <th style={{ width: '36%' }}>Pessoa</th>
+                <th className="directory-hide-small" style={{ width: '21%' }}>
+                  Papel na organização
+                </th>
+                <th className="directory-hide-small" style={{ width: '29%' }}>
+                  Módulos
+                </th>
+                <th style={{ width: '14%' }}>Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered
+                .slice(
+                  (page - 1) * DIRECTORY_PAGE_SIZE,
+                  page * DIRECTORY_PAGE_SIZE,
+                )
+                .map((member) => {
+                  const modules = initialModuleAccesses(member).filter(
+                    (access) => access.enabled,
+                  )
+                  const next = new URLSearchParams(params)
+                  next.set('member', member.id)
+                  next.delete('aba')
+                  return (
+                    <tr key={member.id}>
+                      <td>
+                        <Link
+                          to={`${ROUTES.EMPLOYEES}?${next}`}
+                          className={`directory-identity ${focusRing}`}
+                          aria-label={`Abrir perfil de ${member.displayName}`}
+                        >
+                          <UserAvatar
+                            name={member.displayName}
+                            avatar={member.avatar}
+                          />
+                          <span className="min-w-0">
+                            <strong>{member.displayName}</strong>
+                            <small>{member.email}</small>
+                            <span className="directory-mobile-meta app-caption mt-1">
+                              {roleLabel(member.role)}
+                            </span>
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="directory-hide-small">
+                        {roleLabel(member.role)}
+                      </td>
+                      <td className="directory-hide-small">
+                        <span className="flex flex-wrap gap-1">
+                          {modules.length
+                            ? modules.map((access) => (
+                                <span
+                                  key={access.module}
+                                  className="rounded-sm bg-[var(--color-brand-soft)] px-1.5 py-1 text-xs text-[var(--color-brand)]"
+                                >
+                                  {MODULE_LABELS[access.module]}
+                                </span>
+                              ))
+                            : 'Sem acesso'}
+                        </span>
+                      </td>
+                      <td>
+                        <DirectoryStatus status={member.status} />
+                      </td>
+                    </tr>
+                  )
+                })}
+            </tbody>
+          </table>
+        )}
+        {!isInitialLoading && !error && (
+          <DirectoryPager
+            page={page}
+            count={filtered.length}
+            onPage={(next) => state.change({ pagina: String(next) })}
           />
         )}
-      </CatalogList>
-
+      </DirectoryPanel>
+      {selectedId && !selectedMember && (
+        <div
+          className="mt-4 space-y-3"
+          role={detail.error ? 'alert' : 'status'}
+        >
+          <p>
+            {detail.error
+              ? 'Não foi possível consultar esta pessoa.'
+              : 'Carregando a ficha…'}
+          </p>
+          <Button onClick={close}>Fechar ficha</Button>
+          {detail.error && (
+            <Button onClick={() => void detail.refetch()}>
+              Tentar novamente
+            </Button>
+          )}
+        </div>
+      )}
       {selectedMember && (
         <EmployeeProfilePanel
+          key={selectedMember.id}
           member={selectedMember}
           departments={departments}
-          canManage={canManage}
-          canAssignOwner={isOwner(user)}
-          onMemberChange={async (member) => {
-            setSelectedMember(member)
+          canManage={activeMembership?.role === 'owner'}
+          canAssignOwner={activeMembership?.role === 'owner'}
+          initialTab={tab}
+          onTabChange={(next) =>
+            state.change({ aba: next === 'access' ? 'access' : '' })
+          }
+          onMemberChange={async (member: OrganizationMemberResource) => {
             replaceMember(member)
-
-            if (member.id === user.membershipId) {
+            if (member.id === activeMembership?.id) {
               await refreshSession()
-              if (scope) {
-                void queryClient.invalidateQueries({
+              if (scope)
+                void client.invalidateQueries({
                   queryKey: queryKeys.scope(scope),
                 })
-              }
             }
           }}
-          onClose={() => setSelectedMember(null)}
+          onClose={close}
         />
       )}
     </>
   )
 }
-
-function MemberStatus({ status }: { status: OrganizationMemberStatus }) {
-  if (status === 'active') return <CatalogStatus active />
-
-  const label =
-    status === 'pending'
-      ? 'Convite pendente'
-      : status === 'suspended'
-        ? 'Suspenso'
-        : 'Inativo'
-
-  return (
-    <span className="text-xs font-bold text-[var(--color-text-muted)]">
-      {label}
-    </span>
-  )
+function roleLabel(role: string) {
+  return role === 'owner'
+    ? 'Proprietário'
+    : role === 'admin'
+      ? 'Administrador'
+      : 'Colaborador'
 }
-
-function getRoleLabel(role: OrganizationRole): string {
-  if (role === ORGANIZATION_ROLE.OWNER) return 'Proprietário'
-  if (role === ORGANIZATION_ROLE.ADMIN) return 'Administrador'
-  return 'Colaborador'
-}
-
-function getDepartmentAccessLabel(role: DepartmentAccessRole): string {
-  if (role === 'lead') return 'Líder'
-  if (role === 'contributor') return 'Colaborador'
-  return 'Leitor'
-}
-
-function getDepartmentAccessLabels(
-  member: OrganizationMemberResource,
-  departments: Department[],
-): string[] {
-  const routines = member.moduleAccesses?.find(
-    (access) => access.module === 'routines',
-  )
-  if (routines && !routines.enabled) return ['Rotinas: sem acesso']
-  if (
-    routines?.role === 'admin' ||
-    (member.moduleAccesses === undefined && member.role !== 'member')
-  )
-    return ['Rotinas: administrador']
-
-  return member.departmentAccesses.flatMap((access) => {
-    const department = departments.find(
-      (item) => item.id === access.departmentId,
-    )
-    const name = department?.name ?? access.departmentName
-
-    return name ? [`${name} · ${getDepartmentAccessLabel(access.role)}`] : []
-  })
-}
-
-export default EmployeesPage

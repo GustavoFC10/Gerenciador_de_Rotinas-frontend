@@ -1,4 +1,4 @@
-import type { OrganizationMemberResource } from '../services/organizationMemberService'
+﻿import type { OrganizationMemberResource } from '../services/organizationMemberService'
 import type { ClientCompanyResource } from '../services/companyService'
 import workflows from './workflows.json'
 import {
@@ -2389,6 +2389,38 @@ export class PreviewBackend {
         results: departments,
       })
     const companies = this.state.clientCompanies ?? seedClientCompanies()
+    if (path === 'client-companies/catalog') {
+      const actions =
+        this.modules().find((module) => module.module === 'companies')
+          ?.actions ?? []
+      return json({
+        contractVersion: 1,
+        statuses: { active: 'Ativa', archived: 'Arquivada' },
+        roles: ['viewer', 'editor', 'manager'],
+        permissions: {
+          role: actions.includes('archive')
+            ? 'manager'
+            : actions.includes('edit')
+              ? 'editor'
+              : actions.includes('read')
+                ? 'viewer'
+                : null,
+          read: actions.includes('read'),
+          create: actions.includes('create'),
+          edit: actions.includes('edit'),
+          archive: actions.includes('archive'),
+          restore: actions.includes('restore'),
+          readArchived: actions.includes('readArchived'),
+          readContacts: false,
+          createContact: false,
+          editContact: false,
+          archiveContact: false,
+          restoreContact: false,
+          readArchivedContacts: false,
+          readEntries: false,
+        },
+      })
+    }
     const routines = ['Apuração de impostos', 'Entrega de declarações'].map(
       (name, index) => ({
         id: `demo-routine-${index}`,
@@ -2408,21 +2440,83 @@ export class PreviewBackend {
         },
       }),
     )
+    const assignmentCompany =
+      /^client-companies\/([^/]+)\/routine-assignments$/.exec(path)
+    if (assignmentCompany && method === 'GET') {
+      if (!companies.some((company) => company.id === assignmentCompany[1]))
+        return error(404, 'Empresa não encontrada.')
+      const results = routines.map((routine, index) => ({
+        id: `demo-assignment-${assignmentCompany[1]}-${index}`,
+        companyId: assignmentCompany[1],
+        routineId: routine.id,
+        routineShotname: routine.shotname,
+        routineName: routine.name,
+        departmentId: 'demo-fiscal',
+        departmentName: 'Fiscal',
+        currentRoutineVersionId: routine.currentVersion.id,
+        sourcePresetId: null,
+        startsOn: `${month()}-01`,
+        endsOn: null,
+        cancelledAt: null,
+        version: 1,
+        createdAt: stamp(-100),
+        updatedAt: stamp(-100),
+      }))
+      return json({
+        count: results.length,
+        next: null,
+        previous: null,
+        results,
+      })
+    }
     if (path === 'client-companies') {
       if (method === 'GET') {
         if (url.searchParams.has('includeArchived'))
           return error(400, 'Use status para filtrar empresas.')
         const statuses = url.searchParams.getAll('status')
         const selected = statuses.length ? statuses : ['active']
-        const results = companies.filter((company) =>
+        let results = companies.filter((company) =>
           selected.includes(
             company.status ?? (company.archivedAt ? 'archived' : 'active'),
           ),
         )
+        const search = (url.searchParams.get('search') ?? '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLocaleLowerCase('pt-BR')
+        if (search)
+          results = results.filter((company) =>
+            [
+              company.name,
+              company.legalName,
+              company.code,
+              company.cnpj,
+              company.email,
+            ]
+              .join(' ')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLocaleLowerCase('pt-BR')
+              .includes(search),
+          )
+        if (url.searchParams.get('ordering') === 'name')
+          results.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+        const count = results.length
+        const page = Math.max(1, Number(url.searchParams.get('page') ?? 1))
+        const pageSize = Math.max(
+          1,
+          Number(url.searchParams.get('pageSize') ?? (count || 20)),
+        )
+        results = results.slice((page - 1) * pageSize, page * pageSize)
+        const pageUrl = (value: number) => {
+          const next = new URL(url)
+          next.searchParams.set('page', String(value))
+          return next.pathname + next.search
+        }
         return json({
-          count: results.length,
-          next: null,
-          previous: null,
+          count,
+          next: page * pageSize < count ? pageUrl(page + 1) : null,
+          previous: page > 1 ? pageUrl(page - 1) : null,
           results,
         })
       }

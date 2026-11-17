@@ -24,19 +24,15 @@ export function InternalPageHeader({
       {breadcrumbs && breadcrumbs.length > 0 && (
         <InternalBreadcrumb items={breadcrumbs} />
       )}
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+      <div
+        className={`flex flex-wrap items-start justify-between gap-4 ${breadcrumbs?.length ? 'mt-3' : ''}`}
+      >
         <div className="min-w-0">
-          <h1 className="text-xl font-black tracking-tight text-[var(--color-text-strong)] sm:text-2xl">
-            {title}
-          </h1>
-          {description && (
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
-              {description}
-            </p>
-          )}
+          <h1 className="app-page-title">{title}</h1>
+          {description && <p className="app-description mt-2">{description}</p>}
         </div>
         {actions && (
-          <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>
+          <div className="flex max-w-full flex-wrap gap-2">{actions}</div>
         )}
       </div>
     </header>
@@ -96,14 +92,8 @@ export function InternalSection({
     <section>
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--color-divider)] pb-4">
         <div>
-          <h2 className="text-base font-black text-[var(--color-text-strong)]">
-            {title}
-          </h2>
-          {description && (
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
-              {description}
-            </p>
-          )}
+          <h2 className="app-section-title">{title}</h2>
+          {description && <p className="app-description mt-1">{description}</p>}
         </div>
         {action}
       </div>

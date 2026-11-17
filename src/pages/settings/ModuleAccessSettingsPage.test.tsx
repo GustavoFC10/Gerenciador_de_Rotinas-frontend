@@ -1,4 +1,4 @@
-/** @vitest-environment happy-dom */
+﻿/** @vitest-environment happy-dom */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
@@ -103,14 +103,14 @@ async function renderMember(
   if (role !== 'owner') return
   for (
     let attempt = 0;
-    attempt < 100 && !host.querySelector('#member-module-processes');
+    attempt < 100 && !host.querySelector('#member-sector-processes-fin');
     attempt += 1
   ) {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
     })
   }
-  expect(host.querySelector('#member-module-processes')).not.toBeNull()
+  expect(host.querySelector('#member-sector-processes-fin')).not.toBeNull()
 }
 
 describe('ModuleAccessSettingsPage', () => {
@@ -126,18 +126,10 @@ describe('ModuleAccessSettingsPage', () => {
       })
     await renderMember(member)
     await act(async () => {
-      const moduleSelect = host.querySelector<HTMLSelectElement>(
-        '#member-module-processes',
-      )!
-      moduleSelect.value = 'sectors'
-      moduleSelect.dispatchEvent(new Event('change', { bubbles: true }))
-    })
-    await act(async () => {
-      const sectorSelect = host.querySelector<HTMLSelectElement>(
+      const sectorSelect = host.querySelector<HTMLInputElement>(
         '#member-sector-processes-reg',
       )!
-      sectorSelect.value = 'reg'
-      sectorSelect.dispatchEvent(new Event('change', { bubbles: true }))
+      sectorSelect.click()
     })
     await act(async () => {
       host
@@ -160,31 +152,38 @@ describe('ModuleAccessSettingsPage', () => {
     expect(host.textContent).toContain('Acessos atualizados.')
   })
 
-  it('does not submit an enabled module without a sector', async () => {
-    const update = vi.spyOn(organizationMemberService, 'update')
+  it('keeps Processos disabled when no sector is selected', async () => {
+    const update = vi
+      .spyOn(organizationMemberService, 'update')
+      .mockResolvedValue({
+        data: member,
+        status: 200,
+        etag: null,
+        requestId: null,
+        headers: new Headers(),
+      })
     await renderMember(member)
-    await act(async () => {
-      const select = host.querySelector<HTMLSelectElement>(
-        '#member-module-processes',
-      )!
-      select.value = 'sectors'
-      select.dispatchEvent(new Event('change', { bubbles: true }))
-    })
-    await act(async () => {
+    expect(
+      host.querySelector<HTMLInputElement>('#member-sector-processes-fin')!
+        .checked,
+    ).toBe(false)
+    await act(async () =>
       host
         .querySelector('form')!
-        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-    })
-    expect(update).not.toHaveBeenCalled()
-    expect(host.textContent).toContain(
-      'Selecione ao menos um setor em Processos',
+        .dispatchEvent(
+          new Event('submit', { bubbles: true, cancelable: true }),
+        ),
     )
+    expect(update).toHaveBeenCalledWith('selected-member', {
+      moduleAccesses: expect.arrayContaining([
+        { module: 'processes', enabled: false },
+      ]),
+    })
   })
-
   it('keeps owner access controls disabled for an admin', async () => {
     await renderMember({ ...member, role: 'owner', status: 'active' }, 'admin')
     expect(host.textContent).toContain('Somente o proprietário pode configurar')
-    expect(host.querySelector('#member-module-processes')).toBeNull()
+    expect(host.querySelector('#member-sector-processes-fin')).toBeNull()
   })
 
   it('keeps inactive memberships read only', async () => {
@@ -193,7 +192,7 @@ describe('ModuleAccessSettingsPage', () => {
       'colaboradores ativos ou com convite pendente',
     )
     expect(
-      host.querySelector('#member-module-processes')?.matches(':disabled'),
+      host.querySelector('#member-sector-processes-fin')?.matches(':disabled'),
     ).toBe(true)
   })
 })

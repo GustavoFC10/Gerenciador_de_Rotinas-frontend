@@ -39,14 +39,8 @@ export function SettingsPageHeader({
         className={`flex flex-wrap items-start justify-between gap-4 ${breadcrumbs?.length ? 'mt-3' : ''}`}
       >
         <div className="min-w-0 flex-1 basis-64">
-          <h1 className="wrap-anywhere text-xl font-black tracking-tight text-[var(--color-text-strong)] sm:text-2xl">
-            {title}
-          </h1>
-          {description && (
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
-              {description}
-            </p>
-          )}
+          <h1 className="app-page-title">{title}</h1>
+          {description && <p className="app-description mt-2">{description}</p>}
         </div>
         {actions && (
           <div className="flex max-w-full flex-wrap gap-2">{actions}</div>
@@ -196,14 +190,8 @@ export function SettingsContentSection({
     >
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--color-divider)] pb-4">
         <div className="min-w-0 flex-1 basis-64">
-          <h2 className="wrap-anywhere text-base font-black text-[var(--color-text-strong)]">
-            {title}
-          </h2>
-          {description && (
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
-              {description}
-            </p>
-          )}
+          <h2 className="app-section-title">{title}</h2>
+          {description && <p className="app-description mt-1">{description}</p>}
         </div>
         {action && (
           <div className="flex max-w-full flex-wrap gap-2">{action}</div>

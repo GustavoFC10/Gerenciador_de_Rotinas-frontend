@@ -1,4 +1,4 @@
-/** @vitest-environment happy-dom */
+﻿/** @vitest-environment happy-dom */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -47,6 +47,8 @@ let root: Root
 let client: QueryClient
 
 beforeEach(() => {
+  window.confirm = vi.fn(() => true)
+  vi.spyOn(companyService, 'get').mockResolvedValue(response(company, '"7"'))
   host = document.createElement('div')
   document.body.append(host)
   root = createRoot(host)
@@ -75,11 +77,43 @@ async function render(
           globalAccess: false,
           sectors: [],
           actions:
-            companyRole === 'viewer' ? ['read'] : ['read', 'create', 'edit'],
+            companyRole === 'viewer'
+              ? ['read']
+              : [
+                  'read',
+                  'create',
+                  'edit',
+                  ...(companyRole === 'manager'
+                    ? ['archive', 'restore', 'readArchived']
+                    : []),
+                ],
         },
       ]
     : []
   vi.spyOn(moduleService, 'permissions').mockResolvedValue({ modules })
+  vi.spyOn(companyService, 'catalog').mockResolvedValue(
+    response({
+      contractVersion: 1,
+      statuses: { active: 'Ativa', archived: 'Arquivada' },
+      roles: ['viewer', 'editor', 'manager'],
+      permissions: {
+        role: companyRole,
+        read: !!companyRole,
+        create: !!companyRole && companyRole !== 'viewer',
+        edit: !!companyRole && companyRole !== 'viewer',
+        archive: companyRole === 'manager',
+        restore: companyRole === 'manager',
+        readArchived: companyRole === 'manager',
+        readContacts: false,
+        createContact: false,
+        editContact: false,
+        archiveContact: false,
+        restoreContact: false,
+        readArchivedContacts: false,
+        readEntries: false,
+      },
+    }),
+  )
   const membership = {
     id: 'member-1',
     displayName: 'Ana Silva',
@@ -149,8 +183,140 @@ function field(label: string) {
 }
 
 describe('módulo independente de Empresas', () => {
+  it('uses server filters and pagination and keeps Equipe outside its navigation', async () => {
+    const list = vi
+      .spyOn(companyService, 'list')
+      .mockResolvedValue(
+        response({ count: 42, next: null, previous: null, results: [company] }),
+      )
+    await render('/cadastro-empresas?q=teste&situacao=archived&pagina=2')
+    await waitFor(() => !!host.querySelector('.directory-identity'))
+    expect(list).toHaveBeenCalledWith({
+      search: 'teste',
+      status: ['archived'],
+      page: 2,
+      pageSize: 20,
+      ordering: 'name',
+    })
+    const navigation = host.querySelector(
+      'nav[aria-label="Navegação de Empresas"]',
+    )!
+    expect(navigation.querySelector('a[href="/equipe"]')).toBeNull()
+    expect(
+      host.querySelector('.directory-identity')?.getAttribute('href'),
+    ).toContain('q=teste&situacao=archived&pagina=2')
+  })
+  it('opens a direct record without fetching the whole directory', async () => {
+    const list = vi.spyOn(companyService, 'list')
+    const listAll = vi.spyOn(companyService, 'listAll')
+    await render(`/cadastro-empresas/${company.id}`)
+    await waitFor(() => host.textContent?.includes('Nome fantasia') ?? false)
+    expect(list).not.toHaveBeenCalled()
+    expect(listAll).not.toHaveBeenCalled()
+    expect(host.querySelector('#company-record-form input')).toBeNull()
+  })
+  it('honors record permissions when the module permits editing', async () => {
+    const permissions = {
+      role: 'viewer' as const,
+      read: true,
+      create: false,
+      edit: false,
+      archive: false,
+      restore: false,
+      readArchived: false,
+      readContacts: false,
+      createContact: false,
+      editContact: false,
+      archiveContact: false,
+      restoreContact: false,
+      readArchivedContacts: false,
+      readEntries: false,
+    }
+    vi.spyOn(companyService, 'get').mockResolvedValue(
+      response({ ...company, permissions }, '"7"'),
+    )
+    await render(`/cadastro-empresas/${company.id}`)
+    await waitFor(() => host.textContent?.includes('Nome fantasia') ?? false)
+    expect(
+      [...host.querySelectorAll('button')].some(
+        (item) => item.textContent === 'Editar',
+      ),
+    ).toBe(false)
+  })
+  it('keeps the draft and original ETag after a conflicting save', async () => {
+    const update = vi
+      .spyOn(companyService, 'update')
+      .mockRejectedValue(
+        new Error('A empresa foi atualizada por outra pessoa.'),
+      )
+    const get = vi.spyOn(companyService, 'get')
+    await render(`/cadastro-empresas/${company.id}`)
+    await waitFor(() =>
+      [...host.querySelectorAll('button')].some(
+        (item) => item.textContent === 'Editar',
+      ),
+    )
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>('button')]
+        .find((item) => item.textContent === 'Editar')!
+        .click(),
+    )
+    await act(async () =>
+      setInput(field('Nome fantasia'), 'Rascunho preservado'),
+    )
+    await act(async () =>
+      host
+        .querySelector('form')!
+        .dispatchEvent(
+          new Event('submit', { bubbles: true, cancelable: true }),
+        ),
+    )
+    await waitFor(
+      () =>
+        host.textContent?.includes(
+          'A empresa foi atualizada por outra pessoa.',
+        ) ?? false,
+    )
+    expect(field('Nome fantasia').value).toBe('Rascunho preservado')
+    expect(update).toHaveBeenCalledWith(company.id, expect.any(Object), '"7"')
+    expect(get).toHaveBeenCalledTimes(1)
+  })
+  it('archives with the displayed version and offers restore after reloading', async () => {
+    vi.spyOn(companyService, 'get')
+      .mockResolvedValueOnce(response(company, '"7"'))
+      .mockResolvedValue(
+        response({ ...company, status: 'archived', version: 8 }, '"8"'),
+      )
+    const archive = vi
+      .spyOn(companyService, 'archive')
+      .mockResolvedValue(response(undefined))
+    await render(`/cadastro-empresas/${company.id}`)
+    await waitFor(() =>
+      [...host.querySelectorAll('button')].some(
+        (item) => item.textContent === 'Arquivar',
+      ),
+    )
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>('button')]
+        .find((item) => item.textContent === 'Arquivar')!
+        .click(),
+    )
+    await waitFor(() =>
+      [...host.querySelectorAll('button')].some(
+        (item) => item.textContent === 'Restaurar',
+      ),
+    )
+    expect(archive).toHaveBeenCalledWith(company.id, '"7"')
+    expect(
+      [...host.querySelectorAll('button')].some(
+        (item) => item.textContent === 'Editar',
+      ),
+    ).toBe(false)
+  })
   it('lista e atualiza dados gerais com a versão ETag da empresa', async () => {
-    vi.spyOn(companyService, 'listAll').mockResolvedValue([company])
+    vi.spyOn(companyService, 'list').mockResolvedValue(
+      response({ count: 1, next: null, previous: null, results: [company] }),
+    )
     const get = vi
       .spyOn(companyService, 'get')
       .mockResolvedValue(response(company, '"7"'))
@@ -163,7 +329,16 @@ describe('módulo independente de Empresas', () => {
       `a[href="/cadastro-empresas/${company.id}"]`,
     )!
     await act(async () => row.click())
-    await waitFor(() => !!host.querySelector('form'))
+    await waitFor(() =>
+      [...host.querySelectorAll('button')].some(
+        (item) => item.textContent === 'Editar',
+      ),
+    )
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>('button')]
+        .find((item) => item.textContent === 'Editar')!
+        .click(),
+    )
     await act(async () => setInput(field('Nome fantasia'), 'Nome atualizado'))
     await act(async () =>
       host
@@ -182,7 +357,9 @@ describe('módulo independente de Empresas', () => {
   })
 
   it('cadastra usando o campo de contrato name', async () => {
-    vi.spyOn(companyService, 'listAll').mockResolvedValue([])
+    vi.spyOn(companyService, 'list').mockResolvedValue(
+      response({ count: 0, next: null, previous: null, results: [] }),
+    )
     const create = vi
       .spyOn(companyService, 'create')
       .mockResolvedValue(response({ ...company, id: 'new-company' }, '"1"'))
@@ -223,7 +400,9 @@ describe('módulo independente de Empresas', () => {
   })
 
   it('permite leitura de viewer que não é administrador, sem ações de escrita', async () => {
-    vi.spyOn(companyService, 'listAll').mockResolvedValue([company])
+    vi.spyOn(companyService, 'list').mockResolvedValue(
+      response({ count: 1, next: null, previous: null, results: [company] }),
+    )
     await render(`/cadastro-empresas/${company.id}`, 'viewer', 'member')
     await waitFor(() => !!host.querySelector('form'))
     expect(
@@ -234,13 +413,15 @@ describe('módulo independente de Empresas', () => {
   })
 
   it('não concede o cadastro ao owner sem acesso explícito', async () => {
-    const list = vi.spyOn(companyService, 'listAll')
+    const list = vi.spyOn(companyService, 'list')
     await render('/cadastro-empresas', null)
     expect(list).not.toHaveBeenCalled()
   })
 
   it('preserva CNPJ alfanumérico e a chave ao repetir criação após falha de transporte', async () => {
-    vi.spyOn(companyService, 'listAll').mockResolvedValue([])
+    vi.spyOn(companyService, 'list').mockResolvedValue(
+      response({ count: 0, next: null, previous: null, results: [] }),
+    )
     const create = vi
       .spyOn(companyService, 'create')
       .mockRejectedValueOnce(new Error('Falha de transporte'))

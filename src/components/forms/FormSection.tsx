@@ -15,16 +15,8 @@ function FormSection({
     <section className={`space-y-3 ${className}`}>
       {(title || description) && (
         <div>
-          {title && (
-            <h3 className="text-sm font-bold text-[var(--color-text-strong)]">
-              {title}
-            </h3>
-          )}
-          {description && (
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-              {description}
-            </p>
-          )}
+          {title && <h3 className="app-component-title">{title}</h3>}
+          {description && <p className="app-description mt-1">{description}</p>}
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>

@@ -67,10 +67,7 @@ export function HomeSectionHeading({
 }) {
   return (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <h2
-        id={titleId}
-        className="text-lg font-extrabold text-[var(--color-text-strong)]"
-      >
+      <h2 id={titleId} className="app-section-title">
         {title}
       </h2>
       {meta}

@@ -1,18 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Link,
-  NavLink,
   Navigate,
   Route,
   Routes,
   useNavigate,
+  useLocation,
+  useSearchParams,
 } from 'react-router'
 import Button from '../components/ui/Button'
 import LoadingState from '../components/common/LoadingState'
-import { focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { useAuth } from '../hooks/useAuth'
-import ModuleWorkspaceLayout from '../layouts/ModuleWorkspaceLayout'
+import DirectoryWorkspaceLayout from '../layouts/DirectoryWorkspaceLayout'
 import { queryKeys } from '../query/queryKeys'
 import { departmentService } from '../services/departmentService'
 import {
@@ -21,7 +20,6 @@ import {
 } from '../services/organizationMemberService'
 import CreateEmployeePage from './CreateEmployeePage'
 import EmployeesPage from './EmployeesPage'
-import ModuleAccessSettingsPage from './settings/ModuleAccessSettingsPage'
 
 export default function TeamModulePage() {
   const { activeMembership } = useAuth()
@@ -33,6 +31,7 @@ export default function TeamModulePage() {
 function TeamWorkspace() {
   const { activeMembership } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const client = useQueryClient()
   const scope = {
     organizationId: activeMembership!.organization.id,
@@ -49,34 +48,7 @@ function TeamWorkspace() {
       client.invalidateQueries({ queryKey: queryKeys.members(scope) }),
   })
   return (
-    <ModuleWorkspaceLayout>
-      <Link
-        to={ROUTES.HUB}
-        className={`text-sm font-bold text-[var(--color-brand)] hover:underline ${focusRing}`}
-      >
-        ← Trocar módulo
-      </Link>
-      <nav
-        aria-label="Navegação de Equipe"
-        className="my-6 flex flex-wrap gap-2 border-b border-[var(--color-divider)] pb-4"
-      >
-        {[
-          { to: ROUTES.EMPLOYEES, label: 'Equipe', end: true },
-          { to: ROUTES.EMPLOYEE_CREATE, label: 'Adicionar colaborador' },
-          { to: ROUTES.TEAM_ACCESS, label: 'Cargos e acessos' },
-        ].map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={({ isActive }) =>
-              `rounded-[var(--radius-control)] px-3 py-2 text-sm font-bold ${focusRing} ${isActive ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)]'}`
-            }
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
+    <DirectoryWorkspaceLayout module="team">
       {departments.isPending ? (
         <LoadingState message="Carregando os departamentos…" />
       ) : departments.error ? (
@@ -101,25 +73,43 @@ function TeamWorkspace() {
           <Route
             path={ROUTES.EMPLOYEE_CREATE}
             element={
-              <CreateEmployeePage
-                departments={departments.data}
-                onInvite={async (input) =>
-                  (await invite.mutateAsync(input)).data
-                }
-                onCancel={() => navigate(ROUTES.EMPLOYEES)}
-              />
+              <>
+                <EmployeesPage departments={departments.data} />
+                <CreateEmployeePage
+                  departments={departments.data}
+                  onInvite={async (input) =>
+                    (await invite.mutateAsync(input)).data
+                  }
+                  onCancel={() => {
+                    navigate(ROUTES.EMPLOYEES + location.search)
+                    requestAnimationFrame(() =>
+                      document
+                        .querySelector<HTMLAnchorElement>(
+                          'a[href^="/equipe/novo"]',
+                        )
+                        ?.focus(),
+                    )
+                  }}
+                />
+              </>
             }
           />
-          <Route
-            path={ROUTES.TEAM_ACCESS}
-            element={<ModuleAccessSettingsPage />}
-          />
+          <Route path={ROUTES.TEAM_ACCESS} element={<LegacyAccessRedirect />} />
           <Route
             path="*"
             element={<Navigate to={ROUTES.EMPLOYEES} replace />}
           />
         </Routes>
       )}
-    </ModuleWorkspaceLayout>
+    </DirectoryWorkspaceLayout>
   )
+}
+
+function LegacyAccessRedirect() {
+  const { activeMembership } = useAuth()
+  const [params] = useSearchParams()
+  const next = new URLSearchParams(params)
+  next.set('member', params.get('member') ?? activeMembership!.id)
+  next.set('aba', 'access')
+  return <Navigate to={`${ROUTES.EMPLOYEES}?${next}`} replace />
 }

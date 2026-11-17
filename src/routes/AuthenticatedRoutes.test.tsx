@@ -52,10 +52,10 @@ afterEach(async () => {
 })
 
 describe('AuthenticatedRoutes', () => {
-  it('keeps the profile available while operational data is unavailable', async () => {
-    await renderRoutes(ROUTES.PROFILE, null)
+  it('keeps the general profile link available while operational data is unavailable', async () => {
+    await renderRoutes(ROUTES.HOME, null)
 
-    expect(host.textContent).toContain('Perfil')
+    expect(host.querySelector(`a[href="${ROUTES.PROFILE}"]`)).not.toBeNull()
     expect(host.textContent).not.toContain('Carregando dados operacionais')
   })
 

@@ -9,7 +9,7 @@ import ModuleWorkspaceLayout from '../layouts/ModuleWorkspaceLayout'
 import type { AppModule } from '../types/modules'
 
 const destinations: {
-  module: AppModule | 'team' | 'companies'
+  module: AppModule | 'team' | 'companies' | 'profile'
   title: string
   description: string
   to: string
@@ -48,6 +48,12 @@ const destinations: {
     description:
       'Calcule honorários, prepare propostas e acompanhe os contratos e reajustes da carteira.',
     to: ROUTES.HONORARIOS,
+  },
+  {
+    module: 'profile',
+    title: 'Perfil',
+    description: 'Consulte seus dados e ajuste suas preferências.',
+    to: ROUTES.PROFILE,
   },
 ]
 
@@ -95,7 +101,7 @@ export default function HubPage() {
       ) : modules.length === 0 && !canManageTeam && !canManageCompanies ? (
         <div className="mt-8 rounded-[var(--radius-panel)] border border-[var(--color-panel-border)] bg-[var(--color-panel-bg)] p-6">
           <h2 className="font-bold text-[var(--color-text-strong)]">
-            Nenhum módulo disponível
+            Nenhum módulo de trabalho disponível
           </h2>
           <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
             Solicite ao administrador do escritório a liberação dos seus
@@ -109,16 +115,18 @@ export default function HubPage() {
       >
         {destinations
           .filter((item) =>
-            item.module === 'team'
-              ? canManageTeam
-              : item.module === 'companies'
-                ? canManageCompanies
-                : modules.some(
-                    (module) =>
-                      module.module === item.module &&
-                      (item.module !== 'honorarios' ||
-                        module.actions.includes('read')),
-                  ),
+            item.module === 'profile'
+              ? true
+              : item.module === 'team'
+                ? canManageTeam
+                : item.module === 'companies'
+                  ? canManageCompanies
+                  : modules.some(
+                      (module) =>
+                        module.module === item.module &&
+                        (item.module !== 'honorarios' ||
+                          module.actions.includes('read')),
+                    ),
           )
           .map((item) => {
             const access = modules.find(
@@ -161,7 +169,11 @@ export default function HubPage() {
   )
 }
 
-function ModuleIcon({ module }: { module: AppModule | 'team' | 'companies' }) {
+function ModuleIcon({
+  module,
+}: {
+  module: AppModule | 'team' | 'companies' | 'profile'
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -173,7 +185,12 @@ function ModuleIcon({ module }: { module: AppModule | 'team' | 'companies' }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      {module === 'team' ? (
+      {module === 'profile' ? (
+        <>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21v-2a8 8 0 0 1 16 0v2" />
+        </>
+      ) : module === 'team' ? (
         <>
           <circle cx="9" cy="8" r="3" />
           <path d="M3 21v-3a6 6 0 0 1 12 0v3M17 5a3 3 0 0 1 0 6M21 21v-3a6 6 0 0 0-4-5.65" />

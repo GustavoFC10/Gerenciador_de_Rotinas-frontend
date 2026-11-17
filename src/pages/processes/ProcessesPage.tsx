@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import ProcessDetails from '../../components/processes/ProcessDetails'
-import PrivateImage from '../../components/files/PrivateImage'
+import SidebarProfileLink from '../../components/common/SidebarProfileLink'
+import ModulesReturnLink from '../../components/common/ModulesReturnLink'
 import ProcessForm from '../../components/processes/ProcessForm'
 import ProcessIcon from '../../components/processes/ProcessIcon'
 import ProcessList from '../../components/processes/ProcessList'
@@ -81,7 +82,7 @@ const loadingPage: ProcessPage = {
 }
 
 export default function ProcessesPage() {
-  const { activeMembership, logout, refreshSession } = useAuth()
+  const { activeMembership, session, logout, refreshSession } = useAuth()
   const { notify, dismiss } = useNotifications()
   const navigate = useNavigate()
   const location = useLocation()
@@ -835,12 +836,11 @@ export default function ProcessesPage() {
           </button>
         </div>
         <div className="side-scroll">
+          <div className="mb-4 border-b border-[var(--color-sidebar-border)] pb-4">
+            <ModulesReturnLink onNavigate={() => setMenuOpen(false)} />
+          </div>
           <section>
             <nav>
-              <Link className="nav-i" to={ROUTES.HUB}>
-                <ProcessIcon name="swap" />
-                Trocar módulo
-              </Link>
               <Link
                 className="nav-i"
                 aria-current={!page ? 'page' : undefined}
@@ -1030,35 +1030,13 @@ export default function ProcessesPage() {
             </section>
           )}
         </div>
-        <div className="side-foot">
-          <Link
-            className="user"
-            to={ROUTES.HUB_PROFILE}
-            aria-label={`Abrir perfil de ${activeMembership!.displayName}`}
-          >
-            {activeMembership!.avatar ? (
-              <PrivateImage
-                reference={activeMembership!.avatar}
-                label={activeMembership!.displayName}
-                className="size-9"
-              />
-            ) : (
-              <span className="avatar">
-                {activeMembership!.displayName
-                  .split(/\s+/)
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .map((word) => word[0])
-                  .join('')}
-              </span>
-            )}
-            <span>
-              <b>{activeMembership!.displayName}</b>
-              <small>
-                {chosenSector ? PROCESS_SECTORS[chosenSector] : 'Processos'}
-              </small>
-            </span>
-          </Link>
+        <div className="side-foot" data-sidebar-profile>
+          <SidebarProfileLink
+            name={activeMembership!.displayName}
+            description={session?.user.email ?? 'Perfil'}
+            avatar={activeMembership!.avatar}
+            onNavigate={() => setMenuOpen(false)}
+          />
           <button
             className="nav-i sm"
             onClick={() => void leave()}

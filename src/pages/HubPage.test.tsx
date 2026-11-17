@@ -79,7 +79,7 @@ describe('HubPage module access', () => {
     const markup = renderHub([], 'owner')
     expect(markup).toContain('href="/equipe"')
     expect(markup).toContain('Acessar equipe')
-    expect(markup).not.toContain('Nenhum módulo disponível')
+    expect(markup).not.toContain('Nenhum módulo de trabalho disponível')
     expect(markup).not.toContain('href="/processos"')
     expect(markup).not.toContain('href="/"')
   })
@@ -121,7 +121,7 @@ describe('HubPage module access', () => {
   it('keeps Equipe unavailable to an admin even with no modules', () => {
     const markup = renderHub([], 'admin')
     expect(markup).not.toContain('href="/cadastro-empresas"')
-    expect(markup).toContain('Nenhum módulo disponível')
+    expect(markup).toContain('Nenhum módulo de trabalho disponível')
     expect(markup).not.toContain('href="/configuracoes/modulos"')
     expect(markup).not.toContain('href="/equipe"')
     expect(markup).not.toContain('href="/processos"')
@@ -144,4 +144,12 @@ describe('HubPage module access', () => {
     expect(markup).toContain('href="/cadastro-empresas"')
     expect(markup).toContain('Acessar empresas')
   })
+  it.each(['owner', 'admin', 'member'] as const)(
+    'offers Perfil to %s without module grants',
+    (role) => {
+      const markup = renderHub([], role)
+      expect(markup).toContain('Acessar perfil')
+      expect(markup).toContain('href="/perfil"')
+    },
+  )
 })

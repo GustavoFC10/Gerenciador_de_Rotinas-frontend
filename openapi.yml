@@ -21427,6 +21427,26 @@ components:
           type: string
           format: date
           nullable: true
+        competenciaInicioAtividade:
+          type: string
+          nullable: true
+          description: Mês/ano YYYY-MM ou null; abertura, mei, outro e reativacao.
+            Informação operacional.
+          maxLength: 7
+          pattern: ^[0-9]{4}-(0[1-9]|1[0-2])$
+        competenciaInicioInatividade:
+          type: string
+          nullable: true
+          description: Mês/ano YYYY-MM ou null; somente inativa. Informação operacional.
+          maxLength: 7
+          pattern: ^[0-9]{4}-(0[1-9]|1[0-2])$
+        ultimaCompetenciaTrabalho:
+          type: string
+          nullable: true
+          description: Mês/ano YYYY-MM ou null; inatividade, baixa, saida e exclusao.
+            Informação operacional.
+          maxLength: 7
+          pattern: ^[0-9]{4}-(0[1-9]|1[0-2])$
         obs:
           type: string
           maxLength: 5000
@@ -21454,6 +21474,9 @@ components:
           type: string
           format: date
           nullable: true
+          description: Início da cobrança YYYY-MM-DD ou null; também aceito em aumento_honorarios
+            e reducao_honorarios. Visível somente com viewFinancial. Alterar apenas
+            esta data não reabre a tarefa de um reajuste concluído.
         trab:
           type: boolean
         trabQtd:
@@ -21718,6 +21741,26 @@ components:
           type: string
           format: date
           nullable: true
+        competenciaInicioAtividade:
+          type: string
+          nullable: true
+          description: Mês/ano YYYY-MM ou null; abertura, mei, outro e reativacao.
+            Informação operacional.
+          maxLength: 7
+          pattern: ^[0-9]{4}-(0[1-9]|1[0-2])$
+        competenciaInicioInatividade:
+          type: string
+          nullable: true
+          description: Mês/ano YYYY-MM ou null; somente inativa. Informação operacional.
+          maxLength: 7
+          pattern: ^[0-9]{4}-(0[1-9]|1[0-2])$
+        ultimaCompetenciaTrabalho:
+          type: string
+          nullable: true
+          description: Mês/ano YYYY-MM ou null; inatividade, baixa, saida e exclusao.
+            Informação operacional.
+          maxLength: 7
+          pattern: ^[0-9]{4}-(0[1-9]|1[0-2])$
         obs:
           type: string
           maxLength: 5000
@@ -21745,6 +21788,9 @@ components:
           type: string
           format: date
           nullable: true
+          description: Início da cobrança YYYY-MM-DD ou null; também aceito em aumento_honorarios
+            e reducao_honorarios. Visível somente com viewFinancial. Alterar apenas
+            esta data não reabre a tarefa de um reajuste concluído.
         trab:
           type: boolean
         trabQtd:
@@ -22019,6 +22065,26 @@ components:
           type: string
           format: date
           nullable: true
+        competenciaInicioAtividade:
+          type: string
+          nullable: true
+          description: Mês/ano YYYY-MM ou null; abertura, mei, outro e reativacao.
+            Informação operacional.
+          maxLength: 7
+          pattern: ^[0-9]{4}-(0[1-9]|1[0-2])$
+        competenciaInicioInatividade:
+          type: string
+          nullable: true
+          description: Mês/ano YYYY-MM ou null; somente inativa. Informação operacional.
+          maxLength: 7
+          pattern: ^[0-9]{4}-(0[1-9]|1[0-2])$
+        ultimaCompetenciaTrabalho:
+          type: string
+          nullable: true
+          description: Mês/ano YYYY-MM ou null; inatividade, baixa, saida e exclusao.
+            Informação operacional.
+          maxLength: 7
+          pattern: ^[0-9]{4}-(0[1-9]|1[0-2])$
         obs:
           type: string
           maxLength: 5000
@@ -22046,6 +22112,9 @@ components:
           type: string
           format: date
           nullable: true
+          description: Início da cobrança YYYY-MM-DD ou null; também aceito em aumento_honorarios
+            e reducao_honorarios. Visível somente com viewFinancial. Alterar apenas
+            esta data não reabre a tarefa de um reajuste concluído.
         trab:
           type: boolean
         trabQtd:

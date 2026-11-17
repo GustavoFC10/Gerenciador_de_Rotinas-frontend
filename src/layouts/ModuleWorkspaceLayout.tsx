@@ -104,7 +104,7 @@ export default function ModuleWorkspaceLayout({
               </Select>
             )}
             <Link
-              to={ROUTES.HUB_PROFILE}
+              to={ROUTES.PROFILE}
               className={`inline-flex min-h-10 items-center rounded-[var(--radius-control)] px-2 text-sm font-semibold text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-brand)] ${focusRing}`}
             >
               {activeMembership?.displayName}

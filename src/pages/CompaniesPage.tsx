@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import CompanyReturnLink from '../components/common/CompanyReturnLink'
 
 import {
   CatalogAction,
@@ -59,76 +60,81 @@ function CompaniesPage({ data }: { data: RoutineControlData }) {
   }, [data.clients, search])
 
   return (
-    <CatalogList
-      title="Empresas"
-      countLabel={`${data.clients.length} cadastradas`}
-      resultLabel={`${clients.length} de ${data.clients.length}`}
-      searchLabel="Buscar empresas"
-      searchPlaceholder="Buscar por nome, código, CNPJ ou e-mail"
-      searchValue={search}
-      onSearchChange={setSearch}
-      action={
-        isOrganizationAdmin(user) ? (
-          <CatalogAction to={ROUTES.COMPANY_CREATE}>Nova empresa</CatalogAction>
-        ) : undefined
-      }
-    >
-      <CatalogHeader gridClass={companyGrid}>
-        <span>Código</span>
-        <span>Empresa</span>
-        <span>CNPJ</span>
-        <span>Rotinas</span>
-        <span>Situação</span>
-        <span />
-      </CatalogHeader>
-      {clients.length ? (
-        <CatalogRows>
-          {clients.map((client) => (
-            <CatalogRow
-              key={client.id}
-              to={`${ROUTES.COMPANIES}/${encodeURIComponent(client.id)}?source=catalog`}
-              ariaLabel={`Abrir empresa ${client.name}`}
-              gridClass={companyGrid}
-            >
-              <CatalogDatum
-                label="Código"
-                className="font-extrabold text-[var(--color-text-strong)]"
+    <>
+      <CompanyReturnLink />
+      <CatalogList
+        title="Empresas"
+        countLabel={`${data.clients.length} cadastradas`}
+        resultLabel={`${clients.length} de ${data.clients.length}`}
+        searchLabel="Buscar empresas"
+        searchPlaceholder="Buscar por nome, código, CNPJ ou e-mail"
+        searchValue={search}
+        onSearchChange={setSearch}
+        action={
+          isOrganizationAdmin(user) ? (
+            <CatalogAction to={ROUTES.COMPANY_CREATE}>
+              Nova empresa
+            </CatalogAction>
+          ) : undefined
+        }
+      >
+        <CatalogHeader gridClass={companyGrid}>
+          <span>Código</span>
+          <span>Empresa</span>
+          <span>CNPJ</span>
+          <span>Rotinas</span>
+          <span>Situação</span>
+          <span />
+        </CatalogHeader>
+        {clients.length ? (
+          <CatalogRows>
+            {clients.map((client) => (
+              <CatalogRow
+                key={client.id}
+                to={`${ROUTES.COMPANIES}/${encodeURIComponent(client.id)}?source=catalog`}
+                ariaLabel={`Abrir empresa ${client.name}`}
+                gridClass={companyGrid}
               >
-                {getCompanyCodeLabel(client.code)}
-              </CatalogDatum>
-              <CatalogPrimary
-                title={client.name}
-                description={
-                  client.legalName !== client.name
-                    ? client.legalName
-                    : client.email
-                }
-              />
-              <CatalogDatum label="CNPJ">
-                {client.document ?? 'Não informado'}
-              </CatalogDatum>
-              <CatalogDatum label="Rotinas">
-                {routinesByClient.get(client.id)?.size ?? 0}
-              </CatalogDatum>
-              <CatalogDatum label="Situação">
-                <CatalogStatus active={client.active !== false} />
-              </CatalogDatum>
-              <CatalogChevron />
-            </CatalogRow>
-          ))}
-        </CatalogRows>
-      ) : (
-        <CatalogEmpty
-          title={
-            search
-              ? `Nenhuma empresa encontrada para “${search}”.`
-              : 'Nenhuma empresa cadastrada.'
-          }
-          searchValue={search}
-          onClear={() => setSearch('')}
-        />
-      )}
-    </CatalogList>
+                <CatalogDatum
+                  label="Código"
+                  className="font-extrabold text-[var(--color-text-strong)]"
+                >
+                  {getCompanyCodeLabel(client.code)}
+                </CatalogDatum>
+                <CatalogPrimary
+                  title={client.name}
+                  description={
+                    client.legalName !== client.name
+                      ? client.legalName
+                      : client.email
+                  }
+                />
+                <CatalogDatum label="CNPJ">
+                  {client.document ?? 'Não informado'}
+                </CatalogDatum>
+                <CatalogDatum label="Rotinas">
+                  {routinesByClient.get(client.id)?.size ?? 0}
+                </CatalogDatum>
+                <CatalogDatum label="Situação">
+                  <CatalogStatus active={client.active !== false} />
+                </CatalogDatum>
+                <CatalogChevron />
+              </CatalogRow>
+            ))}
+          </CatalogRows>
+        ) : (
+          <CatalogEmpty
+            title={
+              search
+                ? `Nenhuma empresa encontrada para “${search}”.`
+                : 'Nenhuma empresa cadastrada.'
+            }
+            searchValue={search}
+            onClear={() => setSearch('')}
+          />
+        )}
+      </CatalogList>
+    </>
   )
 }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import Card from '../components/ui/Card'
@@ -6,6 +6,7 @@ import ImageEditor from '../components/files/ImageEditor'
 import Button from '../components/ui/Button'
 import Select from '../components/ui/Select'
 import TextField from '../components/ui/TextField'
+import UserAvatar from '../components/ui/UserAvatar'
 import { appThemeOptions } from '../constants/designTokens'
 import { useAppState } from '../hooks/useAppState'
 import { useAuth } from '../hooks/useAuth'
@@ -22,7 +23,6 @@ function ProfilePage() {
   async function handleLogout() {
     setIsLoggingOut(true)
     setLogoutError('')
-
     try {
       await logout()
       navigate(ROUTES.LOGIN, { replace: true })
@@ -37,52 +37,73 @@ function ProfilePage() {
   }
 
   return (
-    <Card className="max-w-2xl p-5">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-divider)] pb-4">
-        <h1 className="text-xl font-extrabold text-[var(--color-text-strong)] sm:text-2xl">
-          Perfil e preferências
-        </h1>
+    <Card className="mx-auto w-full max-w-2xl p-4 sm:p-5">
+      <header className="border-b border-[var(--color-divider)] pb-4">
+        <h1 className="app-page-title">Perfil e preferências</h1>
+      </header>
+
+      <div className="mt-5 flex flex-wrap items-center gap-4">
+        <UserAvatar
+          name={user.name}
+          avatar={user.avatar}
+          avatarUrl={user.avatarUrl}
+          size="lg"
+        />
         <ImageEditor
           destination={{
             purpose: 'member_avatar',
             target: { memberId: user.membershipId },
           }}
           label={user.name}
+          showPreview={false}
         />
-      </header>
+      </div>
+
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <TextField label="Nome" value={user.name} readOnly />
         <TextField label="Email" value={user.email} readOnly />
-        <Select
-          label="Tema"
-          value={preferences.theme}
-          onChange={(event) =>
-            setPreferences((current) => ({
-              ...current,
-              theme: event.target.value as AppTheme,
-            }))
-          }
-        >
-          {appThemeOptions.map((theme) => (
-            <option key={theme.value} value={theme.value}>
-              {theme.label}
-            </option>
-          ))}
-        </Select>
-        <Select
-          label="Densidade"
-          value={preferences.density}
-          onChange={(event) =>
-            setPreferences((current) => ({
-              ...current,
-              density: event.target.value as AppDensity,
-            }))
-          }
-        >
-          <option value="compact">Compacta</option>
-          <option value="comfortable">Confortavel</option>
-        </Select>
       </div>
+
+      <fieldset className="mt-6 min-w-0 border-t border-[var(--color-divider)] pt-4">
+        <legend className="app-section-title pr-2">Preferências</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select
+            label="Tema"
+            value={preferences.theme}
+            onChange={(event) =>
+              setPreferences((current) => ({
+                ...current,
+                theme: event.target.value as AppTheme,
+              }))
+            }
+          >
+            {appThemeOptions.map((theme) => (
+              <option key={theme.value} value={theme.value}>
+                {theme.label}
+              </option>
+            ))}
+          </Select>
+          <div className="min-w-0">
+            <Select
+              label="Densidade"
+              aria-describedby="profile-density-description"
+              value={preferences.density}
+              onChange={(event) =>
+                setPreferences((current) => ({
+                  ...current,
+                  density: event.target.value as AppDensity,
+                }))
+              }
+            >
+              <option value="compact">Compacta</option>
+              <option value="comfortable">Confortável</option>
+            </Select>
+            <p id="profile-density-description" className="app-caption mt-2">
+              Espaçamento dos itens da navegação.
+            </p>
+          </div>
+        </div>
+      </fieldset>
 
       {logoutError && (
         <p
@@ -93,7 +114,8 @@ function ProfilePage() {
         </p>
       )}
 
-      <footer className="mt-6 flex justify-end border-t border-[var(--color-divider)] pt-4">
+      <footer className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[var(--color-divider)] pt-4">
+        <p className="app-caption">Preferências aplicadas automaticamente.</p>
         <Button
           tone="neutral"
           disabled={isLoggingOut}

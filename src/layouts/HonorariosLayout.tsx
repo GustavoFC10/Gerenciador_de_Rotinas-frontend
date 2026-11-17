@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router'
 
 import Badge from '../components/ui/Badge'
+import SidebarProfileLink from '../components/common/SidebarProfileLink'
+import ModulesReturnLink from '../components/common/ModulesReturnLink'
 import Button from '../components/ui/Button'
 import IconButton from '../components/ui/IconButton'
 import { appThemeClass, focusRing } from '../constants/designTokens'
@@ -73,14 +75,6 @@ export default function HonorariosLayout({
   const closeRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLButtonElement>(null)
   const name = activeMembership?.displayName ?? 'Perfil'
-  const initials =
-    name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase() || 'U'
 
   useEffect(() => {
     setNavigationOpen(false)
@@ -204,18 +198,10 @@ export default function HonorariosLayout({
             aria-label="Navegação de Honorários"
             className="flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4"
           >
-            <Link
-              to={ROUTES.HUB}
-              onClick={() => setNavigationOpen(false)}
-              className={`mb-4 flex min-h-10 items-center gap-3 rounded-[var(--radius-control)] border border-[var(--color-control-border)] bg-[var(--color-control-bg)] px-3 text-sm font-semibold text-[var(--color-nav-item-text)] transition hover:bg-[var(--color-control-hover-bg)] ${focusRing}`}
-            >
-              <Icon name="modules" />
-              Voltar aos módulos
-            </Link>
-            <div className="mb-4 border-t border-[var(--color-sidebar-border)]" />
-            <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-sidebar-section-text)]">
-              Gestão de honorários
-            </p>
+            <div className="mb-4 border-b border-[var(--color-sidebar-border)] pb-4">
+              <ModulesReturnLink onNavigate={() => setNavigationOpen(false)} />
+            </div>
+            <p className="app-nav-section mb-2 px-3">Gestão de honorários</p>
             <ul className="space-y-1">
               {links.map((link) => (
                 <li key={link.to}>
@@ -225,7 +211,7 @@ export default function HonorariosLayout({
                       to={link.to}
                       aria-current="page"
                       onClick={() => setNavigationOpen(false)}
-                      className={`flex min-h-11 items-center gap-3 rounded-[var(--radius-nav-item)] border border-[var(--color-brand-border)] bg-[var(--color-nav-item-active-bg)] px-3 text-sm font-semibold text-[var(--color-nav-item-active-text)] ${focusRing}`}
+                      className={`app-nav-label flex min-h-[var(--size-nav-item)] items-center gap-3 rounded-[var(--radius-nav-item)] border border-[var(--color-brand-border)] bg-[var(--color-nav-item-active-bg)] px-3 text-sm font-semibold text-[var(--color-nav-item-active-text)] ${focusRing}`}
                     >
                       <Icon name={link.icon} />
                       {link.label}
@@ -242,7 +228,7 @@ export default function HonorariosLayout({
                       }
                       onClick={() => setNavigationOpen(false)}
                       className={({ isActive }) =>
-                        `flex min-h-11 items-center gap-3 rounded-[var(--radius-nav-item)] border px-3 text-sm font-semibold transition ${focusRing} ${isActive || (link.to.endsWith('/orcamentos') && location.pathname === '/honorarios/novo') ? 'border-[var(--color-brand-border)] bg-[var(--color-nav-item-active-bg)] text-[var(--color-nav-item-active-text)]' : 'border-transparent text-[var(--color-nav-item-text)] hover:bg-[var(--color-nav-item-hover-bg)] hover:text-[var(--color-text-strong)]'}`
+                        `app-nav-label flex min-h-[var(--size-nav-item)] items-center gap-3 rounded-[var(--radius-nav-item)] border px-3 text-sm font-semibold transition ${focusRing} ${isActive || (link.to.endsWith('/orcamentos') && location.pathname === '/honorarios/novo') ? 'border-[var(--color-brand-border)] bg-[var(--color-nav-item-active-bg)] text-[var(--color-nav-item-active-text)]' : 'border-transparent text-[var(--color-nav-item-text)] hover:bg-[var(--color-nav-item-hover-bg)] hover:text-[var(--color-text-strong)]'}`
                       }
                     >
                       <Icon name={link.icon} />
@@ -257,28 +243,12 @@ export default function HonorariosLayout({
             className="shrink-0 space-y-2 border-t border-[var(--color-sidebar-border)] p-3"
             data-sidebar-profile
           >
-            <Link
-              to={ROUTES.HUB_PROFILE}
-              onClick={() => setNavigationOpen(false)}
-              aria-label={`Abrir perfil de ${name}`}
-              className={`flex min-h-12 items-center gap-3 rounded-[var(--radius-nav-item)] p-2 hover:bg-[var(--color-nav-item-hover-bg)] ${focusRing}`}
-            >
-              <span
-                aria-hidden="true"
-                className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--color-brand-soft)] text-xs font-bold text-[var(--color-brand)]"
-              >
-                {initials}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-[var(--color-text-strong)]">
-                  {name}
-                </span>
-                <span className="block truncate text-xs text-[var(--color-text-muted)]">
-                  {session?.user.email || roleLabel}
-                </span>
-              </span>
-              <Icon name="chevron" />
-            </Link>
+            <SidebarProfileLink
+              name={name}
+              description={session?.user.email || roleLabel}
+              avatar={activeMembership?.avatar}
+              onNavigate={() => setNavigationOpen(false)}
+            />
             <Button
               className="w-full justify-start gap-3"
               tone="ghost"
