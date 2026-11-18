@@ -2160,11 +2160,13 @@ Para quem não tem `viewFinancial`, a API **omite as propriedades** `custo`, `pa
 e `honPerdido`, nos detalhes. A lista de resumos não inclui campos financeiros nem
 textos privados para qualquer setor; consulte o detalhe ou o relatório autorizado.
 Não use a ausência como valor zero.
-Textos livres `obs`, `altDesc`, `regimeObs`, `motivoObs` e `contadorContato`
-também são confidenciais: podem conter valores escritos sem símbolo monetário.
-`contato` é operacional, pode ser informado em qualquer tipo de processo e aparece
-nos detalhes para todos os leitores autorizados; não aparece nos resumos, histórico
-público ou notificações. A indicação do pagador no texto da tarefa de guia é omitida.
+Textos livres `obs`, `altDesc`, `regimeObs`, `motivoObs` e
+`contadorContato` também são confidenciais: podem conter valores escritos sem
+símbolo monetário. `contato` é operacional, pode ser informado em qualquer tipo
+de processo e aparece nos detalhes para todos os leitores autorizados; não aparece
+nos resumos, histórico público ou notificações. Os valores anteriores do contato
+permanecem na auditoria confidencial. A indicação do pagador no texto da
+tarefa de guia é omitida.
 
 Notas de autores que possuem acesso financeiro são sempre confidenciais. Só
 Diretoria/Financeiro as recebem. Notas de autores sem esse acesso são operacionais
@@ -2206,7 +2208,7 @@ Situações são selecionadas exclusivamente pelo campo `status` salvo no banco:
 | `cancelado` | Cancelamento explícito.                                      | Não                          |
 
 Filtros de lista/indicadores: `tipo`, `status` repetível, `responsibleSector`,
-`queueSector`, `otherSector` (`com`, `fin`, `reg`), `q` (empresa, CNPJ, protocolo ou código) e
+`queueSector`, `otherSector` (`com`, `fin`, `reg`), `q` (empresa, CNPJ ou código interno) e
 `month` (`YYYY-MM`, mês de abertura no fuso da organização). Repetir `status`
 combina valores com OR; filtros diferentes são cumulativos em AND. Os demais
 parâmetros da lista não podem ser repetidos. Sem `status`, todos os cinco estados
@@ -2284,19 +2286,21 @@ Os nomes do HTML foram mantidos nos dados do processo. Valores monetários são
 strings decimais em BRL com duas casas, até 14 dígitos no total e sem valores
 negativos. Datas usam `YYYY-MM-DD`; timestamps usam ISO 8601 com fuso.
 
-| Grupo                | Campos aceitos                                                                                                                                                                                                                                                                                                                                                                       |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Identificação        | `tipo` (obrigatório e imutável), `empresa` livre obrigatório (até 200) em todos os tipos, `cnpj` livre opcional, validado e normalizado; não enviar `companyId`. `outros` mantém somente nome, sem CNPJ. Nenhum tipo exige cadastro prévio. `protocolo` até 160 é uma referência externa opcional preenchida manualmente; não é o código interno do processo nem aciona integrações. |
-| Outros               | `descricaoProcesso` (texto obrigatório, até 3000), `valorProcesso` (decimal BRL obrigatório, maior ou igual a zero), `departamentoSolicitado` (`fin` ou `reg`, obrigatório), `acionarLeggacy` (booleano obrigatório)                                                                                                                                                                 |
-| Datas e observações  | `prazo` (data ou null), `inicioInat` (data ou null), `obs` (até 5000)                                                                                                                                                                                                                                                                                                                |
-| Custos               | `custo`, `pagador` (`cliente` ou `jaralcon`), `parcelas` (1–360)                                                                                                                                                                                                                                                                                                                     |
-| Honorários           | `honorario` (contábil), `honCobranca` (início da cobrança), `trab` (booleano), `trabQtd` (1–100000), `trabValor` (valor por funcionário), `honAnterior` (honorário anterior), `honPerdido`                                                                                                                                                                                           |
-| Alteração contratual | `altItens` (sem repetição: `societario`, `capital`, `bens`, `endereco`, `razao`, `atividades`, `outros`), `altDesc` (até 3000)                                                                                                                                                                                                                                                       |
-| Motivo               | `motivo` (`encerramento`, `honorarios`, `atendimento`, `concorrente`, `inadimplencia`, `venda`, `reducao`, `outros`), `motivoObs` (até 1500)                                                                                                                                                                                                                                         |
-| Regime               | `regime` (`simples`, `presumido`, `real`), `regimeObs` (até 3000)                                                                                                                                                                                                                                                                                                                    |
-| Contato operacional  | `contato` (até 500), aceito em qualquer tipo; aparece nos detalhes para os leitores autorizados, mas não nos resumos, histórico público ou notificações                                                                                                                                                                                                                              |
-| Saída                | `novoContador` (booleano), `contadorNome` (até 200), `contadorContato` (até 500)                                                                                                                                                                                                                                                                                                     |
-| Opções               | `reatJunta`, `reunAlinh`, `reunAcomp` (booleanos)                                                                                                                                                                                                                                                                                                                                    |
+| Grupo                     | Campos aceitos                                                                                                                                                                                                                                                                                                                 |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Identificação             | `tipo` (obrigatório e imutável), `empresa` livre obrigatório (até 200) em todos os tipos, `cnpj` livre opcional, validado e normalizado; não enviar `companyId`. `outros` mantém somente nome, sem CNPJ. Nenhum tipo exige cadastro prévio. O código interno `codigo` é gerado pelo backend; o campo `protocolo` foi removido. |
+| Outros                    | `descricaoProcesso` (texto obrigatório, até 3000), `valorProcesso` (decimal BRL obrigatório, maior ou igual a zero), `departamentoSolicitado` (`fin` ou `reg`, obrigatório), `acionarLeggacy` (booleano obrigatório)                                                                                                           |
+| Datas e observações       | `prazo` (data ou null), `inicioInat` (data ou null), `obs` (até 5000)                                                                                                                                                                                                                                                          |
+| Competências operacionais | `competenciaInicioAtividade`, `competenciaInicioInatividade`, `ultimaCompetenciaTrabalho`: mês/ano `YYYY-MM` ou null, opcionais, conforme os tipos abaixo                                                                                                                                                                      |
+| Custos                    | `custo`, `pagador` (`cliente` ou `jaralcon`), `parcelas` (1–360)                                                                                                                                                                                                                                                               |
+| Honorários                | `honorario` (contábil), `honCobranca` (início da cobrança), `trab` (booleano), `trabQtd` (1–100000), `trabValor` (valor por funcionário), `honAnterior` (honorário anterior), `honPerdido`                                                                                                                                     |
+| Alteração contratual      | `altItens` (sem repetição: `societario`, `capital`, `bens`, `endereco`, `razao`, `atividades`, `outros`), `altDesc` (até 3000)                                                                                                                                                                                                 |
+| Motivo                    | `motivo` (`encerramento`, `honorarios`, `atendimento`, `concorrente`, `inadimplencia`, `venda`, `reducao`, `outros`), `motivoObs` (até 1500)                                                                                                                                                                                   |
+| Regime                    | `regime` (`simples`, `presumido`, `real`), `regimeObs` (até 3000)                                                                                                                                                                                                                                                              |
+| Contato operacional       | `contato` (até 500), aceito em qualquer tipo; aparece nos detalhes para os leitores autorizados, mas não nos resumos, histórico público ou notificações                                                                                                                                                                        |
+| Saída                     | `novoContador` (booleano), `contadorNome` (até 200), `contadorContato` (até 500)                                                                                                                                                                                                                                               |
+| Exclusão de cliente       | `entregaDocumentacao` (booleano opcional, padrão true), controla a etapa de entrega de documentação; aceito somente no tipo `exclusao`                                                                                                                                                                                         |
+| Opções                    | `reatJunta`, `reunAlinh`, `reunAcomp` (booleanos)                                                                                                                                                                                                                                                                              |
 
 Campos específicos são aceitos somente nos tipos aplicáveis. Ausência permite
 definir dados depois; `null` é aceito em datas, valores, pagador, parcelas, regime,
@@ -2310,6 +2314,37 @@ CNPJ com `version` e auditoria, sem alterar o cadastro central. Não há associa
 consulta ou criação automática de empresa por nome/CNPJ. Cada processo conserva
 sua identificação independente; CNPJ repetido em processos é permitido.
 
+As competências são referências de mês e ano do trabalho, sem dia, com mês de
+`01` a `12` (exemplo: `"2026-11"`). Não aceitam string vazia, espaços,
+`11/2026`, `2026-13` nem `2026-11-01`.
+
+| Campo                          | Tipos que aceitam competência preenchida                               |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| `competenciaInicioAtividade`   | `abertura`, `mei`, `outro` (cliente de outro escritório), `reativacao` |
+| `competenciaInicioInatividade` | `inativa` (inatividade com honorário reduzido)                         |
+| `ultimaCompetenciaTrabalho`    | `inatividade` (paralisação), `baixa`, `saida`, `exclusao`              |
+
+Em POST, omissão ou null significam não informado. Em PATCH, omissão preserva o
+valor anterior e null limpa. Competência preenchida em tipo incompatível retorna
+400; null é tolerado também nos demais tipos, como nos outros campos opcionais.
+Os valores são persistidos em `Process.data` e retornados no POST, PATCH e detalhe
+GET para todos os leitores autorizados, inclusive Regularidade, sem exigir
+`viewFinancial`. Registros antigos sem essas propriedades continuam válidos; o
+detalhe pode omiti-las até serem informadas. O resumo da lista permanece enxuto.
+Preencher, alterar ou limpar competência não altera automaticamente prazo, status,
+etapas, tarefas, ciclos de lembrete ou movimentações. O relógio normal do processo
+continua valendo. Na criação, valores informados são auditados em
+`opened.details.values`; na edição, `edited.details.before` e `after` registram
+apenas competências alteradas, inclusive null na limpeza. Esses dados operacionais
+são visíveis no histórico aos leitores autorizados; valores financeiros continuam
+restritos.
+
+Exemplo de PATCH em uma abertura (usar a versão atual do processo):
+
+```json
+{ "version": 3, "competenciaInicioAtividade": "2026-11" }
+```
+
 As respostas mantêm `companyId=null`, `companyReference=null` e
 `companyLinkRequired=false` apenas para compatibilidade de leitura. As rotas
 `processes/company-options/` e `processes/{id}/company-link/` foram removidas.
@@ -2318,21 +2353,79 @@ excluídos, preservando nome/CNPJ, workflow, tarefas e histórico. A versão dos
 registros afetados é incrementada; a referência anterior é registrada em evento
 confidencial `company_unlinked`. Empresas do cadastro central não são alteradas.
 
-| `tipo`               | Significado e particularidades                                                                                    |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `abertura`           | Abertura; custo, honorário, regime, reuniões                                                                      |
-| `mei`                | Transformação MEI → ME; custo, honorário, regime, reuniões                                                        |
-| `outro`              | Cliente de outro escritório; honorário, regime, reuniões                                                          |
-| `outros`             | Atividade específica, com duas etapas atribuídas ao departamento solicitado; fluxo interno ou via Leggacy         |
-| `alteracao`          | Alteração contratual; exige itens, descrição, custo, pagador e parcelas na abertura e edição                      |
-| `inatividade`        | **Paralisação**; exige `honPerdido`, usa `inicioInat` em lugar de prazo                                           |
-| `inativa`            | **Inatividade**; honorário reduzido, `honAnterior`, `inicioInat` em lugar de prazo                                |
-| `reativacao`         | Honorário, reuniões e etapa opcional controlada por `reatJunta`                                                   |
-| `baixa`              | Baixa; exige `honPerdido`, tem custo e motivo                                                                     |
-| `saida`              | Saída; exige `honPerdido`; se `novoContador=true`, exige nome e contato do contador                               |
-| `exclusao`           | Exclusão de cliente; exige `honPerdido`, tem motivo                                                               |
-| `aumento_honorarios` | Aumento de honorários contábeis; exige `honAnterior` e `honorario` maior que o anterior; uma tarefa do Financeiro |
-| `reducao_honorarios` | Redução de honorários contábeis; exige `honAnterior` e `honorario` menor que o anterior; uma tarefa do Financeiro |
+| `tipo`               | Significado e particularidades                                                                                              |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `abertura`           | Abertura; custo, honorário, regime, reuniões                                                                                |
+| `mei`                | Transformação MEI → ME; custo, honorário, regime, reuniões                                                                  |
+| `outro`              | Cliente de outro escritório; honorário, regime, reuniões                                                                    |
+| `outros`             | Atividade específica, com duas etapas atribuídas ao departamento solicitado; fluxo interno ou via Leggacy                   |
+| `alteracao`          | Alteração contratual; exige itens, descrição, custo, pagador e parcelas na abertura e edição                                |
+| `inatividade`        | **Paralisação**; exige `honPerdido`, usa `inicioInat` em lugar de prazo                                                     |
+| `inativa`            | **Inatividade**; honorário reduzido, `honAnterior`, `inicioInat` em lugar de prazo                                          |
+| `reativacao`         | Honorário, reuniões e etapa opcional controlada por `reatJunta`                                                             |
+| `baixa`              | Baixa; exige `honPerdido`, tem custo e motivo                                                                               |
+| `saida`              | Saída; exige `honPerdido`; se `novoContador=true`, exige nome e contato do contador                                         |
+| `exclusao`           | Exclusão de cliente; exige `honPerdido`, tem motivo e etapa de entrega de documentação controlada por `entregaDocumentacao` |
+| `aumento_honorarios` | Aumento de honorários contábeis; exige `honAnterior` e `honorario` maior que o anterior; uma tarefa do Financeiro           |
+| `reducao_honorarios` | Redução de honorários contábeis; exige `honAnterior` e `honorario` menor que o anterior; uma tarefa do Financeiro           |
+
+Nos dois reajustes, há somente uma etapa, **Financeiro**, com uma tarefa manual:
+**Ajustar novos honorários no sistema contábil** (`ah1` no aumento; `rh1` na redução).
+O sistema não altera automaticamente o software contábil. Diretoria cria/edita e
+pode executar todas as tarefas; Financeiro executa sua tarefa. Regularidade pode
+ler o contato, mas não os valores nem executar a tarefa financeira.
+Não enviar `trab`, `trabQtd`, `trabValor`, `custo`, `regime` ou opções
+de reunião nesses tipos. Ambos os valores são não negativos, com duas casas;
+igualdade não representa aumento ou redução e é rejeitada. Alterar qualquer
+honorário depois da conclusão reabre a tarefa para novo ajuste no sistema contábil.
+`honCobranca` também é aceito nos dois reajustes: data opcional `YYYY-MM-DD` ou
+null que indica o início da cobrança do novo valor. POST, PATCH e detalhe GET
+retornam a propriedade apenas para leitores com `viewFinancial`. Omissão no POST
+deixa a data não informada; no PATCH preserva, e null limpa. Preenchimento,
+alteração e limpeza ficam na auditoria financeira confidencial (`definitions` na
+criação; `financial_update` com antes/depois na edição). Alterar apenas essa data
+em reajuste concluído **não reabre a tarefa do Financeiro**, não altera a conclusão
+e não muda a competência usada no relatório de movimentações. Alterar um dos
+honorários mantém a regra existente de reabertura.
+
+Exemplo de PATCH em aumento ou redução de honorários:
+
+```json
+{ "version": 3, "honCobranca": "2026-12-01" }
+```
+
+`honVariacao` é calculado, não pode ser enviado no POST/PATCH, e aparece somente
+no detalhe dos reajustes para leitores financeiros (negativo na redução).
+
+A migração `0009_fee_adjustment_processes` amplia `kind` para 32 caracteres e
+atualiza os tipos permitidos. Preserva os dados e os fluxos dos processos existentes.
+A correção da reativação passa a valer também para processos já cadastrados,
+quando o relatório é consultado; não há recadastro ou migração dos valores.
+
+Atualização de 17/11/2026: `protocolo` não é mais aceito no POST/PATCH, retornado
+no detalhe/resumo nem usado na pesquisa. Campos desconhecidos, inclusive
+`protocolo` vazio ou null, retornam `400`. A migração
+`0010_remove_process_protocol` remove a coluna de referência externa; o código
+interno, a identificação, o fluxo, as tarefas e o histórico são preservados.
+
+Na exclusão, `entregaDocumentacao=true` (padrão quando omitido na criação)
+inclui a etapa **Entrega de documentação**, com a tarefa `ex6`, após o
+encerramento interno. Com `false`, essa etapa fica ausente de `etapas`, do
+progresso e das pendências; comandos para `ex6` retornam `404`. São sete tarefas
+com entrega e seis sem entrega. Não representa uma tarefa marcada como
+concluída ou como "não se aplica".
+
+O detalhe retorna `entregaDocumentacao` aos leitores da exclusão, inclusive
+Regularidade; o resumo não carrega esse campo. Outros tipos rejeitam a opção.
+Na edição, enviar `PATCH /api/v1/processes/{id}/` com `version` e o booleano;
+omissão preserva a escolha atual. A troca recalcula o progresso, os responsáveis
+e a conclusão, com auditoria. Ativar a entrega após a conclusão das outras
+tarefas reabre o processo para a entrega; desativá-la remove seu estado atual
+de `tarefas`, preservando os eventos históricos.
+
+Snapshots antigos são preservados e continuam incluindo a entrega por padrão.
+Se a opção for desativada, a tarefa `ex6` também é omitida de snapshots antigos
+em que ela fazia parte de **Encerramento interno**.
 
 Cadastro de **Outros**, distinto de `outro` (Cliente de outro escritório):
 
@@ -2380,7 +2473,6 @@ Exemplo de abertura (enviar sessão, CSRF e `Idempotency-Key`):
 {
   "tipo": "abertura",
   "empresa": "Empresa Exemplo",
-  "protocolo": "PROTO-2026-001",
   "prazo": "2026-11-30",
   "custo": "500.00",
   "pagador": "cliente",
@@ -2394,7 +2486,7 @@ Exemplo de abertura (enviar sessão, CSRF e `Idempotency-Key`):
 ```
 
 A lista usa um schema de resumo: `id`, `organizationId`, `tipo`, `codigo`, `empresa`,
-`companyId`, `cnpj`, `protocolo`, `prazo`, `status`, `version`, `workflowVersion`,
+`companyId`, `cnpj`, `prazo`, `status`, `version`, `workflowVersion`,
 `criadoPor` (membro da organização), `autorAbertura`, `criadoEm`, `atualizadoEm`,
 `concluidoEm`, `statusChangedAt`, `statusNextEvaluationAt`, `responsibleSectors`,
 `analysis` e `permissions`. Não inclui dados financeiros/textos livres, `tarefas`,

@@ -14,6 +14,50 @@ import {
 } from './processTestFixtures'
 
 describe('process form contract', () => {
+  it.each([true, false, undefined])(
+    'preserves exclusion delivery %s and patches only changes',
+    (entregaDocumentacao) => {
+      const type = processTestCatalog.types.find(
+        (type) => type.id === 'exclusao',
+      )!
+      const process = makeProcessTestResource({
+        tipo: 'exclusao',
+        honPerdido: '700.00',
+        entregaDocumentacao,
+      })
+      const draft = processInputFromResource(process)
+      expect(draft.entregaDocumentacao).toBe(entregaDocumentacao ?? true)
+      const input = normalizeProcessInput(draft, type)
+      expect(input.entregaDocumentacao).toBe(entregaDocumentacao ?? true)
+      expect(changedProcessFields(input, process)).not.toHaveProperty(
+        'entregaDocumentacao',
+      )
+      expect(
+        changedProcessFields(
+          { ...input, entregaDocumentacao: !(entregaDocumentacao ?? true) },
+          process,
+        ),
+      ).toMatchObject({ entregaDocumentacao: !(entregaDocumentacao ?? true) })
+      for (const other of processTestCatalog.types.filter(
+        (item) => item.id !== 'exclusao',
+      )) {
+        expect(processDraftForType(input, other)).not.toHaveProperty(
+          'entregaDocumentacao',
+        )
+        expect(
+          processInputFromResource({ ...process, tipo: other.id }),
+        ).not.toHaveProperty('entregaDocumentacao')
+      }
+      expect(
+        normalizeProcessInput(
+          { ...input, tipo: 'saida' },
+          processTestCatalog.types.find((item) => item.id === 'saida')!,
+        ),
+      ).not.toHaveProperty('entregaDocumentacao')
+      expect(input).not.toHaveProperty('protocolo')
+    },
+  )
+
   it.each(['aumento_honorarios', 'reducao_honorarios'] as const)(
     'validates exact money and simple payloads for %s',
     (tipo) => {
@@ -316,7 +360,6 @@ describe('process form contract', () => {
       tipo: 'inatividade',
       empresa: 'Empresa',
       cnpj: '',
-      protocolo: '',
       obs: '',
       inicioInat: '2026-10-01',
       honPerdido: '0.00',

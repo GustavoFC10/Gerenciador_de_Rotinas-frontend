@@ -12,6 +12,7 @@ import type {
 import ProcessFields, {
   ProcessAlterationFields,
   ProcessOtherFields,
+  ProcessSwitch,
 } from './ProcessFields'
 import ProcessIcon from './ProcessIcon'
 import {
@@ -321,28 +322,17 @@ export default function ProcessForm({
                   />
                 </div>
               )}
-              {!isAdjustment && (
-                <div className="field">
-                  <label htmlFor={`${id}-protocol`}>
-                    Protocolo externo <span>(opcional)</span>
-                  </label>
-                  <input
-                    className="input"
-                    id={`${id}-protocol`}
-                    maxLength={160}
-                    value={value.protocolo ?? ''}
-                    onChange={(event) =>
-                      update({ protocolo: event.target.value })
-                    }
-                    placeholder="Protocolo de registro ou referência"
-                    disabled={locked}
-                  />
-                  <p className="help">
-                    Referência manual de registro na Junta Comercial, prefeitura
-                    ou outro sistema externo. Independente do código interno;
-                    não aciona integrações.
-                  </p>
-                </div>
+              {typeId === 'exclusao' && (
+                <ProcessSwitch
+                  title="Este processo inclui entrega de documentação ao cliente?"
+                  checked={value.entregaDocumentacao ?? true}
+                  onChange={(entregaDocumentacao) =>
+                    update({ entregaDocumentacao })
+                  }
+                  disabled={locked}
+                >
+                  Inclui a etapa de entrega após o encerramento interno.
+                </ProcessSwitch>
               )}
               {type?.id === 'alteracao' && (
                 <ProcessAlterationFields

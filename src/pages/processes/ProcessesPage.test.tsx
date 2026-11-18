@@ -78,7 +78,6 @@ function summary(record: ProcessResource): ProcessSummary {
       'empresa',
       'companyId',
       'cnpj',
-      'protocolo',
       'prazo',
       'criadoPor',
       'autorAbertura',
@@ -366,6 +365,140 @@ async function submitForm() {
 }
 
 describe('ProcessesPage integration', () => {
+  it.each([false, true])(
+    'saves exclusion delivery %s with version and refreshes detail, queues and indicators',
+    async (entregaDocumentacao) => {
+      const type = catalog.types.find((type) => type.id === 'exclusao')!
+      const makeExclusion = (delivery: boolean, version: number) => {
+        const etapas = structuredClone(
+          type.etapas.filter(
+            (stage) =>
+              delivery || !stage.tasks.some((task) => task.id === 'ex6'),
+          ),
+        )
+        return makeProcessTestResource({
+          tipo: 'exclusao',
+          codigo: 'EXC-TEST',
+          honPerdido: '700.00',
+          entregaDocumentacao: delivery,
+          version,
+          etapas,
+          status: delivery ? 'andamento' : 'concluido',
+          responsibleSectors: delivery ? ['reg'] : [],
+          tarefas: Object.fromEntries(
+            type.etapas
+              .flatMap((stage) => stage.tasks)
+              .filter((task) => task.id !== 'ex6')
+              .map((task) => [
+                task.id,
+                {
+                  s: 'feito' as const,
+                  por: 'member-1',
+                  em: '2026-11-17T12:00:00Z',
+                },
+              ]),
+          ),
+          analysis: {
+            currentStage: delivery ? etapas.length - 1 : null,
+            completedTasks: 6,
+            totalTasks: delivery ? 7 : 6,
+            releaseDate: null,
+            waiting: false,
+            late: false,
+            pendingSectors: delivery ? ['reg'] : [],
+          },
+        })
+      }
+      records = [makeExclusion(!entregaDocumentacao, 3)]
+      const update = vi
+        .spyOn(processService, 'update')
+        .mockImplementation(async () => {
+          records = [makeExclusion(entregaDocumentacao, 4)]
+          return response(records[0]!)
+        })
+      await render('/processos/process-1')
+      await act(async () => button('Editar').click())
+      const invalidate = vi.spyOn(client, 'invalidateQueries')
+      const control = document.querySelector<HTMLButtonElement>(
+        '[role="dialog"] [role="switch"][aria-label="Este processo inclui entrega de documentação ao cliente?"]',
+      )!
+      expect(control.getAttribute('aria-checked')).toBe(
+        String(!entregaDocumentacao),
+      )
+      await act(async () => control.click())
+      await submitForm()
+      await settle()
+      expect(update).toHaveBeenCalledExactlyOnceWith('process-1', {
+        version: 3,
+        entregaDocumentacao,
+      })
+      expect(document.querySelector('[role="dialog"]')).toBeNull()
+      expect(host.textContent).toContain(
+        `6 de ${entregaDocumentacao ? 7 : 6} tarefas`,
+      )
+      expect(host.textContent?.includes('Entrega de documentação')).toBe(
+        entregaDocumentacao,
+      )
+      expect(host.textContent?.includes('Todas as etapas concluídas')).toBe(
+        !entregaDocumentacao,
+      )
+      for (const key of [
+        processQueryKeys.detail(scope, 'process-1'),
+        processQueryKeys.list(scope),
+        processQueryKeys.indicators(scope),
+      ])
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: key })
+      expect(
+        client.getQueryData(processQueryKeys.detail(scope, 'process-1')),
+      ).toMatchObject({
+        version: 4,
+        entregaDocumentacao,
+        status: entregaDocumentacao ? 'andamento' : 'concluido',
+      })
+    },
+  )
+
+  it('refetches an exclusion after a delivery version conflict without reapplying stale changes', async () => {
+    records = [
+      makeProcessTestResource({
+        tipo: 'exclusao',
+        entregaDocumentacao: true,
+        honPerdido: '700.00',
+        version: 3,
+      }),
+    ]
+    const update = vi
+      .spyOn(processService, 'update')
+      .mockImplementation(async () => {
+        records = [{ ...records[0]!, entregaDocumentacao: false, version: 4 }]
+        throw httpError(409)
+      })
+    await render('/processos/process-1')
+    await act(async () => button('Editar').click())
+    await act(async () =>
+      document
+        .querySelector<HTMLButtonElement>(
+          '[role="dialog"] [role="switch"][aria-label="Este processo inclui entrega de documentação ao cliente?"]',
+        )!
+        .click(),
+    )
+    await submitForm()
+    expect(update).toHaveBeenCalledExactlyOnceWith('process-1', {
+      version: 3,
+      entregaDocumentacao: false,
+    })
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+    expect(
+      client.getQueryData(processQueryKeys.detail(scope, 'process-1')),
+    ).toMatchObject({ version: 4, entregaDocumentacao: false })
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tone: 'warning',
+        title: 'O processo foi atualizado',
+      }),
+    )
+  })
+
   it('keeps urgency in the URL, resets the page, and queries aggregate cards with the same filters', async () => {
     await render(
       '/processos/lista?situacao=todos&page=2&tipo=abertura&q=Empresa',
@@ -1746,7 +1879,7 @@ describe('ProcessesPage integration', () => {
       ...original,
       version: 5,
       empresa: 'Ajuste da equipe',
-      protocolo: 'PROTO-NOVO',
+      cnpj: '12345678000195',
     }
     records = [latest]
     await act(async () =>

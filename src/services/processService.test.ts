@@ -11,6 +11,51 @@ import { ProcessContractError } from './processContract'
 import { ProcessService } from './processService'
 
 describe('ProcessService revision 2', () => {
+  it.each([true, false])(
+    'creates and edits exclusion with explicit delivery %s, session, CSRF and stable retry key',
+    async (entregaDocumentacao) => {
+      const detail = makeProcessTestResource({
+        tipo: 'exclusao',
+        entregaDocumentacao,
+        version: 4,
+      })
+      const fetchImplementation = vi
+        .fn<typeof fetch>()
+        .mockRejectedValueOnce(new TypeError('Network error'))
+        .mockImplementation(async () => jsonResponse(detail))
+      const service = createService(fetchImplementation)
+      const input = {
+        tipo: 'exclusao' as const,
+        empresa: 'Cliente Exemplo',
+        honPerdido: '700.00',
+        entregaDocumentacao,
+      }
+      await expect(service.create(input, 'exclusion-key')).rejects.toThrow()
+      await service.create(input, 'exclusion-key')
+      expect(fetchImplementation.mock.calls[0]![1]?.body).toBe(
+        fetchImplementation.mock.calls[1]![1]?.body,
+      )
+      for (const [, request] of fetchImplementation.mock.calls) {
+        expect(JSON.parse(String(request?.body))).toMatchObject(input)
+        expect(JSON.parse(String(request?.body))).not.toHaveProperty(
+          'protocolo',
+        )
+        expect(request?.credentials).toBe('include')
+        expect(new Headers(request?.headers).get('Idempotency-Key')).toBe(
+          'exclusion-key',
+        )
+        expect(new Headers(request?.headers).get('X-CSRFToken')).toBe(
+          'csrf-token',
+        )
+      }
+      await service.update(detail.id, { version: 3, entregaDocumentacao })
+      expect(fetchImplementation.mock.calls[2]![1]?.method).toBe('PATCH')
+      expect(
+        JSON.parse(String(fetchImplementation.mock.calls[2]![1]?.body)),
+      ).toEqual({ version: 3, entregaDocumentacao })
+    },
+  )
+
   it.each(['aumento_honorarios', 'reducao_honorarios', 'outros'] as const)(
     'sends contact and strips computed fields for %s mutations',
     async (tipo) => {
@@ -520,14 +565,14 @@ describe('ProcessService revision 2', () => {
         ),
       )
       const error = await createService(fetchImplementation)
-        .update('process-1', { version: 3, protocolo: 'PROTO' })
+        .update('process-1', { version: 3, entregaDocumentacao: false })
         .catch((e) => e)
       expect(error).toBeInstanceOf(ApiError)
       expect(error).toMatchObject({ status, retryAfter: '5' })
       expect(fetchImplementation).toHaveBeenCalledTimes(1)
       expect(
         JSON.parse(String(fetchImplementation.mock.calls[0]![1]?.body)),
-      ).toEqual({ version: 3, protocolo: 'PROTO' })
+      ).toEqual({ version: 3, entregaDocumentacao: false })
     },
   )
 
@@ -645,7 +690,6 @@ function summaryFixture(): ProcessSummary {
     'companyLinkRequired',
     'companyReference',
     'cnpj',
-    'protocolo',
     'prazo',
     'criadoPor',
     'autorAbertura',

@@ -216,7 +216,9 @@ export function processInputFromResource(
     departamentoSolicitado: process.departamentoSolicitado,
     acionarLeggacy: process.acionarLeggacy,
     cnpj: process.cnpj ?? '',
-    protocolo: process.protocolo ?? '',
+    ...(process.tipo === 'exclusao'
+      ? { entregaDocumentacao: process.entregaDocumentacao ?? true }
+      : {}),
     prazo: process.prazo ?? null,
     inicioInat: process.inicioInat ?? null,
     competenciaInicioAtividade: process.competenciaInicioAtividade ?? null,
@@ -269,7 +271,7 @@ export function processDraftForType(
           'empresa',
           'contato',
           'cnpj',
-          'protocolo',
+          ...(type.id === 'exclusao' ? ['entregaDocumentacao'] : []),
           'obs',
           PROCESS_START_LABELS[type.id] ? 'inicioInat' : 'prazo',
           ...(competenceField ? [competenceField.key] : []),
@@ -295,6 +297,9 @@ export function processDraftForType(
     ),
     tipo: type.id,
     empresa: input.empresa,
+    ...(type.id === 'exclusao'
+      ? { entregaDocumentacao: input.entregaDocumentacao ?? true }
+      : {}),
   }
 }
 
@@ -364,10 +369,17 @@ export function normalizeProcessInput(
     empresa,
     ...contactFields,
     cnpj: input.cnpj?.trim() ?? '',
-    protocolo: input.protocolo?.trim() ?? '',
     obs: input.obs?.trim() ?? '',
   }
   if (!result.empresa) throw new Error('Informe a empresa ou o cliente.')
+  if (type.id === 'exclusao') {
+    if (
+      input.entregaDocumentacao !== undefined &&
+      typeof input.entregaDocumentacao !== 'boolean'
+    )
+      throw new Error('Informe se o processo inclui entrega de documentação.')
+    result.entregaDocumentacao = input.entregaDocumentacao ?? true
+  }
   if (PROCESS_START_LABELS[type.id])
     result.inicioInat = input.inicioInat || null
   else result.prazo = input.prazo || null

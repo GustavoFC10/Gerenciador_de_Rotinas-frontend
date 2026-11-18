@@ -54,8 +54,8 @@ const editableFields = [
   'valorProcesso',
   'departamentoSolicitado',
   'acionarLeggacy',
+  'entregaDocumentacao',
   'cnpj',
-  'protocolo',
   'prazo',
   'inicioInat',
   'obs',
@@ -259,10 +259,15 @@ function stagesOf(process: ProcessResource): ProcessStage[] {
       index,
       tasks: stage.tasks.filter(
         (task) =>
-          !task.reuniao ||
-          (task.reuniao === 'alinhamento'
-            ? process.reunAlinh !== false
-            : process.reunAcomp !== false),
+          !(
+            process.tipo === 'exclusao' &&
+            process.entregaDocumentacao === false &&
+            task.id === 'ex6'
+          ) &&
+          (!task.reuniao ||
+            (task.reuniao === 'alinhamento'
+              ? process.reunAlinh !== false
+              : process.reunAcomp !== false)),
       ),
     }))
     .filter((stage) => stage.tasks.length)
@@ -309,6 +314,32 @@ function fixtureSnapshot(
       : [],
   }
   return process
+}
+
+/** Reflect the effective exclusion flow only when a preview command changes it. */
+function refreshExclusion(process: PreviewProcess) {
+  const tasks = process.etapas.flatMap((stage) => stage.tasks)
+  const current = process.etapas.findIndex((stage) =>
+    stage.tasks.some((task) => !process.tarefas[task.id]),
+  )
+  const completed = current === -1
+  fixtureSnapshot(
+    process,
+    completed ? 'concluido' : 'andamento',
+    completed ? null : current,
+    completed
+      ? []
+      : [
+          ...new Set(
+            process.etapas[current]!.tasks.filter(
+              (task) => !process.tarefas[task.id],
+            ).map((task) => task.d),
+          ),
+        ],
+  )
+  process.analysis.completedTasks = tasks.filter(
+    (task) => !!process.tarefas[task.id],
+  ).length
 }
 
 /** Explicit command response fixtures, without a time-based workflow engine. */
@@ -471,12 +502,9 @@ function filteredProcesses(processes: PreviewProcess[], url: URL) {
               otherSector as ProcessSector,
             ))) &&
         (!search ||
-          [
-            process.empresa,
-            process.cnpj,
-            process.protocolo,
-            process.codigo,
-          ].some((value) => value?.toLocaleLowerCase('pt-BR').includes(search)))
+          [process.empresa, process.cnpj, process.codigo].some((value) =>
+            value?.toLocaleLowerCase('pt-BR').includes(search),
+          ))
       )
     })
     .sort((a, b) => {
@@ -540,7 +568,6 @@ function seed(): PreviewState {
       empresa: names[index]!,
       codigo: `${type.sigla}-DEMO-${String(index + 1).padStart(3, '0')}`,
       cnpj: '12.345.678/0001-95',
-      protocolo: `PROTO-DEMO-${100 + index}`,
       status: index === 8 ? 'cancelado' : 'andamento',
       version: 1,
       workflowVersion: 2,
@@ -1050,6 +1077,9 @@ export class PreviewBackend {
     void _resume
     void _deleted
     const process: ProcessDetailDto = detail
+    // Discard the retired field from previews persisted before its removal.
+    Reflect.deleteProperty(process, 'protocolo')
+    if (process.tipo === 'exclusao') process.entregaDocumentacao ??= true
     process.companyId = null
     process.companyLinkRequired = false
     process.companyReference = null
@@ -1096,7 +1126,6 @@ export class PreviewBackend {
       companyLinkRequired: process.companyLinkRequired,
       companyReference: process.companyReference,
       cnpj: process.cnpj ?? '',
-      protocolo: process.protocolo ?? '',
       prazo: process.prazo ?? null,
       criadoPor: process.criadoPor,
       autorAbertura: process.autorAbertura,
@@ -1923,6 +1952,15 @@ export class PreviewBackend {
       if (path === 'processes' && method === 'POST') {
         if (!permissions.create)
           return error(403, 'Somente a Diretoria abre processos.')
+        if (
+          'entregaDocumentacao' in body &&
+          (body.tipo !== 'exclusao' ||
+            typeof body.entregaDocumentacao !== 'boolean')
+        )
+          return error(
+            400,
+            'Entrega de documentação é uma opção booleana exclusiva da exclusão.',
+          )
         const creationFields =
           body.tipo === 'outros'
             ? [
@@ -1983,9 +2021,11 @@ export class PreviewBackend {
             'Informe descrição, valor, departamento e opção Leggacy.',
           )
         const process: PreviewProcess = {
-          protocolo: '',
           prazo: null,
           ...input,
+          ...(input.tipo === 'exclusao'
+            ? { entregaDocumentacao: input.entregaDocumentacao ?? true }
+            : {}),
           companyId: null,
           companyLinkRequired: false,
           companyReference: null,
@@ -2122,6 +2162,15 @@ export class PreviewBackend {
           if (!permissions.edit || process.status === 'cancelado')
             return error(403, 'Este perfil não pode editar o processo.')
           if (
+            'entregaDocumentacao' in body &&
+            (process.tipo !== 'exclusao' ||
+              typeof body.entregaDocumentacao !== 'boolean')
+          )
+            return error(
+              400,
+              'Entrega de documentação é uma opção booleana exclusiva da exclusão.',
+            )
+          if (
             Object.keys(body).some(
               (key) =>
                 key !== 'version' &&
@@ -2150,6 +2199,11 @@ export class PreviewBackend {
           void _version
           Object.assign(process, patch)
           if (process.tipo === 'outros') process.etapas = stagesOf(process)
+          if (process.tipo === 'exclusao' && 'entregaDocumentacao' in patch) {
+            process.etapas = stagesOf(process)
+            if (!process.entregaDocumentacao) delete process.tarefas.ex6
+            refreshExclusion(process)
+          }
           process.entries.push(
             entry(
               'edited',
@@ -2269,7 +2323,8 @@ export class PreviewBackend {
           const task = process.etapas[stageIndex]?.tasks.find(
             (t) => t.id === id,
           )
-          if (!task || !permissions.executeSectors.includes(task.d))
+          if (!task) return error(404, 'Tarefa ausente do fluxo.')
+          if (!permissions.executeSectors.includes(task.d))
             return error(403, 'Tarefa de outro setor.')
           if (
             task.auto ||
@@ -2310,7 +2365,9 @@ export class PreviewBackend {
             ),
           )
           const currentStage = process.etapas[stageIndex]!
-          if (body.state === 'pending') {
+          if (process.tipo === 'exclusao') {
+            refreshExclusion(process)
+          } else if (body.state === 'pending') {
             // Explicit preview reopening response; no calendar evaluation.
             fixtureSnapshot(process, 'andamento', stageIndex, [task.d])
           } else if (

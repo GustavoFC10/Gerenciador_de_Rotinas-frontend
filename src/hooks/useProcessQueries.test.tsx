@@ -81,7 +81,6 @@ function summary(overrides: Partial<ProcessResource> = {}): ProcessSummary {
     'empresa',
     'companyId',
     'cnpj',
-    'protocolo',
     'prazo',
     'criadoPor',
     'autorAbertura',

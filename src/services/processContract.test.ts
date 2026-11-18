@@ -53,6 +53,53 @@ function summaryFixture(): Record<string, unknown> {
 }
 
 describe('Processos generated OpenAPI revision 2', () => {
+  it('removes protocol from every generated process schema and summary', () => {
+    for (const schema of [
+      'ProcessCreate',
+      'PatchedProcessPatch',
+      'ProcessResponse',
+      'ProcessSummary',
+    ])
+      expect(schemaBlock(schema)).not.toMatch(/\bprotocolo\b/)
+    expect(parseProcessSummary(summaryFixture())).not.toHaveProperty(
+      'protocolo',
+    )
+    expect(() =>
+      parseProcessSummary({ ...summaryFixture(), protocolo: '' }),
+    ).toThrow(ProcessContractError)
+  })
+  it.each([true, false, undefined])(
+    'accepts delivery %s only in exclusion details, including restricted readers and legacy snapshots',
+    (entregaDocumentacao) => {
+      const detail = makeProcessTestResource({
+        tipo: 'exclusao',
+        entregaDocumentacao,
+        workflowVersion: 1,
+        permissions: {
+          ...processTestCatalog.permissions,
+          create: false,
+          edit: false,
+          viewFinancial: false,
+        },
+      })
+      expect(parseProcessDetail(detail).entregaDocumentacao).toBe(
+        entregaDocumentacao,
+      )
+      if (entregaDocumentacao !== undefined) {
+        expect(() => parseProcessDetail({ ...detail, tipo: 'saida' })).toThrow(
+          ProcessContractError,
+        )
+        expect(() =>
+          parseProcessSummary({ ...summaryFixture(), entregaDocumentacao }),
+        ).toThrow(ProcessContractError)
+      }
+      for (const invalid of [null, 'false', 0])
+        expect(() =>
+          parseProcessDetail({ ...detail, entregaDocumentacao: invalid }),
+        ).toThrow(ProcessContractError)
+    },
+  )
+
   it.each(['aumento_honorarios', 'reducao_honorarios'] as const)(
     'accepts %s detail and protects its financial fields',
     (tipo) => {

@@ -81,6 +81,69 @@ async function render(process: ProcessResource, onChange = vi.fn()) {
 }
 
 describe('ProcessDetails', () => {
+  it.each([true, false])(
+    'renders the effective exclusion snapshot with delivery %s instead of rebuilding the catalog',
+    async (entregaDocumentacao) => {
+      const type = processTestCatalog.types.find(
+        (item) => item.id === 'exclusao',
+      )!
+      const etapas = structuredClone(
+        type.etapas.filter(
+          (stage) =>
+            entregaDocumentacao ||
+            !stage.tasks.some((task) => task.id === 'ex6'),
+        ),
+      )
+      const transition = vi.spyOn(processService, 'transitionTask')
+      const process = makeProcessTestResource({
+        tipo: 'exclusao',
+        entregaDocumentacao,
+        etapas,
+        workflowVersion: 2,
+        analysis: {
+          currentStage: 0,
+          completedTasks: 0,
+          totalTasks: entregaDocumentacao ? 7 : 6,
+          waiting: false,
+          late: false,
+          releaseDate: null,
+          pendingSectors: ['fin'],
+        },
+      })
+      await render(process)
+      expect(host.textContent).toContain(
+        `0 de ${entregaDocumentacao ? 7 : 6} tarefas`,
+      )
+      expect(host.textContent?.includes('Entrega de documentação')).toBe(
+        entregaDocumentacao,
+      )
+      for (const stage of host.querySelectorAll<HTMLButtonElement>('.stage-h'))
+        await act(async () => stage.click())
+      expect(host.textContent?.includes('Entregar a documentação')).toBe(
+        entregaDocumentacao,
+      )
+      expect(transition).not.toHaveBeenCalled()
+    },
+  )
+
+  it('preserves the legacy exclusion snapshot with ex6 inside internal closure', async () => {
+    const stages = structuredClone(
+      processTestCatalog.types.find((item) => item.id === 'exclusao')!.etapas,
+    )
+    const delivery = stages.pop()!
+    stages.at(-1)!.tasks.push(...delivery.tasks)
+    await render(
+      makeProcessTestResource({
+        tipo: 'exclusao',
+        etapas: stages,
+        workflowVersion: 1,
+      }),
+    )
+    expect(host.querySelectorAll('.stage')).toHaveLength(stages.length)
+    expect(host.textContent).not.toContain('Entrega de documentação')
+    expect(host.textContent).toContain('Encerramento interno')
+  })
+
   it.each(['aumento_honorarios', 'reducao_honorarios'] as const)(
     'renders the API workflow and financial variation for %s',
     async (tipo) => {

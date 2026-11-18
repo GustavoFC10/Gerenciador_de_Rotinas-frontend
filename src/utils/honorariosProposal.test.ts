@@ -1,8 +1,14 @@
 /** @vitest-environment happy-dom */
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import initialParams from '../../docs/honorarios_base/config-params.json'
 import type { HonorariosParams, HonorariosQuote } from '../types/honorarios'
 import { defaultProfile } from './honorariosPresentation'
+import {
+  proposalDocumentStyles,
+  proposalFontStylesheet,
+  proposalLogoFallback,
+} from './honorariosProposalTemplate'
 import {
   buildProposalHtml,
   printProposal,
@@ -87,6 +93,57 @@ afterEach(() => {
 })
 
 describe('commercial proposal', () => {
+  beforeEach(() => {
+    const settings = (
+      window as unknown as {
+        happyDOM: {
+          settings: {
+            disableCSSFileLoading: boolean
+            handleDisabledFileLoadingAsSuccess: boolean
+          }
+        }
+      }
+    ).happyDOM.settings
+    settings.disableCSSFileLoading = true
+    settings.handleDisabledFileLoadingAsSuccess = true
+  })
+
+  it('reuses the original HTML proposal styles, font and logo', () => {
+    const source = readFileSync(
+      'docs/honorarios_base/honorarios-jaralcon (1).html',
+      'utf8',
+    )
+    const cssDeclaration = 'const PROPOSAL_CSS=`'
+    const cssStart = source.indexOf(cssDeclaration) + cssDeclaration.length
+    const cssEnd = source.indexOf('`;', cssStart)
+    const proposalFileStart = source.indexOf('function proposalFile(o){')
+    const styleStart =
+      source.indexOf('<style>', proposalFileStart) + '<style>'.length
+    const cssToken = '${PROPOSAL_CSS}'
+    const cssTokenStart = source.indexOf(cssToken, styleStart)
+    const styleEnd = source.indexOf('</style>', cssTokenStart)
+    const sourceStyles =
+      source.slice(styleStart, cssTokenStart) +
+      source.slice(cssStart, cssEnd) +
+      source.slice(cssTokenStart + cssToken.length, styleEnd)
+    const logoDeclaration = "const LOGO_JARALCON='"
+    const logoStart = source.indexOf(logoDeclaration) + logoDeclaration.length
+    const logoEnd = source.indexOf("';", logoStart)
+    const font = source
+      .slice(proposalFileStart)
+      .match(
+        /<link rel="stylesheet" href="(https:\/\/fonts\.googleapis\.com\/css2\?family=Inter:[^"]+)">/,
+      )?.[1]
+
+    const normalizeLineEndings = (value: string) =>
+      value.replace(/\r\n?/g, '\n')
+    expect(normalizeLineEndings(sourceStyles)).toBe(
+      normalizeLineEndings(proposalDocumentStyles),
+    )
+    expect(source.slice(logoStart, logoEnd)).toBe(proposalLogoFallback)
+    expect(font).toBe(proposalFontStylesheet)
+  })
+
   it('uses the saved prices, terms, logo and units without disclosing internal calculations', () => {
     const quote = fixture()
     const html = buildProposalHtml(quote)
@@ -96,8 +153,11 @@ describe('commercial proposal', () => {
     )
     for (const label of [
       'Empresa congelada',
-      '12.345.678/0001-90',
+      '2026-001',
       'Escritório congelado',
+      'Perfil da empresa',
+      'Faturamento médio',
+      'Funcionários',
       'Condição comercial original',
       'Unidade original',
       'Rua preservada, 123',
@@ -106,13 +166,17 @@ describe('commercial proposal', () => {
       '26/11/2026',
       '13 parcelas',
       '3ª competência',
-      '2 competência(s) sem cobrança',
-      '2 parcelas',
-      'Revisão 2',
-    ])
-      expect(content.body.textContent).toContain(label)
+      '2 competências sem cobrança',
+      '2× de',
+    ]) {
+      const visibleLabel =
+        label === quote.snapshot.office.nome
+          ? content.querySelector('img')?.getAttribute('alt')
+          : content.body.textContent
+      expect(visibleLabel).toContain(label)
+    }
+    expect(content.body.textContent).not.toContain('Revisão 2')
     expect(content.body.textContent).toContain('500,00')
-    expect(content.body.textContent).toContain('6.500,00')
     expect(content.body.textContent).toContain('400,00')
     for (const forbidden of [
       'Composição interna sigilosa',
@@ -129,7 +193,7 @@ describe('commercial proposal', () => {
     expect(content.querySelector('script')).toBeNull()
   })
 
-  it('renders every offered plan with its frozen scope, negotiated price and annual total', () => {
+  it('renders the offered plans with their frozen scope and negotiated monthly price', () => {
     const quote = fixture()
     const calculation = quote.snapshot.calculation
     quote.snapshot.plans = [
@@ -159,8 +223,8 @@ describe('commercial proposal', () => {
     expect(html).toContain('Plano original premium')
     expect(html).toContain('345,00')
     expect(html).toContain('678,00')
-    expect(html).toContain('4.485,00')
-    expect(html).toContain('8.814,00')
+    expect(html).not.toContain('4.485,00')
+    expect(html).not.toContain('8.814,00')
     expect(html).not.toContain('99.999,00')
     expect(html).not.toContain('Plano escolhido')
     quote.selectedPlan = 'premium'

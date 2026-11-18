@@ -606,6 +606,7 @@ export default function ProcessesPage() {
       process,
     )
     for (const key of [
+      processQueryKeys.detail(scope, process.id),
       processQueryKeys.list(scope),
       processQueryKeys.indicators(scope),
       processQueryKeys.leggacyMetrics(scope),
