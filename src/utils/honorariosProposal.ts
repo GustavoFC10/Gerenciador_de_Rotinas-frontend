@@ -3,6 +3,11 @@ import type {
   HonorariosQuote,
   HonorariosQuoteSnapshot,
 } from '../types/honorarios'
+import {
+  proposalDocumentStyles,
+  proposalFontStylesheet,
+  proposalLogoFallback,
+} from './honorariosProposalTemplate'
 
 const regimes = {
   mei: 'MEI',
@@ -49,6 +54,7 @@ function scope(
     ? [
         `Manutenção de empresa inativa no regime ${regimes[profile.regime]}`,
         'Entrega das declarações e obrigações acessórias sem movimento',
+        'Acompanhamento de pendências na Receita Federal, estado e município',
       ]
     : [
         `Escrituração contábil e fiscal no regime ${regimes[profile.regime]}`,
@@ -56,20 +62,33 @@ function scope(
         'Balancete, balanço patrimonial e DRE',
         ...(profile.funcionarios > 0
           ? [
-              `Folha de pagamento de até ${profile.funcionarios} funcionário(s), eSocial e FGTS Digital`,
+              `Folha de pagamento de até ${profile.funcionarios} ${profile.funcionarios === 1 ? 'funcionário' : 'funcionários'}, eSocial e FGTS Digital`,
             ]
           : []),
-        ...(profile.socios > 0
-          ? [`Pró-labore de até ${profile.socios} sócio(s)`]
+        ...(profile.socios > 0 && snapshot.params.socios.ativo !== false
+          ? [
+              `Pró-labore de ${profile.socios} ${profile.socios === 1 ? 'sócio' : 'sócios'}`,
+            ]
+          : []),
+        ...(snapshot.params.xml.ativo !== false
+          ? [
+              `Importação e conferência de até ${profile.xml.toLocaleString('pt-BR')} XMLs por mês`,
+            ]
           : []),
         ...(profile.emiteNF
-          ? [`Emissão de até ${profile.notas} nota(s) fiscal(is) por mês`]
+          ? [
+              `Emissão de até ${profile.notas} ${profile.notas === 1 ? 'nota fiscal' : 'notas fiscais'} por mês pelo escritório`,
+            ]
           : []),
         ...(profile.filiais > 0
-          ? [`Atendimento a ${profile.filiais} filial(is) ativa(s)`]
+          ? [
+              `Atendimento a ${profile.filiais} ${profile.filiais === 1 ? 'filial ativa' : 'filiais ativas'}`,
+            ]
           : []),
         ...(profile.filiaisInativas > 0
-          ? [`Manutenção de ${profile.filiaisInativas} filial(is) inativa(s)`]
+          ? [
+              `Manutenção de ${profile.filiaisInativas} ${profile.filiaisInativas === 1 ? 'filial inativa' : 'filiais inativas'} (obrigações sem movimento)`,
+            ]
           : []),
       ]
   for (const id of profile.servicos) {
@@ -81,8 +100,8 @@ function scope(
 
 function billing(snapshot: HonorariosQuoteSnapshot): string {
   return snapshot.decimoTerceiro
-    ? 'Cobrança em 13 parcelas: 12 mensais e a 13ª em dezembro.'
-    : 'Cobrança em 12 parcelas mensais.'
+    ? 'Cobrado em 13 parcelas (12 mensais + 13ª em dezembro).'
+    : 'Cobrado em 12 parcelas mensais.'
 }
 
 function start(snapshot: HonorariosQuoteSnapshot): string {
@@ -104,11 +123,78 @@ function opening(snapshot: HonorariosQuoteSnapshot): string {
 function adjustment(snapshot: HonorariosQuoteSnapshot): string {
   const indices = snapshot.params.indices
   const index = indices[indices.usar]
-  const period =
-    indices.periodicidade === 'janeiro'
-      ? 'em janeiro de cada ano'
-      : 'a cada 12 meses, no aniversário do contrato'
-  return `Reajuste ${period}, pelo índice ${index.nome}.`
+  const method =
+    indices.usar === 'fixo'
+      ? `de ${Number(index.pct).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`
+      : `pelo ${index.nome} acumulado em 12 meses`
+  if (indices.periodicidade !== 'janeiro')
+    return `Reajuste anual ${method}, aplicado a cada 12 meses de contrato.`
+  const grace = indices.carencia
+  const months = [
+    'janeiro',
+    'fevereiro',
+    'março',
+    'abril',
+    'maio',
+    'junho',
+    'julho',
+    'agosto',
+    'setembro',
+    'outubro',
+    'novembro',
+    'dezembro',
+  ]
+  const graceText =
+    grace >= 2 && grace <= 12
+      ? ` Contratos iniciados a partir de ${months[grace - 1]} têm o primeiro reajuste só no segundo janeiro após o início.`
+      : ''
+  return `Reajuste anual ${method}, aplicado em janeiro de cada ano.${graceText}`
+}
+
+function wholeMoney(value: string | number): string {
+  const amount = Number(value)
+  return Number.isFinite(amount)
+    ? amount.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        maximumFractionDigits: 0,
+        minimumFractionDigits: 0,
+      })
+    : money(value)
+}
+
+function percentage(value: number): string {
+  return `${(value * 100).toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })}%`
+}
+
+function extraConditions(quote: HonorariosQuote): string {
+  const snapshot = quote.snapshot
+  const openingValue = Number(snapshot.aberturaValor)
+  const openingInstallments = Math.max(1, snapshot.aberturaParcelas || 1)
+  const startIndex = snapshot.inicioCobranca
+  const benefitMonths = Math.max(0, startIndex - 1)
+  const plans = snapshot.plans.length > 1 ? snapshot.plans : []
+  const referencePlan =
+    plans.find((plan) => plan.id === quote.selectedPlan) ??
+    plans.find((plan) => plan.destaque) ??
+    plans[0]
+  const monthlyReference = Number(referencePlan?.value ?? snapshot.value)
+  if (!(openingValue > 0) && !benefitMonths && startIndex !== 0) return ''
+
+  const openingText =
+    openingInstallments === 1
+      ? `${money(openingValue)} à vista`
+      : `${openingInstallments}× de ${money(openingValue / openingInstallments)} (total ${money(openingValue)})`
+  const planLabel = plans.length
+    ? quote.selectedPlan
+      ? ' no plano escolhido'
+      : ' no plano recomendado'
+    : ''
+  const benefitTotal = money(monthlyReference * benefitMonths)
+  return `<section class="pp-extra">${openingValue > 0 ? `<div class="pp-x"><span>Honorário de abertura</span><strong>${escape(openingText)}</strong><small>Valor único pela abertura da empresa, separado do honorário mensal.</small></div>` : ''}${startIndex === 0 ? '<div class="pp-x"><span>Primeiro honorário mensal</span><strong>Cobrado no ato da contratação</strong><small>As demais parcelas seguem a cada competência.</small></div>' : ''}${benefitMonths ? `<div class="pp-x ben"><span>Benefício concedido</span><strong>1º honorário na ${startIndex}ª competência</strong><small>${benefitMonths} ${benefitMonths === 1 ? 'competência' : 'competências'} sem cobrança · ${benefitTotal}${escape(planLabel)}.</small></div>` : ''}</section>`
 }
 
 function safeLogo(value: string): string {
@@ -118,38 +204,58 @@ function safeLogo(value: string): string {
     : ''
 }
 
-const styles = `
-*{box-sizing:border-box}body{margin:0;padding:28px 16px;background:#eeedf4;color:#232039;font:12px/1.55 Arial,Helvetica,sans-serif}.proposal{max-width:850px;margin:auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 10px 45px #211b4b18}.hero{padding:32px 38px 28px;background:#08042e;color:white;display:flex;justify-content:space-between;gap:24px}.logo{max-width:190px;max-height:60px;object-fit:contain}.office{font-size:21px;font-weight:800}.muted{opacity:.76}.eyebrow{text-transform:uppercase;letter-spacing:.16em;font-size:10px;font-weight:800}.hero h1{font-size:30px;line-height:1.2;margin:13px 0 7px}.number{text-align:right;white-space:nowrap}.body{padding:8px 38px 24px}h2{color:#211948;font-size:11px;text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid #e5e2ed;padding-bottom:8px;margin:23px 0 12px}.profile{display:grid;grid-template-columns:1fr 1fr;gap:7px 22px}.profile p{margin:0}.scope{padding-left:18px;display:grid;grid-template-columns:1fr 1fr;gap:5px 24px}.investment{padding:19px 22px;border-radius:12px;background:#f1eef9;color:#201646}.price{font-size:31px;font-weight:800;line-height:1.3}.price small{font-size:12px;font-weight:400}.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}.plan{position:relative;border:1px solid #ded9ec;border-radius:11px;padding:18px 16px}.plan.recommended{border:2px solid #6c4cc4;background:#f7f4ff}.tag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6744b9}.plan h3{font-size:18px;margin:7px 0}.plan .price{font-size:24px}.plan ul{padding-left:16px}.commercial{margin-top:16px;padding:14px 18px;background:#f8f7fb;border:1px solid #e8e4f2;border-radius:10px}.benefit{border-left:4px solid #6c4cc4}.commercial p{margin:5px 0}.conditions p{margin:5px 0}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:35px;margin-top:30px;text-align:center;font-size:10px}.signatures div{padding-top:9px;border-top:1px solid #c9c3db}.footer{padding:16px 38px;background:#f5f3f9;color:#514b63;font-size:10px}.units{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px}.footer p{margin:8px 0 0}.footer b{color:#251b48}@media(max-width:600px){.hero{display:block}.number{text-align:left;margin-top:18px}.body,.hero,.footer{padding-left:20px;padding-right:20px}.scope,.profile,.units{grid-template-columns:1fr}.hero h1{font-size:25px}}@page{size:A4;margin:10mm}@media print{body{background:white;padding:0;font-size:10px}.proposal{border-radius:0;box-shadow:none;max-width:none}.hero{padding:20px 26px}.hero h1{font-size:25px}.body{padding:4px 26px 18px}.footer{padding:12px 26px}.price{font-size:26px}h2{margin-top:16px}.plan,.investment,.commercial,.footer,.hero,.signatures{break-inside:avoid}.hero,.investment,.plan,.footer{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-`
+const styles = proposalDocumentStyles
 
 /** Commercial export uses only the saved snapshot, never current settings or calculations. */
 export function buildProposalHtml(quote: HonorariosQuote): string {
   const snapshot = quote.snapshot
   const office = snapshot.office
   const profile = snapshot.profile
-  const logo = safeLogo(office.logo)
+  const logo =
+    safeLogo(office.logo) || (!office.logo ? proposalLogoFallback : '')
+  const plans = snapshot.plans.length > 1 ? snapshot.plans : []
   const list = (items: string[]) =>
     items.map((item) => `<li>${escape(item)}</li>`).join('')
-  const plans = snapshot.plans
   const sets = plans.map((plan) => scope(plan.profile, snapshot))
   const common = plans.length
     ? sets[0].filter((item) => sets.every((set) => set.includes(item)))
     : scope(profile, snapshot)
   const investment = plans.length
-    ? `<div class="plans">${plans.map((plan, index) => `<section class="plan${plan.destaque ? ' recommended' : ''}">${plan.destaque ? '<span class="tag">Recomendado</span>' : ''}<h3>${escape(plan.nome)}</h3>${plan.descricao ? `<p>${escape(plan.descricao)}</p>` : ''}<div class="price">${escape(money(plan.value))}<small> / mês</small></div>${plan.annualValue ? `<p>${escape(money(plan.annualValue))} por ano</p>` : ''}${quote.selectedPlan === plan.id ? '<p><b>Plano escolhido</b></p>' : ''}<ul>${list(sets[index].filter((item) => !common.includes(item)))}</ul></section>`).join('')}</div>`
-    : `<div class="investment"><span class="eyebrow">Investimento mensal</span><div class="price">${escape(money(snapshot.value))}<small> / mês</small></div><p>${escape(money(snapshot.annualValue))} por ano · ${escape(billing(snapshot))}</p></div>`
+    ? `<h2>Escolha seu plano</h2><div class="pp-plans">${plans.map((plan, index) => `<div class="pp-plan${plan.destaque ? ' dest' : ''}${quote.selectedPlan === plan.id ? ' chosen' : ''}">${quote.selectedPlan === plan.id ? '<span class="pp-tag">Plano escolhido</span>' : plan.destaque ? '<span class="pp-tag">Recomendado</span>' : ''}<h3>${escape(plan.nome)}</h3>${plan.descricao ? `<p class="pp-desc">${escape(plan.descricao)}</p>` : ''}<div class="pp-pv">${escape(money(plan.value))}<small> /mês</small></div>${sets[index].some((item) => !common.includes(item)) ? `<ul>${list(sets[index].filter((item) => !common.includes(item)))}</ul>` : '<p class="pp-desc">Escopo essencial</p>'}</div>`).join('')}</div><p style="font-size:13px;color:#475569;margin:12px 0 0">Valores mensais. ${escape(billing(snapshot))}</p>`
+    : `<section class="pp-invest"><h2>Investimento</h2><div class="pp-price"><span>Honorário mensal</span><strong>${escape(money(snapshot.value))}</strong></div>${Number(snapshot.calculation.total) > 0 && Number(snapshot.calculation.total) > Number(snapshot.value) ? `<p>Valor de tabela ${escape(money(snapshot.calculation.total))}, com ${escape(percentage((Number(snapshot.calculation.total) - Number(snapshot.value)) / Number(snapshot.calculation.total)))} de desconto.</p>` : ''}<p>${escape(billing(snapshot))}</p></section>`
   const companyName = snapshot.company?.name || snapshot.prospect
   const segment =
     snapshot.params.segmentos.find((item) => item.id === profile.segmento)
       ?.nome ?? profile.segmento
-  const openingText = opening(snapshot)
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><meta name="referrer" content="no-referrer"><title>Proposta ${escape(quote.number)} · ${escape(companyName)}</title><style>${styles}</style></head><body><article class="proposal"><header class="hero"><div>${logo ? `<img class="logo" src="${escape(logo)}" alt="${escape(office.nome)}">` : `<div class="office">${escape(office.nome)}</div>`}<p class="eyebrow">Contabilidade que acompanha o seu negócio</p><h1>Proposta de honorários</h1><div class="muted">${[office.crc && `CRC ${office.crc}`, office.cidade].filter(Boolean).map(escape).join(' · ')}</div></div><div class="number"><b>Nº ${escape(quote.number)}</b><br>Revisão ${escape(quote.revision)}<br>Emissão ${date(quote.createdAt)}<br>Válida até ${date(snapshot.validUntil)}</div></header><div class="body"><h2>Preparada para você</h2><div class="profile"><p><b>Empresa:</b> ${escape(companyName)}</p>${snapshot.company?.cnpj ? `<p><b>CNPJ:</b> ${escape(snapshot.company.cnpj)}</p>` : ''}<p><b>Regime:</b> ${escape(regimes[profile.regime])}</p><p><b>Segmento:</b> ${escape(segment)}</p>${snapshot.contact ? `<p><b>Contato:</b> ${escape(snapshot.contact)}</p>` : ''}${profile.inativa ? '<p><b>Situação:</b> Empresa inativa, sem movimento</p>' : ''}</div><h2>${plans.length ? 'Incluso em todos os planos' : 'O que está incluso'}</h2><ul class="scope">${list(common)}</ul><h2>${plans.length ? 'Escolha o plano para o seu negócio' : 'Seu investimento'}</h2>${investment}${plans.length ? `<p>${escape(billing(snapshot))}</p>` : ''}<section class="commercial${snapshot.inicioCobranca > 1 ? ' benefit' : ''}"><p><b>${escape(start(snapshot))}</b></p>${openingText ? `<p>${escape(openingText)}</p>` : ''}</section><h2>Condições da proposta</h2><div class="conditions"><p>${escape(billing(snapshot))}</p><p>Vencimento todo dia ${escape(snapshot.vencimento)} de cada mês.</p><p>${escape(adjustment(snapshot))}</p>${lines(
-    office.condicoes,
-  )
-    .map((item) => `<p>${escape(item)}</p>`)
-    .join(
-      '',
-    )}<p>Proposta válida até <b>${date(snapshot.validUntil)}</b>.</p></div><div class="signatures"><div>${escape(office.nome)}</div><div>${escape(companyName)}</div></div></div><footer class="footer">${office.units.length ? `<div class="units">${office.units.map((unit) => `<div><b>${escape(unit.name)}</b><br>${escape(unit.address)}${unit.phone ? ` · ${escape(unit.phone)}` : ''}</div>`).join('')}</div>` : ''}<p>${[office.telefone && `WhatsApp ${office.telefone}`, office.email, office.site].filter(Boolean).map(escape).join(' · ')}</p></footer></article></body></html>`
+  const profileDetails = profile.inativa
+    ? `<dl class="pp-grid"><div><dt>Situação</dt><dd>Inativa, sem movimento</dd></div><div><dt>Regime tributário</dt><dd>${escape(regimes[profile.regime])}</dd></div><div><dt>Segmento</dt><dd>${escape(segment)}</dd></div></dl>`
+    : `<dl class="pp-grid"><div><dt>Segmento</dt><dd>${escape(segment)}</dd></div><div><dt>Regime tributário</dt><dd>${escape(regimes[profile.regime])}</dd></div><div><dt>Faturamento médio</dt><dd>${escape(wholeMoney(profile.faturamento))}/mês</dd></div><div><dt>Funcionários</dt><dd>${profile.funcionarios}</dd></div>${snapshot.params.xml.ativo === false ? '' : `<div><dt>XMLs por mês</dt><dd>${profile.xml.toLocaleString('pt-BR')}</dd></div>`}<div><dt>Notas pelo escritório</dt><dd>${plans.length ? 'Conforme o plano' : profile.emiteNF ? `${profile.notas} por mês` : 'Não'}</dd></div></dl>`
+  const conditions = [
+    billing(snapshot),
+    `Vencimento todo dia ${snapshot.vencimento} de cada mês.`,
+    adjustment(snapshot),
+    ...lines(office.condicoes),
+    `Proposta válida até ${date(snapshot.validUntil)}.`,
+  ]
+  const footerContacts = [
+    office.telefone &&
+      `<span>WhatsApp <b>${escape(office.telefone)}</b></span>`,
+    office.email && `<span>E-mail <b>${escape(office.email)}</b></span>`,
+    office.site && `<span><b>${escape(office.site)}</b></span>`,
+    '<span>Contabilidade para comércio, indústria e serviços</span>',
+  ]
+    .filter(Boolean)
+    .join('')
+  const footerUnits = office.units
+    .map(
+      (unit) =>
+        `<div><b>${escape(unit.name)}</b> ${escape(unit.address)}${unit.phone ? ` · <span style="white-space:nowrap">${escape(unit.phone)}</span>` : ''}</div>`,
+    )
+    .join('')
+  const logoMarkup = logo
+    ? `<img class="pp-logo" src="${escape(logo)}" alt="${escape(office.nome)}">`
+    : `<div class="pp-logo-text">${escape(office.nome)}</div>`
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none'"><meta name="referrer" content="no-referrer"><link rel="stylesheet" href="${proposalFontStylesheet}"><title>Proposta ${escape(quote.number)} – ${escape(companyName)}</title><style>${styles}</style></head><body><article class="pp"><header class="pp-hero"><div class="pp-top">${logoMarkup}<div class="pp-num">Proposta nº ${escape(quote.number)}<span>${date(quote.createdAt)}</span></div></div><div class="pp-kick">Proposta comercial</div><h1 class="pp-title">Proposta de honorários contábeis</h1><p class="pp-to">Para <strong>${escape(companyName)}</strong>${snapshot.contact ? ` · ${escape(snapshot.contact)}` : ''}</p><svg class="pp-wave" viewBox="0 0 800 40" preserveAspectRatio="none" aria-hidden="true"><path d="M0 28 C 120 4, 220 4, 330 22 S 560 40, 660 16 S 760 6, 800 14 L800 41 L0 41 Z" fill="#FFFFFF"/><path d="M0 28 C 120 4, 220 4, 330 22 S 560 40, 660 16 S 760 6, 800 14" fill="none" stroke="#DEAC29" stroke-width="2.4" vector-effect="non-scaling-stroke"/></svg></header><div class="pp-body"><h2>Perfil da empresa</h2>${profileDetails}<h2>${plans.length ? 'Incluso em todos os planos' : 'Escopo dos serviços'}</h2><ul class="pp-list">${list(common)}</ul>${investment}${extraConditions(quote)}<h2>Condições</h2><div class="pp-cond">${conditions.map((item) => `<p>${escape(item)}</p>`).join('')}</div></div><footer class="pp-foot">${footerUnits ? `<div class="pp-units">${footerUnits}</div>` : ''}<div class="pp-contact">${footerContacts}</div></footer></article></body></html>`
 }
 
 export function proposalMessage(quote: HonorariosQuote): string {
