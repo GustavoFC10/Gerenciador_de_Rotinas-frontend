@@ -135,7 +135,10 @@ describe('commercial proposal', () => {
         /<link rel="stylesheet" href="(https:\/\/fonts\.googleapis\.com\/css2\?family=Inter:[^"]+)">/,
       )?.[1]
 
-    expect(sourceStyles).toBe(proposalDocumentStyles)
+    const normalizeLineEndings = (value: string) => value.replace(/\r\n?/g, '\n')
+    expect(normalizeLineEndings(sourceStyles)).toBe(
+      normalizeLineEndings(proposalDocumentStyles),
+    )
     expect(source.slice(logoStart, logoEnd)).toBe(proposalLogoFallback)
     expect(font).toBe(proposalFontStylesheet)
   })
