@@ -1,0 +1,84 @@
+.processes-module .process-observation-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.processes-module .process-observation-intro {
+  display: grid;
+  gap: 2px;
+}
+
+.processes-module .process-observation-fields .process-observation-intro p {
+  margin: 0;
+}
+
+.processes-module .process-observation-draft {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-control);
+  background: var(--panel);
+}
+
+.processes-module .process-observation-audience {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.processes-module .process-observation-audience legend {
+  margin-bottom: 6px;
+  padding: 0;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.processes-module .process-observation-fields .process-observation-audience p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.processes-module .process-observation-sectors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.processes-module .process-observation-sector.com {
+  --observation-sector: var(--com);
+}
+
+.processes-module .process-observation-sector.fin {
+  --observation-sector: var(--fin);
+}
+
+.processes-module .process-observation-sector.reg {
+  --observation-sector: var(--reg);
+}
+
+.processes-module .process-observation-sector .switch {
+  width: 30px;
+  height: 18px;
+  box-shadow: inset 0 0 0 1px var(--observation-sector);
+}
+
+.processes-module .process-observation-sector .switch .knob {
+  width: 12px;
+  height: 12px;
+}
+
+.processes-module .process-observation-sector[aria-checked='true'] .switch {
+  background: var(--observation-sector);
+}
+
+.processes-module .process-observation-sector[aria-checked='true'] .knob {
+  transform: translateX(12px);
+}

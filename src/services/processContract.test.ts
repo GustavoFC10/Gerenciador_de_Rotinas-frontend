@@ -140,15 +140,11 @@ describe('Processos generated OpenAPI revision 2', () => {
         'honorario',
         'honVariacao',
         'contadorContato',
-        'obs',
       ])
         expect(() =>
           parseProcessDetail({
             ...restricted,
-            [field]:
-              field === 'obs' || field === 'contadorContato'
-                ? 'privado'
-                : '0.00',
+            [field]: field === 'contadorContato' ? 'privado' : '0.00',
           }),
         ).toThrow('conteúdo confidencial')
       for (const field of ['contato', 'honVariacao'])
@@ -399,9 +395,7 @@ describe('Processos generated OpenAPI revision 2', () => {
     expect(() => parseProcessDetail({ ...detail, honorario: '0.00' })).toThrow(
       'conteúdo confidencial',
     )
-    expect(() => parseProcessDetail({ ...detail, obs: 'Privado' })).toThrow(
-      'conteúdo confidencial',
-    )
+    expect(parseProcessDetail({ ...detail, obs: 'Geral' }).obs).toBe('Geral')
   })
 
   it('não inventa estados a partir de análise, datas ou relógio do navegador', () => {

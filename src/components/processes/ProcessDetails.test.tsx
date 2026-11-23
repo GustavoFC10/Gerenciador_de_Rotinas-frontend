@@ -470,7 +470,7 @@ describe('ProcessDetails', () => {
       })
       await render(process)
       expect(host.textContent).toContain('Aguardando retorno há 8 dias')
-      expect(host.textContent).toContain('Cobrança necessária')
+      expect(host.textContent).not.toContain('Cobrança necessária')
       expect(
         host
           .querySelector('[role="progressbar"]')
@@ -561,45 +561,6 @@ describe('ProcessDetails', () => {
     )
   })
 
-  it('keeps comments on save failures and reloads after a version conflict without replaying', async () => {
-    const process = makeProcessTestResource()
-    const conflict = new ApiError({
-      problem: { type: 'conflict', title: 'Conflito', status: 409 },
-      requestId: null,
-      response: new Response(null, { status: 409 }),
-    })
-    const add = vi.spyOn(processService, 'addNote').mockRejectedValue(conflict)
-    const get = vi
-      .spyOn(processService, 'get')
-      .mockResolvedValue(response({ ...process, version: 6 }))
-    const { onChange } = await render(process)
-    const textarea = host.querySelector('textarea')!
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(
-        HTMLTextAreaElement.prototype,
-        'value',
-      )!.set!.call(textarea, 'Comentário importante')
-      textarea.dispatchEvent(new Event('input', { bubbles: true }))
-    })
-    await act(async () =>
-      host
-        .querySelector('form.composer')!
-        .dispatchEvent(
-          new Event('submit', { bubbles: true, cancelable: true }),
-        ),
-    )
-    expect(add).toHaveBeenCalledTimes(1)
-    expect(add).toHaveBeenCalledWith('process-1', 4, 'Comentário importante')
-    expect(get).toHaveBeenCalledWith('process-1')
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ version: 6 }),
-    )
-    expect(textarea.value).toBe('Comentário importante')
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
-      'Os dados foram atualizados',
-    )
-  })
-
   it('requires an explicit reopening action before resetting later confirmations', async () => {
     const process = makeProcessTestResource({
       tarefas: {
@@ -624,41 +585,18 @@ describe('ProcessDetails', () => {
     expect(transition).toHaveBeenCalledWith('process-1', 'ab3', 4, 'pending')
   })
 
-  it('shows uncertain email delivery accurately and retries only when eligible', async () => {
-    const process = makeProcessTestResource({
-      notifications: { sent: 2, uncertain: 1 },
-    })
-    const retry = vi
-      .spyOn(processService, 'retryNotifications')
-      .mockResolvedValue(response(process))
-    const { button } = await render(process)
-    expect(host.textContent).toContain('Aceitos pelo provedor')
-    expect(host.textContent).toContain('não são reenviadas automaticamente')
-    expect(button('Tentar envios pendentes')).toBeUndefined()
-    await act(async () =>
-      root.render(
-        <QueryClientProvider client={client}>
-          <ProcessDetails
-            scope={scope}
-            process={{
-              ...process,
-              notifications: { ...process.notifications, pending: 1 },
-            }}
-            catalog={processTestCatalog}
-            onChange={vi.fn()}
-            onClose={vi.fn()}
-            onEdit={vi.fn()}
-            onDelete={vi.fn()}
-          />
-        </QueryClientProvider>,
-      ),
+  it('omits the opening email panel even when notification metadata is available', async () => {
+    await render(
+      makeProcessTestResource({ notifications: { pending: 1, sent: 2 } }),
     )
-    await act(async () => button('Tentar envios pendentes').click())
-    expect(retry).toHaveBeenCalledWith('process-1', 4)
+    expect(host.textContent).not.toContain('E-mails de abertura')
+    expect(host.textContent).not.toContain('Tentar envios pendentes')
   })
 
   it('preserves financial omissions for Regularidade', async () => {
     const process = makeProcessTestResource({
+      custo: '12345.67',
+      honorario: '900.00',
       permissions: {
         ...processTestCatalog.permissions,
         viewFinancial: false,
@@ -671,11 +609,36 @@ describe('ProcessDetails', () => {
         sectors: ['reg'],
       },
     })
-    await render(process)
+    const { button } = await render(process)
+    await act(async () => button('Dados do processo').click())
+    const primary = host.querySelector('.process-data-group--primary')!
+    expect(
+      [...primary.querySelectorAll('dt')].map((item) => item.textContent),
+    ).toEqual(['Regime tributário'])
     expect(host.textContent).toContain('Restritos')
     expect(host.textContent).not.toContain('Segredo financeiro')
     expect(host.textContent).not.toContain('Nota privada')
     expect(host.textContent).not.toContain('12.345')
+  })
+
+  it('prioritizes what changes in an alteration and displays each field once', async () => {
+    const { button } = await render(
+      makeProcessTestResource({
+        tipo: 'alteracao',
+        altItens: ['endereco'],
+        custo: '500.00',
+      }),
+    )
+    await act(async () => button('Dados do processo').click())
+    const primary = host.querySelector('.process-data-group--primary')!
+    expect(
+      [...primary.querySelectorAll('dt')].map((item) => item.textContent),
+    ).toEqual(['O que será alterado', 'Custo do processo'])
+    expect(
+      [...host.querySelectorAll('.process-data-group dt')].filter(
+        (item) => item.textContent === 'O que será alterado',
+      ),
+    ).toHaveLength(1)
   })
 
   it('loads entries only when their type and page are requested', async () => {
@@ -684,7 +647,7 @@ describe('ProcessDetails', () => {
       por: 'member-1',
       autor: 'Ana',
       em: '2026-10-22T12:00:00Z',
-      kind: 'note',
+      kind: 'created',
       financial: false,
       text: 'Primeira página',
       details: {},
@@ -715,7 +678,7 @@ describe('ProcessDetails', () => {
     expect(entries).toHaveBeenCalledTimes(1)
     expect(entries).toHaveBeenLastCalledWith(
       'process-1',
-      { kind: 'note', page: 1, pageSize: 50 },
+      { kind: 'event', page: 1, pageSize: 50 },
       expect.any(AbortSignal),
     )
     expect(host.textContent).toContain('Primeira página')
@@ -724,18 +687,97 @@ describe('ProcessDetails', () => {
     expect(entries).toHaveBeenCalledTimes(2)
     expect(entries).toHaveBeenLastCalledWith(
       'process-1',
-      { kind: 'note', page: 2, pageSize: 50 },
+      { kind: 'event', page: 2, pageSize: 50 },
       expect.any(AbortSignal),
     )
     expect(host.textContent).toContain('Segunda página')
     expect(host.textContent).not.toContain('Primeira página')
-    await act(async () => button('Histórico').click())
+  })
+
+  it('keeps stages beside independently collapsible company, process, and observation panels', async () => {
+    const observations = vi
+      .mocked(processService.entries)
+      .mockImplementation(async (_id, filters) => {
+        const notes: ProcessEntry[] =
+          filters?.kind === 'note'
+            ? [
+                {
+                  id: 'note-1',
+                  por: 'member-1',
+                  autor: 'Ana Silva',
+                  em: '2026-10-22T12:00:00Z',
+                  kind: 'note',
+                  financial: false,
+                  text: 'Confirmar o pagamento.',
+                  visibleToSectors: ['fin'],
+                  details: null,
+                },
+              ]
+            : []
+        return response({
+          count: notes.length,
+          next: null,
+          previous: null,
+          results: notes,
+        })
+      })
+    const { button } = await render(
+      makeProcessTestResource({
+        obs: 'Preparar documentos na abertura.',
+        contato: 'cliente@exemplo.com',
+      }),
+    )
+    const company = button('Dados da empresa')
+    const details = button('Dados do processo')
+    const notes = button('Observações')
+    const panelFor = (toggle: HTMLButtonElement) =>
+      document.getElementById(toggle.getAttribute('aria-controls')!)!
+    expect(panelFor(company).textContent).toContain('cliente@exemplo.com')
+    expect(company.getAttribute('aria-expanded')).toBe('true')
+    expect(details.getAttribute('aria-expanded')).toBe('false')
+    expect(notes.getAttribute('aria-expanded')).toBe('false')
+    expect(host.querySelector('.col-main h2')?.textContent).toBe('Etapas')
+    expect(host.querySelector('.phead')?.textContent).not.toContain('Preparar')
+    expect(observations).toHaveBeenCalledTimes(1)
+
+    await act(async () => details.click())
+    expect(panelFor(details).hidden).toBe(false)
+    const dataPanel = panelFor(details)
+    expect(
+      [...dataPanel.querySelectorAll('h3')].map((item) => item.textContent),
+    ).toEqual([
+      'Dados principais',
+      'Informações gerais',
+      'Definições da Diretoria',
+    ])
+    const [, general] = dataPanel.querySelectorAll('.process-data-group')
+    expect(general?.querySelector('dl dt')?.textContent).toBe('Prazo')
+    expect(general?.querySelector('dl dd')?.textContent).toBe('Sem prazo')
+    expect(
+      [...dataPanel.querySelectorAll('.process-data-group--primary dt')].map(
+        (item) => item.textContent,
+      ),
+    ).toEqual([
+      'Regime tributário',
+      'Custo do processo',
+      'Novo honorário mensal',
+    ])
+    await act(async () => notes.click())
     await settleQueries()
-    expect(entries).toHaveBeenLastCalledWith(
+    expect(observations).toHaveBeenLastCalledWith(
       'process-1',
-      { kind: 'event', page: 1, pageSize: 50 },
+      { kind: 'note', page: 1, pageSize: 50 },
       expect.any(AbortSignal),
     )
+    expect(panelFor(notes).textContent).toContain('Preparar documentos')
+    expect(panelFor(notes).textContent).toContain('Confirmar o pagamento.')
+    expect(panelFor(notes).textContent).toContain('Financeiro')
+    expect(panelFor(notes).querySelectorAll('ul > li')).toHaveLength(2)
+    expect(panelFor(notes).querySelector('time, button')).toBeNull()
+    expect(panelFor(company).hidden).toBe(false)
+    expect(panelFor(details).hidden).toBe(false)
+    await act(async () => notes.click())
+    expect(panelFor(notes).hidden).toBe(true)
   })
 
   it.each(['clock', 'migration', 'migration_reverse', 'command'])(
@@ -764,8 +806,7 @@ describe('ProcessDetails', () => {
                 : [],
           }),
       )
-      const { button } = await render(makeProcessTestResource())
-      await act(async () => button('Histórico').click())
+      await render(makeProcessTestResource())
       await settleQueries()
       expect(host.querySelector('.feed .ev b')?.textContent).toBe(
         trigger === 'command' ? 'Ana histórica' : 'Sistema',
@@ -810,35 +851,11 @@ describe('ProcessDetails', () => {
             : [],
       }),
     )
-    const { button } = await render(makeProcessTestResource())
-    await act(async () => button('Histórico').click())
+    await render(makeProcessTestResource())
     await settleQueries()
     expect(host.querySelector('.feed .ev b')?.textContent).toBe(
       automatic ? 'Sistema' : 'Ana histórica',
     )
-  })
-
-  it('invalidates paginated entries after adding a note without reading audit arrays from the mutation response', async () => {
-    const process = makeProcessTestResource()
-    vi.spyOn(processService, 'addNote').mockResolvedValue(
-      response({ ...process, version: 5 }),
-    )
-    await render(process)
-    await settleQueries()
-    const invalidate = vi.spyOn(client, 'invalidateQueries')
-    await enterComment('Novo comentário')
-    await act(async () =>
-      host
-        .querySelector('form.composer')!
-        .dispatchEvent(
-          new Event('submit', { bubbles: true, cancelable: true }),
-        ),
-    )
-    expect(invalidate).toHaveBeenCalledWith(
-      { queryKey: processQueryKeys.entries(scope, process.id) },
-      { cancelRefetch: false },
-    )
-    expect(host.querySelector('textarea')?.value).toBe('')
   })
 
   it.each([400, 429, 503])(
@@ -933,39 +950,6 @@ describe('ProcessDetails', () => {
     expect(
       client.getQueriesData({ queryKey: processQueryKeys.root(scope) }),
     ).toEqual([])
-  })
-
-  it('preserves the note and blocks immediate replay during Retry-After', async () => {
-    const add = vi.spyOn(processService, 'addNote').mockRejectedValue(
-      new ApiError({
-        problem: {
-          type: 'throttled',
-          title: 'Muitas requisições',
-          status: 429,
-        },
-        requestId: 'note-rate-limit',
-        response: new Response(null, {
-          status: 429,
-          headers: { 'Retry-After': '30' },
-        }),
-      }),
-    )
-    const { button } = await render(makeProcessTestResource())
-    await enterComment('Comentário preservado')
-    const submit = () =>
-      host
-        .querySelector('form.composer')!
-        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-    await act(async () => {
-      submit()
-    })
-    expect(button('Enviar').disabled).toBe(true)
-    expect(host.querySelector('textarea')?.value).toBe('Comentário preservado')
-    expect(host.textContent).toContain('note-rate-limit')
-    await act(async () => {
-      submit()
-    })
-    expect(add).toHaveBeenCalledTimes(1)
   })
 
   it.each(['agendado', 'concluido'] as const)(
@@ -1112,16 +1096,5 @@ function pendingDefinition(field: ProcessField): ProcessResource {
       late: false,
       pendingSectors: ['com'],
     },
-  })
-}
-
-async function enterComment(text: string) {
-  const textarea = host.querySelector('textarea')!
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(
-      HTMLTextAreaElement.prototype,
-      'value',
-    )!.set!.call(textarea, text)
-    textarea.dispatchEvent(new Event('input', { bubbles: true }))
   })
 }

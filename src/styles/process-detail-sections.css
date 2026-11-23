@@ -1,0 +1,144 @@
+.processes-module .process-detail-section > .panel-h {
+  gap: 0;
+  padding: 0;
+  border: 0;
+}
+
+.processes-module .process-detail-section .panel-h h2 {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+}
+
+.processes-module .process-detail-section .panel-h > .btn {
+  margin-inline-end: 16px;
+}
+
+.processes-module .process-detail-section-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  text-align: start;
+}
+
+.processes-module .process-detail-section-toggle:hover {
+  background: var(--nav-hover);
+}
+
+.processes-module .process-detail-section-toggle:focus-visible {
+  outline-offset: -3px;
+}
+
+.processes-module .process-detail-section-toggle .i {
+  color: var(--text-muted);
+}
+
+.processes-module .process-detail-section-toggle[aria-expanded='false'] .i {
+  transform: rotate(-90deg);
+}
+
+.processes-module .process-detail-section-body {
+  border-block-start: 1px solid var(--divider);
+}
+
+.processes-module .col-side .process-detail-section .fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 14px 16px;
+}
+
+.processes-module .process-data-group {
+  padding: 14px 16px;
+}
+
+.processes-module .process-data-group--primary {
+  background: var(--panel-soft);
+}
+
+.processes-module .process-data-group + .process-data-group {
+  border-block-start: 1px solid var(--divider);
+}
+
+.processes-module .process-data-group h3 {
+  margin: 0 0 12px;
+}
+
+.processes-module .col-side .process-data-group > .fields {
+  margin: 0;
+  padding: 0;
+}
+
+@media (max-width: 480px) {
+  .processes-module .col-side .process-data-group > .fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.processes-module .process-data-group .process-data-field {
+  gap: 2px;
+}
+
+.processes-module .process-data-field dd {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.processes-module .process-data-field dd .app-caption {
+  display: block;
+  margin-block-start: 2px;
+}
+
+.processes-module .process-observation-empty,
+.processes-module .process-detail-section [role='status'] {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.processes-module .process-observation-empty,
+.processes-module .process-detail-section .process-entries > [role='status'],
+.processes-module .process-detail-section .process-entries > .process-actions {
+  padding: 12px 16px;
+}
+
+.processes-module .process-detail-section .process-entries > .err-msg {
+  margin: 12px 16px;
+}
+
+.processes-module .process-observation-list {
+  margin: 0;
+  padding: 0 16px;
+  list-style: none;
+}
+
+.processes-module .process-observation-list > li {
+  padding-block: 12px;
+}
+
+.processes-module .process-observation-list > li + li {
+  border-block-start: 1px solid var(--divider);
+}
+
+.processes-module .process-observation-list > li > p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.processes-module .process-observation-visibility {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.processes-module .process-observation-visibility .pill {
+  gap: 5px;
+  min-height: 24px;
+  padding-inline: 8px;
+}

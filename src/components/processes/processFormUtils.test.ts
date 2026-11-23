@@ -360,7 +360,6 @@ describe('process form contract', () => {
       tipo: 'inatividade',
       empresa: 'Empresa',
       cnpj: '',
-      obs: '',
       inicioInat: '2026-10-01',
       honPerdido: '0.00',
       motivo: null,
@@ -415,17 +414,9 @@ describe('process form contract', () => {
       obs: 'Original',
     })
     const input = processInputFromResource(process)
-    expect(
-      changedProcessFields(
-        {
-          tipo: input.tipo,
-          empresa: input.empresa,
-          custo: '500.00',
-          obs: 'Alterada',
-        },
-        process,
-      ),
-    ).toEqual({ obs: 'Alterada' })
+    expect(input).not.toHaveProperty('obs')
+    const draft = { ...input, custo: '600.00', obs: 'Alterada' }
+    expect(changedProcessFields(draft, process)).toEqual({ custo: '600.00' })
     expect(
       normalizeProcessInput(
         {

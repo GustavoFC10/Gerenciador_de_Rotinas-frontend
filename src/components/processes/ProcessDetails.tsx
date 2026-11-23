@@ -32,8 +32,8 @@ import {
 } from '../../utils/processPresentation'
 import ProcessFields from './ProcessFields'
 import ProcessIcon from './ProcessIcon'
-import ProcessFollowUps from './ProcessFollowUps'
 import ProcessTypeBadge from './ProcessTypeBadge'
+import '../../styles/process-detail-sections.css'
 import {
   DIRECT_LOSS_TYPES,
   isProcessFeeAdjustment,
@@ -314,7 +314,67 @@ function HistoryValue({
   return String(value)
 }
 
-function ProcessValues({
+const PROCESS_PRIORITY_FIELDS = {
+  abertura: ['taxRegime', 'cost', 'monthlyFee'],
+  mei: ['taxRegime', 'cost', 'monthlyFee'],
+  outro: ['taxRegime', 'monthlyFee'],
+  outros: ['request', 'requestedSector'],
+  alteracao: ['alterations', 'cost'],
+  inatividade: ['start', 'lostFee'],
+  inativa: ['start', 'feeLoss'],
+  reativacao: ['commercialRegistry', 'monthlyFee'],
+  baixa: ['competence', 'lostFee'],
+  saida: ['newAccountant', 'lostFee'],
+  exclusao: ['competence', 'reason', 'lostFee'],
+  aumento_honorarios: ['adjustedFee', 'newChargeDate'],
+  reducao_honorarios: ['adjustedFee', 'newChargeDate'],
+} as const satisfies Record<ProcessResource['tipo'], readonly string[]>
+
+type ProcessPriorityField =
+  (typeof PROCESS_PRIORITY_FIELDS)[ProcessResource['tipo']][number]
+
+interface ProcessDataItem {
+  id?: ProcessPriorityField
+  label: string
+  value?: string | null
+  detail?: string
+  full?: boolean
+}
+
+function ProcessDataGroup({
+  title,
+  fields,
+  primary = false,
+}: {
+  title: string
+  fields: ProcessDataItem[]
+  primary?: boolean
+}) {
+  if (!fields.length) return null
+  return (
+    <section
+      className={`process-data-group${primary ? ' process-data-group--primary' : ''}`}
+    >
+      <h3 className="app-component-title">{title}</h3>
+      <dl className="fields">
+        {fields.map(({ label, value, detail, full }) => (
+          <div
+            className={`field process-data-field${full ? ' full' : ''}`}
+            key={label}
+          >
+            <dt className="app-caption">{label}</dt>
+            <dd className={`vv${value ? '' : ' muted'}`}>
+              {value || 'Não informado'}
+              {detail && <span className="app-caption">{detail}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )
+}
+
+function ProcessData({
   process,
   type,
   date,
@@ -324,217 +384,316 @@ function ProcessValues({
   date: (value: string | null | undefined) => string
 }) {
   const financial = process.permissions.viewFinancial
-  const total = processMonthlyTotal(process)
-  const inactivityLoss = processInactivityLoss(process)
-  const valueBox = (
-    label: string,
-    value: ReactNode,
-    children?: ReactNode,
-    undefinedValue = false,
-  ) => (
-    <div className={`vbox ${undefinedValue ? 'empty-v' : ''}`}>
-      <span>{label}</span>
-      <b>{value}</b>
-      {children}
-    </div>
-  )
-  const financialApplicable =
-    processHasCost(type) ||
-    processHasField(type, 'honorario') ||
-    DIRECT_LOSS_TYPES.includes(process.tipo)
-  return (
-    <div className="vals">
-      {process.tipo === 'outros' && (
-        <>
-          {valueBox(
-            'Descrição do processo',
-            <span className="obs-t">{process.descricaoProcesso}</span>,
-          )}
-          {valueBox(
-            'Departamento solicitado',
-            process.departamentoSolicitado
-              ? PROCESS_SECTORS[process.departamentoSolicitado]
-              : '—',
-          )}
-          {valueBox(
-            'Acionar a Leggacy',
-            process.acionarLeggacy === undefined
-              ? '—'
-              : process.acionarLeggacy
-                ? 'Sim'
-                : 'Não',
-          )}
-          {financial &&
-            process.valorProcesso !== undefined &&
-            valueBox(
-              'Valor do processo',
-              processMoney(process.valorProcesso),
-              <small>Valor pontual</small>,
-            )}
-        </>
-      )}
-      {process.tipo === 'saida' &&
-        valueBox(
-          'Nova contabilidade',
-          process.novoContador
-            ? process.contadorNome || 'Dados conhecidos'
-            : 'A solicitar ao cliente',
-          <small>
-            {process.novoContador && financial
-              ? process.contadorContato || 'Contato não informado'
-              : process.novoContador
-                ? 'Contato reservado à Diretoria e ao Financeiro'
-                : 'A Regularidade pede os dados do novo contador'}
-          </small>,
-        )}
-      {process.tipo === 'reativacao' &&
-        valueBox(
-          'Junta Comercial',
-          process.reatJunta !== false
-            ? 'Reativar na Junta'
-            : 'Sem reativação na Junta',
-          <small>
-            {process.reatJunta !== false
-              ? 'Etapa com a Leggacy aberta'
-              : 'Etapa da Leggacy não se aplica'}
-          </small>,
-        )}
-      {processHasMeeting(type) &&
-        valueBox(
-          'Reuniões com o cliente',
-          '',
-          <>
-            {processHasMeeting(type, 'alinhamento') && (
-              <small>
-                Alinhamento:{' '}
-                <strong>{process.reunAlinh !== false ? 'Sim' : 'Não'}</strong>
-              </small>
-            )}
-            {processHasMeeting(type, 'acompanhamento') && (
-              <small>
-                Acompanhamento no 4º mês:{' '}
-                <strong>{process.reunAcomp !== false ? 'Sim' : 'Não'}</strong>
-              </small>
-            )}
-          </>,
-        )}
-      {!financial &&
-        financialApplicable &&
-        valueBox(
-          'Valores financeiros',
-          <>
-            <ProcessIcon name="lock" size={14} /> Restritos
-          </>,
-          <small>Visíveis para a Diretoria e o Financeiro</small>,
-          true,
-        )}
-      {financial &&
-        DIRECT_LOSS_TYPES.includes(process.tipo) &&
-        valueBox(
-          'Honorário perdido',
-          process.honPerdido == null
+  const competenceField = PROCESS_COMPETENCE_FIELDS[process.tipo]
+  const startLabel = PROCESS_START_LABELS[process.tipo]
+  const hasCost = processHasCost(type)
+  const hasFees = processHasField(type, 'honorario')
+  const hasDirectLoss = DIRECT_LOSS_TYPES.includes(process.tipo)
+  const feeAdjustment = isProcessFeeAdjustment(process.tipo)
+  const inactive = process.tipo === 'inativa'
+  const general: ProcessDataItem[] = [
+    {
+      id: 'start',
+      label: startLabel ?? 'Prazo',
+      value: startLabel
+        ? process.inicioInat && date(process.inicioInat)
+        : process.prazo
+          ? date(process.prazo)
+          : 'Sem prazo',
+    },
+  ]
+  if (competenceField) {
+    const competence = process[competenceField.key]
+    general.push({
+      id: 'competence',
+      label: competenceField.label,
+      value: competence ? monthLabel(competence) : undefined,
+    })
+  }
+  general.push({ label: 'Aberto por', value: process.autorAbertura })
+  if (process.tipo === 'alteracao') {
+    general.push({
+      id: 'alterations',
+      label: 'O que será alterado',
+      value: process.altItens
+        ?.map((item) => PROCESS_ALTERATIONS[item])
+        .join(', '),
+      full: true,
+    })
+    if (financial)
+      general.push({
+        label: 'Dados que serão alterados',
+        value: process.altDesc,
+        full: true,
+      })
+  }
+  if (process.motivo)
+    general.push({
+      id: 'reason',
+      label: 'Motivo',
+      value: PROCESS_REASONS[process.motivo],
+      full: true,
+    })
+  if (financial && process.motivoObs)
+    general.push({
+      label: 'Detalhes do motivo',
+      value: process.motivoObs,
+      full: true,
+    })
+  if (process.tipo === 'saida')
+    general.push({
+      id: 'newAccountant',
+      label: 'Nova contabilidade',
+      value: process.novoContador
+        ? process.contadorNome || 'Dados conhecidos'
+        : 'A solicitar ao cliente',
+      detail: process.novoContador
+        ? financial
+          ? process.contadorContato || 'Contato não informado'
+          : 'Contato reservado à Diretoria e ao Financeiro'
+        : 'A Regularidade pede os dados do novo contador',
+      full: true,
+    })
+  if (process.tipo === 'reativacao')
+    general.push({
+      id: 'commercialRegistry',
+      label: 'Junta Comercial',
+      value:
+        process.reatJunta !== false
+          ? 'Reativar na Junta'
+          : 'Sem reativação na Junta',
+      detail:
+        process.reatJunta !== false
+          ? 'Etapa com a Leggacy aberta'
+          : 'Etapa da Leggacy não se aplica',
+      full: true,
+    })
+  if (processHasMeeting(type, 'alinhamento'))
+    general.push({
+      label: 'Reunião de alinhamento',
+      value: process.reunAlinh !== false ? 'Sim' : 'Não',
+    })
+  if (processHasMeeting(type, 'acompanhamento'))
+    general.push({
+      label: 'Reunião de acompanhamento (4º mês)',
+      value: process.reunAcomp !== false ? 'Sim' : 'Não',
+    })
+
+  const request: ProcessDataItem[] = []
+  if (process.tipo === 'outros') {
+    request.push(
+      {
+        id: 'request',
+        label: 'Descrição do processo',
+        value: process.descricaoProcesso,
+        full: true,
+      },
+      {
+        id: 'requestedSector',
+        label: 'Departamento solicitado',
+        value:
+          process.departamentoSolicitado &&
+          PROCESS_SECTORS[process.departamentoSolicitado],
+      },
+      {
+        label: 'Acionar a Leggacy',
+        value:
+          process.acionarLeggacy === undefined
+            ? undefined
+            : process.acionarLeggacy
+              ? 'Sim'
+              : 'Não',
+      },
+    )
+    if (financial && process.valorProcesso !== undefined)
+      request.push({
+        label: 'Valor do processo',
+        value: processMoney(process.valorProcesso),
+        detail: 'Valor pontual',
+      })
+  }
+
+  const definitions: ProcessDataItem[] = []
+  if (processHasField(type, 'regime')) {
+    definitions.push({
+      id: 'taxRegime',
+      label: 'Regime tributário',
+      value: process.regime ? PROCESS_REGIMES[process.regime] : 'A definir',
+    })
+    if (financial && process.regimeObs)
+      definitions.push({
+        label: 'Detalhes do regime tributário',
+        value: process.regimeObs,
+        full: true,
+      })
+  }
+  if (!financial && (hasCost || hasFees || hasDirectLoss))
+    definitions.push({
+      label: 'Valores financeiros',
+      value: 'Restritos',
+      detail: 'Visíveis para a Diretoria e o Financeiro',
+      full: true,
+    })
+  if (financial && hasCost) {
+    const installment = processInstallmentValue(process.custo, process.parcelas)
+    definitions.push(
+      {
+        id: 'cost',
+        label: 'Custo do processo',
+        value: processMoney(process.custo),
+      },
+      {
+        label: 'Quem paga',
+        value: process.pagador ? PROCESS_PAYERS[process.pagador] : 'A definir',
+      },
+      {
+        label: 'Pagamento',
+        value:
+          process.parcelas === 1
+            ? 'À vista'
+            : process.parcelas
+              ? `${process.parcelas} parcelas${installment === null ? '' : ` de ${processMoney(installment)}`}`
+              : 'A definir',
+      },
+    )
+  }
+  if (financial && hasDirectLoss)
+    definitions.push({
+      id: 'lostFee',
+      label: 'Honorário perdido',
+      value:
+        process.honPerdido == null
+          ? 'A definir'
+          : `− ${processMoney(process.honPerdido)} /mês`,
+    })
+  if (financial && inactive) {
+    const loss = processInactivityLoss(process)
+    definitions.push(
+      { label: 'Honorário anterior', value: processMoney(process.honAnterior) },
+      {
+        id: 'feeLoss',
+        label: 'Perda de honorário',
+        value: loss == null ? 'A definir' : `− ${processMoney(loss)} /mês`,
+      },
+    )
+  }
+  if (financial && feeAdjustment)
+    definitions.push(
+      { label: 'Honorário anterior', value: processMoney(process.honAnterior) },
+      {
+        id: 'adjustedFee',
+        label: 'Novo honorário contábil',
+        value: processMoney(process.honorario),
+      },
+      {
+        id: 'newChargeDate',
+        label: 'Data da nova cobrança',
+        value: date(process.honCobranca),
+      },
+      {
+        label:
+          process.tipo === 'aumento_honorarios'
+            ? 'Aumento de honorários'
+            : 'Redução de honorários',
+        value:
+          process.honVariacao === undefined
             ? 'A definir'
-            : `− ${processMoney(process.honPerdido)} /mês`,
-          <small>Honorário mensal que deixa de ser cobrado</small>,
-          process.honPerdido == null,
-        )}
-      {financial &&
-        process.tipo === 'inativa' &&
-        valueBox(
-          'Perda de honorário',
-          inactivityLoss != null
-            ? `− ${processMoney(inactivityLoss)} /mês`
-            : 'A definir',
-          <small>
-            Antes: {processMoney(process.honAnterior)} → durante a inatividade:{' '}
-            {process.honorario == null ? 'A definir' : processMoney(total)}
-          </small>,
-          process.honAnterior == null || process.honorario == null,
-        )}
-      {processHasField(type, 'regime') &&
-        valueBox(
-          'Regime tributário',
-          process.regime ? PROCESS_REGIMES[process.regime] : 'A definir',
-          financial && process.regimeObs ? (
-            <div className="obs-t">{process.regimeObs}</div>
-          ) : (
-            <small>
-              {process.regime ? 'Sem observações' : 'Definido pela Diretoria'}
-            </small>
-          ),
-          !process.regime,
-        )}
-      {financial &&
-        processHasCost(type) &&
-        valueBox(
-          'Custo do processo',
-          processMoney(process.custo),
-          <>
-            <small>
-              {process.pagador ? (
-                <>
-                  Pago por{' '}
-                  <span className={`payer ${process.pagador}`}>
-                    {PROCESS_PAYERS[process.pagador]}
-                  </span>
-                </>
-              ) : (
-                'Quem paga: a definir'
-              )}
-            </small>
-            <small>
-              {process.parcelas
-                ? process.parcelas === 1
-                  ? 'À vista'
-                  : `${process.parcelas} parcelas${process.custo != null ? ` de ${processMoney(processInstallmentValue(process.custo, process.parcelas))}` : ''}`
-                : 'Pagamento a definir'}
-            </small>
-          </>,
-          process.custo == null,
-        )}
-      {financial && isProcessFeeAdjustment(process.tipo) && (
-        <>
-          {valueBox('Honorário anterior', processMoney(process.honAnterior))}
-          {valueBox('Novo honorário contábil', processMoney(process.honorario))}
-          {valueBox('Data cobrança novo valor', date(process.honCobranca))}
-          {valueBox(
-            process.tipo === 'aumento_honorarios'
-              ? 'Aumento de honorários'
-              : 'Redução de honorários',
-            process.honVariacao === undefined
-              ? 'A definir'
-              : `${processMoney(process.honVariacao.replace(/^-/, ''))} /mês`,
-          )}
-        </>
-      )}
-      {financial &&
-        !isProcessFeeAdjustment(process.tipo) &&
-        processHasField(type, 'honorario') &&
-        valueBox(
-          'Novo honorário mensal',
-          process.honorario != null
-            ? `${processMoney(total)} /mês`
-            : 'A definir',
-          <>
-            {process.trab && process.honorario != null && (
-              <>
-                <small>Contábil: {processMoney(process.honorario)}</small>
-                <small>
-                  Trabalhista: {process.trabQtd ?? 0} funcionários ×{' '}
-                  {processMoney(process.trabValor)}
-                </small>
-              </>
-            )}
-            <small>
-              {process.tipo === 'inativa'
-                ? 'Data da nova cobrança'
-                : 'Cobrança do 1º honorário'}
-              : {date(process.honCobranca)}
-            </small>
-          </>,
-          process.honorario == null,
-        )}
-    </div>
+            : `${processMoney(process.honVariacao.replace(/^-/, ''))} /mês`,
+      },
+    )
+  if (financial && !feeAdjustment && (hasFees || inactive)) {
+    definitions.push({
+      id: 'monthlyFee',
+      label: 'Novo honorário mensal',
+      value:
+        process.honorario == null
+          ? 'A definir'
+          : `${processMoney(processMonthlyTotal(process))} /mês`,
+    })
+    if (hasFees)
+      definitions.push({
+        label: inactive ? 'Data da nova cobrança' : 'Cobrança do 1º honorário',
+        value: date(process.honCobranca),
+      })
+    if (hasFees && process.trab && process.honorario != null)
+      definitions.push(
+        { label: 'Honorário contábil', value: processMoney(process.honorario) },
+        {
+          label: 'Honorário trabalhista',
+          value: `${process.trabQtd ?? 0} funcionários × ${processMoney(process.trabValor)}`,
+        },
+      )
+  }
+
+  const priorities: readonly ProcessPriorityField[] =
+    PROCESS_PRIORITY_FIELDS[process.tipo]
+  const fields = [...general, ...request, ...definitions]
+  const primary = priorities
+    .map((id) => fields.find((field) => field.id === id))
+    .filter((field) => field !== undefined)
+  const remaining = (items: ProcessDataItem[]) =>
+    items.filter((field) => !field.id || !priorities.includes(field.id))
+
+  return (
+    <>
+      <ProcessDataGroup title="Dados principais" fields={primary} primary />
+      <ProcessDataGroup
+        title="Informações gerais"
+        fields={remaining(general)}
+      />
+      <ProcessDataGroup
+        title="Dados da solicitação"
+        fields={remaining(request)}
+      />
+      <ProcessDataGroup
+        title="Definições da Diretoria"
+        fields={remaining(definitions)}
+      />
+    </>
+  )
+}
+
+function ProcessSideSection({
+  title,
+  children,
+  action,
+  defaultOpen = false,
+  loadOnOpen = false,
+}: {
+  title: string
+  children: ReactNode
+  action?: ReactNode
+  defaultOpen?: boolean
+  loadOnOpen?: boolean
+}) {
+  const contentId = useId()
+  const [open, setOpen] = useState(defaultOpen)
+
+  return (
+    <section className="panel process-detail-section">
+      <div className="panel-h">
+        <h2>
+          <button
+            className="process-detail-section-toggle"
+            type="button"
+            aria-expanded={open}
+            aria-controls={contentId}
+            onClick={() => setOpen((value) => !value)}
+          >
+            {title}
+            <ProcessIcon name="chev" size={16} />
+          </button>
+        </h2>
+        {action}
+      </div>
+      <div
+        className="process-detail-section-body"
+        id={contentId}
+        hidden={!open}
+      >
+        {(open || !loadOnOpen) && children}
+      </div>
+    </section>
   )
 }
 
@@ -571,14 +730,12 @@ export default function ProcessDetails({
   }, [])
   const busyRef = useRef(false)
   const [error, setError] = useState('')
-  const [comment, setComment] = useState('')
   const [confirmation, setConfirmation] = useState<
     'delete' | 'cancel' | string | null
   >(null)
   const [unavailable, setUnavailable] = useState(false)
   const [openedAt] = useState(() => Date.now())
   const type = catalog.types.find((type) => type.id === process.tipo)
-  const competenceField = PROCESS_COMPETENCE_FIELDS[process.tipo]
   const taskNames = Object.fromEntries(
     [...(type?.etapas ?? []), ...process.etapas].flatMap((stage) =>
       stage.tasks.map((task) => [task.id, task.txt]),
@@ -734,18 +891,6 @@ export default function ProcessDetails({
       busyRef.current = false
       setBusy(false)
     }
-  }
-  async function submitNote(event: FormEvent) {
-    event.preventDefault()
-    const text = comment.trim()
-    if (!text) return
-    if (
-      await mutate(
-        () => processService.addNote(process.id, process.version, text),
-        'Comentário enviado',
-      )
-    )
-      setComment('')
   }
   function taskView(task: ProcessTask, locked: boolean) {
     const state = process.tarefas[task.id]
@@ -1182,7 +1327,7 @@ export default function ProcessDetails({
                 .filter((tracking) => tracking.awaitingReturn)
                 .map((tracking) => (
                   <div
-                    className={`process-leggacy-tracking ${tracking.followUpDue ? 'follow-up-due' : ''}`}
+                    className="process-leggacy-tracking"
                     key={`${tracking.sendTaskId}:${tracking.sentAt}`}
                   >
                     <p>
@@ -1193,61 +1338,17 @@ export default function ProcessDetails({
                     <p>
                       {taskNames[tracking.returnTaskId] ?? 'Retorno da Leggacy'}
                     </p>
-                    <small>
-                      Envio em {timestamp(tracking.sentAt)} · Cobrança a partir
-                      de {date(tracking.dueOn)}
-                    </small>
-                    {tracking.followUpDue && (
-                      <p>
-                        <strong>Cobrança necessária</strong>
-                      </p>
-                    )}
+                    <small>Envio em {timestamp(tracking.sentAt)}</small>
                   </div>
                 ))}
             </section>
           )}
-          <ProcessFollowUps
-            scope={scope}
-            permissions={process.permissions}
-            processId={process.id}
-            timeZone={timeZone}
-            onUnavailable={revokeAccess}
-          />
           <section className="panel">
             <div className="panel-h">
-              <h2>Comentários e histórico</h2>
+              <h2>Histórico</h2>
             </div>
-            {process.permissions.note && (
-              <form
-                className="composer"
-                onSubmit={(event) => void submitNote(event)}
-              >
-                <textarea
-                  className="input"
-                  rows={2}
-                  placeholder="Escreva um comentário para a equipe"
-                  aria-label="Comentário"
-                  maxLength={5000}
-                  required
-                  value={comment}
-                  onChange={(event) => setComment(event.target.value)}
-                  disabled={busy}
-                />
-                <button
-                  className="btn primary"
-                  type="submit"
-                  disabled={busy || !comment.trim()}
-                >
-                  Enviar
-                </button>
-              </form>
-            )}
-            {process.permissions.note && process.permissions.viewFinancial && (
-              <p className="note">
-                Seus comentários são visíveis para a Diretoria e o Financeiro.
-              </p>
-            )}
             <ProcessEntries
+              kind="event"
               scope={scope}
               processId={process.id}
               timestamp={timestamp}
@@ -1258,153 +1359,42 @@ export default function ProcessDetails({
           </section>
         </div>
         <div className="col-side">
-          <section className="panel">
-            <div className="panel-h">
-              <h2>Dados do processo</h2>
-              {process.permissions.edit && process.status !== 'cancelado' && (
-                <button className="btn sm" disabled={busy} onClick={onEdit}>
-                  <ProcessIcon name="pen" size={15} />
-                  Editar
-                </button>
-              )}
-            </div>
+          <ProcessSideSection title="Dados da empresa" defaultOpen>
             <div className="fields">
               {readonlyField('Empresa ou cliente', process.empresa, true)}
               {readonlyField('CNPJ', process.cnpj)}
-              {readonlyField(
-                PROCESS_START_LABELS[process.tipo] ?? 'Prazo',
-                PROCESS_START_LABELS[process.tipo]
-                  ? process.inicioInat
-                    ? date(process.inicioInat)
-                    : 'Não informado'
-                  : process.prazo
-                    ? date(process.prazo)
-                    : 'Sem prazo',
-              )}
-              {competenceField &&
-                readonlyField(
-                  competenceField.label,
-                  process[competenceField.key]
-                    ? monthLabel(process[competenceField.key]!)
-                    : 'Não informado',
-                )}
               {readonlyField('Contato do cliente', process.contato)}
-              {readonlyField('Aberto por', process.autorAbertura)}
-              <div className="field full">
-                <label>Definições da Diretoria</label>
-                <ProcessValues process={process} type={type} date={date} />
-              </div>
-              {process.tipo === 'alteracao' && (
-                <>
-                  {readonlyField(
-                    'O que será alterado',
-                    <div className="chk-chips">
-                      {process.altItens?.map((item) => (
-                        <span key={item} className="chk ro" aria-pressed="true">
-                          <span className="box">
-                            <ProcessIcon name="tick" size={11} />
-                          </span>
-                          {PROCESS_ALTERATIONS[item]}
-                        </span>
-                      ))}
-                    </div>,
-                    true,
-                  )}
-                  {process.permissions.viewFinancial &&
-                    readonlyField(
-                      'Dados que serão alterados',
-                      process.altDesc,
-                      true,
-                    )}
-                </>
-              )}
-              {process.motivo &&
-                readonlyField('Motivo', PROCESS_REASONS[process.motivo], true)}
-              {process.permissions.viewFinancial &&
-                process.motivoObs &&
-                readonlyField('Detalhes do motivo', process.motivoObs, true)}
-              {process.permissions.viewFinancial &&
-                readonlyField(
-                  'Observações',
-                  process.obs || 'Nenhuma observação',
-                  true,
-                )}
             </div>
-          </section>
-          {process.notifications && (
-            <section className="panel">
-              <div className="panel-h">
-                <h2>E-mails de abertura</h2>
+          </ProcessSideSection>
+          <ProcessSideSection
+            title="Dados do processo"
+            action={
+              process.permissions.edit &&
+              process.status !== 'cancelado' && (
                 <button
-                  type="button"
                   className="btn sm"
+                  type="button"
                   disabled={busy}
-                  aria-label="Atualizar estados dos e-mails"
-                  onClick={() =>
-                    void mutate(() => processService.get(process.id))
-                  }
+                  onClick={onEdit}
                 >
-                  <ProcessIcon name="refresh" size={14} />
+                  <ProcessIcon name="pen" size={15} />
+                  Editar
                 </button>
-              </div>
-              <div className="fields">
-                <div className="field full">
-                  <div className="vals">
-                    {Object.entries({
-                      pending: 'Aguardando envio',
-                      sending: 'Em envio',
-                      sent: 'Aceitos pelo provedor',
-                      failed: 'Falha de preparação',
-                      uncertain: 'Entrega não confirmada',
-                      skipped: 'Ignorados por acesso revogado',
-                    }).map(([key, label]) => (
-                      <div className="vbox" key={key}>
-                        <span>{label}</span>
-                        <b>
-                          {process.notifications?.[
-                            key as keyof NonNullable<
-                              ProcessResource['notifications']
-                            >
-                          ] ?? 0}
-                        </b>
-                      </div>
-                    ))}
-                  </div>
-                  {(process.notifications.uncertain ?? 0) > 0 && (
-                    <p className="note">
-                      Entregas não confirmadas precisam de conferência no
-                      provedor de e-mail e não são reenviadas automaticamente.
-                    </p>
-                  )}
-                  <p className="note">
-                    O aceite pelo provedor não confirma recebimento. Uma nova
-                    tentativa envia apenas mensagens pendentes ou com falha de
-                    preparação.
-                  </p>
-                  {(process.notifications.pending ?? 0) +
-                    (process.notifications.failed ?? 0) >
-                    0 && (
-                    <button
-                      className="btn"
-                      disabled={busy}
-                      onClick={() =>
-                        void mutate(
-                          () =>
-                            processService.retryNotifications(
-                              process.id,
-                              process.version,
-                            ),
-                          'Tentativa de envio finalizada',
-                        )
-                      }
-                    >
-                      Tentar envios pendentes
-                    </button>
-                  )}
-                </div>
-              </div>
-            </section>
-          )}
+              )
+            }
+          >
+            <ProcessData process={process} type={type} date={date} />
+          </ProcessSideSection>
+          <ProcessSideSection title="Observações" loadOnOpen>
+            <ProcessEntries
+              kind="note"
+              scope={scope}
+              processId={process.id}
+              sectors={catalog.sectors}
+              legacyNote={process.obs?.trim()}
+              onUnavailable={revokeAccess}
+            />
+          </ProcessSideSection>
           {(process.permissions.cancel ||
             process.permissions.reopen ||
             process.permissions.delete) && (
@@ -1502,28 +1492,38 @@ export default function ProcessDetails({
   )
 }
 
+type ProcessEntriesContent =
+  | {
+      kind: 'event'
+      timestamp: (date: string) => string
+      taskNames: Record<string, string>
+      statuses: ProcessCatalog['statuses']
+    }
+  | {
+      kind: 'note'
+      sectors: ProcessCatalog['sectors']
+      legacyNote?: string
+    }
+
 function ProcessEntries({
   scope,
   processId,
-  timestamp,
-  taskNames,
-  statuses,
   onUnavailable,
+  ...content
 }: {
   scope: OrganizationQueryScope
   processId: string
-  timestamp: (date: string) => string
-  taskNames: Record<string, string>
-  statuses: ProcessCatalog['statuses']
   onUnavailable: (error: unknown) => void
-}) {
-  const [kind, setKind] = useState<'note' | 'event'>('note')
+} & ProcessEntriesContent) {
   const [page, setPage] = useState(1)
   const query = useProcessEntries(scope, processId, {
-    kind,
+    kind: content.kind,
     page,
     pageSize: 50,
   })
+  const isNotes = content.kind === 'note'
+  const legacyNote = isNotes && page === 1 ? content.legacyNote : undefined
+  const noteEntries = isNotes && !query.error ? (query.data?.results ?? []) : []
   const presentation = query.error ? getErrorPresentation(query.error) : null
   const [retryReady, setRetryReady] = useState(true)
   const inaccessible =
@@ -1545,28 +1545,26 @@ function ProcessEntries({
   if (inaccessible) return null
   return (
     <div className="process-entries" aria-busy={query.isFetching}>
-      <div
-        className="process-actions"
-        role="group"
-        aria-label="Tipo de registro"
-      >
-        {(['note', 'event'] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            className={`btn sm ${kind === value ? 'primary' : ''}`}
-            aria-pressed={kind === value}
-            onClick={() => {
-              setKind(value)
-              setPage(1)
-            }}
-          >
-            {value === 'note' ? 'Comentários' : 'Histórico'}
-          </button>
-        ))}
-      </div>
+      {isNotes && (legacyNote || noteEntries.length > 0) && (
+        <ul className="process-observation-list">
+          {legacyNote && (
+            <li>
+              <p>{legacyNote}</p>
+            </li>
+          )}
+          {noteEntries.map((entry) => (
+            <ProcessObservation
+              key={entry.id}
+              entry={entry}
+              sectors={content.sectors}
+            />
+          ))}
+        </ul>
+      )}
       {query.isPending ? (
-        <p role="status">Carregando registros…</p>
+        <p role="status">
+          {isNotes ? 'Carregando observações…' : 'Carregando registros…'}
+        </p>
       ) : presentation ? (
         <div className="err-msg" role="alert">
           <p>{presentation.message}</p>
@@ -1582,62 +1580,107 @@ function ProcessEntries({
               void query.refetch().then(() => setRetryReady(true))
             }}
           >
-            Tentar carregar registros novamente
+            {isNotes
+              ? 'Tentar carregar observações novamente'
+              : 'Tentar carregar registros novamente'}
           </button>
         </div>
       ) : query.data ? (
         <>
-          {query.isFetching && <p role="status">Atualizando registros…</p>}
-          <div className="feed">
-            {query.data.results.length ? (
-              query.data.results.map((entry) => (
-                <HistoryEntry
-                  key={entry.id}
-                  entry={entry}
-                  isNote={entry.kind === 'note'}
-                  timestamp={timestamp}
-                  taskNames={taskNames}
-                  statuses={statuses}
-                />
-              ))
-            ) : (
-              <p>Sem {kind === 'note' ? 'comentários' : 'eventos'} ainda.</p>
-            )}
-          </div>
-          <nav className="process-actions" aria-label="Paginação dos registros">
-            <button
-              className="btn sm"
-              disabled={query.isFetching || !query.data.previous}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
+          {query.isFetching && (
+            <p role="status">
+              {isNotes ? 'Atualizando observações…' : 'Atualizando registros…'}
+            </p>
+          )}
+          {isNotes ? (
+            !legacyNote &&
+            noteEntries.length === 0 && (
+              <p className="process-observation-empty">Nenhuma observação.</p>
+            )
+          ) : (
+            <div className="feed">
+              {query.data.results.length > 0 ? (
+                query.data.results.map((entry) => (
+                  <HistoryEntry
+                    key={entry.id}
+                    entry={entry}
+                    timestamp={content.timestamp}
+                    taskNames={content.taskNames}
+                    statuses={content.statuses}
+                  />
+                ))
+              ) : (
+                <p>Sem eventos ainda.</p>
+              )}
+            </div>
+          )}
+          {(!isNotes || query.data.previous || query.data.next) && (
+            <nav
+              className="process-actions"
+              aria-label={
+                isNotes
+                  ? 'Paginação das observações'
+                  : 'Paginação dos registros'
+              }
             >
-              Anterior
-            </button>
-            <span>
-              Página {page} · {query.data.count} registros
-            </span>
-            <button
-              className="btn sm"
-              disabled={query.isFetching || !query.data.next}
-              onClick={() => setPage((value) => value + 1)}
-            >
-              Próxima
-            </button>
-          </nav>
+              <button
+                className="btn sm"
+                disabled={query.isFetching || !query.data.previous}
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+              >
+                Anterior
+              </button>
+              <span>
+                Página {page} · {query.data.count}{' '}
+                {isNotes ? 'observações' : 'registros'}
+              </span>
+              <button
+                className="btn sm"
+                disabled={query.isFetching || !query.data.next}
+                onClick={() => setPage((value) => value + 1)}
+              >
+                Próxima
+              </button>
+            </nav>
+          )}
         </>
       ) : null}
     </div>
   )
 }
 
+function ProcessObservation({
+  entry,
+  sectors,
+}: {
+  entry: ProcessEntry
+  sectors: ProcessCatalog['sectors']
+}) {
+  return (
+    <li>
+      <p>{entry.text}</p>
+      {!!entry.visibleToSectors?.length && (
+        <div className="process-observation-visibility">
+          <span>Visível para</span>
+          {entry.visibleToSectors.map((sector) => (
+            <span className="pill" key={sector}>
+              <span className={`dot ${sector}`} aria-hidden="true" />
+              {sectors[sector]}
+            </span>
+          ))}
+        </div>
+      )}
+    </li>
+  )
+}
+
 function HistoryEntry({
   entry,
-  isNote,
   timestamp,
   taskNames,
   statuses,
 }: {
   entry: ProcessEntry
-  isNote: boolean
   timestamp: (date: string) => string
   taskNames: Record<string, string>
   statuses: ProcessCatalog['statuses']
@@ -1679,9 +1722,8 @@ function HistoryEntry({
         {initials}
       </span>
       <div className="c">
-        <b>{author}</b> {isNote ? 'comentou' : action} ·{' '}
+        <b>{author}</b> {action} ·{' '}
         <time dateTime={entry.em}>{timestamp(entry.em)}</time>
-        {isNote && <p style={{ whiteSpace: 'pre-wrap' }}>{entry.text}</p>}
         {entry.details != null &&
           typeof entry.details === 'object' &&
           Object.keys(entry.details).length > 0 && (

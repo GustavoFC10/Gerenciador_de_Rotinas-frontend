@@ -23,6 +23,7 @@ import type {
   ProcessFields,
   ProcessFollowUp,
   ProcessMovementMonth,
+  ProcessNoteInput,
   ProcessPermissions,
   ProcessResource,
   ProcessSector,
@@ -31,6 +32,7 @@ import type {
   ProcessSummary,
 } from '../types/processes'
 import { centsToDecimal, decimalToCents } from '../utils/processMoney'
+import { normalizeProcessNotes } from '../utils/processNotes'
 import {
   processDaysLate,
   processDaysUntilDue,
@@ -58,6 +60,9 @@ const editableFields = [
   'cnpj',
   'prazo',
   'inicioInat',
+  'competenciaInicioAtividade',
+  'competenciaInicioInatividade',
+  'ultimaCompetenciaTrabalho',
   'obs',
   'custo',
   'pagador',
@@ -226,7 +231,17 @@ const isUuid = (value: unknown): value is string =>
   typeof value === 'string' &&
   /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value)
 const isProcessSector = (value: unknown): value is ProcessSector =>
-  typeof value === 'string' && ['com', 'fin', 'reg'].includes(value)
+  typeof value === 'string' && Object.hasOwn(sectors, value)
+
+function isProcessNoteInput(value: unknown): value is ProcessNoteInput {
+  if (typeof value !== 'object' || value === null) return false
+  const { text, visibleToSectors } = value as Body
+  return (
+    typeof text === 'string' &&
+    Array.isArray(visibleToSectors) &&
+    visibleToSectors.every(isProcessSector)
+  )
+}
 
 function stagesOf(process: ProcessResource): ProcessStage[] {
   const type = types.find((type) => type.id === process.tipo)!
@@ -1965,6 +1980,7 @@ export class PreviewBackend {
           body.tipo === 'outros'
             ? [
                 'empresa',
+                'contato',
                 'descricaoProcesso',
                 'valorProcesso',
                 'departamentoSolicitado',
@@ -1983,6 +1999,7 @@ export class PreviewBackend {
           Object.keys(body).some(
             (key) =>
               key !== 'tipo' &&
+              key !== 'notes' &&
               !(creationFields as readonly string[]).includes(key),
           )
         )
@@ -1999,7 +2016,23 @@ export class PreviewBackend {
             ? json(this.project(existing))
             : error(409, 'A chave de abertura já foi usada para outros dados.')
         }
-        const input = body as unknown as ProcessCreateInput
+        const { notes: requestedNotes = [], ...fields } = body
+        if (
+          !Array.isArray(requestedNotes) ||
+          !requestedNotes.every(isProcessNoteInput)
+        )
+          return error(
+            400,
+            'Informe o texto e os departamentos de cada observação.',
+          )
+        let notes: ProcessNoteInput[]
+        try {
+          notes = normalizeProcessNotes(requestedNotes)
+        } catch (cause) {
+          if (!(cause instanceof Error)) throw cause
+          return error(400, cause.message)
+        }
+        const input = fields as unknown as Omit<ProcessCreateInput, 'notes'>
         const type = types.find((t) => t.id === input.tipo)
         if (
           typeof input.empresa !== 'string' ||
@@ -2020,6 +2053,7 @@ export class PreviewBackend {
             400,
             'Informe descrição, valor, departamento e opção Leggacy.',
           )
+        const author = this.session().activeMembership.displayName
         const process: PreviewProcess = {
           prazo: null,
           ...input,
@@ -2037,7 +2071,7 @@ export class PreviewBackend {
           criadoEm: now(),
           atualizadoEm: now(),
           criadoPor: this.actor.id,
-          autorAbertura: this.session().activeMembership.displayName,
+          autorAbertura: author,
           concluidoEm: null,
           status: 'andamento',
           version: 1,
@@ -2058,12 +2092,11 @@ export class PreviewBackend {
             pendingSectors: [],
           },
           entries: [
-            entry(
-              'opened',
-              'abriu o processo',
-              this.session().activeMembership.displayName,
-              this.actor.id,
-            ),
+            entry('opened', 'abriu o processo', author, this.actor.id),
+            ...notes.map(({ text, visibleToSectors }) => ({
+              ...entry('note', text, author, this.actor.id),
+              visibleToSectors,
+            })),
           ],
           notifications: {
             sent: 3,
@@ -2107,6 +2140,13 @@ export class PreviewBackend {
               return error(400, 'Tipo de entrada inválido.')
             const entries = process.entries
               .filter((item) => !item.financial || permissions.viewFinancial)
+              .filter(
+                (item) =>
+                  item.visibleToSectors === undefined ||
+                  item.visibleToSectors.some((sector) =>
+                    permissions.sectors.includes(sector),
+                  ),
+              )
               .filter(
                 (item) => item.kind !== 'alert_sent' || permissions.create,
               )

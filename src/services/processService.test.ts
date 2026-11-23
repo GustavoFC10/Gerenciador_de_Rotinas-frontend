@@ -228,6 +228,43 @@ describe('ProcessService revision 2', () => {
     })
   })
 
+  it.each(['abertura', 'outros', 'aumento_honorarios'] as const)(
+    'sends distinct audiences for notes when creating %s',
+    async (tipo) => {
+      const fetchImplementation = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(jsonResponse(makeProcessTestResource({ tipo })))
+
+      await createService(fetchImplementation).create(
+        {
+          tipo,
+          empresa: 'Cliente Exemplo',
+          notes: [
+            { text: '  Aguardar o contrato.  ', visibleToSectors: ['reg'] },
+            {
+              text: 'Revisar o valor.',
+              visibleToSectors: ['fin', 'com', 'fin'],
+            },
+          ],
+        },
+        'opening:with-notes',
+      )
+
+      const request = fetchImplementation.mock.calls[0]?.[1]
+      expect(JSON.parse(String(request?.body))).toMatchObject({
+        tipo,
+        notes: [
+          { text: 'Aguardar o contrato.', visibleToSectors: ['reg'] },
+          { text: 'Revisar o valor.', visibleToSectors: ['com', 'fin'] },
+        ],
+      })
+      expect(JSON.parse(String(request?.body))).not.toHaveProperty('obs')
+      expect(new Headers(request?.headers).get('Idempotency-Key')).toBe(
+        'opening:with-notes',
+      )
+    },
+  )
+
   it('repete abertura com a mesma chave e preserva CSRF, corpo, versão e metadados', async () => {
     const detail = makeProcessTestResource()
     const fetchImplementation = vi
@@ -448,6 +485,7 @@ describe('ProcessService revision 2', () => {
       financial: false,
       text: 'Contato realizado',
       details: null,
+      visibleToSectors: ['fin', 'reg'],
     }
     const fetchImplementation = vi
       .fn<typeof fetch>()
@@ -477,12 +515,6 @@ describe('ProcessService revision 2', () => {
         'kind',
       ),
     ).toBe('note')
-    const result = await service.addNote('process-1', 4, note.text)
-    expect(result.data.version).toBe(5)
-    expect(result.data).not.toHaveProperty('notas')
-    expect(fetchImplementation.mock.calls[1]![1]?.body).toBe(
-      JSON.stringify({ version: 4, text: note.text }),
-    )
   })
 
   it('consulta indicadores filtrados com os cinco estados, inclusive zero', async () => {

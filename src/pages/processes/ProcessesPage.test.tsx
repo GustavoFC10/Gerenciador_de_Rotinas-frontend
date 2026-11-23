@@ -948,11 +948,11 @@ describe('ProcessesPage integration', () => {
     await waitFor(() => host.textContent!.includes('83 avisos'))
     expect(processService.get).not.toHaveBeenCalled()
     expect(processService.alerts).toHaveBeenCalledWith(
-      { status: 'pending', pageSize: 1 },
+      { status: 'pending', kind: 'overdue', pageSize: 1 },
       expect.any(AbortSignal),
     )
     expect(processService.alerts).toHaveBeenCalledWith(
-      { status: 'pending', kind: undefined, page: 1, pageSize: 50 },
+      { status: 'pending', kind: 'overdue', page: 1, pageSize: 50 },
       expect.any(AbortSignal),
     )
     expect(
@@ -984,20 +984,15 @@ describe('ProcessesPage integration', () => {
     },
   )
 
-  it('shows complementary follow-ups to Financeiro in its queue and keeps them outside workflow totals', async () => {
+  it('keeps the Financeiro queue free of complementary follow-ups', async () => {
     catalog.permissions = {
       ...catalog.permissions,
       create: false,
       executeSectors: ['fin'],
     }
     await render('/processos/fila')
-    await waitFor(
-      () => !!host.querySelector('[aria-label="Cobranças da Leggacy"]'),
-    )
-    expect(processService.followUps).toHaveBeenCalledWith(
-      { processId: undefined, state: 'pending', page: 1, pageSize: 50 },
-      expect.any(AbortSignal),
-    )
+    expect(host.querySelector('[aria-label="Cobranças da Leggacy"]')).toBeNull()
+    expect(processService.followUps).not.toHaveBeenCalled()
     expect(processService.alerts).not.toHaveBeenCalled()
     expect(records[0]!.analysis.completedTasks).toBe(0)
     expect(records[0]!.analysis.totalTasks).toBe(4)
@@ -1047,6 +1042,7 @@ describe('ProcessesPage integration', () => {
   })
 
   it('invalidates complementary situations and their history after editing a process', async () => {
+    records[0] = { ...records[0]!, obs: 'Observação de abertura' }
     vi.spyOn(processService, 'update').mockImplementation(async (id, patch) => {
       const result = {
         ...records[0]!,
@@ -1067,13 +1063,15 @@ describe('ProcessesPage integration', () => {
     client.setQueryData(alertKey, { version: 1 })
     await act(async () => button('Editar').click())
     await changeFormValue(
-      'Observação atualizada',
-      '[role="dialog"] textarea[id$="-obs"]',
+      'Empresa atualizada',
+      '[role="dialog"] input[id$="-empresa"]',
     )
     await submitForm()
-    expect(host.querySelector('main')?.textContent).toContain(
-      'Observação atualizada',
+    await act(async () => button('Observações').click())
+    expect(host.querySelector('main h1')?.textContent).toContain(
+      'Empresa atualizada',
     )
+    expect(host.textContent).toContain('Observação de abertura')
     expect(client.getQueryState(followUpsKey)?.isInvalidated).toBe(true)
     expect(client.getQueryState(alertKey)?.isInvalidated).toBe(true)
   })
@@ -1409,6 +1407,7 @@ describe('ProcessesPage integration', () => {
     async (failure) => {
       records[0] = makeProcessTestResource({ obs: 'Conteúdo anterior ao erro' })
       await render('/processos/process-1')
+      await act(async () => button('Observações').click())
       expect(host.querySelector('main')?.textContent).toContain(
         'Conteúdo anterior ao erro',
       )
@@ -1600,6 +1599,7 @@ describe('ProcessesPage integration', () => {
       obs: 'Informação anterior restrita',
     })
     await render('/processos/process-1')
+    await act(async () => button('Observações').click())
     expect(host.querySelector('main')?.textContent).toContain(
       'Informação anterior restrita',
     )
@@ -1626,7 +1626,7 @@ describe('ProcessesPage integration', () => {
 
   it('closes the private edit snapshot and clears resource caches when saving is forbidden', async () => {
     records[0] = makeProcessTestResource({
-      obs: 'Observação restrita antes da revogação',
+      regimeObs: 'Detalhe tributário antes da revogação',
       custo: '19999.89',
     })
     vi.spyOn(processService, 'update').mockRejectedValue(httpError(403))
@@ -1640,7 +1640,7 @@ describe('ProcessesPage integration', () => {
           'input,textarea',
         ),
       ].some(
-        (input) => input.value === 'Observação restrita antes da revogação',
+        (input) => input.value === 'Detalhe tributário antes da revogação',
       ),
     ).toBe(true)
     client.setQueryData(
@@ -1657,7 +1657,7 @@ describe('ProcessesPage integration', () => {
     })
     await changeFormValue(
       'Edição recusada pelo servidor',
-      '[role="dialog"] textarea[id$="-obs"]',
+      '[role="dialog"] input[id$="-empresa"]',
     )
     await submitForm()
     await waitFor(
@@ -1669,7 +1669,7 @@ describe('ProcessesPage integration', () => {
     expect(processService.update).toHaveBeenCalledTimes(1)
     expect(document.querySelector('[role="dialog"]')).toBeNull()
     expect(host.textContent).not.toContain(
-      'Observação restrita antes da revogação',
+      'Detalhe tributário antes da revogação',
     )
     expect(host.textContent).not.toContain('19.999,89')
     expect(
@@ -1701,7 +1701,7 @@ describe('ProcessesPage integration', () => {
       obs: 'Conteúdo privado antes do histórico negar acesso',
     })
     const notesKey = processQueryKeys.entries(scope, 'process-1', {
-      kind: 'note',
+      kind: 'event',
       page: 1,
       pageSize: 50,
     })
@@ -1715,9 +1715,9 @@ describe('ProcessesPage integration', () => {
           por: 'member-1',
           autor: 'Ana Silva',
           em: '2026-10-29T12:00:00-03:00',
-          kind: 'note',
+          kind: 'created',
           financial: true,
-          text: 'Comentário financeiro anteriormente autorizado',
+          text: 'Evento financeiro anteriormente autorizado',
           details: {},
         },
       ],
@@ -1727,7 +1727,7 @@ describe('ProcessesPage integration', () => {
     })
     await render('/processos/process-1')
     expect(host.textContent).toContain(
-      'Comentário financeiro anteriormente autorizado',
+      'Evento financeiro anteriormente autorizado',
     )
     expect(processService.entries).not.toHaveBeenCalled()
     vi.mocked(processService.entries).mockRejectedValue(httpError(403))
@@ -1744,7 +1744,7 @@ describe('ProcessesPage integration', () => {
       'Conteúdo privado antes do histórico negar acesso',
     )
     expect(host.textContent).not.toContain(
-      'Comentário financeiro anteriormente autorizado',
+      'Evento financeiro anteriormente autorizado',
     )
     expect(
       client.getQueryData(processQueryKeys.detail(scope, 'process-1')),
@@ -1858,7 +1858,8 @@ describe('ProcessesPage integration', () => {
   })
 
   it('retains the edit snapshot version when a background refresh changes the resource', async () => {
-    const original = records[0]!
+    const original = { ...records[0]!, obs: 'Observação de abertura' }
+    records[0] = original
     const conflict = new ApiError({
       problem: {
         type: 'conflict',
@@ -1874,7 +1875,7 @@ describe('ProcessesPage integration', () => {
       .mockRejectedValue(conflict)
     await render('/processos/process-1')
     await act(async () => button('Editar').click())
-    await changeFormValue('Meu ajuste', '[role="dialog"] textarea[id$="-obs"]')
+    await changeFormValue('Meu ajuste', '[role="dialog"] input[id$="-empresa"]')
     const latest = {
       ...original,
       version: 5,
@@ -1888,7 +1889,7 @@ describe('ProcessesPage integration', () => {
     await submitForm()
     expect(update).toHaveBeenCalledWith(original.id, {
       version: 4,
-      obs: 'Meu ajuste',
+      empresa: 'Meu ajuste',
     })
     expect(document.querySelector('[role="dialog"]')).toBeNull()
     expect(host.querySelector('main')?.textContent).toContain(

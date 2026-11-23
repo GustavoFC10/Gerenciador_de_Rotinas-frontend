@@ -9,6 +9,7 @@ import {
   decimalToCents,
   formatProcessMoney,
 } from '../../utils/processMoney'
+import { normalizeProcessNotes } from '../../utils/processNotes'
 
 export const PROCESS_REGIMES = {
   simples: 'Simples Nacional',
@@ -224,7 +225,6 @@ export function processInputFromResource(
     competenciaInicioAtividade: process.competenciaInicioAtividade ?? null,
     competenciaInicioInatividade: process.competenciaInicioInatividade ?? null,
     ultimaCompetenciaTrabalho: process.ultimaCompetenciaTrabalho ?? null,
-    obs: process.obs ?? '',
     custo: process.custo ?? null,
     pagador: process.pagador ?? null,
     parcelas: process.parcelas ?? null,
@@ -272,7 +272,6 @@ export function processDraftForType(
           'contato',
           'cnpj',
           ...(type.id === 'exclusao' ? ['entregaDocumentacao'] : []),
-          'obs',
           PROCESS_START_LABELS[type.id] ? 'inicioInat' : 'prazo',
           ...(competenceField ? [competenceField.key] : []),
           ...(processHasCost(type) ? ['custo', 'pagador', 'parcelas'] : []),
@@ -315,6 +314,8 @@ export function normalizeProcessInput(
   if (contato.length > 500)
     throw new Error('Informe o contato do cliente com até 500 caracteres.')
   const contactFields = input.contato === undefined ? {} : { contato }
+  const notes = normalizeProcessNotes(input.notes)
+  const noteFields = notes.length ? { notes } : {}
   if (isProcessFeeAdjustment(type.id)) {
     const honAnterior = normalizeProcessMoney(input.honAnterior)
     const honorario = normalizeProcessMoney(input.honorario)
@@ -336,6 +337,7 @@ export function normalizeProcessInput(
       empresa,
       cnpj: input.cnpj?.trim() ?? '',
       ...contactFields,
+      ...noteFields,
       honAnterior,
       honorario,
       honCobranca: input.honCobranca || null,
@@ -358,6 +360,7 @@ export function normalizeProcessInput(
       tipo: 'outros',
       empresa,
       ...contactFields,
+      ...noteFields,
       descricaoProcesso,
       departamentoSolicitado: input.departamentoSolicitado,
       acionarLeggacy: input.acionarLeggacy,
@@ -368,8 +371,8 @@ export function normalizeProcessInput(
     tipo: type.id,
     empresa,
     ...contactFields,
+    ...noteFields,
     cnpj: input.cnpj?.trim() ?? '',
-    obs: input.obs?.trim() ?? '',
   }
   if (!result.empresa) throw new Error('Informe a empresa ou o cliente.')
   if (type.id === 'exclusao') {
@@ -467,6 +470,8 @@ export function changedProcessFields(
       ([key, value]) =>
         key !== 'tipo' &&
         key !== 'companyId' &&
+        key !== 'obs' &&
+        key !== 'notes' &&
         !(key === 'valorProcesso' && process.valorProcesso === undefined) &&
         JSON.stringify(value ?? null) !==
           JSON.stringify(

@@ -56,7 +56,6 @@ export default function ProcessAlerts(props: Props) {
 function AuthorizedAlerts({ scope, timeZone, onOpen, onUnavailable }: Props) {
   const client = useQueryClient()
   const [status, setStatus] = useState<ProcessAlertFilters['status']>('pending')
-  const [kind, setKind] = useState<ProcessAlertFilters['kind']>()
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState('')
   const [mobileDetail, setMobileDetail] = useState(false)
@@ -67,7 +66,7 @@ function AuthorizedAlerts({ scope, timeZone, onOpen, onUnavailable }: Props) {
   const [denied, setDenied] = useState<unknown>(null)
   const alerts = useProcessAlerts(
     scope,
-    { status, kind, page, pageSize: 50 },
+    { status, kind: 'overdue', page, pageSize: 50 },
     !denied,
   )
   const detail = useProcessAlert(scope, selectedId, !!selectedId && !denied)
@@ -146,23 +145,6 @@ function AuthorizedAlerts({ scope, timeZone, onOpen, onUnavailable }: Props) {
             <option value="sent">Envio declarado</option>
             <option value="resolved">Situação encerrada</option>
             <option value="">Todo o histórico</option>
-          </select>
-        </label>
-        <label>
-          Tipo de aviso
-          <select
-            value={kind ?? ''}
-            onChange={(event) => {
-              setKind(
-                (event.target.value ||
-                  undefined) as ProcessAlertFilters['kind'],
-              )
-              setPage(1)
-            }}
-          >
-            <option value="">Todos os tipos</option>
-            <option value="leggacy">Retorno da Leggacy</option>
-            <option value="overdue">Processo em atraso</option>
           </select>
         </label>
         <button

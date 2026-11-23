@@ -1917,17 +1917,16 @@
   overflow-wrap: anywhere;
   font-size: 14px;
 }
-.processes-module .composer {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-  padding: 14px 20px;
-  border-top: 1px solid var(--divider);
-  background: var(--panel-soft);
+.processes-module .process-leggacy-tracking {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--divider);
 }
-.processes-module .composer textarea {
-  min-height: 40px;
-  resize: none;
+.processes-module .process-leggacy-tracking p {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 6px;
 }
 .processes-module .d-actions {
   display: flex;
@@ -2238,6 +2237,11 @@
 }
 .processes-module .phead .row2 b {
   color: var(--text-strong);
+}
+.processes-module .phead .process-notes {
+  flex-basis: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .processes-module .phead .row2 .late {
   color: var(--err-text);

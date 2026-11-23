@@ -260,8 +260,8 @@ export function ProcessOtherFields({
         </p>
       )}
       <p className="help">
-        Acionar a Leggacy configura o acompanhamento e as cobranças. O envio
-        externo é realizado e declarado manualmente.
+        Acionar a Leggacy configura o acompanhamento. O envio externo é
+        realizado e declarado manualmente.
       </p>
     </>
   )
@@ -441,7 +441,7 @@ export default function ProcessFields({
             </div>
             <div className="ctl wide">
               <label className="lbl" htmlFor={`${id}-regime`}>
-                Observações <span>(opcional)</span>
+                Detalhes do regime tributário <span>(opcional)</span>
               </label>
               <textarea
                 id={`${id}-regime`}
