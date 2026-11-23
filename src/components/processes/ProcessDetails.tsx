@@ -755,7 +755,9 @@ export default function ProcessDetails({
     const canTransition =
       !automatic &&
       canExecute &&
-      ((done && process.status !== 'cancelado') || (!locked && executable))
+      ((done && process.status !== 'cancelado') ||
+        (!locked && executable) ||
+        (process.permissions.edit && !done && executable))
     const fieldHidden =
       task.campo &&
       task.campo !== 'regime' &&
