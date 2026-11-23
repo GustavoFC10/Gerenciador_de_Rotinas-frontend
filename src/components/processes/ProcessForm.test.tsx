@@ -12,6 +12,141 @@ import {
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 describe('ProcessForm', () => {
+  it('defaults each observation to Diretoria and submits its chosen departments', async () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const root = createRoot(host)
+    const submit = vi.fn().mockResolvedValue(undefined)
+    try {
+      await act(async () =>
+        root.render(
+          <ProcessForm
+            catalog={processTestCatalog}
+            scope={{ organizationId: 'org-1', membershipId: 'member-1' }}
+            onSubmit={submit}
+            onClose={vi.fn()}
+          />,
+        ),
+      )
+      const dialog = document.querySelector('[role="dialog"]')!
+      const observations = dialog.querySelector('.process-observation-fields')!
+      const inputFor = (labelText: string) => {
+        const label = [...dialog.querySelectorAll('label')].find((item) =>
+          item.textContent?.trim().startsWith(labelText),
+        )!
+        return document.getElementById(label.htmlFor) as
+          HTMLInputElement | HTMLTextAreaElement
+      }
+      const fill = (labelText: string, value: string) =>
+        act(async () => {
+          const input = inputFor(labelText)
+          Object.getOwnPropertyDescriptor(
+            Object.getPrototypeOf(input),
+            'value',
+          )!.set!.call(input, value)
+          input.dispatchEvent(new Event('input', { bubbles: true }))
+        })
+      const add = [...dialog.querySelectorAll('button')].find(
+        (button) => button.textContent?.trim() === 'Adicionar observação',
+      )!
+      const toggles = (department: string) =>
+        [
+          ...observations.querySelectorAll<HTMLButtonElement>(
+            '[role="switch"]',
+          ),
+        ].filter((toggle) => toggle.textContent?.trim() === department)
+      const selectType = (id: string) => {
+        const name = processTestCatalog.types.find(
+          (type) => type.id === id,
+        )!.nome
+        const option = [
+          ...dialog.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
+        ].find((button) => button.textContent?.trim().startsWith(name))!
+        return act(async () => option.click())
+      }
+      const save = () =>
+        act(async () => {
+          dialog
+            .querySelector('form')!
+            .dispatchEvent(
+              new Event('submit', { bubbles: true, cancelable: true }),
+            )
+        })
+
+      expect(observations.querySelectorAll('textarea')).toHaveLength(0)
+      expect(
+        dialog.querySelector('[role="radio"][aria-checked="true"]'),
+      ).toBeNull()
+      await fill('Nome da empresa', 'Cliente Exemplo')
+      for (let index = 0; index < 3; index++) {
+        await act(async () => add.click())
+      }
+      expect(
+        toggles('Diretoria').map((toggle) =>
+          toggle.getAttribute('aria-checked'),
+        ),
+      ).toEqual(['true', 'true', 'true'])
+      for (const department of ['Financeiro', 'Regularidade']) {
+        expect(
+          toggles(department).map((toggle) =>
+            toggle.getAttribute('aria-checked'),
+          ),
+        ).toEqual(['false', 'false', 'false'])
+      }
+      await act(async () =>
+        dialog
+          .querySelector<HTMLButtonElement>(
+            'button[aria-label="Remover observação 3"]',
+          )!
+          .click(),
+      )
+      await fill('Observação 1', '  Confirmar assinatura.  ')
+      await fill('Observação 2', 'Conferir a condição de pagamento.')
+      for (const type of ['outros', 'aumento_honorarios', 'abertura']) {
+        await selectType(type)
+        expect(inputFor('Observação 1').value.trim()).toBe(
+          'Confirmar assinatura.',
+        )
+      }
+      expect(inputFor('Detalhes do regime tributário')).toBeInstanceOf(
+        HTMLTextAreaElement,
+      )
+      await act(async () => toggles('Diretoria')[0]!.click())
+      expect(
+        toggles('Diretoria').map((toggle) =>
+          toggle.getAttribute('aria-checked'),
+        ),
+      ).toEqual(['false', 'true'])
+      await save()
+      expect(submit).not.toHaveBeenCalled()
+      expect(dialog.querySelector('[role="alert"]')?.textContent).toContain(
+        'departamento',
+      )
+
+      const regularidade = toggles('Regularidade')
+      await act(async () => regularidade[0]!.click())
+      await act(async () => toggles('Financeiro')[1]!.click())
+      expect(regularidade[0]!.getAttribute('aria-checked')).toBe('true')
+      expect(regularidade[1]!.getAttribute('aria-checked')).toBe('false')
+      await save()
+
+      expect(submit).toHaveBeenCalledOnce()
+      expect(submit.mock.calls[0]![0]).toMatchObject({
+        notes: [
+          { text: 'Confirmar assinatura.', visibleToSectors: ['reg'] },
+          {
+            text: 'Conferir a condição de pagamento.',
+            visibleToSectors: ['com', 'fin'],
+          },
+        ],
+      })
+      expect(submit.mock.calls[0]![0]).not.toHaveProperty('obs')
+    } finally {
+      await act(async () => root.unmount())
+      host.remove()
+    }
+  })
+
   it.each([
     { editing: false, saved: undefined, toggle: false, expected: true },
     { editing: false, saved: undefined, toggle: true, expected: false },
@@ -39,6 +174,7 @@ describe('ProcessForm', () => {
                       tipo: 'exclusao',
                       entregaDocumentacao: saved,
                       honPerdido: '700.00',
+                      obs: 'Observação registrada na abertura',
                     })
                   : undefined
               }
@@ -49,6 +185,10 @@ describe('ProcessForm', () => {
         )
         const dialog = document.querySelector('[role="dialog"]')!
         expect(dialog.textContent).not.toContain('Protocolo')
+        if (editing) {
+          expect(dialog.querySelector('.process-observation-fields')).toBeNull()
+          expect(dialog.querySelector('textarea[id$="-obs"]')).toBeNull()
+        }
         const control = dialog.querySelector<HTMLButtonElement>(
           '[role="switch"][aria-label="Este processo inclui entrega de documentação ao cliente?"]',
         )!

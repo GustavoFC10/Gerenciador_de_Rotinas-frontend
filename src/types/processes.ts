@@ -1,5 +1,6 @@
 /** Contrato do módulo Processos descrito na seção 17 de ENDPOINTS.md. */
-export type ProcessSector = 'com' | 'fin' | 'reg'
+export const PROCESS_SECTORS = ['com', 'fin', 'reg'] as const
+export type ProcessSector = (typeof PROCESS_SECTORS)[number]
 
 export type ProcessTypeId =
   | 'abertura'
@@ -83,12 +84,22 @@ export interface ProcessFields {
   reunAcomp?: boolean
 }
 
-export interface ProcessCreateInput extends ProcessFields {
+export interface ProcessNoteInput {
+  text: string
+  visibleToSectors: ProcessSector[]
+}
+
+type EditableProcessFields = Omit<ProcessFields, 'obs'>
+
+export interface ProcessCreateInput extends EditableProcessFields {
   tipo: ProcessTypeId
+  notes?: ProcessNoteInput[]
 }
 
 /** Atualizações enviam somente os campos alterados; o tipo é imutável. */
-export type ProcessPatchInput = Partial<ProcessFields> & { version: number }
+export type ProcessPatchInput = Partial<EditableProcessFields> & {
+  version: number
+}
 
 export interface ProcessPermissions {
   read: boolean
@@ -176,6 +187,7 @@ export interface ProcessEntry {
   financial: boolean
   text: string
   details: unknown
+  visibleToSectors?: ProcessSector[]
 }
 
 export type ProcessNotificationStatus =

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { normalizeProcessInput } from '../components/processes/processFormUtils'
 import { PreviewBackend } from './mockBackend'
 import {
   communicationFixtureIds as communicationIds,
@@ -686,6 +687,141 @@ describe('isolated feature preview', () => {
       ).status,
     ).toBe(409)
   })
+
+  it.each([
+    ['abertura', 'competenciaInicioAtividade'],
+    ['inativa', 'competenciaInicioInatividade'],
+    ['baixa', 'ultimaCompetenciaTrabalho'],
+  ] as const)(
+    'accepts notes alongside the competence field submitted by the %s form',
+    async (tipo, competenceField) => {
+      const backend = new PreviewBackend()
+      const catalog = parseProcessCatalog(
+        await json(backend, 'processes/catalog/'),
+      )
+      const type = catalog.types.find((candidate) => candidate.id === tipo)!
+      const input = normalizeProcessInput(
+        {
+          tipo,
+          empresa: 'Cliente Exemplo',
+          honPerdido: '0.00',
+          [competenceField]: '2026-11',
+          notes: [{ text: 'Confirmar o prazo', visibleToSectors: ['com'] }],
+        },
+        type,
+      )
+      const opened = await backend.handle(
+        url('processes/'),
+        'POST',
+        { ...input },
+        new Headers({ 'Idempotency-Key': `form-${tipo}` }),
+      )
+      expect(opened.status).toBe(201)
+      const process = parseProcessDetail(await opened.json())
+      expect(process[competenceField]).toBe('2026-11')
+      const entries = parseProcessEntriesPage(
+        await json(backend, `processes/${process.id}/entries/?kind=note`),
+      )
+      expect(entries.results).toEqual([
+        expect.objectContaining({
+          text: 'Confirmar o prazo',
+          visibleToSectors: ['com'],
+        }),
+      ])
+    },
+  )
+
+  it('persists opening notes once and serves only the notes visible to each department', async () => {
+    const backend = new PreviewBackend()
+    const payload = {
+      tipo: 'outros',
+      empresa: 'Cliente Exemplo',
+      contato: 'cliente@preview.example',
+      descricaoProcesso: 'Organizar documentos',
+      valorProcesso: '0.00',
+      departamentoSolicitado: 'reg',
+      acionarLeggacy: false,
+      notes: [
+        { text: 'Confirmar documentos', visibleToSectors: ['reg'] },
+        { text: 'Conferir pagamento', visibleToSectors: ['fin'] },
+        { text: 'Confirmar prazo', visibleToSectors: ['reg', 'com'] },
+      ],
+    }
+    const headers = new Headers({ 'Idempotency-Key': 'opening-with-notes' })
+    const first = await backend.handle(
+      url('processes/'),
+      'POST',
+      payload,
+      headers,
+    )
+    expect(first.status).toBe(201)
+    const created = await first.json()
+    expect(created).not.toHaveProperty('notes')
+    expect(created).not.toHaveProperty('obs')
+    expect(created).not.toHaveProperty('entries')
+    const replay = await backend.handle(
+      url('processes/'),
+      'POST',
+      payload,
+      headers,
+    )
+    expect(replay.status).toBe(200)
+    expect((await replay.json()).id).toBe(created.id)
+
+    const entriesPath = `processes/${created.id}/entries/`
+    const readNotes = async (query = '?kind=note') =>
+      parseProcessEntriesPage(await json(backend, entriesPath + query))
+    const management = await readNotes()
+    expect(management.count).toBe(1)
+    expect(management.results[0]).toMatchObject({
+      text: 'Confirmar prazo',
+      visibleToSectors: ['com', 'reg'],
+    })
+
+    backend.selectActor('demo-financeiro')
+    const finance = await readNotes()
+    expect(finance.count).toBe(1)
+    expect(finance.results[0]).toMatchObject({
+      text: 'Conferir pagamento',
+      visibleToSectors: ['fin'],
+    })
+
+    backend.selectActor('demo-regularidade')
+    const operational = await readNotes('?kind=note&pageSize=1')
+    expect(operational.count).toBe(2)
+    expect(operational.results).toHaveLength(1)
+    expect(operational.next).toContain('page=2')
+    expect((await readNotes()).results.map(({ text }) => text).sort()).toEqual([
+      'Confirmar documentos',
+      'Confirmar prazo',
+    ])
+    expect(
+      (await readNotes('?kind=event')).results.map(({ kind }) => kind),
+    ).toEqual(['opened'])
+
+    backend.selectActor('demo-admin')
+    expect((await backend.handle(url(entriesPath + '?kind=note'))).status).toBe(
+      403,
+    )
+  })
+
+  it('rejects an opening note without an audience before creating the process', async () => {
+    const backend = new PreviewBackend()
+    const count = backend.state.processes.length
+    const response = await backend.handle(
+      url('processes/'),
+      'POST',
+      {
+        tipo: 'abertura',
+        empresa: 'Cliente Exemplo',
+        notes: [{ text: 'Sem destinatários', visibleToSectors: [] }],
+      },
+      new Headers({ 'Idempotency-Key': 'opening-with-empty-audience' }),
+    )
+    expect(response.status).toBe(400)
+    expect(backend.state.processes).toHaveLength(count)
+  })
+
   it('accepts free company fields for every type and rejects company IDs', async () => {
     const backend = new PreviewBackend()
     const headers = new Headers({ 'Idempotency-Key': 'bad-opening' })

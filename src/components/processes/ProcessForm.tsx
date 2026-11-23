@@ -15,6 +15,9 @@ import ProcessFields, {
   ProcessSwitch,
 } from './ProcessFields'
 import ProcessIcon from './ProcessIcon'
+import ProcessObservationFields, {
+  type ProcessObservationDraft,
+} from './ProcessObservationFields'
 import {
   normalizeProcessInput,
   isProcessFeeAdjustment,
@@ -57,6 +60,9 @@ export default function ProcessForm({
         },
   )
   const [submitting, setSubmitting] = useState(false)
+  const [observations, setObservations] = useState<ProcessObservationDraft[]>(
+    [],
+  )
   const submittingRef = useRef(false)
   const [error, setError] = useState('')
   const [unconfirmedInput, setUnconfirmedInput] =
@@ -90,9 +96,21 @@ export default function ProcessForm({
       if (!type) throw new Error('Escolha o tipo de processo.')
       const input =
         unconfirmedInput ??
-        normalizeProcessInput(value, type, {
-          allowOmittedValue: !!process && process.valorProcesso === undefined,
-        })
+        normalizeProcessInput(
+          observations.length > 0
+            ? {
+                ...value,
+                notes: observations.map(({ text, visibleToSectors }) => ({
+                  text,
+                  visibleToSectors,
+                })),
+              }
+            : value,
+          type,
+          {
+            allowOmittedValue: !!process && process.valorProcesso === undefined,
+          },
+        )
       submittingRef.current = true
       setSubmitting(true)
       try {
@@ -247,16 +265,6 @@ export default function ProcessForm({
               disabled={locked}
             />
           </div>
-          {isOthers && type && (
-            <ProcessOtherFields
-              value={value}
-              onChange={update}
-              disabled={locked}
-              configurationLocked={configurationLocked}
-              viewFinancial={catalog.permissions.viewFinancial}
-              requireValue={!process || process.valorProcesso !== undefined}
-            />
-          )}
           {!isOthers && (
             <>
               <div className="grid2">
@@ -303,7 +311,7 @@ export default function ProcessForm({
                   </div>
                 )}
               </div>
-              {!isOthers && !isAdjustment && competenceField && (
+              {!isAdjustment && competenceField && (
                 <div className="field">
                   <label htmlFor={`${id}-competence`}>
                     {competenceField.label} <span>(opcional)</span>
@@ -322,6 +330,28 @@ export default function ProcessForm({
                   />
                 </div>
               )}
+            </>
+          )}
+          {!process && (
+            <ProcessObservationFields
+              sectors={catalog.sectors}
+              value={observations}
+              onChange={setObservations}
+              disabled={locked}
+            />
+          )}
+          {isOthers && type && (
+            <ProcessOtherFields
+              value={value}
+              onChange={update}
+              disabled={locked}
+              configurationLocked={configurationLocked}
+              viewFinancial={catalog.permissions.viewFinancial}
+              requireValue={!process || process.valorProcesso !== undefined}
+            />
+          )}
+          {!isOthers && (
+            <>
               {typeId === 'exclusao' && (
                 <ProcessSwitch
                   title="Este processo inclui entrega de documentação ao cliente?"
@@ -361,23 +391,6 @@ export default function ProcessForm({
                     value={value}
                     type={type}
                     onChange={update}
-                    disabled={locked}
-                  />
-                </div>
-              )}
-              {!isAdjustment && (
-                <div className="field">
-                  <label htmlFor={`${id}-obs`}>
-                    Observações <span>(opcional)</span>
-                  </label>
-                  <textarea
-                    className="input"
-                    id={`${id}-obs`}
-                    rows={2}
-                    maxLength={5000}
-                    value={value.obs ?? ''}
-                    onChange={(event) => update({ obs: event.target.value })}
-                    placeholder="Particularidades do processo"
                     disabled={locked}
                   />
                 </div>

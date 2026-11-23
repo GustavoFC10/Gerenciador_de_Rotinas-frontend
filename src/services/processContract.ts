@@ -22,6 +22,7 @@ import type {
 } from '../types/processes'
 import {
   PROCESS_CONTRACT_VERSION,
+  PROCESS_SECTORS as sectors,
   PROCESS_WORKFLOW_VERSION,
 } from '../types/processes'
 
@@ -32,7 +33,6 @@ const statuses = [
   'concluido',
   'cancelado',
 ] as const
-const sectors = ['com', 'fin', 'reg'] as const
 const types = [
   'abertura',
   'mei',
@@ -61,7 +61,6 @@ const privateFields = [
   'honAnterior',
   'honVariacao',
   'honPerdido',
-  'obs',
   'altDesc',
   'regimeObs',
   'motivoObs',
@@ -389,6 +388,7 @@ const entryShape = shape({
   kind: string,
   financial: boolean,
   text: string,
+  visibleToSectors: optional(array(oneOf(sectors))),
   details: (v, p) => {
     if (v === undefined) fail(p)
   },

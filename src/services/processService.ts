@@ -1,5 +1,6 @@
 import { ApiError, HttpClient, httpClient } from './httpClient'
 import { getRetryAfterSeconds } from '../utils/apiErrors'
+import { normalizeProcessNotes } from '../utils/processNotes'
 import type { ApiResponse, QueryParameters } from './httpClient'
 import type {
   PreparedProcessAlert,
@@ -137,10 +138,11 @@ export class ProcessService {
     if (!input.empresa.trim() || input.empresa.trim().length > 200)
       throw new Error('Informe o nome da empresa.')
     validateDeliveryOption(input.entregaDocumentacao)
+    const notes = normalizeProcessNotes(input.notes)
     const fields = Object.fromEntries(
       Object.entries(input).filter(
         ([key]) =>
-          !['companyId', 'honVariacao'].includes(key) &&
+          !['companyId', 'honVariacao', 'notes', 'obs'].includes(key) &&
           (key !== 'entregaDocumentacao' || input.tipo === 'exclusao'),
       ),
     )
@@ -161,7 +163,12 @@ export class ProcessService {
             cnpj: input.cnpj?.trim() ?? '',
           }
     return this.validated(
-      () => this.client.post(PROCESSES_ENDPOINT, payload, { idempotencyKey }),
+      () =>
+        this.client.post(
+          PROCESSES_ENDPOINT,
+          notes.length ? { ...payload, notes } : payload,
+          { idempotencyKey },
+        ),
       parseProcessDetail,
     )
   }
@@ -177,7 +184,8 @@ export class ProcessService {
           processPath(id),
           Object.fromEntries(
             Object.entries(input).filter(
-              ([key]) => !['companyId', 'honVariacao'].includes(key),
+              ([key]) =>
+                !['companyId', 'honVariacao', 'notes', 'obs'].includes(key),
             ),
           ),
         ),
@@ -230,17 +238,6 @@ export class ProcessService {
           `${processPath(id)}tasks/${encodeURIComponent(taskId)}/transition/`,
           { version, state },
         ),
-      parseProcessDetail,
-    )
-  }
-
-  addNote(
-    id: string,
-    version: number,
-    text: string,
-  ): Promise<ApiResponse<ProcessResource>> {
-    return this.validated(
-      () => this.client.post(`${processPath(id)}notes/`, { version, text }),
       parseProcessDetail,
     )
   }

@@ -11,7 +11,6 @@ import { PROCESS_VIEWS, processViewFilters } from '../../utils/processFilters'
 import ProcessMovements from '../../components/processes/ProcessMovements'
 import ProcessOverview from '../../components/processes/ProcessOverview'
 import ProcessAlerts from '../../components/processes/ProcessAlerts'
-import ProcessFollowUps from '../../components/processes/ProcessFollowUps'
 import { useProcessAlerts } from '../../hooks/useProcessCommunications'
 import ProcessPageError from '../../components/processes/ProcessQueryError'
 import { changedProcessFields } from '../../components/processes/processFormUtils'
@@ -160,7 +159,7 @@ export default function ProcessesPage() {
     ready && catalog.permissions.create && !retainedAlertError
   const pendingAlertsQuery = useProcessAlerts(
     scope,
-    { status: 'pending', pageSize: 1 },
+    { status: 'pending', kind: 'overdue', pageSize: 1 },
     canReadAlerts,
   )
   const catalogAccess = JSON.stringify(catalog?.permissions ?? null)
@@ -701,12 +700,7 @@ export default function ProcessesPage() {
     if (!changed(response.data)) return
     setForm(null)
     openProcess(response.data.id)
-    notify({
-      tone: 'success',
-      title: 'Processo aberto',
-      message:
-        'As notificações de abertura foram registradas. Acompanhe o estado dos envios no processo.',
-    })
+    notify({ tone: 'success', title: 'Processo aberto' })
   }
   async function remove() {
     if (!detailQuery.data?.permissions.delete) return
@@ -1252,27 +1246,6 @@ export default function ProcessesPage() {
                 onOpen={openProcess}
                 onWaiting={() => openList('agendados')}
               />
-              {view === 'fila' &&
-                catalog.permissions.executeSectors.includes('fin') && (
-                  <ProcessFollowUps
-                    key={scopeContext}
-                    scope={scope}
-                    permissions={catalog.permissions}
-                    timeZone={timeZone}
-                    onUnavailable={(error) => {
-                      if (isApiError(error) && error.status === 403) {
-                        setScopeDenial({ key: scopeContext, error })
-                        void queryClient.cancelQueries({
-                          queryKey: processQueryKeys.root(scope),
-                        })
-                        queryClient.removeQueries({
-                          queryKey: processQueryKeys.root(scope),
-                        })
-                        void refreshSession().catch(() => undefined)
-                      }
-                    }}
-                  />
-                )}
             </>
           ) : (
             <ProcessOverview
