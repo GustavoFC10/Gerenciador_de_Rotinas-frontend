@@ -1067,7 +1067,6 @@ describe('ProcessesPage integration', () => {
       '[role="dialog"] input[id$="-empresa"]',
     )
     await submitForm()
-    await act(async () => button('Observações').click())
     expect(host.querySelector('main h1')?.textContent).toContain(
       'Empresa atualizada',
     )
@@ -1407,7 +1406,6 @@ describe('ProcessesPage integration', () => {
     async (failure) => {
       records[0] = makeProcessTestResource({ obs: 'Conteúdo anterior ao erro' })
       await render('/processos/process-1')
-      await act(async () => button('Observações').click())
       expect(host.querySelector('main')?.textContent).toContain(
         'Conteúdo anterior ao erro',
       )
@@ -1599,7 +1597,6 @@ describe('ProcessesPage integration', () => {
       obs: 'Informação anterior restrita',
     })
     await render('/processos/process-1')
-    await act(async () => button('Observações').click())
     expect(host.querySelector('main')?.textContent).toContain(
       'Informação anterior restrita',
     )
@@ -1729,7 +1726,7 @@ describe('ProcessesPage integration', () => {
     expect(host.textContent).toContain(
       'Evento financeiro anteriormente autorizado',
     )
-    expect(processService.entries).not.toHaveBeenCalled()
+    expect(processService.entries).toHaveBeenCalledTimes(1)
     vi.mocked(processService.entries).mockRejectedValue(httpError(403))
     await act(async () => {
       await client.invalidateQueries({ queryKey: notesKey })
@@ -1762,7 +1759,7 @@ describe('ProcessesPage integration', () => {
     expect(host.querySelector('main')?.textContent).toContain(
       'Processo indisponível',
     )
-    expect(processService.entries).toHaveBeenCalledTimes(1)
+    expect(processService.entries).toHaveBeenCalledTimes(2)
     expect(processService.get).toHaveBeenCalledTimes(1)
   })
 

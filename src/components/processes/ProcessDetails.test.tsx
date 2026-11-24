@@ -665,18 +665,21 @@ describe('ProcessDetails', () => {
             filters?.page === 2
               ? null
               : '/api/v1/processes/process-1/entries/?page=2',
-          results: [
-            {
-              ...note,
-              text: filters?.page === 2 ? 'Segunda página' : note.text,
-            },
-          ],
+          results:
+            filters?.kind === 'note'
+              ? []
+              : [
+                  {
+                    ...note,
+                    text: filters?.page === 2 ? 'Segunda página' : note.text,
+                  },
+                ],
         }),
       )
     const { button } = await render(makeProcessTestResource())
     await settleQueries()
-    expect(entries).toHaveBeenCalledTimes(1)
-    expect(entries).toHaveBeenLastCalledWith(
+    expect(entries).toHaveBeenCalledTimes(2)
+    expect(entries).toHaveBeenCalledWith(
       'process-1',
       { kind: 'event', page: 1, pageSize: 50 },
       expect.any(AbortSignal),
@@ -684,8 +687,8 @@ describe('ProcessDetails', () => {
     expect(host.textContent).toContain('Primeira página')
     await act(async () => button('Próxima').click())
     await settleQueries()
-    expect(entries).toHaveBeenCalledTimes(2)
-    expect(entries).toHaveBeenLastCalledWith(
+    expect(entries).toHaveBeenCalledTimes(3)
+    expect(entries).toHaveBeenCalledWith(
       'process-1',
       { kind: 'event', page: 2, pageSize: 50 },
       expect.any(AbortSignal),
@@ -735,10 +738,10 @@ describe('ProcessDetails', () => {
     expect(panelFor(company).textContent).toContain('cliente@exemplo.com')
     expect(company.getAttribute('aria-expanded')).toBe('true')
     expect(details.getAttribute('aria-expanded')).toBe('false')
-    expect(notes.getAttribute('aria-expanded')).toBe('false')
+    expect(notes.getAttribute('aria-expanded')).toBe('true')
     expect(host.querySelector('.col-main h2')?.textContent).toBe('Etapas')
     expect(host.querySelector('.phead')?.textContent).not.toContain('Preparar')
-    expect(observations).toHaveBeenCalledTimes(1)
+    expect(observations).toHaveBeenCalledTimes(2)
 
     await act(async () => details.click())
     expect(panelFor(details).hidden).toBe(false)
@@ -762,9 +765,8 @@ describe('ProcessDetails', () => {
       'Custo do processo',
       'Novo honorário mensal',
     ])
-    await act(async () => notes.click())
     await settleQueries()
-    expect(observations).toHaveBeenLastCalledWith(
+    expect(observations).toHaveBeenCalledWith(
       'process-1',
       { kind: 'note', page: 1, pageSize: 50 },
       expect.any(AbortSignal),
@@ -881,7 +883,7 @@ describe('ProcessDetails', () => {
         host.querySelector('.process-entries [role="alert"]')?.textContent,
       ).toContain('request-entries')
       expect(host.textContent).not.toContain('Sem comentários ainda')
-      expect(processService.entries).toHaveBeenCalledTimes(1)
+      expect(processService.entries).toHaveBeenCalledTimes(2)
       if (status === 429 || status === 503)
         expect(
           [...host.querySelectorAll<HTMLButtonElement>('button')].find(
