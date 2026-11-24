@@ -1385,7 +1385,7 @@ export default function ProcessDetails({
           >
             <ProcessData process={process} type={type} date={date} />
           </ProcessSideSection>
-          <ProcessSideSection title="Observações" loadOnOpen>
+          <ProcessSideSection title="Observações" defaultOpen loadOnOpen>
             <ProcessEntries
               kind="note"
               scope={scope}
