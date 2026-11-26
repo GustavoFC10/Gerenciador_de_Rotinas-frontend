@@ -137,6 +137,9 @@ describe('ProcessDetails', () => {
       expect(host.textContent).toContain(
         `0 de ${entregaDocumentacao ? 7 : 6} tarefas`,
       )
+      expect(host.querySelector('.process-data')?.textContent).not.toContain(
+        'Entrega de documentação',
+      )
       expect(host.textContent?.includes('Entrega de documentação')).toBe(
         entregaDocumentacao,
       )

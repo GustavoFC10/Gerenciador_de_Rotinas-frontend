@@ -163,7 +163,6 @@ const fieldLabels: Record<string, string> = {
   valorProcesso: 'Valor do processo',
   departamentoSolicitado: 'Departamento solicitado',
   acionarLeggacy: 'Acionar a Leggacy',
-  entregaDocumentacao: 'Entrega de documentação',
   custo: 'Custo do processo',
   pagador: 'Quem paga',
   parcelas: 'Parcelas',
@@ -417,11 +416,6 @@ function processData(
         full: true,
       })
   }
-  if (process.tipo === 'exclusao')
-    fields.push({
-      label: 'Entrega de documentação',
-      value: process.entregaDocumentacao === false ? 'Não' : 'Sim',
-    })
   if (process.tipo === 'saida')
     fields.push({
       label: 'Nova contabilidade',
