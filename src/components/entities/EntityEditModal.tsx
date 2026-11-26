@@ -73,9 +73,18 @@ function EntityEditModal(props: EntityEditModalProps) {
       panelProps={{ 'data-entity-edit-dialog': true }}
     >
       {props.type === 'client' ? (
-        <ClientEditRecord key={props.entity.id} {...props} isSaving={isSaving} setIsSaving={setIsSaving} />
+        <ClientEditRecord
+          key={props.entity.id}
+          {...props}
+          isSaving={isSaving}
+          setIsSaving={setIsSaving}
+        />
       ) : (
-        <RoutineEditForm {...props} isSaving={isSaving} setIsSaving={setIsSaving} />
+        <RoutineEditForm
+          {...props}
+          isSaving={isSaving}
+          setIsSaving={setIsSaving}
+        />
       )}
     </Drawer>
   )
@@ -143,7 +152,8 @@ function ClientEditForm({
   snapshot,
   isSaving,
   setIsSaving,
-}: ClientEditProps & EntityEditStatus & { snapshot: ApiResponse<ClientCompanyResource> }) {
+}: ClientEditProps &
+  EntityEditStatus & { snapshot: ApiResponse<ClientCompanyResource> }) {
   const baseline = companyRegistrationValues(snapshot.data)
   const [name, setName] = useState(baseline.name)
   const [code, setCode] = useState(baseline.code)
@@ -428,11 +438,7 @@ function ClientEditForm({
           {isRegistrationSection ? 'Cancelar' : 'Fechar'}
         </Button>
         {isRegistrationSection && (
-          <Button
-            type="submit"
-            form="client-settings-form"
-            disabled={isSaving}
-          >
+          <Button type="submit" form="client-settings-form" disabled={isSaving}>
             {isSaving ? 'Salvando…' : 'Salvar alterações'}
           </Button>
         )}

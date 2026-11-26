@@ -1,5 +1,8 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { getErrorPresentation, type ErrorPresentation } from '../../utils/apiErrors'
+import {
+  getErrorPresentation,
+  type ErrorPresentation,
+} from '../../utils/apiErrors'
 import Button from './Button'
 import Dialog from './Dialog'
 import './confirmation.css'
@@ -77,7 +80,11 @@ function ConfirmDialogContent({
           >
             {pending ? pendingLabel : confirmLabel}
           </Button>
-          {pending && <span className="sr-only" role="status">{pendingLabel}</span>}
+          {pending && (
+            <span className="sr-only" role="status">
+              {pendingLabel}
+            </span>
+          )}
         </>
       }
     >

@@ -307,7 +307,9 @@ describe('módulo independente de Empresas', () => {
       )
     const archive = vi
       .spyOn(companyService, 'archive')
-      .mockRejectedValueOnce(new Error('Arquivamento temporariamente indisponível.'))
+      .mockRejectedValueOnce(
+        new Error('Arquivamento temporariamente indisponível.'),
+      )
       .mockResolvedValue(response(undefined))
     await render(`/cadastro-empresas/${company.id}`)
     await waitFor(() =>
@@ -315,11 +317,13 @@ describe('módulo independente de Empresas', () => {
         (item) => item.textContent === 'Arquivar',
       ),
     )
-    const trigger = [...host.querySelectorAll<HTMLButtonElement>('button')]
-      .find((item) => item.textContent === 'Arquivar')!
+    const trigger = [
+      ...host.querySelectorAll<HTMLButtonElement>('button'),
+    ].find((item) => item.textContent === 'Arquivar')!
     const dialogButton = (label: string) =>
-      [...document.querySelectorAll<HTMLButtonElement>('.ui-dialog button')]
-        .find((item) => item.textContent === label)!
+      [
+        ...document.querySelectorAll<HTMLButtonElement>('.ui-dialog button'),
+      ].find((item) => item.textContent === label)!
     trigger.focus()
     await act(async () => trigger.click())
     expect(archive).not.toHaveBeenCalled()
@@ -330,8 +334,9 @@ describe('módulo independente de Empresas', () => {
 
     await act(async () => trigger.click())
     await act(async () => dialogButton('Arquivar empresa').click())
-    expect(document.querySelector('.ui-dialog [role="alert"]')?.textContent)
-      .toContain('Arquivamento temporariamente indisponível.')
+    expect(
+      document.querySelector('.ui-dialog [role="alert"]')?.textContent,
+    ).toContain('Arquivamento temporariamente indisponível.')
     await act(async () => dialogButton('Arquivar empresa').click())
     await waitFor(() =>
       [...host.querySelectorAll('button')].some(

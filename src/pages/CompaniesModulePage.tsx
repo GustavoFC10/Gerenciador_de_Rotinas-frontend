@@ -299,7 +299,10 @@ function CompanyRegistry({
   )
 }
 
-type CompanyStatusConfirmation = Pick<ClientCompanyResource, 'id' | 'name' | 'status'> & {
+type CompanyStatusConfirmation = Pick<
+  ClientCompanyResource,
+  'id' | 'name' | 'status'
+> & {
   etag?: string | null
 }
 
@@ -493,11 +496,14 @@ function CompanyRecordContent({
   }
   async function changeStatus(request: CompanyStatusConfirmation) {
     if (
-      company?.id !== request.id || company.status !== request.status ||
+      company?.id !== request.id ||
+      company.status !== request.status ||
       busy ||
       (company.status === 'archived' ? !canRestore : !canArchive)
     )
-      throw new Error('A ficha mudou. Feche a confirmação e revise a situação da empresa.')
+      throw new Error(
+        'A ficha mudou. Feche a confirmação e revise a situação da empresa.',
+      )
     setError('')
     await archive.mutateAsync(request)
     await invalidateCompanyQueries(client, scope)
@@ -707,12 +713,14 @@ function CompanyRecordContent({
                   <Button
                     tone="ghost"
                     disabled={busy}
-                    onClick={() => setStatusConfirmation({
-                      id: company.id,
-                      name: company.name,
-                      status: company.status,
-                      etag,
-                    })}
+                    onClick={() =>
+                      setStatusConfirmation({
+                        id: company.id,
+                        name: company.name,
+                        status: company.status,
+                        etag,
+                      })
+                    }
                   >
                     {company.status === 'archived' ? 'Restaurar' : 'Arquivar'}
                   </Button>
@@ -739,9 +747,11 @@ function CompanyRecordContent({
         <ConfirmDialog
           open
           title={`${restoring ? 'Restaurar' : 'Arquivar'} ${statusConfirmation.name}?`}
-          description={restoring
-            ? 'A empresa volta à operação ativa. Os vínculos antigos de rotinas não serão reabertos automaticamente.'
-            : 'A empresa deixará de aparecer nas operações ativas. O histórico será preservado.'}
+          description={
+            restoring
+              ? 'A empresa volta à operação ativa. Os vínculos antigos de rotinas não serão reabertos automaticamente.'
+              : 'A empresa deixará de aparecer nas operações ativas. O histórico será preservado.'
+          }
           cancelLabel={restoring ? 'Manter arquivada' : 'Manter empresa'}
           confirmLabel={restoring ? 'Restaurar empresa' : 'Arquivar empresa'}
           pendingLabel={restoring ? 'Restaurando…' : 'Arquivando…'}

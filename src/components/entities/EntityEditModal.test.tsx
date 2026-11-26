@@ -51,7 +51,9 @@ it('edita o cadastro em Rotinas com os dados e o ETag da ficha aberta', async ()
         />,
       ),
     )
-    const drawer = document.querySelector<HTMLElement>('[data-entity-edit-dialog]')!
+    const drawer = document.querySelector<HTMLElement>(
+      '[data-entity-edit-dialog]',
+    )!
     expect(
       drawer.querySelector<HTMLInputElement>('#edit-company-name')?.value,
     ).toBe(company.name)
@@ -76,17 +78,21 @@ it('edita o cadastro em Rotinas com os dados e o ETag da ficha aberta', async ()
     expect(onClose).not.toHaveBeenCalled()
     expect(get).toHaveBeenCalledTimes(1)
 
-    const button = (label: string) => [...drawer.querySelectorAll('button')]
-      .find((item) => item.textContent?.trim() === label)!
+    const button = (label: string) =>
+      [...drawer.querySelectorAll('button')].find(
+        (item) => item.textContent?.trim() === label,
+      )!
     await act(async () => button('Zona de risco').click())
     const trigger = button('Arquivar empresa')
     trigger.focus()
     await act(async () => trigger.click())
     expect(drawer.inert).toBe(true)
     expect(document.activeElement?.textContent).toBe('Manter empresa')
-    await act(async () => document.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-    ))
+    await act(async () =>
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      ),
+    )
     expect(drawer.inert).toBe(false)
     expect(document.activeElement).toBe(trigger)
     expect(onArchive).not.toHaveBeenCalled()

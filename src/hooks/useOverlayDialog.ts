@@ -27,24 +27,41 @@ interface OverlayStack {
 
 const stacks = new WeakMap<Document, OverlayStack>()
 const focusableSelector = [
-  'button', 'a[href]', 'input:not([type="hidden"])', 'select', 'textarea',
-  'summary', '[contenteditable="true"]', '[tabindex]',
+  'button',
+  'a[href]',
+  'input:not([type="hidden"])',
+  'select',
+  'textarea',
+  'summary',
+  '[contenteditable="true"]',
+  '[tabindex]',
 ].join(',')
-const modalSelector = '[role="dialog"][aria-modal="true"],[role="alertdialog"][aria-modal="true"]'
+const modalSelector =
+  '[role="dialog"][aria-modal="true"],[role="alertdialog"][aria-modal="true"]'
 
-function canFocus(element: HTMLElement | null | undefined): element is HTMLElement {
-  return Boolean(element?.isConnected && !element.matches(':disabled') &&
-    !element.closest('[inert],[hidden]'))
+function canFocus(
+  element: HTMLElement | null | undefined,
+): element is HTMLElement {
+  return Boolean(
+    element?.isConnected &&
+    !element.matches(':disabled') &&
+    !element.closest('[inert],[hidden]'),
+  )
 }
 
 function focusInitial({ element, focusTarget }: OverlayEntry) {
-  const target = focusTarget() ?? element.querySelector<HTMLElement>('[data-overlay-initial-focus]') ??
+  const target =
+    focusTarget() ??
+    element.querySelector<HTMLElement>('[data-overlay-initial-focus]') ??
     element.querySelector<HTMLElement>('[data-overlay-close]')
   if (canFocus(target) && element.contains(target)) target.focus()
   else element.focus()
 }
 
-function handleOverlayKeyDown(entry: OverlayEntry | undefined, event: KeyboardEvent) {
+function handleOverlayKeyDown(
+  entry: OverlayEntry | undefined,
+  event: KeyboardEvent,
+) {
   if (!entry || event.defaultPrevented || !canFocus(entry.element)) return
 
   if (event.key === 'Escape') {
@@ -53,13 +70,22 @@ function handleOverlayKeyDown(entry: OverlayEntry | undefined, event: KeyboardEv
     entry.close()
   } else if (event.key === 'Tab') {
     const { element } = entry
-    const items = [...element.querySelectorAll<HTMLElement>(focusableSelector)]
-      .filter(item => item.tabIndex >= 0 && canFocus(item) && item.getClientRects().length > 0)
+    const items = [
+      ...element.querySelectorAll<HTMLElement>(focusableSelector),
+    ].filter(
+      (item) =>
+        item.tabIndex >= 0 &&
+        canFocus(item) &&
+        item.getClientRects().length > 0,
+    )
     const first = items[0] ?? element
     const last = items.at(-1) ?? element
     const focused = element.ownerDocument.activeElement
-    if (!items.includes(focused as HTMLElement) ||
-      (event.shiftKey && focused === first) || (!event.shiftKey && focused === last)) {
+    if (
+      !items.includes(focused as HTMLElement) ||
+      (event.shiftKey && focused === first) ||
+      (!event.shiftKey && focused === last)
+    ) {
       event.preventDefault()
       event.stopImmediatePropagation()
       ;(event.shiftKey ? last : first).focus()
@@ -69,14 +95,20 @@ function handleOverlayKeyDown(entry: OverlayEntry | undefined, event: KeyboardEv
 
 function syncOverlayStack(owner: Document, stack: OverlayStack) {
   const active = stack.entries.at(-1)
-  if (stack.root) stack.root.inert = stack.rootInert || Boolean(active?.lockRoot)
+  if (stack.root)
+    stack.root.inert = stack.rootInert || Boolean(active?.lockRoot)
   owner.body.style.overflow = active ? 'hidden' : stack.overflow
 
-  const covered = new Set(active
-    ? [...owner.querySelectorAll<HTMLElement>(modalSelector)].filter(dialog =>
-      dialog !== active.element && !dialog.contains(active.element) && !active.element.contains(dialog),
-    )
-    : [])
+  const covered = new Set(
+    active
+      ? [...owner.querySelectorAll<HTMLElement>(modalSelector)].filter(
+          (dialog) =>
+            dialog !== active.element &&
+            !dialog.contains(active.element) &&
+            !active.element.contains(dialog),
+        )
+      : [],
+  )
   for (const [element, previous] of stack.covered) {
     if (!covered.has(element)) {
       element.inert = previous
@@ -93,7 +125,12 @@ function syncOverlayStack(owner: Document, stack: OverlayStack) {
 export function useOverlayDialog(
   ref: RefObject<HTMLElement | null>,
   onClose: () => void,
-  { active = true, lockRoot = true, initialFocusRef, returnFocusRef }: OverlayOptions = {},
+  {
+    active = true,
+    lockRoot = true,
+    initialFocusRef,
+    returnFocusRef,
+  }: OverlayOptions = {},
 ) {
   const closeRef = useRef(onClose)
   closeRef.current = onClose
@@ -107,20 +144,28 @@ export function useOverlayDialog(
     if (!stack) {
       const root = owner.getElementById('root')
       const entries: OverlayEntry[] = []
-      const handleKeyDown = (event: KeyboardEvent) => handleOverlayKeyDown(entries.at(-1), event)
+      const handleKeyDown = (event: KeyboardEvent) =>
+        handleOverlayKeyDown(entries.at(-1), event)
       stack = {
-        entries, root, rootInert: root?.inert ?? false,
-        overflow: owner.body.style.overflow, covered: new Map(), handleKeyDown,
+        entries,
+        root,
+        rootInert: root?.inert ?? false,
+        overflow: owner.body.style.overflow,
+        covered: new Map(),
+        handleKeyDown,
       }
       stacks.set(owner, stack)
       owner.addEventListener('keydown', handleKeyDown, true)
     }
 
     const entry: OverlayEntry = {
-      element, lockRoot, close: () => closeRef.current(),
+      element,
+      lockRoot,
+      close: () => closeRef.current(),
       focusTarget: () => initialFocusRef?.current,
       returnRef: returnFocusRef,
-      returnTarget: owner.activeElement instanceof HTMLElement ? owner.activeElement : null,
+      returnTarget:
+        owner.activeElement instanceof HTMLElement ? owner.activeElement : null,
     }
     stack.entries.push(entry)
     syncOverlayStack(owner, stack)
@@ -143,8 +188,9 @@ export function useOverlayDialog(
       if (!wasTop) return
 
       const previous = stack.entries.at(-1)
-      const target = [entry.returnRef?.current, entry.returnTarget].find(item =>
-        canFocus(item) && (!previous || previous.element.contains(item)),
+      const target = [entry.returnRef?.current, entry.returnTarget].find(
+        (item) =>
+          canFocus(item) && (!previous || previous.element.contains(item)),
       )
       if (target) target.focus()
       else if (previous) focusInitial(previous)
