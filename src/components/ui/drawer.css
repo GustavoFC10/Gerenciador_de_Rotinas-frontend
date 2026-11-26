@@ -1,0 +1,92 @@
+@layer theme, base, components, utilities;
+
+@layer components {
+  .ui-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: flex;
+    justify-content: flex-end;
+    background: var(--color-overlay-bg);
+    backdrop-filter: blur(2px);
+  }
+
+  .ui-drawer {
+    display: flex;
+    width: min(100%, var(--ui-drawer-width, 42rem));
+    height: 100%;
+    height: 100dvh;
+    min-width: 0;
+    flex-direction: column;
+    overflow: hidden;
+    border-inline-start: 1px solid var(--color-panel-border);
+    outline: none;
+    background: var(--color-panel-bg);
+    color: var(--color-text-main);
+    box-shadow: var(--shadow-floating);
+  }
+
+  .ui-drawer--sm {
+    --ui-drawer-width: 28rem;
+  }
+
+  .ui-drawer--lg {
+    --ui-drawer-width: 56rem;
+  }
+
+  .ui-drawer-header,
+  .ui-drawer-footer {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+  }
+
+  .ui-drawer-header {
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .ui-drawer-title {
+    margin: 0;
+    color: var(--color-text-strong);
+    font-size: var(--font-size-page-title, 1.125rem);
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .ui-drawer--sm .ui-drawer-title {
+    font-size: 1rem;
+  }
+
+  .ui-drawer-description {
+    margin-top: 0.25rem;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-caption, 0.75rem);
+  }
+
+  .ui-drawer-body {
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 1rem 1.5rem;
+  }
+
+  .ui-drawer-footer {
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    border-top: 1px solid var(--color-divider);
+    background: var(--color-panel-soft-bg);
+  }
+
+  @media (max-width: 40rem) {
+    .ui-drawer-header,
+    .ui-drawer-body,
+    .ui-drawer-footer {
+      padding-inline: 1rem;
+    }
+  }
+}

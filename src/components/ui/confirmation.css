@@ -1,0 +1,19 @@
+.ui-button[data-confirmation-intent='warning'] {
+  border-color: var(--status-progress-border);
+  background: var(--status-progress-bg);
+  color: var(--status-progress-text);
+}
+
+.ui-button[data-confirmation-intent='warning']:enabled:hover {
+  background: var(--status-progress-hover-bg);
+}
+
+.ui-button[data-confirmation-intent='destructive'] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--status-error-strong-bg), black 18%);
+  color: var(--status-error-strong-text);
+}
+
+.ui-button[data-confirmation-intent='destructive']:enabled:hover {
+  background: color-mix(in srgb, var(--status-error-strong-bg), black 28%);
+}

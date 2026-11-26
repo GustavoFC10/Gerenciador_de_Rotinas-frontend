@@ -8,11 +8,14 @@ export interface DialogProps {
   open: boolean
   title: ReactNode
   description?: ReactNode
-  children: ReactNode
+  children?: ReactNode
   footer?: ReactNode
   onClose: () => void
   size?: 'sm' | 'md' | 'lg'
   className?: string
+  closeDisabled?: boolean
+  closeOnBackdrop?: boolean
+  showCloseButton?: boolean
 }
 
 function DialogContent({
@@ -23,18 +26,24 @@ function DialogContent({
   onClose,
   size = 'md',
   className = '',
+  closeDisabled = false,
+  closeOnBackdrop = true,
+  showCloseButton = true,
 }: Omit<DialogProps, 'open'>) {
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const descriptionId = useId()
-  useOverlayDialog(ref, onClose)
+  function close() {
+    if (!closeDisabled) onClose()
+  }
+  useOverlayDialog(ref, close)
 
   return createPortal(
     <div
       className="ui-dialog-overlay"
       role="presentation"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose()
+        if (closeOnBackdrop && event.target === event.currentTarget) close()
       }}
     >
       <div
@@ -52,26 +61,29 @@ function DialogContent({
             <h2 id={titleId}>{title}</h2>
             {description && <p id={descriptionId}>{description}</p>}
           </div>
-          <IconButton
-            label="Fechar diálogo"
-            onClick={onClose}
-            data-overlay-close
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              aria-hidden="true"
+          {showCloseButton && (
+            <IconButton
+              label="Fechar diálogo"
+              onClick={close}
+              disabled={closeDisabled}
+              data-overlay-close
             >
-              <path d="m6 6 12 12M18 6 6 18" />
-            </svg>
-          </IconButton>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="m6 6 12 12M18 6 6 18" />
+              </svg>
+            </IconButton>
+          )}
         </header>
-        <div className="ui-dialog-body">{children}</div>
+        {children != null && <div className="ui-dialog-body">{children}</div>}
         {footer && <footer className="ui-dialog-footer">{footer}</footer>}
       </div>
     </div>,

@@ -258,6 +258,26 @@ export interface ProcessDetailDto
 
 export type ProcessResource = Readonly<ProcessDetailDto>
 
+export interface ProcessDeadlineRequest {
+  id: string
+  additionalDays: number
+  reason?: string
+}
+
+export interface ProcessDeadlineRequestState {
+  canRequest: boolean
+  canReview: boolean
+  pending: ProcessDeadlineRequest | null
+}
+
+export interface ProcessDeadlineRequestInput {
+  version: number
+  additionalDays: number
+  reason: string
+}
+
+export type ProcessDeadlineDecision = 'accept' | 'reject'
+
 export interface ProcessFilters {
   page?: number
   pageSize?: number

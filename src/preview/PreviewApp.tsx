@@ -4,10 +4,12 @@ import { BrowserRouter } from 'react-router'
 import { QueryClientProvider } from '@tanstack/react-query'
 import App from '../App'
 import PreviewControls from './PreviewControls'
+import { ProcessDeadlineRequestsContext } from '../components/processes/ProcessDeadlineRequestsContext'
 import { AppStateProvider } from '../contexts/AppStateContext'
 import { AuthProvider } from '../contexts/AuthContext'
 import { NotificationsProvider } from '../contexts/NotificationsContext'
 import { queryClient } from '../query/queryClient'
+import { previewDeadlineRequests } from './processDeadlineRequests'
 import '../styles/index.css'
 
 const root = document.getElementById('root')
@@ -24,7 +26,11 @@ createRoot(root).render(
         <AuthProvider>
           <AppStateProvider>
             <NotificationsProvider>
-              <App />
+              <ProcessDeadlineRequestsContext.Provider
+                value={previewDeadlineRequests}
+              >
+                <App />
+              </ProcessDeadlineRequestsContext.Provider>
               <PreviewControls />
             </NotificationsProvider>
           </AppStateProvider>

@@ -1,7 +1,7 @@
 import { createRef } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { adminUserMock, memberUserMock } from '../constants/roles'
 import {
@@ -9,6 +9,10 @@ import {
   type AppStateContextValue,
 } from '../contexts/appStateContextDefinition'
 import Sidebar from './Sidebar'
+
+vi.mock('../hooks/useAuth', () => ({
+  useAuth: () => ({ user: memberUserMock }),
+}))
 
 const appState = {
   user: memberUserMock,
@@ -39,8 +43,7 @@ function renderSidebar(
           isMobileOpen={false}
           onCollapseToggle={() => undefined}
           onMobileClose={() => undefined}
-          navigationRef={createRef<HTMLElement>()}
-          closeButtonRef={createRef<HTMLButtonElement>()}
+          menuButtonRef={createRef<HTMLButtonElement>()}
         />
       </AppStateContext.Provider>
     </MemoryRouter>,
@@ -54,7 +57,7 @@ describe('Sidebar', () => {
     expect(markup).toContain('data-sidebar-profile="true"')
     expect(markup).toContain('Abrir perfil de Ana Souza')
     expect(markup).toContain('Ana Souza')
-    expect(markup).toContain('ana.souza@example.com')
+    expect(markup).not.toContain('ana.souza@example.com')
     expect(markup).toContain('href="/perfil"')
     expect(markup).not.toContain('href="/hub/perfil"')
   })

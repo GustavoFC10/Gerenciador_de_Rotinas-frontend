@@ -12,7 +12,8 @@ import {
   companyService,
   type ClientCompanyResource,
 } from '../services/companyService'
-import type { ApiResponse } from '../services/httpClient'
+import { ApiError, type ApiResponse } from '../services/httpClient'
+import { queryKeys } from '../query/queryKeys'
 import CompaniesModulePage from './CompaniesModulePage'
 import { moduleService } from '../services/moduleService'
 import type { CompanyRole } from '../services/companyService'
@@ -244,11 +245,17 @@ describe('módulo independente de Empresas', () => {
     ).toBe(false)
   })
   it('keeps the draft and original ETag after a conflicting save', async () => {
-    const update = vi
-      .spyOn(companyService, 'update')
-      .mockRejectedValue(
-        new Error('A empresa foi atualizada por outra pessoa.'),
-      )
+    const update = vi.spyOn(companyService, 'update').mockRejectedValue(
+      new ApiError({
+        problem: {
+          type: 'about:blank',
+          title: 'Conflito de versão',
+          status: 412,
+        },
+        requestId: null,
+        response: new Response(null, { status: 412 }),
+      }),
+    )
     const get = vi.spyOn(companyService, 'get')
     await render(`/cadastro-empresas/${company.id}`)
     await waitFor(() =>
@@ -264,6 +271,16 @@ describe('módulo independente de Empresas', () => {
     await act(async () =>
       setInput(field('Nome fantasia'), 'Rascunho preservado'),
     )
+    const recordKey = queryKeys.companyRecord(
+      { organizationId: 'org-1', membershipId: 'member-1' },
+      company.id,
+    )
+    await act(async () => {
+      client.setQueryData(
+        recordKey,
+        response({ ...company, name: 'Versão nova', version: 8 }, '"8"'),
+      )
+    })
     await act(async () =>
       host
         .querySelector('form')!
@@ -272,14 +289,15 @@ describe('módulo independente de Empresas', () => {
         ),
     )
     await waitFor(
-      () =>
-        host.textContent?.includes(
-          'A empresa foi atualizada por outra pessoa.',
-        ) ?? false,
+      () => host.textContent?.includes('Seu rascunho foi preservado.') ?? false,
     )
     expect(field('Nome fantasia').value).toBe('Rascunho preservado')
-    expect(update).toHaveBeenCalledWith(company.id, expect.any(Object), '"7"')
-    expect(get).toHaveBeenCalledTimes(1)
+    expect(update).toHaveBeenCalledWith(
+      company.id,
+      { name: 'Rascunho preservado' },
+      '"7"',
+    )
+    expect(get).toHaveBeenCalledTimes(2)
   })
   it('archives with the displayed version and offers restore after reloading', async () => {
     vi.spyOn(companyService, 'get')
@@ -289,6 +307,7 @@ describe('módulo independente de Empresas', () => {
       )
     const archive = vi
       .spyOn(companyService, 'archive')
+      .mockRejectedValueOnce(new Error('Arquivamento temporariamente indisponível.'))
       .mockResolvedValue(response(undefined))
     await render(`/cadastro-empresas/${company.id}`)
     await waitFor(() =>
@@ -296,17 +315,32 @@ describe('módulo independente de Empresas', () => {
         (item) => item.textContent === 'Arquivar',
       ),
     )
-    await act(async () =>
-      [...host.querySelectorAll<HTMLButtonElement>('button')]
-        .find((item) => item.textContent === 'Arquivar')!
-        .click(),
-    )
+    const trigger = [...host.querySelectorAll<HTMLButtonElement>('button')]
+      .find((item) => item.textContent === 'Arquivar')!
+    const dialogButton = (label: string) =>
+      [...document.querySelectorAll<HTMLButtonElement>('.ui-dialog button')]
+        .find((item) => item.textContent === label)!
+    trigger.focus()
+    await act(async () => trigger.click())
+    expect(archive).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(dialogButton('Manter empresa'))
+    await act(async () => dialogButton('Manter empresa').click())
+    expect(document.activeElement).toBe(trigger)
+    expect(archive).not.toHaveBeenCalled()
+
+    await act(async () => trigger.click())
+    await act(async () => dialogButton('Arquivar empresa').click())
+    expect(document.querySelector('.ui-dialog [role="alert"]')?.textContent)
+      .toContain('Arquivamento temporariamente indisponível.')
+    await act(async () => dialogButton('Arquivar empresa').click())
     await waitFor(() =>
       [...host.querySelectorAll('button')].some(
         (item) => item.textContent === 'Restaurar',
       ),
     )
     expect(archive).toHaveBeenCalledWith(company.id, '"7"')
+    expect(archive).toHaveBeenCalledTimes(2)
+    expect(document.querySelector('.ui-dialog')).toBeNull()
     expect(
       [...host.querySelectorAll('button')].some(
         (item) => item.textContent === 'Editar',

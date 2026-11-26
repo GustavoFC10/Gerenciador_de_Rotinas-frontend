@@ -8,6 +8,7 @@ import CreateEmployeePage from './CreateEmployeePage'
 import EmployeeProfilePanel from '../components/forms/EmployeeProfilePanel'
 import {
   organizationMemberService,
+  type MembershipInvitationResource,
   type OrganizationMemberResource,
   type MembershipInvitationInput,
 } from '../services/organizationMemberService'
@@ -174,18 +175,26 @@ describe('general collaborator profiles', () => {
       })
     },
   )
-  it('sends an invitation with direct sector selection and optional titles', async () => {
-    const invite = vi.fn(async (input: MembershipInvitationInput) => ({
-      ...input,
-      id: 'invitation',
-      expiresAt: '2026-10-30T12:00:00Z',
-      createdAt: '',
-    }))
+  it('sends a sector invitation and keeps its drawer open while pending', async () => {
+    let completeInvitation!: () => void
+    const invite = vi.fn(
+      (input: MembershipInvitationInput) =>
+        new Promise<MembershipInvitationResource>((resolve) => {
+          completeInvitation = () =>
+            resolve({
+              ...input,
+              id: 'invitation',
+              expiresAt: '2026-10-30T12:00:00Z',
+              createdAt: '',
+            })
+        }),
+    )
+    const cancel = vi.fn()
     await render(
       <CreateEmployeePage
         departments={departments}
         onInvite={invite}
-        onCancel={() => {}}
+        onCancel={cancel}
       />,
     )
     await change('employee-name', 'Nova pessoa')
@@ -208,7 +217,29 @@ describe('general collaborator profiles', () => {
         },
       ],
     })
+    const drawer = document.querySelector(
+      '[aria-labelledby="invitation-title"]',
+    )!
+    const close = drawer.querySelector<HTMLButtonElement>(
+      'button[aria-label="Fechar convite"]',
+    )!
+    expect(drawer.getAttribute('aria-busy')).toBe('true')
+    expect(close.disabled).toBe(true)
+    await act(async () => {
+      close.click()
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      )
+      drawer.parentElement!.dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true }),
+      )
+    })
+    expect(cancel).not.toHaveBeenCalled()
+
+    await act(async () => completeInvitation())
     expect(document.body.textContent).toContain('Convite enviado')
+    await click('Ir para equipe')
+    expect(cancel).toHaveBeenCalledOnce()
   })
   it('preserves profile and other grants while removing one Processos sector', async () => {
     const update = vi

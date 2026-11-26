@@ -120,9 +120,7 @@ describe('HonorariosLayout', () => {
     expect(dialog.getAttribute('aria-modal')).toBe('true')
     expect(host.querySelector('main')?.parentElement?.inert).toBe(true)
     expect(document.activeElement).toBe(button('Fechar navegação'))
-    const last = dialog
-      .querySelectorAll<HTMLButtonElement>('button')
-      .item(dialog.querySelectorAll('button').length - 1)
+    const last = dialog.querySelector<HTMLAnchorElement>('a[href="/perfil"]')!
     await act(async () => {
       last.focus()
       document.dispatchEvent(
@@ -166,40 +164,15 @@ describe('HonorariosLayout', () => {
     expect(host.querySelector('header a[href="/honorarios/novo"]')).toBeNull()
     expect(host.textContent).toContain('Consulta')
   })
-  it('mantém o contexto atual sem seletor de organização e apresenta erro de saída', async () => {
-    await render({
-      context: {
-        ...auth,
-        memberships: [
-          membership,
-          {
-            ...membership,
-            id: 'member-b',
-            organization: {
-              ...membership.organization,
-              id: 'org-b',
-              name: 'Outra organização',
-            },
-          },
-        ],
-      },
-    })
+  it('mantém apenas o acesso ao perfil no rodapé da sidebar', async () => {
+    await render()
+    const footer = host.querySelector('[data-sidebar-profile]')!
+    expect(footer.querySelector('a')?.getAttribute('href')).toBe('/perfil')
+    expect(footer.querySelector('button')).toBeNull()
+    expect(footer.querySelector('.app-nav-label')?.textContent).toBe(
+      'Ana Souza',
+    )
     expect(host.querySelector('nav select')).toBeNull()
-    expect(host.textContent).not.toContain('Organização ativa')
     expect(switchOrganization).not.toHaveBeenCalled()
-    expect(host.querySelector('[data-location]')?.textContent).toBe(
-      '/honorarios',
-    )
-    logout.mockRejectedValueOnce(
-      new Error('Não foi possível encerrar a sessão.'),
-    )
-    await act(async () =>
-      [...host.querySelectorAll<HTMLButtonElement>('button')]
-        .find((item) => item.textContent?.includes('Sair'))!
-        .click(),
-    )
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
-      'Não foi possível encerrar a sessão.',
-    )
   })
 })

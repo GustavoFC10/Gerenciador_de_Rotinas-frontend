@@ -1,3 +1,233 @@
+.processes-module .phead.process-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 28%);
+  align-items: start;
+  gap: 20px 24px;
+}
+
+.processes-module .process-overview > .pbanner {
+  grid-column: 1 / -1;
+}
+
+.processes-module .process-overview-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.processes-module .process-overview-heading .info {
+  flex: 1 1 15rem;
+  min-width: 0;
+}
+
+.processes-module .process-overview-heading .kicker {
+  flex-wrap: wrap;
+}
+
+.processes-module .process-overview-heading .prog {
+  flex: 0 1 16rem;
+  min-width: 0;
+}
+
+.processes-module .process-overview-content {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.processes-module .process-data-heading {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block-end: 10px;
+}
+
+.processes-module .process-data-heading h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.processes-module .process-data > .fields {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 14px 20px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--divider);
+  border-radius: var(--r-control);
+  background: var(--panel-soft);
+}
+
+.processes-module .process-data > .fields .vv {
+  font-size: 15px;
+}
+
+.processes-module .process-data-registration > .fields {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  gap: 10px 16px;
+  margin: 0;
+  padding: 14px 0 0;
+}
+
+.processes-module .process-deadline-card {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--r-control);
+  background: var(--brand-soft);
+}
+
+.processes-module .process-deadline-card[data-overdue] {
+  border-color: var(--err-border);
+  background: var(--err-bg);
+}
+
+.processes-module .process-deadline-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.processes-module .process-deadline-value {
+  color: var(--text-strong);
+  font-size: 21px;
+  font-weight: 750;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.processes-module .process-deadline-card > .btn.primary {
+  min-height: 40px;
+  margin-block-start: 4px;
+}
+
+.processes-module
+  .process-deadline-card
+  > .btn.primary[data-deadline-tone='overdue'] {
+  background: color-mix(in srgb, var(--err-strong) 88%, black);
+  border-color: var(--err-strong);
+  color: var(--status-error-strong-text);
+}
+
+.processes-module
+  .process-deadline-card
+  > .btn.primary[data-deadline-tone='today'] {
+  background: var(--color-warning-accent);
+  border-color: var(--color-warning-accent);
+  color: #1f1a08;
+}
+
+.processes-module
+  .process-deadline-card
+  > .btn[data-deadline-tone]:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.processes-module .process-deadline-error {
+  display: grid;
+  gap: 6px;
+}
+
+.processes-module .process-deadline-pending {
+  display: grid;
+  gap: 6px;
+  padding-block-start: 8px;
+  border-block-start: 1px solid var(--divider);
+}
+
+.processes-module .process-deadline-pending-summary,
+.processes-module .process-deadline-increase,
+.processes-module .process-deadline-decisions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.processes-module .process-deadline-increase {
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.processes-module .process-deadline-reason-trigger > span {
+  display: grid;
+  width: 1.125rem;
+  height: 1.125rem;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--brand);
+  font-size: 0.75rem;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.processes-module .process-deadline-reason-trigger:hover {
+  background: var(--nav-hover);
+}
+
+.processes-module .process-deadline-reason[popover] {
+  position: fixed;
+  inset: 0.75rem 0.75rem auto auto;
+  max-inline-size: min(22rem, calc(100dvw - 1.5rem));
+  max-block-size: min(18rem, calc(100dvh - 1.5rem));
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-control);
+  background: var(--panel);
+  color: var(--text-main);
+  box-shadow: var(--shadow-floating);
+}
+
+.processes-module .process-deadline-reason h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.processes-module .process-deadline-reason p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@supports (position-area: top span-left) {
+  .processes-module .process-deadline-reason[popover] {
+    inset: auto;
+    position-anchor: auto;
+    position-area: top span-left;
+    position-try-fallbacks:
+      flip-block,
+      flip-inline,
+      flip-block flip-inline;
+    margin-block: 6px;
+  }
+}
+
+@media (max-width: 760px) {
+  .processes-module .phead.process-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .processes-module .process-overview-heading .prog {
+    flex-basis: 100%;
+  }
+}
+
 .processes-module .process-detail-section > .panel-h {
   gap: 0;
   padding: 0;
@@ -8,10 +238,6 @@
   flex: 1;
   min-width: 0;
   font-size: 16px;
-}
-
-.processes-module .process-detail-section .panel-h > .btn {
-  margin-inline-end: 16px;
 }
 
 .processes-module .process-detail-section-toggle {
@@ -47,37 +273,11 @@
 
 .processes-module .col-side .process-detail-section .fields {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  padding: 14px 16px;
-}
-
-.processes-module .process-data-group {
-  padding: 14px 16px;
-}
-
-.processes-module .process-data-group--primary {
-  background: var(--panel-soft);
-}
-
-.processes-module .process-data-group + .process-data-group {
-  border-block-start: 1px solid var(--divider);
-}
-
-.processes-module .process-data-group h3 {
-  margin: 0 0 12px;
-}
-
-.processes-module .col-side .process-data-group > .fields {
   margin: 0;
-  padding: 0;
+  padding: 14px 16px;
 }
 
-@media (max-width: 480px) {
-  .processes-module .col-side .process-data-group > .fields {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.processes-module .process-data-group .process-data-field {
+.processes-module .process-data-fields .process-data-field {
   gap: 2px;
 }
 
@@ -141,4 +341,36 @@
   gap: 5px;
   min-height: 24px;
   padding-inline: 8px;
+}
+
+.processes-module .process-overview-content > .process-detail-section {
+  margin-block-start: 16px;
+  border: 0;
+  border-block-start: 1px solid var(--divider);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.processes-module .process-overview-content .process-detail-section-toggle {
+  min-height: 44px;
+  padding: 10px 0;
+}
+
+.processes-module .process-overview-content .process-detail-section-body {
+  border-block-start: 0;
+}
+
+.processes-module .process-overview-content .process-observation-list,
+.processes-module .process-overview-content .process-observation-empty,
+.processes-module .process-overview-content .process-entries > [role='status'],
+.processes-module
+  .process-overview-content
+  .process-entries
+  > .process-actions {
+  padding-inline: 0;
+}
+
+.processes-module .process-overview-content .process-entries > .err-msg {
+  margin-inline: 0;
 }

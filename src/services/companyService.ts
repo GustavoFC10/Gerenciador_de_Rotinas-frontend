@@ -135,8 +135,14 @@ export class CompanyService {
     )
   }
 
-  get(id: string): Promise<ApiResponse<ClientCompanyResource>> {
-    return this.client.get<ClientCompanyResource>(companyPath(id))
+  get(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<ApiResponse<ClientCompanyResource>> {
+    return this.client.get<ClientCompanyResource>(
+      companyPath(id),
+      signal ? { signal } : undefined,
+    )
   }
 
   create(

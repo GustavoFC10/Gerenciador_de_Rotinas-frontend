@@ -6,10 +6,13 @@ import SidebarProfileLink from '../components/common/SidebarProfileLink'
 import ModulesReturnLink from '../components/common/ModulesReturnLink'
 import Button from '../components/ui/Button'
 import IconButton from '../components/ui/IconButton'
+import NavigationDrawer from '../components/ui/NavigationDrawer'
 import { appThemeClass, focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { useAuth } from '../hooks/useAuth'
-import { getErrorPresentation } from '../utils/apiErrors'
+import NavigationIcon, {
+  type NavigationIconName,
+} from '../components/common/NavigationIcon'
 import WorkspaceBar from './WorkspaceBar'
 
 interface HonorariosLayoutProps {
@@ -22,24 +25,10 @@ interface HonorariosLayoutProps {
   onRefresh: () => void
 }
 
-type IconName =
-  | 'modules'
-  | 'home'
-  | 'calculator'
-  | 'quotes'
-  | 'clients'
-  | 'settings'
-  | 'menu'
-  | 'close'
-  | 'refresh'
-  | 'chevron'
-  | 'logout'
-  | 'plus'
-
 const links: Array<{
   to: string
   label: string
-  icon: IconName
+  icon: NavigationIconName
   end?: boolean
 }> = [
   { to: ROUTES.HONORARIOS, label: 'Home', icon: 'home', end: true },
@@ -48,7 +37,7 @@ const links: Array<{
     label: 'Orçamentos',
     icon: 'quotes',
   },
-  { to: `${ROUTES.HONORARIOS}/clientes`, label: 'Clientes', icon: 'clients' },
+  { to: `${ROUTES.HONORARIOS}/clientes`, label: 'Clientes', icon: 'building' },
   {
     to: `${ROUTES.HONORARIOS}/parametros`,
     label: 'Parâmetros',
@@ -66,77 +55,14 @@ export default function HonorariosLayout({
   isRefreshing,
   onRefresh,
 }: HonorariosLayoutProps) {
-  const { activeMembership, session, logout } = useAuth()
+  const { activeMembership } = useAuth()
   const location = useLocation()
   const [navigationOpen, setNavigationOpen] = useState(false)
-  const [pending, setPending] = useState<'logout' | null>(null)
-  const [error, setError] = useState('')
-  const navigationRef = useRef<HTMLElement>(null)
-  const closeRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLButtonElement>(null)
-  const name = activeMembership?.displayName ?? 'Perfil'
 
   useEffect(() => {
     setNavigationOpen(false)
   }, [location.pathname, location.search])
-  useEffect(() => {
-    const media = window.matchMedia('(min-width: 1024px)')
-    function closeOnDesktop(event: MediaQueryListEvent) {
-      if (event.matches) setNavigationOpen(false)
-    }
-    media.addEventListener('change', closeOnDesktop)
-    return () => media.removeEventListener('change', closeOnDesktop)
-  }, [])
-  useEffect(() => {
-    if (!navigationOpen) return
-    const sidebar = navigationRef.current
-    const returnTarget = menuRef.current
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    closeRef.current?.focus()
-    function keydown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        setNavigationOpen(false)
-        return
-      }
-      if (event.key !== 'Tab') return
-      const items = [
-        ...(sidebar?.querySelectorAll<HTMLElement>(
-          'a[href],button:not([disabled]),select:not([disabled]),[tabindex="0"]',
-        ) ?? []),
-      ].filter((item) => !item.closest('[hidden],[inert]'))
-      const first = items[0] ?? sidebar
-      const last = items.at(-1) ?? sidebar
-      if (
-        !sidebar?.contains(document.activeElement) ||
-        (event.shiftKey && document.activeElement === first) ||
-        (!event.shiftKey && document.activeElement === last)
-      ) {
-        event.preventDefault()
-        ;(event.shiftKey ? last : first)?.focus()
-      }
-    }
-    document.addEventListener('keydown', keydown)
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', keydown)
-      if (returnTarget?.isConnected) returnTarget.focus()
-    }
-  }, [navigationOpen])
-
-  async function leave() {
-    if (pending) return
-    setPending('logout')
-    setError('')
-    try {
-      await logout()
-    } catch (caught) {
-      setError(getErrorPresentation(caught).message)
-    } finally {
-      setPending(null)
-    }
-  }
 
   return (
     <div
@@ -144,26 +70,19 @@ export default function HonorariosLayout({
     >
       <a
         href="#honorarios-main"
+        inert={navigationOpen || undefined}
         className={`fixed left-3 top-3 z-[80] -translate-y-20 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-button-primary-text)] focus:translate-y-0 ${focusRing}`}
       >
         Pular para o conteúdo
       </a>
       <div className="flex min-h-dvh">
-        {navigationOpen && (
-          <div
-            className="fixed inset-0 z-50 bg-[var(--color-overlay-bg)] backdrop-blur-[2px] lg:hidden"
-            onClick={() => setNavigationOpen(false)}
-            aria-hidden="true"
-          />
-        )}
-        <aside
+        <NavigationDrawer
           id="honorarios-sidebar"
-          ref={navigationRef}
-          tabIndex={-1}
-          role={navigationOpen ? 'dialog' : undefined}
-          aria-modal={navigationOpen || undefined}
-          aria-label={navigationOpen ? 'Menu de Honorários' : undefined}
-          className={`workspace-sidebar fixed inset-y-0 left-0 z-[60] flex h-dvh w-[min(var(--size-sidebar-expanded),calc(100vw-1.5rem))] shrink-0 flex-col border-r shadow-[var(--shadow-floating)] transition-transform duration-200 motion-reduce:transition-none lg:sticky lg:top-0 lg:z-30 lg:visible lg:w-[var(--size-sidebar-expanded)] lg:translate-x-0 lg:shadow-none ${navigationOpen ? 'visible translate-x-0' : 'invisible -translate-x-full'} ${appThemeClass.sidebar}`}
+          label="Menu de Honorários"
+          open={navigationOpen}
+          onClose={() => setNavigationOpen(false)}
+          returnFocusRef={menuRef}
+          className="workspace-sidebar"
         >
           <div className="flex min-h-[4.5rem] items-center gap-2 border-b border-[var(--color-sidebar-border)] px-3">
             <Link
@@ -173,7 +92,7 @@ export default function HonorariosLayout({
               aria-label="Ir para o painel de Honorários"
             >
               <span className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-                <Icon name="calculator" />
+                <NavigationIcon name="calculator" />
               </span>
               <span className="min-w-0">
                 <span className="block text-lg font-bold leading-5 text-[var(--color-text-strong)]">
@@ -185,13 +104,13 @@ export default function HonorariosLayout({
               </span>
             </Link>
             <IconButton
-              ref={closeRef}
               tone="ghost"
               onClick={() => setNavigationOpen(false)}
+              data-overlay-close
               label="Fechar navegação"
               className="size-9 shrink-0 px-0 lg:hidden"
             >
-              <Icon name="close" />
+              <NavigationIcon name="close" />
             </IconButton>
           </div>
           <nav
@@ -213,7 +132,7 @@ export default function HonorariosLayout({
                       onClick={() => setNavigationOpen(false)}
                       className={`app-nav-label flex min-h-[var(--size-nav-item)] items-center gap-3 rounded-[var(--radius-nav-item)] border border-[var(--color-brand-border)] bg-[var(--color-nav-item-active-bg)] px-3 text-sm font-semibold text-[var(--color-nav-item-active-text)] ${focusRing}`}
                     >
-                      <Icon name={link.icon} />
+                      <NavigationIcon name={link.icon} />
                       {link.label}
                     </Link>
                   ) : (
@@ -231,7 +150,7 @@ export default function HonorariosLayout({
                         `app-nav-label flex min-h-[var(--size-nav-item)] items-center gap-3 rounded-[var(--radius-nav-item)] border px-3 text-sm font-semibold transition ${focusRing} ${isActive || (link.to.endsWith('/orcamentos') && location.pathname === '/honorarios/novo') ? 'border-[var(--color-brand-border)] bg-[var(--color-nav-item-active-bg)] text-[var(--color-nav-item-active-text)]' : 'border-transparent text-[var(--color-nav-item-text)] hover:bg-[var(--color-nav-item-hover-bg)] hover:text-[var(--color-text-strong)]'}`
                       }
                     >
-                      <Icon name={link.icon} />
+                      <NavigationIcon name={link.icon} />
                       {link.label}
                     </NavLink>
                   )}
@@ -239,27 +158,8 @@ export default function HonorariosLayout({
               ))}
             </ul>
           </nav>
-          <div
-            className="shrink-0 space-y-2 border-t border-[var(--color-sidebar-border)] p-3"
-            data-sidebar-profile
-          >
-            <SidebarProfileLink
-              name={name}
-              description={session?.user.email || roleLabel}
-              avatar={activeMembership?.avatar}
-              onNavigate={() => setNavigationOpen(false)}
-            />
-            <Button
-              className="w-full justify-start gap-3"
-              tone="ghost"
-              disabled={!!pending}
-              onClick={() => void leave()}
-            >
-              <Icon name="logout" />
-              {pending === 'logout' ? 'Saindo…' : 'Sair'}
-            </Button>
-          </div>
-        </aside>
+          <SidebarProfileLink onNavigate={() => setNavigationOpen(false)} />
+        </NavigationDrawer>
         <div
           className="flex min-h-dvh min-w-0 flex-1 flex-col"
           inert={navigationOpen || undefined}
@@ -278,7 +178,7 @@ export default function HonorariosLayout({
                 aria-expanded={navigationOpen}
                 onClick={() => setNavigationOpen(true)}
               >
-                <Icon name="menu" />
+                <NavigationIcon name="menu" />
               </IconButton>
               <span className="hidden min-w-0 items-center gap-2 text-sm sm:flex">
                 <Link
@@ -297,24 +197,16 @@ export default function HonorariosLayout({
                   {title}
                 </span>
               </span>
-              <Link
-                to={ROUTES.HUB}
-                aria-label="Voltar aos módulos"
-                title="Voltar aos módulos"
-                className={`grid size-9 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] sm:hidden ${focusRing}`}
-              >
-                <Icon name="modules" />
-              </Link>
             </div>
             <div className="flex min-w-0 items-center gap-2">
               <Button
                 aria-label="Atualizar Honorários"
                 title="Atualizar Honorários"
-                disabled={isRefreshing || !!pending}
+                disabled={isRefreshing}
                 onClick={onRefresh}
                 className="gap-2"
               >
-                <Icon
+                <NavigationIcon
                   name="refresh"
                   className={isRefreshing ? 'animate-spin' : ''}
                 />
@@ -326,7 +218,7 @@ export default function HonorariosLayout({
                     to={`${ROUTES.HONORARIOS}/novo`}
                     className={`inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-3 text-sm font-semibold text-[var(--color-button-primary-text)] transition hover:bg-[var(--color-button-primary-hover-bg)] ${focusRing}`}
                   >
-                    <Icon name="plus" />
+                    <NavigationIcon name="plus" />
                     <span>Novo orçamento</span>
                   </Link>
                 )}
@@ -347,96 +239,10 @@ export default function HonorariosLayout({
                 {description}
               </p>
             )}
-            {error && (
-              <p
-                role="alert"
-                className="mb-5 rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-4 py-3 text-sm text-[var(--status-error-text)]"
-              >
-                {error}
-              </p>
-            )}
             {children}
           </main>
         </div>
       </div>
     </div>
-  )
-}
-
-function Icon({
-  name,
-  className = '',
-}: {
-  name: IconName
-  className?: string
-}) {
-  const paths: Record<IconName, ReactNode> = {
-    modules: (
-      <>
-        <rect x="3" y="3" width="7" height="7" rx="1.5" />
-        <rect x="14" y="3" width="7" height="7" rx="1.5" />
-        <rect x="3" y="14" width="7" height="7" rx="1.5" />
-        <rect x="14" y="14" width="7" height="7" rx="1.5" />
-      </>
-    ),
-    home: (
-      <>
-        <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
-      </>
-    ),
-    calculator: (
-      <>
-        <rect x="5" y="2" width="14" height="20" rx="2" />
-        <path d="M8 6h8M8 10h2m4 0h2m-8 4h2m4 0h2m-8 4h2m4 0h2" />
-      </>
-    ),
-    quotes: (
-      <>
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <path d="M14 2v6h6M8 12h8m-8 4h6" />
-      </>
-    ),
-    clients: (
-      <>
-        <rect x="4" y="3" width="16" height="19" rx="2" />
-        <path d="M8 7h2m4 0h2m-8 4h2m4 0h2M9 22v-6h6v6" />
-      </>
-    ),
-    settings: (
-      <>
-        <path d="m9 3-1 3-3 1v4l3 1 1 3h4l1-3 3-1V7l-3-1-1-3z" />
-        <circle cx="11" cy="9" r="2" />
-        <path d="m17 15 1 2 3 1v2l-3 1" />
-      </>
-    ),
-    menu: <path d="M4 6h16M4 12h16M4 18h16" />,
-    close: <path d="m6 6 12 12M6 18 18 6" />,
-    refresh: (
-      <>
-        <path d="M20 7v5h-5M4 17v-5h5" />
-        <path d="M6 8a7 7 0 0 1 12-3l2 2M4 17l2 2a7 7 0 0 0 12-3" />
-      </>
-    ),
-    chevron: <path d="m9 6 6 6-6 6" />,
-    logout: (
-      <>
-        <path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5m5-13 5 5-5 5m-7-5h12" />
-      </>
-    ),
-    plus: <path d="M12 5v14M5 12h14" />,
-  }
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={`size-[18px] shrink-0 ${className}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {paths[name]}
-    </svg>
   )
 }

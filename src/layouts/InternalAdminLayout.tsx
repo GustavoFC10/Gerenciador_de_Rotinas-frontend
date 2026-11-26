@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router'
 
+import NavigationIcon from '../components/common/NavigationIcon'
 import NotificationCenterTrigger from '../components/feedback/NotificationCenterTrigger'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -92,7 +93,7 @@ function InternalAdminLayout() {
                       }`
                     }
                   >
-                    <OrganizationsIcon />
+                    <NavigationIcon name="building" />
                     <span className="truncate">Organizações</span>
                   </NavLink>
                 </li>
@@ -130,24 +131,6 @@ function PlatformIcon() {
     >
       <rect x="3" y="3" width="18" height="18" rx="3" />
       <path d="M8 8h8M8 12h8M8 16h5" />
-    </svg>
-  )
-}
-
-function OrganizationsIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-4 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M4 21V4h11v17M15 9h5v12M2 21h20" />
-      <path d="M8 8h3M8 12h3M8 16h3M18 13h.01M18 17h.01" />
     </svg>
   )
 }

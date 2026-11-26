@@ -45,6 +45,7 @@ interface EntityDetailPageProps extends Omit<
   onClientUpdate?: (
     clientId: EntityId,
     changes: ClientCompanyPatch,
+    etag: string,
   ) => Promise<void>
   onRoutineUpdate?: (
     routineId: EntityId,
@@ -157,9 +158,9 @@ function EntityDetailPage({
     (type === 'client' ? isOrganizationAdmin(user) : isRoutinesAdmin(user)) &&
     (type === 'client' ? Boolean(onClientUpdate) : Boolean(onRoutineUpdate))
 
-  async function handleClientSave(changes: ClientCompanyPatch) {
+  async function handleClientSave(changes: ClientCompanyPatch, etag: string) {
     if (!client || !onClientUpdate) return
-    await onClientUpdate(client.id, changes)
+    await onClientUpdate(client.id, changes, etag)
     notify({ title: 'Dados da empresa atualizados.', tone: 'success' })
   }
 

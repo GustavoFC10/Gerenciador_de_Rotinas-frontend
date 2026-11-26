@@ -11,7 +11,7 @@ import {
 } from 'react-router'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
-import Select from '../components/ui/Select'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 import TextField from '../components/ui/TextField'
 import LoadingState from '../components/common/LoadingState'
 import CompanyModuleSummary from '../components/catalog/CompanyModuleSummary'
@@ -32,15 +32,24 @@ import { useModuleAccess } from '../hooks/useModuleAccess'
 import { confirmDiscard, useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { useDirectoryScroll } from '../hooks/useDirectoryScroll'
 import DirectoryWorkspaceLayout from '../layouts/DirectoryWorkspaceLayout'
-import { queryKeys } from '../query/queryKeys'
+import { queryKeys, type OrganizationQueryScope } from '../query/queryKeys'
+import { invalidateCompanyQueries } from '../query/companyCache'
 import {
   companyService,
-  type ClientCompanyInput,
   type ClientCompanyResource,
   type CompanyPermissions,
 } from '../services/companyService'
 import type { ModuleSummary } from '../types/modules'
-import { formatCnpj, isValidCnpj } from '../utils/companyIdentity'
+import {
+  companyEditConflictMessage,
+  companyRegistrationInput,
+  companyRegistrationPatch,
+  companyRegistrationValues,
+  formatCnpj,
+  validateCompanyRegistration,
+} from '../utils/companyIdentity'
+import { clientTaxRegimeOptions } from '../constants/entityOptions'
+import { isApiError } from '../services/httpClient'
 
 export default function CompaniesModulePage() {
   const { activeMembership } = useAuth()
@@ -92,7 +101,7 @@ function CompaniesWorkspace({ access }: { access: ModuleSummary }) {
         : value,
     ]),
   ) as unknown as CompanyPermissions
-  const baseKey = [...queryKeys.scope(scope), 'general-companies']
+  const baseKey = queryKeys.companies(scope)
   return (
     <Routes>
       <Route
@@ -105,11 +114,7 @@ function CompaniesWorkspace({ access }: { access: ModuleSummary }) {
         path={ROUTES.COMPANY_REGISTRY_CREATE}
         element={
           permissions.create ? (
-            <CompanyRecord
-              baseKey={baseKey}
-              permissions={permissions}
-              creating
-            />
+            <CompanyRecord scope={scope} permissions={permissions} creating />
           ) : (
             <Navigate to={ROUTES.COMPANY_REGISTRY} replace />
           )
@@ -117,7 +122,7 @@ function CompaniesWorkspace({ access }: { access: ModuleSummary }) {
       />
       <Route
         path={ROUTES.COMPANY_REGISTRY_DETAILS}
-        element={<CompanyRecord baseKey={baseKey} permissions={permissions} />}
+        element={<CompanyRecord scope={scope} permissions={permissions} />}
       />
       <Route
         path="*"
@@ -294,25 +299,34 @@ function CompanyRegistry({
   )
 }
 
+type CompanyStatusConfirmation = Pick<ClientCompanyResource, 'id' | 'name' | 'status'> & {
+  etag?: string | null
+}
+
 function CompanyRecord({
-  baseKey,
+  scope,
   permissions,
   creating = false,
 }: {
-  baseKey: readonly unknown[]
+  scope: OrganizationQueryScope
   permissions: CompanyPermissions
   creating?: boolean
 }) {
   const { companyId = '' } = useParams()
   const query = useQuery({
-    queryKey: [...baseKey, 'record', companyId],
+    queryKey: queryKeys.companyRecord(scope, companyId),
     queryFn: () => companyService.get(companyId),
     enabled: !creating && !!companyId,
     refetchOnWindowFocus: false,
   })
   if (!creating && query.isPending)
     return <LoadingState message="Carregando empresa…" />
-  if (!creating && query.error)
+  if (
+    !creating &&
+    query.error &&
+    (!query.data ||
+      (isApiError(query.error) && [401, 403].includes(query.error.status)))
+  )
     return (
       <QueryError
         message="Não foi possível consultar esta empresa."
@@ -326,7 +340,7 @@ function CompanyRecord({
   return (
     <CompanyRecordContent
       key={creating ? 'new' : companyId}
-      baseKey={baseKey}
+      scope={scope}
       company={company}
       etag={query.data?.etag}
       permissions={permissions}
@@ -336,13 +350,13 @@ function CompanyRecord({
 }
 
 function CompanyRecordContent({
-  baseKey,
+  scope,
   company,
   etag,
   permissions,
   onRefresh,
 }: {
-  baseKey: readonly unknown[]
+  scope: OrganizationQueryScope
   company?: ClientCompanyResource
   etag?: string | null
   permissions: CompanyPermissions
@@ -352,8 +366,14 @@ function CompanyRecordContent({
   const location = useLocation()
   const client = useQueryClient()
   const [editing, setEditing] = useState(!company)
-  const [values, setValues] = useState(() => companyValues(company))
+  const [values, setValues] = useState(() => companyRegistrationValues(company))
+  const [editSnapshot, setEditSnapshot] = useState<{
+    values: typeof values
+    etag?: string | null
+  } | null>(null)
   const [error, setError] = useState('')
+  const [statusConfirmation, setStatusConfirmation] =
+    useState<CompanyStatusConfirmation | null>(null)
   const pendingCreation = useRef<{ fingerprint: string; key: string } | null>(
     null,
   )
@@ -362,7 +382,7 @@ function CompanyRecordContent({
     window.scrollTo({ top: 0, behavior: 'instant' })
     titleRef.current?.focus()
   }, [company?.id])
-  const baseline = companyValues(company)
+  const baseline = editSnapshot?.values ?? companyRegistrationValues(company)
   const dirty = editing && JSON.stringify(values) !== JSON.stringify(baseline)
   useUnsavedChanges(dirty)
   const canEdit =
@@ -375,15 +395,8 @@ function CompanyRecordContent({
     permissions.restore && (company?.permissions?.restore ?? true)
   const save = useMutation({
     mutationFn: async () => {
-      const input = Object.fromEntries(
-        Object.entries(values).map(([key, value]) => [
-          key,
-          key === 'code'
-            ? String(value ?? '').trim() || null
-            : String(value ?? '').trim(),
-        ]),
-      ) as unknown as ClientCompanyInput
       if (!company) {
+        const input = companyRegistrationInput(values)
         const fingerprint = JSON.stringify(input)
         if (pendingCreation.current?.fingerprint !== fingerprint)
           pendingCreation.current = { fingerprint, key: crypto.randomUUID() }
@@ -394,22 +407,26 @@ function CompanyRecordContent({
         pendingCreation.current = null
         return response
       }
-      if (!etag)
+      if (!editSnapshot?.etag)
         throw new Error(
           'A API não informou a versão atual da empresa. Recarregue a ficha.',
         )
-      return companyService.update(company.id, input, etag)
+      return companyService.update(
+        company.id,
+        companyRegistrationPatch(values, baseline),
+        editSnapshot.etag,
+      )
     },
   })
   const archive = useMutation({
-    mutationFn: async () => {
-      if (!company || !etag)
+    mutationFn: async (request: CompanyStatusConfirmation) => {
+      if (!request.etag)
         throw new Error(
           'Recarregue a ficha para obter a versão atual da empresa.',
         )
-      return company.status === 'archived'
-        ? companyService.restore(company.id, etag)
-        : companyService.archive(company.id, etag)
+      return request.status === 'archived'
+        ? companyService.restore(request.id, request.etag)
+        : companyService.archive(request.id, request.etag)
     },
   })
   const busy = save.isPending || archive.isPending
@@ -423,8 +440,9 @@ function CompanyRecordContent({
     if (!busy && confirmDiscard(dirty)) {
       if (!company) navigate(ROUTES.COMPANY_REGISTRY + location.search)
       else {
-        setValues(companyValues(company))
+        setValues(companyRegistrationValues(company))
         setEditing(false)
+        setEditSnapshot(null)
         setError('')
       }
     }
@@ -438,77 +456,58 @@ function CompanyRecordContent({
       (company ? !canEdit : !permissions.create)
     )
       return
-    if (!values.name.trim()) {
-      setError('Informe o nome fantasia.')
-      return
-    }
-    const cnpj = values.cnpj.replace(/[^A-Z0-9]/gi, '').toUpperCase()
-    if (cnpj && !isValidCnpj(cnpj)) {
-      setError(
-        'Informe um CNPJ válido, com base alfanumérica e dígitos verificadores.',
-      )
+    const [validationError] = Object.values(
+      validateCompanyRegistration(values, editSnapshot?.values),
+    )
+    if (validationError) {
+      setError(validationError)
       return
     }
     setError('')
     try {
       const result = await save.mutateAsync()
-      await client.invalidateQueries({ queryKey: baseKey })
-      await client.invalidateQueries({
-        queryKey: [...baseKey.slice(0, -1), 'routine-control'],
-      })
-      await client.invalidateQueries({
-        queryKey: [...baseKey.slice(0, -1), 'honorarios'],
-      })
-      setValues(companyValues(result.data))
-      setEditing(false)
       if (result.etag)
-        client.setQueryData([...baseKey, 'record', result.data.id], result)
+        client.setQueryData(
+          queryKeys.companyRecord(scope, result.data.id),
+          result,
+        )
+      setValues(companyRegistrationValues(result.data))
+      setEditing(false)
+      setEditSnapshot(null)
+      void invalidateCompanyQueries(client, scope)
       if (!company)
         navigate(
           `${ROUTES.COMPANY_REGISTRY}/${encodeURIComponent(result.data.id)}${location.search}`,
           { replace: true },
         )
     } catch (caught) {
+      if (isApiError(caught) && caught.status === 412) void onRefresh()
       setError(
-        caught instanceof Error
-          ? caught.message
-          : 'Não foi possível salvar a empresa.',
+        isApiError(caught) && caught.status === 412
+          ? companyEditConflictMessage
+          : caught instanceof Error
+            ? caught.message
+            : 'Não foi possível salvar a empresa.',
       )
     }
   }
-  async function changeStatus() {
+  async function changeStatus(request: CompanyStatusConfirmation) {
     if (
-      !company ||
+      company?.id !== request.id || company.status !== request.status ||
       busy ||
       (company.status === 'archived' ? !canRestore : !canArchive)
     )
-      return
-    if (
-      !window.confirm(
-        `${company.status === 'archived' ? 'Restaurar' : 'Arquivar'} ${company.name}?`,
-      )
-    )
-      return
+      throw new Error('A ficha mudou. Feche a confirmação e revise a situação da empresa.')
     setError('')
-    try {
-      await archive.mutateAsync()
-      await client.invalidateQueries({ queryKey: baseKey })
-      await client.invalidateQueries({
-        queryKey: [...baseKey.slice(0, -1), 'routine-control'],
-      })
-      if (!permissions.readArchived && company.status === 'active') {
-        navigate(ROUTES.COMPANY_REGISTRY + location.search)
-        return
-      }
-      await onRefresh()
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : 'Não foi possível alterar a situação.',
-      )
+    await archive.mutateAsync(request)
+    await invalidateCompanyQueries(client, scope)
+    if (!permissions.readArchived && request.status === 'active') {
+      navigate(ROUTES.COMPANY_REGISTRY + location.search)
+      return
     }
+    await onRefresh()
   }
+  const restoring = statusConfirmation?.status === 'archived'
   return (
     <Card>
       <div className="px-4 pt-4 sm:px-6">
@@ -535,6 +534,7 @@ function CompanyRecordContent({
         id="company-record-form"
         onSubmit={(event) => void submit(event)}
         className="p-4 sm:p-6"
+        noValidate
       >
         {error && (
           <p
@@ -572,6 +572,7 @@ function CompanyRecordContent({
                 />
                 <TextField
                   label="Código"
+                  inputMode="numeric"
                   value={values.code}
                   maxLength={32}
                   disabled={busy}
@@ -591,29 +592,23 @@ function CompanyRecordContent({
                     }))
                   }
                 />
-                <Select
+                <TextField
                   label="Regime tributário"
+                  list="company-record-tax-regimes"
+                  maxLength={80}
                   value={values.taxRegime}
                   disabled={busy}
                   onChange={(e) =>
                     setValues((v) => ({ ...v, taxRegime: e.target.value }))
                   }
-                >
-                  <option value="">Não informado</option>
-                  {[
-                    ...new Set([
-                      'Simples Nacional',
-                      'Lucro Presumido',
-                      'Lucro Real',
-                      'MEI',
-                      ...(values.taxRegime ? [values.taxRegime] : []),
-                    ]),
-                  ].map((regime) => (
-                    <option key={regime} value={regime}>
-                      {regime}
+                />
+                <datalist id="company-record-tax-regimes">
+                  {clientTaxRegimeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
-                </Select>
+                </datalist>
               </div>
             </section>
             <section className="record-section">
@@ -712,7 +707,12 @@ function CompanyRecordContent({
                   <Button
                     tone="ghost"
                     disabled={busy}
-                    onClick={() => void changeStatus()}
+                    onClick={() => setStatusConfirmation({
+                      id: company.id,
+                      name: company.name,
+                      status: company.status,
+                      etag,
+                    })}
                   >
                     {company.status === 'archived' ? 'Restaurar' : 'Arquivar'}
                   </Button>
@@ -722,7 +722,9 @@ function CompanyRecordContent({
                 <Button
                   tone="primary"
                   onClick={() => {
-                    setValues(companyValues(company))
+                    const initialValues = companyRegistrationValues(company)
+                    setEditSnapshot({ values: initialValues, etag })
+                    setValues(initialValues)
                     setEditing(true)
                   }}
                 >
@@ -733,21 +735,26 @@ function CompanyRecordContent({
           )}
         </div>
       </footer>
+      {statusConfirmation && (
+        <ConfirmDialog
+          open
+          title={`${restoring ? 'Restaurar' : 'Arquivar'} ${statusConfirmation.name}?`}
+          description={restoring
+            ? 'A empresa volta à operação ativa. Os vínculos antigos de rotinas não serão reabertos automaticamente.'
+            : 'A empresa deixará de aparecer nas operações ativas. O histórico será preservado.'}
+          cancelLabel={restoring ? 'Manter arquivada' : 'Manter empresa'}
+          confirmLabel={restoring ? 'Restaurar empresa' : 'Arquivar empresa'}
+          pendingLabel={restoring ? 'Restaurando…' : 'Arquivando…'}
+          errorFallback="Não foi possível alterar a situação da empresa."
+          intent={restoring ? 'neutral' : 'warning'}
+          onClose={() => setStatusConfirmation(null)}
+          onConfirm={() => changeStatus(statusConfirmation)}
+        />
+      )}
     </Card>
   )
 }
 
-function companyValues(company?: ClientCompanyResource) {
-  return {
-    name: company?.name ?? '',
-    legalName: company?.legalName ?? '',
-    code: company?.code ?? '',
-    cnpj: company?.cnpj ?? '',
-    email: company?.email ?? '',
-    mobilePhone: company?.mobilePhone ?? '',
-    taxRegime: company?.taxRegime ?? '',
-  }
-}
 function QueryError({
   message,
   retry,

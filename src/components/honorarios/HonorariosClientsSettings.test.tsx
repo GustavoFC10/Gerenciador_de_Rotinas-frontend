@@ -506,7 +506,7 @@ describe('Honorários: parâmetros e carteira', () => {
     })
     await click('Aplicar reajuste')
     expect(adjust).not.toHaveBeenCalled()
-    await click('Confirmar')
+    await click('Confirmar reajuste')
     expect(adjust).toHaveBeenNthCalledWith(
       1,
       'client-1',
@@ -518,11 +518,9 @@ describe('Honorários: parâmetros e carteira', () => {
       expect.any(AbortSignal),
     )
     expect(document.body.textContent).toContain('A prévia foi recarregada')
-    expect(
-      document.querySelector('[aria-label="Confirmação da alteração"]'),
-    ).toBeNull()
+    expect(document.querySelector('.ui-inline-confirmation')).toBeNull()
     await click('Aplicar reajuste')
-    await click('Confirmar')
+    await click('Confirmar reajuste')
     expect(adjust).toHaveBeenNthCalledWith(
       2,
       'client-1',
