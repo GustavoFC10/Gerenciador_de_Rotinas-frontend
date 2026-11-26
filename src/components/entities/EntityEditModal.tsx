@@ -8,11 +8,26 @@ import {
   departmentService,
   type TaskAssigneeResource,
 } from '../../services/departmentService'
-import type { ClientCompanyPatch } from '../../services/companyService'
+import {
+  companyService,
+  type ClientCompanyPatch,
+  type ClientCompanyResource,
+} from '../../services/companyService'
+import type { ApiResponse } from '../../services/httpClient'
+import {
+  companyRegistrationPatch,
+  companyRegistrationValues,
+  formatCnpj,
+  validateCompanyRegistration,
+} from '../../utils/companyIdentity'
+import { getErrorPresentation } from '../../utils/apiErrors'
+import LoadingState from '../common/LoadingState'
 import type { Client, Routine, RoutineRecurrence } from '../../types/domain'
 import type { RoutineEditInput } from '../../types/routine'
 import { getCompanyCodeLabel } from '../../utils/companyCode'
 import Button from '../ui/Button'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import Drawer from '../ui/Drawer'
 import Select from '../ui/Select'
 import Textarea from '../ui/Textarea'
 import TextField from '../ui/TextField'
@@ -23,7 +38,7 @@ type EntityEditModalProps =
       type: 'client'
       entity: Client
       onClose: () => void
-      onSave: (changes: ClientCompanyPatch) => Promise<void>
+      onSave: (changes: ClientCompanyPatch, etag: string) => Promise<void>
       onArchive?: () => Promise<void>
       routines?: Routine[]
       period?: string
@@ -38,97 +53,93 @@ type EntityEditModalProps =
 
 type ClientSettingsSection = 'details' | 'routines' | 'danger'
 
+interface EntityEditStatus {
+  isSaving: boolean
+  setIsSaving: (saving: boolean) => void
+}
+
 function EntityEditModal(props: EntityEditModalProps) {
-  const dialogRef = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    const returnFocusTarget =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null
-    const dialog = dialogRef.current
-    const focusableSelector = [
-      'button:not([disabled])',
-      'select:not([disabled])',
-      'input:not([disabled])',
-      'textarea:not([disabled])',
-      '[href]',
-      '[tabindex]:not([tabindex="-1"])',
-    ].join(',')
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        props.onClose()
-        return
-      }
-
-      if (event.key !== 'Tab' || !dialog) return
-
-      const focusableElements = [
-        ...dialog.querySelectorAll<HTMLElement>(focusableSelector),
-      ].filter((element) => element.getClientRects().length > 0)
-
-      if (focusableElements.length === 0) {
-        event.preventDefault()
-        dialog.focus()
-        return
-      }
-
-      const firstElement = focusableElements[0]!
-      const lastElement = focusableElements.at(-1)!
-
-      if (!dialog.contains(document.activeElement)) {
-        event.preventDefault()
-        ;(event.shiftKey ? lastElement : firstElement).focus()
-      } else if (event.shiftKey && document.activeElement === firstElement) {
-        event.preventDefault()
-        lastElement.focus()
-      } else if (!event.shiftKey && document.activeElement === lastElement) {
-        event.preventDefault()
-        firstElement.focus()
-      }
-    }
-
-    document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', handleKeyDown)
-    window.requestAnimationFrame(() => {
-      dialog?.querySelector<HTMLElement>('[data-dialog-autofocus]')?.focus()
-    })
-
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', handleKeyDown)
-      if (returnFocusTarget?.isConnected) returnFocusTarget.focus()
-    }
-  }, [props])
+  const [isSaving, setIsSaving] = useState(false)
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-[var(--color-overlay-bg)] backdrop-blur-[2px]"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) props.onClose()
-      }}
+    <Drawer
+      open
+      size="lg"
+      ariaLabelledBy="entity-edit-title"
+      onClose={props.onClose}
+      closeDisabled={isSaving}
+      className="bg-[var(--color-app-bg)]"
+      bodyClassName="flex flex-col overflow-hidden p-0"
+      panelProps={{ 'data-entity-edit-dialog': true }}
     >
-      <aside
-        ref={dialogRef}
-        data-entity-edit-dialog
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="entity-edit-title"
-        tabIndex={-1}
-        className="flex h-full w-full max-w-4xl flex-col overflow-hidden border-l border-[var(--color-panel-border)] bg-[var(--color-app-bg)] shadow-[-12px_0_36px_rgb(15_23_42_/_0.22)]"
-      >
-        {props.type === 'client' ? (
-          <ClientEditForm {...props} />
-        ) : (
-          <RoutineEditForm {...props} />
-        )}
-      </aside>
-    </div>
+      {props.type === 'client' ? (
+        <ClientEditRecord
+          key={props.entity.id}
+          {...props}
+          isSaving={isSaving}
+          setIsSaving={setIsSaving}
+        />
+      ) : (
+        <RoutineEditForm
+          {...props}
+          isSaving={isSaving}
+          setIsSaving={setIsSaving}
+        />
+      )}
+    </Drawer>
   )
+}
+
+type ClientEditProps = Extract<EntityEditModalProps, { type: 'client' }>
+
+function ClientEditRecord(props: ClientEditProps & EntityEditStatus) {
+  const id = props.entity.id
+  const [result, setResult] =
+    useState<ApiResponse<ClientCompanyResource> | null>(null)
+  const [error, setError] = useState('')
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    const controller = new AbortController()
+    void companyService.get(id, controller.signal).then(
+      (response) => {
+        if (!controller.signal.aborted) setResult(response)
+      },
+      (caught) => {
+        if (!controller.signal.aborted)
+          setError(getErrorPresentation(caught).message)
+      },
+    )
+    return () => controller.abort()
+  }, [id, attempt])
+
+  if (!result) {
+    return (
+      <div className="space-y-4 p-5">
+        <h2 id="entity-edit-title" className="app-page-title">
+          Configurações da empresa
+        </h2>
+        {error ? (
+          <>
+            <p role="alert">{error}</p>
+            <Button
+              onClick={() => {
+                setError('')
+                setAttempt((value) => value + 1)
+              }}
+            >
+              Tentar novamente
+            </Button>
+          </>
+        ) : (
+          <LoadingState message="Carregando cadastro da empresa…" />
+        )}
+        <Button tone="neutral" onClick={props.onClose} data-overlay-close>
+          Fechar
+        </Button>
+      </div>
+    )
+  }
+  return <ClientEditForm {...props} snapshot={result} />
 }
 
 function ClientEditForm({
@@ -138,89 +149,65 @@ function ClientEditForm({
   onArchive,
   routines,
   period,
-}: Extract<EntityEditModalProps, { type: 'client' }>) {
-  const [name, setName] = useState(entity.name)
-  const [code, setCode] = useState(entity.code ?? '')
-  const [legalName, setLegalName] = useState(entity.legalName ?? '')
-  const [cnpj, setCnpj] = useState(entity.document ?? '')
-  const [email, setEmail] = useState(entity.email ?? '')
-  const [mobilePhone, setMobilePhone] = useState(entity.phone ?? '')
-  const [taxRegime, setTaxRegime] = useState(entity.taxRegime ?? '')
+  snapshot,
+  isSaving,
+  setIsSaving,
+}: ClientEditProps &
+  EntityEditStatus & { snapshot: ApiResponse<ClientCompanyResource> }) {
+  const baseline = companyRegistrationValues(snapshot.data)
+  const [name, setName] = useState(baseline.name)
+  const [code, setCode] = useState(baseline.code)
+  const [legalName, setLegalName] = useState(baseline.legalName)
+  const [cnpj, setCnpj] = useState(baseline.cnpj)
+  const [email, setEmail] = useState(baseline.email)
+  const [mobilePhone, setMobilePhone] = useState(baseline.mobilePhone)
+  const [taxRegime, setTaxRegime] = useState(baseline.taxRegime)
   const [error, setError] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
-  const [archiveError, setArchiveError] = useState('')
-  const [isArchiving, setIsArchiving] = useState(false)
+  const [confirmArchive, setConfirmArchive] = useState(false)
   const [activeSection, setActiveSection] =
     useState<ClientSettingsSection>('details')
+  const nameRef = useRef<HTMLInputElement>(null)
+  useEffect(() => nameRef.current?.focus(), [])
 
   const isRegistrationSection = activeSection === 'details'
   const canManageRoutineAssignments = Boolean(routines && period)
 
-  async function handleArchive() {
-    if (!onArchive) return
-
-    if (
-      !window.confirm(
-        'Arquivar esta empresa? Ela deixará de aparecer nas operações ativas, mas o histórico será preservado.',
-      )
-    ) {
-      return
-    }
-
-    setIsArchiving(true)
-    setArchiveError('')
-
-    try {
-      await onArchive()
-      onClose()
-    } catch (caughtError) {
-      setArchiveError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'Não foi possível arquivar a empresa.',
-      )
-    } finally {
-      setIsArchiving(false)
-    }
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const normalizedCode = code.replace(/\D/g, '')
-    const normalizedCnpj = cnpj.replace(/\D/g, '')
-
-    if (!name.trim()) {
-      setError('Informe o nome da empresa.')
+    if (isSaving) return
+    const values = {
+      name,
+      code,
+      legalName,
+      cnpj,
+      email,
+      mobilePhone,
+      taxRegime,
+    }
+    const [validationError] = Object.values(
+      validateCompanyRegistration(values, baseline),
+    )
+    if (validationError) {
+      setError(validationError)
       return
     }
 
-    if (normalizedCode && !/^[0-9]{1,32}$/.test(normalizedCode)) {
-      setError('Use um código numérico com até 32 dígitos.')
+    if (!snapshot.etag) {
+      setError(
+        'A API não informou a versão da empresa. Reabra a edição para tentar novamente.',
+      )
       return
     }
 
-    if (normalizedCnpj && normalizedCnpj.length !== 14) {
-      setError('Informe um CNPJ com 14 dígitos ou deixe o campo vazio.')
+    const patch = companyRegistrationPatch(values, baseline)
+    if (Object.keys(patch).length === 0) {
+      onClose()
       return
     }
-
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError('Informe um e-mail válido.')
-      return
-    }
-
     setIsSaving(true)
     setError('')
     try {
-      await onSave({
-        name: name.trim(),
-        ...(normalizedCode ? { code: normalizedCode } : {}),
-        legalName: legalName.trim(),
-        cnpj: formatCnpj(normalizedCnpj),
-        email: email.trim(),
-        mobilePhone: mobilePhone.trim(),
-        ...(taxRegime ? { taxRegime } : { taxRegime: '' }),
-      })
+      await onSave(patch, snapshot.etag)
       onClose()
     } catch (caughtError) {
       setError(
@@ -240,6 +227,7 @@ function ClientEditForm({
         title="Configurações"
         description={`${entity.name} · Código ${getCompanyCodeLabel(entity.code)}`}
         onClose={onClose}
+        closeDisabled={isSaving}
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
@@ -295,9 +283,10 @@ function ClientEditForm({
                     <div className="mt-5 grid gap-4 sm:grid-cols-2">
                       <div className="sm:col-span-2">
                         <TextField
-                          data-dialog-autofocus
+                          ref={nameRef}
                           id="edit-company-name"
-                          label="Nome da empresa *"
+                          maxLength={160}
+                          label="Nome fantasia"
                           value={name}
                           onChange={(event) => setName(event.target.value)}
                           required
@@ -307,11 +296,7 @@ function ClientEditForm({
                         id="edit-company-code"
                         label="Código (opcional)"
                         value={code}
-                        onChange={(event) =>
-                          setCode(
-                            event.target.value.replace(/\D/g, '').slice(0, 32),
-                          )
-                        }
+                        onChange={(event) => setCode(event.target.value)}
                         inputMode="numeric"
                         maxLength={32}
                       />
@@ -338,12 +323,12 @@ function ClientEditForm({
                         onChange={(event) =>
                           setCnpj(formatCnpj(event.target.value))
                         }
-                        inputMode="numeric"
                         maxLength={18}
                         placeholder="00.000.000/0000-00"
                       />
                       <TextField
                         id="edit-company-legal-name"
+                        maxLength={200}
                         label="Razão social (opcional)"
                         value={legalName}
                         onChange={(event) => setLegalName(event.target.value)}
@@ -383,6 +368,7 @@ function ClientEditForm({
                     <div className="mt-5 grid gap-4 sm:grid-cols-2">
                       <TextField
                         id="edit-company-email"
+                        maxLength={254}
                         label="E-mail"
                         type="email"
                         value={email}
@@ -390,7 +376,8 @@ function ClientEditForm({
                       />
                       <TextField
                         id="edit-company-mobile-phone"
-                        label="Celular"
+                        maxLength={32}
+                        label="Telefone"
                         type="tel"
                         value={mobilePhone}
                         onChange={(event) => setMobilePhone(event.target.value)}
@@ -429,19 +416,11 @@ function ClientEditForm({
                     type="button"
                     tone="neutral"
                     className="mt-4 border-[var(--status-error-border)] text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)]"
-                    onClick={() => void handleArchive()}
-                    disabled={isSaving || isArchiving}
+                    onClick={() => setConfirmArchive(true)}
+                    disabled={isSaving}
                   >
-                    {isArchiving ? 'Arquivando…' : 'Arquivar empresa'}
+                    Arquivar empresa
                   </Button>
-                  {archiveError && (
-                    <p
-                      role="alert"
-                      className="mt-4 rounded-[var(--radius-control)] border border-[var(--status-error-border)] bg-[var(--color-panel-bg)] px-3 py-2 text-sm font-semibold text-[var(--status-error-text)]"
-                    >
-                      {archiveError}
-                    </p>
-                  )}
                 </div>
               </section>
             )}
@@ -454,20 +433,33 @@ function ClientEditForm({
           type="button"
           tone="neutral"
           onClick={onClose}
-          disabled={isSaving || isArchiving}
+          disabled={isSaving}
         >
           {isRegistrationSection ? 'Cancelar' : 'Fechar'}
         </Button>
         {isRegistrationSection && (
-          <Button
-            type="submit"
-            form="client-settings-form"
-            disabled={isSaving || isArchiving}
-          >
+          <Button type="submit" form="client-settings-form" disabled={isSaving}>
             {isSaving ? 'Salvando…' : 'Salvar alterações'}
           </Button>
         )}
       </footer>
+      {onArchive && (
+        <ConfirmDialog
+          open={confirmArchive}
+          title={`Arquivar ${baseline.name}?`}
+          description="A empresa deixará de aparecer nas operações ativas. O histórico será preservado."
+          cancelLabel="Manter empresa"
+          confirmLabel="Arquivar empresa"
+          pendingLabel="Arquivando…"
+          errorFallback="Não foi possível arquivar a empresa."
+          intent="warning"
+          onClose={() => setConfirmArchive(false)}
+          onConfirm={async () => {
+            await onArchive()
+            onClose()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -509,7 +501,9 @@ function RoutineEditForm({
   onClose,
   onSave,
   onArchive,
-}: Extract<EntityEditModalProps, { type: 'routine' }>) {
+  isSaving,
+  setIsSaving,
+}: Extract<EntityEditModalProps, { type: 'routine' }> & EntityEditStatus) {
   const [name, setName] = useState(entity.name)
   const [shotname, setShotname] = useState(entity.shortName)
   const [description, setDescription] = useState(entity.description ?? '')
@@ -529,9 +523,7 @@ function RoutineEditForm({
   const [isLoadingAssignees, setIsLoadingAssignees] = useState(true)
   const [assigneesError, setAssigneesError] = useState('')
   const [error, setError] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
-  const [archiveError, setArchiveError] = useState('')
-  const [isArchiving, setIsArchiving] = useState(false)
+  const [confirmArchive, setConfirmArchive] = useState(false)
 
   useEffect(() => {
     let isCurrent = true
@@ -567,36 +559,9 @@ function RoutineEditForm({
     setRecurrenceMonths([])
   }
 
-  async function handleArchive() {
-    if (!onArchive) return
-
-    if (
-      !window.confirm(
-        'Arquivar esta rotina? Todos os vínculos com empresas serão encerrados imediatamente. O histórico de tarefas será preservado.',
-      )
-    ) {
-      return
-    }
-
-    setIsArchiving(true)
-    setArchiveError('')
-
-    try {
-      await onArchive()
-      onClose()
-    } catch (caughtError) {
-      setArchiveError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'Não foi possível arquivar a rotina.',
-      )
-    } finally {
-      setIsArchiving(false)
-    }
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isSaving) return
     const dueDays = Number(defaultDueDays)
 
     if (!name.trim()) {
@@ -669,6 +634,7 @@ function RoutineEditForm({
         title="Editar rotina"
         description="A identidade é atualizada e a regra operacional é publicada como uma nova versão."
         onClose={onClose}
+        closeDisabled={isSaving}
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
@@ -684,7 +650,7 @@ function RoutineEditForm({
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <TextField
-                data-dialog-autofocus
+                data-overlay-initial-focus
                 id="edit-routine-name"
                 label="Título da rotina *"
                 value={name}
@@ -837,35 +803,44 @@ function RoutineEditForm({
               type="button"
               tone="neutral"
               className="border-[var(--status-error-border)] text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)]"
-              onClick={() => void handleArchive()}
-              disabled={isSaving || isArchiving}
+              onClick={() => setConfirmArchive(true)}
+              disabled={isSaving}
             >
-              {isArchiving ? 'Arquivando…' : 'Arquivar rotina'}
+              Arquivar rotina
             </Button>
-          )}
-          {archiveError && (
-            <p
-              role="alert"
-              className="mt-2 max-w-sm text-sm font-semibold text-[var(--status-error-text)]"
-            >
-              {archiveError}
-            </p>
           )}
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <Button
             type="button"
             tone="neutral"
-            disabled={isSaving || isArchiving}
+            disabled={isSaving}
             onClick={onClose}
           >
             Cancelar
           </Button>
-          <Button type="submit" disabled={isSaving || isArchiving}>
+          <Button type="submit" disabled={isSaving}>
             {isSaving ? 'Salvando…' : 'Salvar e publicar versão'}
           </Button>
         </div>
       </footer>
+      {onArchive && (
+        <ConfirmDialog
+          open={confirmArchive}
+          title={`Arquivar ${entity.name}?`}
+          description="Todos os vínculos com empresas serão encerrados imediatamente. O histórico de tarefas será preservado."
+          cancelLabel="Manter rotina"
+          confirmLabel="Arquivar rotina"
+          pendingLabel="Arquivando…"
+          errorFallback="Não foi possível arquivar a rotina."
+          intent="warning"
+          onClose={() => setConfirmArchive(false)}
+          onConfirm={async () => {
+            await onArchive()
+            onClose()
+          }}
+        />
+      )}
     </form>
   )
 }
@@ -875,11 +850,13 @@ function DrawerHeader({
   title,
   description,
   onClose,
+  closeDisabled,
 }: {
   eyebrow?: string
   title: string
   description: string
   onClose: () => void
+  closeDisabled: boolean
 }) {
   return (
     <header className="flex items-start gap-4 border-b border-[var(--color-divider)] bg-[var(--color-panel-bg)] px-5 py-5 sm:px-6">
@@ -901,6 +878,8 @@ function DrawerHeader({
         type="button"
         onClick={onClose}
         aria-label="Fechar edição"
+        data-overlay-close
+        disabled={closeDisabled}
         className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-control-focus)]"
       >
         <CloseIcon />
@@ -1003,17 +982,6 @@ function getRecurrenceMonthOptions(
   }
 
   return []
-}
-
-function formatCnpj(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 14)
-  if (!digits) return ''
-
-  return digits
-    .replace(/^(\d{2})(\d)/, '$1.$2')
-    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1/$2')
-    .replace(/(\d{4})(\d)/, '$1-$2')
 }
 
 function CloseIcon() {

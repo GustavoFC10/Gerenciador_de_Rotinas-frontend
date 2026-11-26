@@ -1,5 +1,6 @@
 import type { RefObject } from 'react'
 
+import NavigationIcon from '../components/common/NavigationIcon'
 import NotificationCenterTrigger from '../components/feedback/NotificationCenterTrigger'
 import UploadsTrigger from '../components/files/UploadsTrigger'
 import { appThemeClass, focusRing } from '../constants/designTokens'
@@ -36,7 +37,7 @@ function Topbar({
         aria-controls="app-sidebar"
         aria-expanded={isNavigationOpen}
       >
-        <MenuIcon />
+        <NavigationIcon name="menu" />
       </button>
 
       <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch">
@@ -46,7 +47,7 @@ function Topbar({
           className={`group ml-14 flex min-w-0 items-center justify-self-start px-2 text-sm font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-control-hover-bg)] hover:text-[var(--color-text-strong)] sm:px-4 lg:ml-0 lg:px-8 ${focusRing}`}
           aria-label="Competência anterior"
         >
-          <ChevronIcon direction="left" />
+          <NavigationIcon name="chevron-left" className="size-4" />
           <span className="ml-2 hidden sm:inline">Anterior</span>
         </button>
         <span
@@ -63,7 +64,7 @@ function Topbar({
             aria-label="Próxima competência"
           >
             <span className="mr-2 hidden sm:inline">Próxima</span>
-            <ChevronIcon direction="right" />
+            <NavigationIcon name="chevron-right" className="size-4" />
           </button>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <UploadsTrigger />
@@ -72,39 +73,6 @@ function Topbar({
         </div>
       </div>
     </header>
-  )
-}
-
-function MenuIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M4 6h16M4 12h16M4 18h16" />
-    </svg>
-  )
-}
-
-function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d={direction === 'left' ? 'm15 18-6-6 6-6' : 'm9 18 6-6-6-6'} />
-    </svg>
   )
 }
 

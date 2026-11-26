@@ -39,6 +39,17 @@ export const processQueryKeys = {
     ] as const,
   detail: (scope: OrganizationQueryScope, id: string) =>
     [...processQueryKeys.root(scope), 'detail', id] as const,
+  deadlineExtensions: (
+    scope: OrganizationQueryScope,
+    id: string,
+    version?: number,
+  ) =>
+    [
+      ...processQueryKeys.root(scope),
+      'deadline-extensions',
+      id,
+      ...(version === undefined ? [] : [version]),
+    ] as const,
   entries: (
     scope: OrganizationQueryScope,
     id: string,

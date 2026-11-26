@@ -16,7 +16,11 @@ import {
 import { ROUTES } from '../constants/routes'
 import WorkspaceBar from '../layouts/WorkspaceBar'
 import type { Routine, Screen } from '../types/domain'
-import type { ClientCompanyInput } from '../services/companyService'
+import {
+  companyRegistrationInput,
+  formatCnpj,
+  validateCompanyRegistration,
+} from '../utils/companyIdentity'
 import {
   CompanySetupError,
   type CompanySetupInput,
@@ -228,33 +232,6 @@ function CreateCompanyPage({
     }))
   }
 
-  function validateCompanyData(): CompanyErrors {
-    const nextErrors: CompanyErrors = {}
-    const code = draft.code.trim()
-    const cnpj = normalizeDocument(draft.cnpj)
-
-    if (!draft.name.trim()) {
-      nextErrors.name = 'Informe o nome da empresa.'
-    }
-
-    if (code && !/^[0-9]{1,32}$/.test(code)) {
-      nextErrors.code = 'Use um código numérico com até 32 dígitos.'
-    }
-
-    if (cnpj && cnpj.length !== 14) {
-      nextErrors.cnpj = 'Informe um CNPJ com 14 dígitos ou deixe o campo vazio.'
-    }
-
-    if (
-      draft.email.trim() &&
-      !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(draft.email.trim())
-    ) {
-      nextErrors.email = 'Informe um e-mail válido.'
-    }
-
-    return nextErrors
-  }
-
   function validateOperations(): CompanyErrors {
     const nextErrors: CompanyErrors = {}
 
@@ -276,7 +253,7 @@ function CreateCompanyPage({
     setSubmitAttempt((current) => current + 1)
 
     if (step === 0) {
-      const nextErrors = validateCompanyData()
+      const nextErrors = validateCompanyRegistration(draft)
       setErrors(nextErrors)
       if (Object.keys(nextErrors).length === 0) {
         setStep(1)
@@ -296,7 +273,7 @@ function CreateCompanyPage({
     }
 
     const finalErrors = {
-      ...validateCompanyData(),
+      ...validateCompanyRegistration(draft),
       ...validateOperations(),
     }
     setErrors(finalErrors)
@@ -308,15 +285,7 @@ function CreateCompanyPage({
     setIsSubmitting(true)
     try {
       const created = await onCreate({
-        company: removeEmptyFields({
-          code: draft.code.trim(),
-          name: draft.name.trim(),
-          legalName: draft.legalName.trim(),
-          cnpj: formatCnpj(draft.cnpj),
-          email: draft.email.trim(),
-          mobilePhone: draft.mobilePhone.trim(),
-          taxRegime: draft.taxRegime,
-        }),
+        company: companyRegistrationInput(draft),
         ...(draft.screenId ? { screenId: draft.screenId } : {}),
         routineIds: draft.routineIds,
         startsOn: draft.startsOn,
@@ -471,7 +440,8 @@ function CompanyDataStep({
           <FieldGroup error={errors.name} errorId="company-name-error">
             <TextField
               id="company-name"
-              label="Nome da empresa *"
+              maxLength={160}
+              label="Nome fantasia"
               value={draft.name}
               onChange={(event) => onUpdate('name', event.target.value)}
               autoComplete="organization"
@@ -483,6 +453,7 @@ function CompanyDataStep({
           </FieldGroup>
           <TextField
             id="company-legal-name"
+            maxLength={200}
             label="Razão social (opcional)"
             value={draft.legalName}
             onChange={(event) => onUpdate('legalName', event.target.value)}
@@ -495,12 +466,7 @@ function CompanyDataStep({
                 id="company-code"
                 label="Código (opcional)"
                 value={draft.code}
-                onChange={(event) =>
-                  onUpdate(
-                    'code',
-                    event.target.value.replace(/\\D/g, '').slice(0, 32),
-                  )
-                }
+                onChange={(event) => onUpdate('code', event.target.value)}
                 inputMode="numeric"
                 maxLength={32}
                 placeholder="Ex.: 007"
@@ -526,7 +492,6 @@ function CompanyDataStep({
                 onChange={(event) =>
                   onUpdate('cnpj', formatCnpj(event.target.value))
                 }
-                inputMode="numeric"
                 maxLength={18}
                 placeholder="00.000.000/0000-00"
                 aria-invalid={Boolean(errors.cnpj)}
@@ -542,6 +507,7 @@ function CompanyDataStep({
           <FieldGroup error={errors.email} errorId="company-email-error">
             <TextField
               id="company-email"
+              maxLength={254}
               label="E-mail (opcional)"
               type="email"
               value={draft.email}
@@ -556,7 +522,8 @@ function CompanyDataStep({
           </FieldGroup>
           <TextField
             id="company-phone"
-            label="Celular (opcional)"
+            maxLength={32}
+            label="Telefone (opcional)"
             type="tel"
             value={draft.mobilePhone}
             onChange={(event) => onUpdate('mobilePhone', event.target.value)}
@@ -1109,49 +1076,6 @@ function ReviewGrid({ entries }: { entries: Array<[string, string]> }) {
         </div>
       ))}
     </dl>
-  )
-}
-
-function removeEmptyFields(input: ClientCompanyInput): ClientCompanyInput {
-  return Object.fromEntries(
-    Object.entries(input).filter(([, value]) => value !== ''),
-  ) as ClientCompanyInput
-}
-
-function normalizeDocument(value: string): string {
-  return value.replace(/\D/g, '')
-}
-
-function formatCnpj(value: string): string {
-  const digits = normalizeDocument(value).slice(0, 14)
-
-  if (digits.length <= 2) return digits
-  if (digits.length <= 5) return digits.slice(0, 2) + '.' + digits.slice(2)
-  if (digits.length <= 8) {
-    return digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5)
-  }
-  if (digits.length <= 12) {
-    return (
-      digits.slice(0, 2) +
-      '.' +
-      digits.slice(2, 5) +
-      '.' +
-      digits.slice(5, 8) +
-      '/' +
-      digits.slice(8)
-    )
-  }
-
-  return (
-    digits.slice(0, 2) +
-    '.' +
-    digits.slice(2, 5) +
-    '.' +
-    digits.slice(5, 8) +
-    '/' +
-    digits.slice(8, 12) +
-    '-' +
-    digits.slice(12)
   )
 }
 

@@ -30,6 +30,8 @@ import {
   PROCESS_SECTORS,
   processStatus,
 } from '../../utils/processPresentation'
+import InlineConfirmation from '../ui/InlineConfirmation'
+import ProcessDeadlineCard from './ProcessDeadlineCard'
 import ProcessFields from './ProcessFields'
 import ProcessIcon from './ProcessIcon'
 import ProcessTypeBadge from './ProcessTypeBadge'
@@ -37,6 +39,7 @@ import '../../styles/process-detail-sections.css'
 import {
   DIRECT_LOSS_TYPES,
   isProcessFeeAdjustment,
+  LOSS_TYPES,
   PROCESS_ALTERATIONS,
   PROCESS_PAYERS,
   PROCESS_REASONS,
@@ -314,75 +317,57 @@ function HistoryValue({
   return String(value)
 }
 
-const PROCESS_PRIORITY_FIELDS = {
+const PROCESS_MAIN_DEFINITIONS = {
   abertura: ['taxRegime', 'cost', 'monthlyFee'],
   mei: ['taxRegime', 'cost', 'monthlyFee'],
   outro: ['taxRegime', 'monthlyFee'],
-  outros: ['request', 'requestedSector'],
-  alteracao: ['alterations', 'cost'],
-  inatividade: ['start', 'lostFee'],
-  inativa: ['start', 'feeLoss'],
-  reativacao: ['commercialRegistry', 'monthlyFee'],
-  baixa: ['competence', 'lostFee'],
-  saida: ['newAccountant', 'lostFee'],
-  exclusao: ['competence', 'reason', 'lostFee'],
+  outros: [],
+  alteracao: ['cost'],
+  inatividade: ['lostFee'],
+  inativa: ['feeLoss'],
+  reativacao: ['monthlyFee'],
+  baixa: ['lostFee'],
+  saida: ['lostFee'],
+  exclusao: ['lostFee'],
   aumento_honorarios: ['adjustedFee', 'newChargeDate'],
   reducao_honorarios: ['adjustedFee', 'newChargeDate'],
 } as const satisfies Record<ProcessResource['tipo'], readonly string[]>
 
-type ProcessPriorityField =
-  (typeof PROCESS_PRIORITY_FIELDS)[ProcessResource['tipo']][number]
+type ProcessDefinitionId =
+  (typeof PROCESS_MAIN_DEFINITIONS)[ProcessResource['tipo']][number]
 
 interface ProcessDataItem {
-  id?: ProcessPriorityField
+  id?: ProcessDefinitionId
   label: string
   value?: string | null
   detail?: string
   full?: boolean
 }
 
-function ProcessDataGroup({
-  title,
-  fields,
-  primary = false,
-}: {
-  title: string
-  fields: ProcessDataItem[]
-  primary?: boolean
-}) {
-  if (!fields.length) return null
+function ProcessDataFields({ fields }: { fields: ProcessDataItem[] }) {
   return (
-    <section
-      className={`process-data-group${primary ? ' process-data-group--primary' : ''}`}
-    >
-      <h3 className="app-component-title">{title}</h3>
-      <dl className="fields">
-        {fields.map(({ label, value, detail, full }) => (
-          <div
-            className={`field process-data-field${full ? ' full' : ''}`}
-            key={label}
-          >
-            <dt className="app-caption">{label}</dt>
-            <dd className={`vv${value ? '' : ' muted'}`}>
-              {value || 'Não informado'}
-              {detail && <span className="app-caption">{detail}</span>}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </section>
+    <dl className="fields process-data-fields">
+      {fields.map(({ label, value, detail, full }) => (
+        <div
+          className={`field process-data-field${full ? ' full' : ''}`}
+          key={label}
+        >
+          <dt className="app-caption">{label}</dt>
+          <dd className={`vv${value ? '' : ' muted'}`}>
+            {value || 'Não informado'}
+            {detail && <span className="app-caption">{detail}</span>}
+          </dd>
+        </div>
+      ))}
+    </dl>
   )
 }
 
-function ProcessData({
-  process,
-  type,
-  date,
-}: {
-  process: ProcessResource
-  type?: ProcessCatalogType
-  date: (value: string | null | undefined) => string
-}) {
+function processData(
+  process: ProcessResource,
+  type: ProcessCatalogType | undefined,
+  date: (value: string | null | undefined) => string,
+) {
   const financial = process.permissions.viewFinancial
   const competenceField = PROCESS_COMPETENCE_FIELDS[process.tipo]
   const startLabel = PROCESS_START_LABELS[process.tipo]
@@ -391,29 +376,21 @@ function ProcessData({
   const hasDirectLoss = DIRECT_LOSS_TYPES.includes(process.tipo)
   const feeAdjustment = isProcessFeeAdjustment(process.tipo)
   const inactive = process.tipo === 'inativa'
-  const general: ProcessDataItem[] = [
-    {
-      id: 'start',
-      label: startLabel ?? 'Prazo',
-      value: startLabel
-        ? process.inicioInat && date(process.inicioInat)
-        : process.prazo
-          ? date(process.prazo)
-          : 'Sem prazo',
-    },
-  ]
+  const fields: ProcessDataItem[] = []
+  if (startLabel)
+    fields.push({
+      label: startLabel,
+      value: process.inicioInat && date(process.inicioInat),
+    })
   if (competenceField) {
     const competence = process[competenceField.key]
-    general.push({
-      id: 'competence',
+    fields.push({
       label: competenceField.label,
       value: competence ? monthLabel(competence) : undefined,
     })
   }
-  general.push({ label: 'Aberto por', value: process.autorAbertura })
   if (process.tipo === 'alteracao') {
-    general.push({
-      id: 'alterations',
+    fields.push({
       label: 'O que será alterado',
       value: process.altItens
         ?.map((item) => PROCESS_ALTERATIONS[item])
@@ -421,28 +398,26 @@ function ProcessData({
       full: true,
     })
     if (financial)
-      general.push({
+      fields.push({
         label: 'Dados que serão alterados',
         value: process.altDesc,
         full: true,
       })
   }
-  if (process.motivo)
-    general.push({
-      id: 'reason',
+  if (LOSS_TYPES.includes(process.tipo)) {
+    fields.push({
       label: 'Motivo',
-      value: PROCESS_REASONS[process.motivo],
-      full: true,
+      value: process.motivo ? PROCESS_REASONS[process.motivo] : undefined,
     })
-  if (financial && process.motivoObs)
-    general.push({
-      label: 'Detalhes do motivo',
-      value: process.motivoObs,
-      full: true,
-    })
+    if (financial && process.motivoObs)
+      fields.push({
+        label: 'Detalhes do motivo',
+        value: process.motivoObs,
+        full: true,
+      })
+  }
   if (process.tipo === 'saida')
-    general.push({
-      id: 'newAccountant',
+    fields.push({
       label: 'Nova contabilidade',
       value: process.novoContador
         ? process.contadorNome || 'Dados conhecidos'
@@ -455,8 +430,7 @@ function ProcessData({
       full: true,
     })
   if (process.tipo === 'reativacao')
-    general.push({
-      id: 'commercialRegistry',
+    fields.push({
       label: 'Junta Comercial',
       value:
         process.reatJunta !== false
@@ -468,28 +442,14 @@ function ProcessData({
           : 'Etapa da Leggacy não se aplica',
       full: true,
     })
-  if (processHasMeeting(type, 'alinhamento'))
-    general.push({
-      label: 'Reunião de alinhamento',
-      value: process.reunAlinh !== false ? 'Sim' : 'Não',
-    })
-  if (processHasMeeting(type, 'acompanhamento'))
-    general.push({
-      label: 'Reunião de acompanhamento (4º mês)',
-      value: process.reunAcomp !== false ? 'Sim' : 'Não',
-    })
-
-  const request: ProcessDataItem[] = []
   if (process.tipo === 'outros') {
-    request.push(
+    fields.push(
       {
-        id: 'request',
         label: 'Descrição do processo',
         value: process.descricaoProcesso,
         full: true,
       },
       {
-        id: 'requestedSector',
         label: 'Departamento solicitado',
         value:
           process.departamentoSolicitado &&
@@ -506,7 +466,7 @@ function ProcessData({
       },
     )
     if (financial && process.valorProcesso !== undefined)
-      request.push({
+      fields.push({
         label: 'Valor do processo',
         value: processMoney(process.valorProcesso),
         detail: 'Valor pontual',
@@ -625,44 +585,36 @@ function ProcessData({
       )
   }
 
-  const priorities: readonly ProcessPriorityField[] =
-    PROCESS_PRIORITY_FIELDS[process.tipo]
-  const fields = [...general, ...request, ...definitions]
-  const primary = priorities
-    .map((id) => fields.find((field) => field.id === id))
-    .filter((field) => field !== undefined)
-  const remaining = (items: ProcessDataItem[]) =>
-    items.filter((field) => !field.id || !priorities.includes(field.id))
+  const mainDefinitionIds: readonly ProcessDefinitionId[] =
+    PROCESS_MAIN_DEFINITIONS[process.tipo] ?? []
+  const isMainDefinition = ({ id }: ProcessDataItem) =>
+    id !== undefined && mainDefinitionIds.includes(id)
+  fields.push(...definitions.filter(isMainDefinition))
+  if (processHasMeeting(type, 'alinhamento'))
+    fields.push({
+      label: 'Reunião de alinhamento',
+      value: process.reunAlinh !== false ? 'Sim' : 'Não',
+    })
+  if (processHasMeeting(type, 'acompanhamento'))
+    fields.push({
+      label: 'Reunião de acompanhamento (4º mês)',
+      value: process.reunAcomp !== false ? 'Sim' : 'Não',
+    })
 
-  return (
-    <>
-      <ProcessDataGroup title="Dados principais" fields={primary} primary />
-      <ProcessDataGroup
-        title="Informações gerais"
-        fields={remaining(general)}
-      />
-      <ProcessDataGroup
-        title="Dados da solicitação"
-        fields={remaining(request)}
-      />
-      <ProcessDataGroup
-        title="Definições da Diretoria"
-        fields={remaining(definitions)}
-      />
-    </>
-  )
+  return {
+    fields,
+    definitions: definitions.filter((field) => !isMainDefinition(field)),
+  }
 }
 
-function ProcessSideSection({
+function ProcessDetailSection({
   title,
   children,
-  action,
   defaultOpen = false,
   loadOnOpen = false,
 }: {
   title: string
   children: ReactNode
-  action?: ReactNode
   defaultOpen?: boolean
   loadOnOpen?: boolean
 }) {
@@ -684,7 +636,6 @@ function ProcessSideSection({
             <ProcessIcon name="chev" size={16} />
           </button>
         </h2>
-        {action}
       </div>
       <div
         className="process-detail-section-body"
@@ -731,8 +682,10 @@ export default function ProcessDetails({
   const busyRef = useRef(false)
   const [error, setError] = useState('')
   const [confirmation, setConfirmation] = useState<
-    'delete' | 'cancel' | string | null
+    'delete' | 'cancel' | `task:${string}` | null
   >(null)
+  const [confirmationError, setConfirmationError] = useState('')
+  const confirmationTrigger = useRef<HTMLButtonElement | null>(null)
   const [unavailable, setUnavailable] = useState(false)
   const [openedAt] = useState(() => Date.now())
   const type = catalog.types.find((type) => type.id === process.tipo)
@@ -746,6 +699,20 @@ export default function ProcessDetails({
   const isOpen = ['andamento', 'agendado', 'atrasado'].includes(process.status)
   const executable =
     process.status === 'andamento' || process.status === 'atrasado'
+  const processConfirmationOpen =
+    confirmation === 'delete' || confirmation === 'cancel'
+  function openConfirmation(
+    next: NonNullable<typeof confirmation>,
+    trigger: HTMLButtonElement,
+  ) {
+    confirmationTrigger.current = trigger
+    setConfirmationError('')
+    setConfirmation(next)
+  }
+  function closeConfirmation() {
+    setConfirmation(null)
+    setConfirmationError('')
+  }
   function revokeAccess(error: unknown) {
     active.current = false
     setUnavailable(true)
@@ -753,6 +720,7 @@ export default function ProcessDetails({
     for (const queryKey of [
       processQueryKeys.detail(scope, process.id),
       processQueryKeys.entries(scope, process.id),
+      processQueryKeys.deadlineExtensions(scope, process.id),
       processQueryKeys.list(scope),
       processQueryKeys.indicators(scope),
       processQueryKeys.report(scope, '').slice(0, -1),
@@ -787,9 +755,29 @@ export default function ProcessDetails({
   const percentage = a.totalTasks
     ? Math.round((a.completedTasks / a.totalTasks) * 100)
     : 0
+  const data = processData(process, type, date)
+  const registration: ProcessDataItem[] = [
+    { label: 'Código interno', value: process.codigo },
+    {
+      label: 'Responsável',
+      value: process.responsibleSectors
+        .map((sector) => catalog.sectors[sector])
+        .join(' e '),
+    },
+    { label: 'Aberto por', value: process.autorAbertura },
+    {
+      label: 'Aberto em',
+      value: date(process.criadoEm),
+      detail: isOpen
+        ? `${age} ${age === 1 ? 'dia' : 'dias'} desde a abertura`
+        : undefined,
+    },
+  ]
   async function mutate(
     action: () => Promise<ApiResponse<ProcessResource>>,
     message?: string,
+    reportError: (message: string) => void = setError,
+    refreshOnDenied = false,
   ) {
     if (busyRef.current || coolingDown) return false
     busyRef.current = true
@@ -814,6 +802,9 @@ export default function ProcessDetails({
       return true
     } catch (error) {
       const presentation = getErrorPresentation(error)
+      const errorMessage = [presentation.message, presentation.supportReference]
+        .filter(Boolean)
+        .join(' ')
       if (
         isApiError(error) &&
         (error.status === 429 || error.status === 503) &&
@@ -826,9 +817,12 @@ export default function ProcessDetails({
           presentation.retryAfterSeconds * 1000,
         )
       }
-      if (isApiError(error) && (error.status === 403 || error.status === 404)) {
+      const denied =
+        isApiError(error) && (error.status === 403 || error.status === 404)
+      const conflict = isApiError(error) && error.status === 409
+      if (denied && !refreshOnDenied) {
         revokeAccess(error)
-      } else if (isApiError(error) && error.status === 409) {
+      } else if (conflict || denied) {
         let refreshed = false
         try {
           const current = (await processService.get(process.id)).data
@@ -843,19 +837,31 @@ export default function ProcessDetails({
             revokeAccess(refreshError)
           /* Preserve the conflict notice when refreshing also fails. */
         }
-        setError(
-          `${error.message} ${refreshed ? 'Os dados foram atualizados. Confira o estado atual antes de tentar novamente.' : 'Não foi possível recarregar os dados. Atualize o processo antes de tentar novamente.'}`,
+        if (denied) {
+          void queryClient.invalidateQueries({
+            queryKey: processQueryKeys.deadlineExtensions(scope, process.id),
+          })
+        }
+        reportError(
+          conflict
+            ? `${errorMessage} ${refreshed ? 'Os dados foram atualizados. Confira o estado atual antes de tentar novamente.' : 'Não foi possível recarregar os dados. Atualize o processo antes de tentar novamente.'}`
+            : errorMessage,
         )
-      } else
-        setError(
-          [presentation.message, presentation.supportReference]
-            .filter(Boolean)
-            .join(' '),
-        )
+      } else reportError(errorMessage)
       return false
     } finally {
       busyRef.current = false
       setBusy(false)
+    }
+  }
+  async function confirmMutation(
+    action: () => Promise<ApiResponse<ProcessResource>>,
+    message: string,
+  ) {
+    if (busyRef.current || coolingDown) return
+    setConfirmationError('')
+    if (await mutate(action, message, setConfirmationError)) {
+      closeConfirmation()
     }
   }
   async function remove() {
@@ -863,6 +869,7 @@ export default function ProcessDetails({
     busyRef.current = true
     setBusy(true)
     setError('')
+    setConfirmationError('')
     try {
       await onDelete()
     } catch (error) {
@@ -882,7 +889,7 @@ export default function ProcessDetails({
           /* The original server message remains actionable. */
         }
       }
-      setError(
+      setConfirmationError(
         error instanceof Error
           ? error.message
           : 'Não foi possível excluir o processo.',
@@ -972,38 +979,31 @@ export default function ProcessDetails({
               </p>
             ))}
           {confirmation === `task:${task.id}` && (
-            <div className="confirm">
-              <span>
-                Reabrir esta tarefa também remove confirmações das etapas
-                seguintes.
-              </span>
-              <button
-                className="btn sm"
-                disabled={busy}
-                onClick={() => setConfirmation(null)}
-              >
-                Manter
-              </button>
-              <button
-                className="btn sm primary"
-                disabled={busy}
-                onClick={() => {
-                  setConfirmation(null)
-                  void mutate(
-                    () =>
-                      processService.transitionTask(
-                        process.id,
-                        task.id,
-                        process.version,
-                        'pending',
-                      ),
-                    'Tarefa reaberta',
-                  )
-                }}
-              >
-                Reabrir tarefa
-              </button>
-            </div>
+            <InlineConfirmation
+              title="Reabrir esta tarefa?"
+              description="A reabertura também remove confirmações das etapas seguintes."
+              intent="warning"
+              cancelLabel="Manter tarefa"
+              confirmLabel="Reabrir tarefa"
+              pendingLabel="Reabrindo…"
+              pending={saving}
+              confirmDisabled={busy}
+              error={confirmationError}
+              returnFocusRef={confirmationTrigger}
+              onCancel={closeConfirmation}
+              onConfirm={() =>
+                void confirmMutation(
+                  () =>
+                    processService.transitionTask(
+                      process.id,
+                      task.id,
+                      process.version,
+                      'pending',
+                    ),
+                  'Tarefa reaberta',
+                )
+              }
+            />
           )}
         </div>
         <div className="tbtns">
@@ -1043,9 +1043,9 @@ export default function ProcessDetails({
                       ? 'Preencha e salve a definição para concluir'
                       : 'Clique para concluir'
             }
-            onClick={() =>
+            onClick={(event) =>
               done
-                ? setConfirmation(`task:${task.id}`)
+                ? openConfirmation(`task:${task.id}`, event.currentTarget)
                 : void mutate(
                     () =>
                       processService.transitionTask(
@@ -1081,17 +1081,6 @@ export default function ProcessDetails({
       </div>
     )
   }
-  const readonlyField = (label: string, value: ReactNode, full = false) => (
-    <div className={`field ${full ? 'full' : ''}`}>
-      <label>{label}</label>
-      <div
-        className={`vv ${value ? '' : 'muted'}`}
-        style={{ whiteSpace: 'pre-wrap' }}
-      >
-        {value || 'Não informado'}
-      </div>
-    </div>
-  )
   if (unavailable)
     return (
       <div className="panel empty" role="alert">
@@ -1119,7 +1108,7 @@ export default function ProcessDetails({
         </div>
       )}
       <section
-        className={`panel phead ${process.status === 'concluido' ? 'is-done' : process.status === 'cancelado' ? 'is-closed' : ''}`}
+        className={`panel phead process-overview ${process.status === 'concluido' ? 'is-done' : process.status === 'cancelado' ? 'is-closed' : ''}`}
       >
         {!isOpen && (
           <div
@@ -1138,71 +1127,92 @@ export default function ProcessDetails({
               <span>
                 {process.status === 'concluido'
                   ? `Finalizado em ${timestamp(process.concluidoEm)} · ${age} ${age === 1 ? 'dia' : 'dias'} do início ao fim · todas as ${a.totalTasks} tarefas concluídas`
-                  : 'Pode ser reaberto em Dados do processo'}
+                  : process.permissions.reopen
+                    ? 'Pode ser reaberto nas ações do processo'
+                    : 'Os registros do processo permanecem disponíveis'}
               </span>
             </div>
           </div>
         )}
-        <div className="info">
-          <div className="kicker">
-            <ProcessTypeBadge catalog={catalog} tipo={process.tipo} />
+        <div className="process-overview-heading">
+          <div className="info">
+            <div className="kicker">
+              <ProcessTypeBadge catalog={catalog} tipo={process.tipo} />
+              <span className={`badge ${status.tone}`}>{status.label}</span>
+            </div>
+            <h1>{process.empresa}</h1>
           </div>
-          <h1>{process.empresa}</h1>
-          <div className="row2">
-            <span className={`badge ${status.tone}`}>{status.label}</span>
-            {process.responsibleSectors.length > 0 && (
-              <span>
-                Responsável:{' '}
-                {process.responsibleSectors
-                  .map((sector) => catalog.sectors[sector])
-                  .join(' e ')}
-              </span>
-            )}
-            <span>
-              Código interno <b>{process.codigo}</b>
-            </span>
-            <span>
-              Aberto em {date(process.criadoEm)} · {age}{' '}
-              {age === 1 ? 'dia' : 'dias'}
-            </span>
-            {process.prazo && (
-              <span className={process.status === 'atrasado' ? 'late' : ''}>
-                Prazo {date(process.prazo)}
-              </span>
-            )}
-            {process.inicioInat && PROCESS_START_LABELS[process.tipo] && (
-              <span>
-                {PROCESS_START_LABELS[process.tipo]} {date(process.inicioInat)}
-              </span>
-            )}
+          <div className="prog">
+            <span className="lab">Progresso</span>
+            <div className="pbig">
+              <b className="num">{a.completedTasks}</b>
+              <span>de {a.totalTasks} tarefas</span>
+              <em>{percentage}%</em>
+            </div>
+            <div
+              className="bar"
+              role="progressbar"
+              aria-label="Progresso do processo"
+              aria-valuenow={percentage}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <i style={{ width: `${percentage}%` }} />
+            </div>
+            <small>
+              {process.status === 'concluido'
+                ? 'Todas as etapas concluídas'
+                : process.status === 'cancelado'
+                  ? 'Processo cancelado'
+                  : a.currentStage != null
+                    ? `Etapa ${a.currentStage + 1} de ${process.etapas.length} · ${process.etapas[a.currentStage]?.t ?? ''}${process.status === 'agendado' ? ` · libera em ${date(a.releaseDate)}` : ''}`
+                    : 'Atualizando as etapas'}
+            </small>
           </div>
         </div>
-        <div className="prog">
-          <span className="lab">Progresso</span>
-          <div className="pbig">
-            <b className="num">{a.completedTasks}</b>
-            <span>de {a.totalTasks} tarefas</span>
-            <em>{percentage}%</em>
-          </div>
-          <div
-            className="bar"
-            role="progressbar"
-            aria-label="Progresso do processo"
-            aria-valuenow={percentage}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          >
-            <i style={{ width: `${percentage}%` }} />
-          </div>
-          <small>
-            {process.status === 'concluido'
-              ? 'Todas as etapas concluídas'
-              : process.status === 'cancelado'
-                ? 'Processo cancelado'
-                : a.currentStage != null
-                  ? `Etapa ${a.currentStage + 1} de ${process.etapas.length} · ${process.etapas[a.currentStage]?.t ?? ''}${process.status === 'agendado' ? ` · libera em ${date(a.releaseDate)}` : ''}`
-                  : 'Atualizando as etapas'}
-          </small>
+        <ProcessDeadlineCard
+          scope={scope}
+          process={process}
+          timeZone={timeZone}
+          busy={busy}
+          saving={saving}
+          onMutate={(action, message, reportError) =>
+            mutate(action, message, reportError, true)
+          }
+        />
+        <div className="process-overview-content">
+          <section className="process-data" aria-labelledby={`${id}-data`}>
+            <div className="process-data-heading">
+              <h2 id={`${id}-data`}>Dados do processo</h2>
+              {process.permissions.edit && process.status !== 'cancelado' && (
+                <button
+                  className="btn sm"
+                  type="button"
+                  disabled={busy}
+                  onClick={onEdit}
+                >
+                  <ProcessIcon name="pen" size={15} />
+                  Editar
+                </button>
+              )}
+            </div>
+            {data.fields.length > 0 && (
+              <ProcessDataFields fields={data.fields} />
+            )}
+            <div className="process-data-registration">
+              <ProcessDataFields fields={registration} />
+            </div>
+          </section>
+          <ProcessDetailSection title="Observações" defaultOpen loadOnOpen>
+            <ProcessEntries
+              kind="note"
+              scope={scope}
+              processId={process.id}
+              sectors={catalog.sectors}
+              legacyNote={process.obs?.trim()}
+              onUnavailable={revokeAccess}
+            />
+          </ProcessDetailSection>
         </div>
       </section>
       <div className="proc-grid">
@@ -1357,136 +1367,117 @@ export default function ProcessDetails({
               onUnavailable={revokeAccess}
             />
           </section>
-        </div>
-        <div className="col-side">
-          <ProcessSideSection title="Dados da empresa" defaultOpen>
-            <div className="fields">
-              {readonlyField('Empresa ou cliente', process.empresa, true)}
-              {readonlyField('CNPJ', process.cnpj)}
-              {readonlyField('Contato do cliente', process.contato)}
-            </div>
-          </ProcessSideSection>
-          <ProcessSideSection
-            title="Dados do processo"
-            action={
-              process.permissions.edit &&
-              process.status !== 'cancelado' && (
-                <button
-                  className="btn sm"
-                  type="button"
-                  disabled={busy}
-                  onClick={onEdit}
-                >
-                  <ProcessIcon name="pen" size={15} />
-                  Editar
-                </button>
-              )
-            }
-          >
-            <ProcessData process={process} type={type} date={date} />
-          </ProcessSideSection>
-          <ProcessSideSection title="Observações" defaultOpen loadOnOpen>
-            <ProcessEntries
-              kind="note"
-              scope={scope}
-              processId={process.id}
-              sectors={catalog.sectors}
-              legacyNote={process.obs?.trim()}
-              onUnavailable={revokeAccess}
-            />
-          </ProcessSideSection>
           {(process.permissions.cancel ||
             process.permissions.reopen ||
             process.permissions.delete) && (
-            <div className="d-actions">
+            <div
+              className="d-actions"
+              role="group"
+              aria-label="Ações do processo"
+            >
               {confirmation === 'delete' ? (
-                <div className="confirm">
-                  <span>
-                    Excluir o processo de {process.empresa}? Ele deixará de
-                    aparecer nas listagens; o histórico será preservado.
-                  </span>
-                  <button
-                    className="btn sm"
-                    disabled={busy}
-                    onClick={() => setConfirmation(null)}
-                  >
-                    Manter
-                  </button>
-                  <button
-                    className="btn sm danger"
-                    disabled={busy}
-                    onClick={() => void remove()}
-                  >
-                    Excluir processo
-                  </button>
-                </div>
+                <InlineConfirmation
+                  key="delete"
+                  title={`Excluir o processo de ${process.empresa}?`}
+                  description="Ele deixará de aparecer nas listagens. O histórico será preservado."
+                  intent="destructive"
+                  cancelLabel="Manter processo"
+                  confirmLabel="Excluir processo"
+                  pendingLabel="Excluindo…"
+                  pending={saving}
+                  confirmDisabled={busy}
+                  error={confirmationError}
+                  returnFocusRef={confirmationTrigger}
+                  onCancel={closeConfirmation}
+                  onConfirm={() => void remove()}
+                />
               ) : confirmation === 'cancel' ? (
-                <div className="confirm">
-                  <span>
-                    Cancelar este processo? Você poderá reabri-lo depois.
-                  </span>
+                <InlineConfirmation
+                  key="cancel"
+                  title="Cancelar este processo?"
+                  description="Você poderá reabri-lo depois."
+                  intent="warning"
+                  cancelLabel="Manter processo"
+                  confirmLabel="Confirmar cancelamento"
+                  pendingLabel="Cancelando…"
+                  pending={saving}
+                  confirmDisabled={busy}
+                  error={confirmationError}
+                  returnFocusRef={confirmationTrigger}
+                  onCancel={closeConfirmation}
+                  onConfirm={() =>
+                    void confirmMutation(
+                      () => processService.cancel(process.id, process.version),
+                      'Processo cancelado',
+                    )
+                  }
+                />
+              ) : null}
+              <div
+                hidden={processConfirmationOpen}
+                className={processConfirmationOpen ? 'hidden' : 'contents'}
+              >
+                {isOpen && process.permissions.cancel && (
                   <button
-                    className="btn sm"
+                    className="btn"
                     disabled={busy}
-                    onClick={() => setConfirmation(null)}
+                    onClick={(event) =>
+                      openConfirmation('cancel', event.currentTarget)
+                    }
                   >
-                    Manter
+                    Cancelar processo
                   </button>
+                )}
+                {!isOpen && process.permissions.reopen && (
                   <button
-                    className="btn sm danger"
+                    className="btn"
                     disabled={busy}
-                    onClick={() => {
-                      setConfirmation(null)
+                    onClick={() =>
                       void mutate(
                         () =>
-                          processService.cancel(process.id, process.version),
-                        'Processo cancelado',
+                          processService.reopen(process.id, process.version),
+                        'Processo reaberto',
                       )
-                    }}
+                    }
                   >
-                    Confirmar cancelamento
+                    Reabrir processo
                   </button>
-                </div>
-              ) : (
-                <>
-                  {isOpen && process.permissions.cancel && (
-                    <button
-                      className="btn"
-                      disabled={busy}
-                      onClick={() => setConfirmation('cancel')}
-                    >
-                      Cancelar processo
-                    </button>
-                  )}
-                  {!isOpen && process.permissions.reopen && (
-                    <button
-                      className="btn"
-                      disabled={busy}
-                      onClick={() =>
-                        void mutate(
-                          () =>
-                            processService.reopen(process.id, process.version),
-                          'Processo reaberto',
-                        )
-                      }
-                    >
-                      Reabrir processo
-                    </button>
-                  )}
-                  {process.permissions.delete && (
-                    <button
-                      className="btn danger"
-                      disabled={busy}
-                      onClick={() => setConfirmation('delete')}
-                    >
-                      Excluir
-                    </button>
-                  )}
-                </>
-              )}
+                )}
+                {process.permissions.delete && (
+                  <button
+                    className="btn danger"
+                    disabled={busy}
+                    onClick={(event) =>
+                      openConfirmation('delete', event.currentTarget)
+                    }
+                  >
+                    Excluir
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
+        <aside className="col-side" aria-label="Dados complementares">
+          <ProcessDetailSection title="Dados da empresa" defaultOpen>
+            <ProcessDataFields
+              fields={[
+                {
+                  label: 'Empresa ou cliente',
+                  value: process.empresa,
+                  full: true,
+                },
+                { label: 'CNPJ', value: process.cnpj },
+                { label: 'Contato do cliente', value: process.contato },
+              ]}
+            />
+          </ProcessDetailSection>
+          {data.definitions.length > 0 && (
+            <ProcessDetailSection title="Definições da Diretoria">
+              <ProcessDataFields fields={data.definitions} />
+            </ProcessDetailSection>
+          )}
+        </aside>
       </div>
     </div>
   )

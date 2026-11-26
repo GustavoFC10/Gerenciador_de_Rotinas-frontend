@@ -81,6 +81,29 @@ async function render(process: ProcessResource, onChange = vi.fn()) {
 }
 
 describe('ProcessDetails', () => {
+  it.each([
+    ['atrasado', '2026-11-24', 'overdue'],
+    ['andamento', '2026-11-25', 'today'],
+    ['andamento', '2026-11-26', undefined],
+  ] as const)(
+    'applies the deadline button tone for %s with a deadline of %s',
+    async (status, prazo, tone) => {
+      vi.setSystemTime(new Date('2026-11-26T02:00:00Z'))
+      try {
+        const process = makeProcessTestResource({ status, prazo })
+        const { button } = await render({
+          ...process,
+          permissions: { ...process.permissions, sectors: ['fin'] },
+        })
+        expect(button('Pedir aumento de prazo').dataset.deadlineTone).toBe(tone)
+        expect(
+          host.querySelector('.process-deadline-card .badge.error'),
+        ).toBeNull()
+      } finally {
+        vi.useRealTimers()
+      }
+    },
+  )
   it.each([true, false])(
     'renders the effective exclusion snapshot with delivery %s instead of rebuilding the catalog',
     async (entregaDocumentacao) => {
@@ -113,6 +136,9 @@ describe('ProcessDetails', () => {
       await render(process)
       expect(host.textContent).toContain(
         `0 de ${entregaDocumentacao ? 7 : 6} tarefas`,
+      )
+      expect(host.querySelector('.process-data')?.textContent).not.toContain(
+        'Entrega de documentação',
       )
       expect(host.textContent?.includes('Entrega de documentação')).toBe(
         entregaDocumentacao,
@@ -610,33 +636,38 @@ describe('ProcessDetails', () => {
       },
     })
     const { button } = await render(process)
-    await act(async () => button('Dados do processo').click())
-    const primary = host.querySelector('.process-data-group--primary')!
-    expect(
-      [...primary.querySelectorAll('dt')].map((item) => item.textContent),
-    ).toEqual(['Regime tributário'])
-    expect(host.textContent).toContain('Restritos')
+    await act(async () => button('Definições da Diretoria').click())
+    const definitions = host.querySelector('.col-side')!
+    expect(host.querySelector('.process-data')?.textContent).toContain(
+      'Regime tributário',
+    )
+    expect(definitions.textContent).toContain('Restritos')
     expect(host.textContent).not.toContain('Segredo financeiro')
     expect(host.textContent).not.toContain('Nota privada')
     expect(host.textContent).not.toContain('12.345')
   })
 
   it('prioritizes what changes in an alteration and displays each field once', async () => {
-    const { button } = await render(
+    await render(
       makeProcessTestResource({
         tipo: 'alteracao',
         altItens: ['endereco'],
+        altDesc: 'Mudança da sede',
         custo: '500.00',
       }),
     )
-    await act(async () => button('Dados do processo').click())
-    const primary = host.querySelector('.process-data-group--primary')!
+    const primary = host.querySelector('.process-data > dl')!
     expect(
       [...primary.querySelectorAll('dt')].map((item) => item.textContent),
-    ).toEqual(['O que será alterado', 'Custo do processo'])
+    ).toEqual([
+      'O que será alterado',
+      'Dados que serão alterados',
+      'Custo do processo',
+    ])
+    expect(host.querySelector('.col-side')?.textContent).toContain('Quem paga')
     expect(
-      [...host.querySelectorAll('.process-data-group dt')].filter(
-        (item) => item.textContent === 'O que será alterado',
+      [...host.querySelectorAll('.process-data-fields dt')].filter(
+        (item) => item.textContent === 'Custo do processo',
       ),
     ).toHaveLength(1)
   })
@@ -656,13 +687,13 @@ describe('ProcessDetails', () => {
       .mocked(processService.entries)
       .mockImplementation(async (_id, filters) =>
         response({
-          count: 51,
+          count: filters?.kind === 'note' ? 0 : 51,
           previous:
-            filters?.page === 2
+            filters?.kind !== 'note' && filters?.page === 2
               ? '/api/v1/processes/process-1/entries/?page=1'
               : null,
           next:
-            filters?.page === 2
+            filters?.kind === 'note' || filters?.page === 2
               ? null
               : '/api/v1/processes/process-1/entries/?page=2',
           results:
@@ -697,7 +728,7 @@ describe('ProcessDetails', () => {
     expect(host.textContent).not.toContain('Primeira página')
   })
 
-  it('keeps stages beside independently collapsible company, process, and observation panels', async () => {
+  it('displays process data in the main section with observations directly below it', async () => {
     const observations = vi
       .mocked(processService.entries)
       .mockImplementation(async (_id, filters) => {
@@ -731,40 +762,35 @@ describe('ProcessDetails', () => {
       }),
     )
     const company = button('Dados da empresa')
-    const details = button('Dados do processo')
+    const details = host.querySelector('.process-data')!
     const notes = button('Observações')
+    const definitions = button('Definições da Diretoria')
     const panelFor = (toggle: HTMLButtonElement) =>
       document.getElementById(toggle.getAttribute('aria-controls')!)!
     expect(panelFor(company).textContent).toContain('cliente@exemplo.com')
     expect(company.getAttribute('aria-expanded')).toBe('true')
-    expect(details.getAttribute('aria-expanded')).toBe('false')
     expect(notes.getAttribute('aria-expanded')).toBe('true')
+    expect(definitions.getAttribute('aria-expanded')).toBe('false')
+    expect(details.closest('.phead')).not.toBeNull()
+    expect(details.nextElementSibling).toBe(notes.closest('section'))
+    expect(definitions.closest('.col-side')).not.toBeNull()
+    expect(company.closest('.col-side')).not.toBeNull()
+    expect(host.querySelector('.phead .col-side')).toBeNull()
     expect(host.querySelector('.col-main h2')?.textContent).toBe('Etapas')
-    expect(host.querySelector('.phead')?.textContent).not.toContain('Preparar')
+    expect(host.querySelector('.phead')?.textContent).toContain('Preparar')
     expect(observations).toHaveBeenCalledTimes(2)
 
-    await act(async () => details.click())
-    expect(panelFor(details).hidden).toBe(false)
-    const dataPanel = panelFor(details)
-    expect(
-      [...dataPanel.querySelectorAll('h3')].map((item) => item.textContent),
-    ).toEqual([
-      'Dados principais',
-      'Informações gerais',
-      'Definições da Diretoria',
-    ])
-    const [, general] = dataPanel.querySelectorAll('.process-data-group')
-    expect(general?.querySelector('dl dt')?.textContent).toBe('Prazo')
-    expect(general?.querySelector('dl dd')?.textContent).toBe('Sem prazo')
-    expect(
-      [...dataPanel.querySelectorAll('.process-data-group--primary dt')].map(
-        (item) => item.textContent,
-      ),
-    ).toEqual([
-      'Regime tributário',
-      'Custo do processo',
+    expect(details.querySelector('h2')?.textContent).toBe('Dados do processo')
+    expect(details.textContent).toContain('Custo do processo')
+    expect(details.textContent).toContain('Novo honorário mensal')
+    expect(details.textContent).toContain('Código interno')
+    expect(host.querySelector('.process-deadline-card')?.textContent).toContain(
+      'Sem prazo definido',
+    )
+    expect(panelFor(definitions).textContent).toContain('Quem paga')
+    expect(panelFor(definitions).textContent).not.toContain(
       'Novo honorário mensal',
-    ])
+    )
     await settleQueries()
     expect(observations).toHaveBeenCalledWith(
       'process-1',
@@ -777,7 +803,6 @@ describe('ProcessDetails', () => {
     expect(panelFor(notes).querySelectorAll('ul > li')).toHaveLength(2)
     expect(panelFor(notes).querySelector('time, button')).toBeNull()
     expect(panelFor(company).hidden).toBe(false)
-    expect(panelFor(details).hidden).toBe(false)
     await act(async () => notes.click())
     expect(panelFor(notes).hidden).toBe(true)
   })

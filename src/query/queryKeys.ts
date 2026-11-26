@@ -30,6 +30,12 @@ export const queryKeys = {
     [...scopeKey(scope), 'member', memberId] as const,
   archivedCompanies: (scope: OrganizationQueryScope) =>
     [...scopeKey(scope), 'archived-companies'] as const,
+  companies: (scope: OrganizationQueryScope) =>
+    [...scopeKey(scope), 'general-companies'] as const,
+  companyRecord: (scope: OrganizationQueryScope, id: string) =>
+    [...queryKeys.companies(scope), 'record', id] as const,
+  honorarios: (scope: OrganizationQueryScope) =>
+    [...scopeKey(scope), 'honorarios'] as const,
   archivedRoutines: (scope: OrganizationQueryScope) =>
     [...scopeKey(scope), 'archived-routines'] as const,
   companyRoutineAssignmentsRoot: (scope: OrganizationQueryScope) =>

@@ -1,11 +1,15 @@
 import type { ReactNode, RefObject } from 'react'
 import { Link, NavLink, useLocation } from 'react-router'
 
-import { appThemeClass, focusRing } from '../constants/designTokens'
+import { focusRing } from '../constants/designTokens'
 import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
 import SidebarProfileLink from '../components/common/SidebarProfileLink'
+import NavigationIcon, {
+  type NavigationIconName,
+} from '../components/common/NavigationIcon'
 import ModulesReturnLink from '../components/common/ModulesReturnLink'
+import NavigationDrawer from '../components/ui/NavigationDrawer'
 import type { EntityId } from '../types/domain'
 import type {
   ScreenNavigationItem,
@@ -20,24 +24,8 @@ interface SidebarProps {
   isMobileOpen: boolean
   onCollapseToggle: () => void
   onMobileClose: () => void
-  navigationRef: RefObject<HTMLElement | null>
-  closeButtonRef: RefObject<HTMLButtonElement | null>
+  menuButtonRef: RefObject<HTMLButtonElement | null>
 }
-
-type NavigationIconName =
-  | 'building'
-  | 'calendar'
-  | 'chart'
-  | 'chevron-left'
-  | 'chevron-right'
-  | 'close'
-  | 'home'
-  | 'list'
-  | 'people'
-  | 'repeat'
-  | 'settings'
-  | 'spreadsheet'
-  | 'tasks'
 
 function Sidebar({
   spreadsheets,
@@ -46,8 +34,7 @@ function Sidebar({
   isMobileOpen,
   onCollapseToggle,
   onMobileClose,
-  navigationRef,
-  closeButtonRef,
+  menuButtonRef,
 }: SidebarProps) {
   const { user } = useAppState()
   const location = useLocation()
@@ -73,20 +60,13 @@ function Sidebar({
   const collapsedLabelClass = isCollapsed ? 'lg:sr-only' : ''
 
   return (
-    <aside
+    <NavigationDrawer
       id="app-sidebar"
-      ref={navigationRef}
-      className={`workspace-sidebar fixed inset-y-0 left-0 z-[60] flex h-dvh w-[min(var(--size-sidebar-expanded),calc(100vw-1.5rem))] shrink-0 flex-col border-r shadow-[var(--shadow-floating)] transition-[width,transform] duration-200 motion-reduce:transition-none lg:sticky lg:top-0 lg:z-30 lg:visible lg:translate-x-0 lg:shadow-none ${
-        isMobileOpen ? 'visible translate-x-0' : 'invisible -translate-x-full'
-      } ${
-        isCollapsed
-          ? 'lg:w-[var(--size-sidebar-collapsed)]'
-          : 'lg:w-[var(--size-sidebar-expanded)]'
-      } ${appThemeClass.sidebar}`}
-      tabIndex={-1}
-      role={isMobileOpen ? 'dialog' : undefined}
-      aria-modal={isMobileOpen || undefined}
-      aria-label={isMobileOpen ? 'Menu principal' : undefined}
+      label="Menu principal"
+      open={isMobileOpen}
+      onClose={onMobileClose}
+      returnFocusRef={menuButtonRef}
+      className={`workspace-sidebar ${isCollapsed ? 'lg:w-[var(--size-sidebar-collapsed)]' : ''}`}
     >
       <div
         className={`flex min-h-[4.5rem] items-center gap-2 border-b border-[var(--color-sidebar-border)] px-3 ${
@@ -115,9 +95,9 @@ function Sidebar({
         </Link>
 
         <button
-          ref={closeButtonRef}
           type="button"
           onClick={onMobileClose}
+          data-overlay-close
           className={`grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-nav-item-hover-bg)] hover:text-[var(--color-text-strong)] lg:hidden ${focusRing}`}
           aria-label="Fechar navegação"
         >
@@ -280,40 +260,11 @@ function Sidebar({
         )}
       </nav>
 
-      <SidebarProfile
+      <SidebarProfileLink
         isCollapsed={isCollapsed}
         onNavigate={onMobileClose}
-        user={user}
       />
-    </aside>
-  )
-}
-
-function SidebarProfile({
-  isCollapsed,
-  onNavigate,
-  user,
-}: {
-  isCollapsed: boolean
-  onNavigate: () => void
-  user: ReturnType<typeof useAppState>['user']
-}) {
-  return (
-    <div
-      className={`shrink-0 border-t border-[var(--color-sidebar-border)] p-3 ${
-        isCollapsed ? 'lg:px-2' : ''
-      }`}
-      data-sidebar-profile
-    >
-      <SidebarProfileLink
-        name={user.name}
-        description={user.email}
-        avatar={user.avatar}
-        avatarUrl={user.avatarUrl}
-        isCollapsed={isCollapsed}
-        onNavigate={onNavigate}
-      />
-    </div>
+    </NavigationDrawer>
   )
 }
 
@@ -431,7 +382,7 @@ function SpreadsheetLink({
             isCollapsed ? 'lg:size-8' : ''
           }`}
         >
-          <NavigationIcon name="spreadsheet" className="size-[1.35rem]" />
+          <NavigationIcon name="spreadsheet" className="size-5" />
         </span>
         <span className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}>
           <span className="app-nav-label block truncate">
@@ -486,7 +437,7 @@ function AgendaLink({
             isCollapsed ? 'lg:size-8' : ''
           }`}
         >
-          <NavigationIcon name="calendar" className="size-[1.35rem]" />
+          <NavigationIcon name="calendar" className="size-5" />
         </span>
         <span className={`min-w-0 flex-1 ${isCollapsed ? 'lg:sr-only' : ''}`}>
           <span className="app-nav-label block truncate">{agenda.name}</span>
@@ -552,141 +503,6 @@ function NavigationDivider() {
       className="my-5 border-t border-[var(--color-sidebar-border)]"
       aria-hidden="true"
     />
-  )
-}
-
-function NavigationIcon({
-  name,
-  className,
-}: {
-  name: NavigationIconName
-  className?: string
-}) {
-  const commonProps = {
-    viewBox: '0 0 24 24',
-    className,
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 1.8,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    'aria-hidden': true,
-  }
-
-  if (name === 'spreadsheet') {
-    return (
-      <svg {...commonProps}>
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <path d="M3 9h18M9 3v18M15 9v12M9 15h12" />
-      </svg>
-    )
-  }
-
-  if (name === 'calendar') {
-    return (
-      <svg {...commonProps}>
-        <rect x="3" y="5" width="18" height="16" rx="2" />
-        <path d="M7 3v4M17 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
-      </svg>
-    )
-  }
-
-  if (name === 'tasks') {
-    return (
-      <svg {...commonProps}>
-        <path d="M9 6h11M9 12h11M9 18h7" />
-        <path d="m3.5 6 1.2 1.2L7 4.8M3.5 12l1.2 1.2L7 10.8M3.5 18l1.2 1.2L7 16.8" />
-      </svg>
-    )
-  }
-
-  if (name === 'list') {
-    return (
-      <svg {...commonProps}>
-        <path d="M8 6h12M8 12h12M8 18h12" />
-        <path d="M4 6h.01M4 12h.01M4 18h.01" strokeWidth="2.5" />
-      </svg>
-    )
-  }
-
-  if (name === 'home') {
-    return (
-      <svg {...commonProps}>
-        <path d="m3 10 9-7 9 7" />
-        <path d="M5 9v11h14V9M9 20v-6h6v6" />
-      </svg>
-    )
-  }
-
-  if (name === 'chart') {
-    return (
-      <svg {...commonProps}>
-        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
-      </svg>
-    )
-  }
-
-  if (name === 'repeat') {
-    return (
-      <svg {...commonProps}>
-        <path d="m17 2 4 4-4 4" />
-        <path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4" />
-        <path d="M21 13v2a3 3 0 0 1-3 3H3" />
-      </svg>
-    )
-  }
-
-  if (name === 'building') {
-    return (
-      <svg {...commonProps}>
-        <path d="M4 21V4h11v17M15 9h5v12M2 21h20" />
-        <path d="M8 8h3M8 12h3M8 16h3M18 13h.01M18 17h.01" />
-      </svg>
-    )
-  }
-
-  if (name === 'people') {
-    return (
-      <svg {...commonProps}>
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    )
-  }
-
-  if (name === 'settings') {
-    return (
-      <svg {...commonProps}>
-        <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
-        <path
-          d="m19.4 15 .1.1a2 2 0 1 1-2.8 2.8l-.1-.1a2 2 0 0 0-3.4 1.4v.2a2 2 0 1 1-4 0v-.2a2 2 0 0 0-3.4-1.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A2 2 0 0 0 1.6 12a2 2 0 0 1 0-4h.2a2 2 0 0 0 1.4-3.4l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A2 2 0 0 0 9.4.4h.2a2 2 0 1 1 4 0v.2A2 2 0 0 0 17 2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A2 2 0 0 0 21.2 8h.2a2 2 0 1 1 0 4h-.2a2 2 0 0 0-1.8 3Z"
-          transform="translate(0 3.6) scale(.75)"
-        />
-      </svg>
-    )
-  }
-
-  if (name === 'close') {
-    return (
-      <svg {...commonProps}>
-        <path d="m6 6 12 12M18 6 6 18" />
-      </svg>
-    )
-  }
-
-  if (name === 'chevron-left') {
-    return (
-      <svg {...commonProps}>
-        <path d="m15 18-6-6 6-6" />
-      </svg>
-    )
-  }
-
-  return (
-    <svg {...commonProps}>
-      <path d="m9 18 6-6-6-6" />
-    </svg>
   )
 }
 

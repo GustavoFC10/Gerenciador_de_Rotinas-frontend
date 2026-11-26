@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
 import Button from '../ui/Button'
+import InlineConfirmation from '../ui/InlineConfirmation'
 import Select from '../ui/Select'
 import TextField from '../ui/TextField'
 import Textarea from '../ui/Textarea'
@@ -612,6 +613,7 @@ function ClientDetails(
   const [action, setAction] = useState<'adjust' | 'archive' | 'restore' | null>(
     null,
   )
+  const confirmationTrigger = useRef<HTMLButtonElement | null>(null)
   const [mode, setMode] = useState<HonorariosAdjustmentMode>('indice')
   const [busy, setBusy] = useState(false)
   useEffect(() => {
@@ -625,6 +627,14 @@ function ClientDetails(
   useEffect(() => {
     if (detail.error) onDenied?.(detail.error)
   }, [detail.error, onDenied])
+  function openConfirmation(
+    next: NonNullable<typeof action>,
+    trigger: HTMLButtonElement,
+  ) {
+    confirmationTrigger.current = trigger
+    setError('')
+    setAction(next)
+  }
   async function saved(client: HonorariosClient) {
     queryClient.setQueryData([...scopeKey, 'client', id], client)
     setEditing(false)
@@ -637,6 +647,7 @@ function ClientDetails(
       !client ||
       !action ||
       busy ||
+      request.current ||
       (action === 'adjust'
         ? configuration.permissions.applyAdjustment !== true ||
           !!client.archivedAt ||
@@ -688,16 +699,19 @@ function ClientDetails(
         onDenied?.(caught)
         setError(getErrorPresentation(caught).message)
         if (isApiError(caught) && caught.status === 409) {
-          setAction(null)
           const refreshed = await detail.refetch()
-          setMessage(
-            refreshed.error
-              ? 'A prévia não pôde ser recarregada. Tente carregar o perfil novamente.'
-              : 'A prévia foi recarregada. Confira os valores e inicie uma nova confirmação.',
-          )
+          if (!abort.signal.aborted) {
+            setAction(null)
+            setMessage(
+              refreshed.error
+                ? 'A prévia não pôde ser recarregada. Tente carregar o perfil novamente.'
+                : 'A prévia foi recarregada. Confira os valores e inicie uma nova confirmação.',
+            )
+          }
         }
       }
     } finally {
+      request.current = null
       if (!abort.signal.aborted) setBusy(false)
     }
   }
@@ -728,6 +742,9 @@ function ClientDetails(
     configuration.permissions.applyAdjustment === true &&
     !client.archivedAt &&
     !!adjustment?.notice
+  const showConfirmation = Boolean(
+    action && (action === 'adjust' ? canAdjust : canManage),
+  )
   if (editing && canEdit)
     return (
       <ClientForm
@@ -745,7 +762,7 @@ function ClientDetails(
   return (
     <div className="hon-financial-detail">
       <div className="space-y-5">
-        {error && <Notice tone="error">{error}</Notice>}
+        {error && !showConfirmation && <Notice tone="error">{error}</Notice>}
         {message && <Notice tone="info">{message}</Notice>}
         {client.archivedAt && (
           <Notice>
@@ -863,8 +880,8 @@ function ClientDetails(
           {canAdjust && (
             <Button
               tone="primary"
-              onClick={() => {
-                setAction('adjust')
+              onClick={(event) => {
+                openConfirmation('adjust', event.currentTarget)
                 setMode('indice')
               }}
               disabled={busy}
@@ -874,8 +891,11 @@ function ClientDetails(
           )}
           {canManage && (
             <Button
-              onClick={() =>
-                setAction(client.archivedAt ? 'restore' : 'archive')
+              onClick={(event) =>
+                openConfirmation(
+                  client.archivedAt ? 'restore' : 'archive',
+                  event.currentTarget,
+                )
               }
               disabled={busy}
             >
@@ -886,70 +906,65 @@ function ClientDetails(
             {history ? 'Fechar histórico' : 'Ver histórico'}
           </Button>
         </div>
-        {action && (action === 'adjust' ? canAdjust : canManage) && (
-          <div
-            role="region"
-            aria-label="Confirmação da alteração"
-            className="space-y-4 rounded-[var(--radius-control)] border border-[var(--color-brand)] p-4"
-          >
-            <h3 className="font-bold">
-              {action === 'adjust'
+        {showConfirmation && (
+          <InlineConfirmation
+            key={action}
+            title={
+              action === 'adjust'
                 ? 'Confirmar reajuste'
                 : action === 'archive'
                   ? 'Arquivar perfil de honorários?'
-                  : 'Restaurar perfil de honorários?'}
-            </h3>
-            {action === 'adjust' ? (
-              <>
-                <Select
-                  label="Forma de reajuste"
-                  value={mode}
-                  onChange={(event) =>
-                    setMode(event.target.value as HonorariosAdjustmentMode)
-                  }
-                  disabled={busy}
-                >
-                  <option value="indice">
-                    Pelo índice, respeitando o teto · {money(adjustment?.value)}
-                  </option>
-                  <option
-                    value="parametro"
-                    disabled={
-                      Number(adjustment?.table ?? 0) <=
-                      Number(client.currentFee)
-                    }
-                  >
-                    Atualizar para a tabela · {money(adjustment?.table)}
-                  </option>
-                  <option value="manter">
-                    Manter valor atual · {money(client.currentFee)}
-                  </option>
-                </Select>
-                <p className="text-sm text-[var(--color-text-muted)]">
-                  A confirmação registra o valor e uma nova data-base no
-                  histórico. O servidor confere a tabela e as versões antes de
-                  aplicar.
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-[var(--color-text-muted)]">
-                A alteração afeta somente o perfil de Honorários desta empresa.
-                O histórico permanece disponível.
-              </p>
-            )}
-            <div className="flex gap-2">
-              <Button disabled={busy} onClick={() => setAction(null)}>
-                Cancelar
-              </Button>
-              <Button
-                tone="primary"
+                  : 'Restaurar perfil de honorários?'
+            }
+            description={
+              action === 'adjust'
+                ? 'A confirmação registra o valor e uma nova data-base no histórico. O servidor confere a tabela e as versões antes de aplicar.'
+                : 'A alteração afeta somente o perfil de Honorários desta empresa. O histórico permanece disponível.'
+            }
+            cancelLabel="Cancelar"
+            confirmLabel={
+              action === 'adjust'
+                ? 'Confirmar reajuste'
+                : action === 'archive'
+                  ? 'Arquivar perfil financeiro'
+                  : 'Restaurar perfil financeiro'
+            }
+            intent={action === 'archive' ? 'warning' : 'neutral'}
+            pending={busy}
+            error={error}
+            returnFocusRef={confirmationTrigger}
+            onCancel={() => {
+              setAction(null)
+              setError('')
+            }}
+            onConfirm={() => void commit()}
+          >
+            {action === 'adjust' && (
+              <Select
+                label="Forma de reajuste"
+                value={mode}
+                onChange={(event) =>
+                  setMode(event.target.value as HonorariosAdjustmentMode)
+                }
                 disabled={busy}
-                onClick={() => void commit()}
               >
-                {busy ? 'Confirmando…' : 'Confirmar'}
-              </Button>
-            </div>
-          </div>
+                <option value="indice">
+                  Pelo índice, respeitando o teto · {money(adjustment?.value)}
+                </option>
+                <option
+                  value="parametro"
+                  disabled={
+                    Number(adjustment?.table ?? 0) <= Number(client.currentFee)
+                  }
+                >
+                  Atualizar para a tabela · {money(adjustment?.table)}
+                </option>
+                <option value="manter">
+                  Manter valor atual · {money(client.currentFee)}
+                </option>
+              </Select>
+            )}
+          </InlineConfirmation>
         )}
         {history && (
           <History

@@ -104,6 +104,14 @@ O componente de movimentações foi derivado diretamente do React atual em um ar
 
 O usuário aprovou contar e rotular **movimentações**, não empresas únicas ou contratos novos. Uma empresa com dois processos produz duas movimentações; não foi criada deduplicação por empresa. A nomenclatura foi aplicada aos indicadores, perdas por tipo, resumo do relatório e PDF. Quantidades, valores e sinais permanecem iguais. O serviço de PDF foi derivado em arquivo exclusivo da prévia, sem editar o serviço de produção.
 
+## Pedido de aumento de prazo na ficha
+
+A Regularidade ou o Financeiro informa os dias adicionais e o motivo no diálogo. Enquanto o pedido aguarda decisão, o cartão exibe o prazo vigente e a marca **Pedido em análise**. A Diretoria vê **+N dias**, um botão **?** que revela o motivo completo e as ações **Recusar pedido** e **Aceitar pedido** no mesmo cartão. O **?** abre por clique, toque ou teclado e fecha com Escape ou clique fora.
+
+Ao receber o pedido, o backend deve enviar à Diretoria um e-mail com a solicitação, o solicitante, o motivo, a quantidade de dias e um link para a ficha. Durante a análise, o lembrete de atraso deve avisar que o pedido atual está sem resposta. A Diretoria decide pelo cartão da ficha. **Aceitar pedido** acrescenta automaticamente os dias solicitados ao prazo. **Recusar pedido** preserva o prazo, remove o aviso e retoma o modelo habitual de lembrete.
+
+O preview local simula a solicitação e as duas decisões para revisão da interface. A integração real depende das rotas e dos campos publicados pelo backend. O controle **?** segue o padrão de revelação por ativação do Carbon. [Toggletip do Carbon Design System](https://www.carbondesignsystem.com/building-blocks/core/components/toggletip/guidelines)
+
 ## Artefatos e verificação
 
 - [Entrada isolada](../../previews/revisao-ux/processos-react/entry.tsx): layout do dashboard, abertura de detalhes e referência de lista.

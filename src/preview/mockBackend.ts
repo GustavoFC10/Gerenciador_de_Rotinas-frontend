@@ -18,6 +18,7 @@ import type {
   ProcessAlertRecipientOption,
   ProcessCatalogType,
   ProcessCreateInput,
+  ProcessDeadlineRequest,
   ProcessDetailDto,
   ProcessEntry,
   ProcessFields,
@@ -33,6 +34,7 @@ import type {
 } from '../types/processes'
 import { centsToDecimal, decimalToCents } from '../utils/processMoney'
 import { normalizeProcessNotes } from '../utils/processNotes'
+import { extendProcessDeadline } from '../utils/processDeadline'
 import {
   processDaysLate,
   processDaysUntilDue,
@@ -156,6 +158,14 @@ interface PreviewState {
 interface PreviewProcess extends ProcessDetailDto {
   deleted?: boolean
   entries: ProcessEntry[]
+  deadlineRequests?: {
+    key: string
+    memberId: string
+    request: ProcessDeadlineRequest & {
+      reason: string
+      status: 'pending' | 'approved' | 'rejected'
+    }
+  }[]
   resumeSnapshot?: {
     status: ProcessStatus
     stage: number | null
@@ -1084,11 +1094,13 @@ export class PreviewBackend {
   project(raw: PreviewProcess): ProcessResource {
     const {
       entries: _entries,
+      deadlineRequests: _deadlineRequests,
       resumeSnapshot: _resume,
       deleted: _deleted,
       ...detail
     } = structuredClone(raw)
     void _entries
+    void _deadlineRequests
     void _resume
     void _deleted
     const process: ProcessDetailDto = detail
@@ -2131,7 +2143,36 @@ export class PreviewBackend {
         const action = match[2] ?? ''
         if (!process || (process.deleted && action !== 'restore'))
           return error(404, 'Processo não encontrado na demonstração.')
+        const mayRequestDeadline = permissions.sectors.some(
+          (sector) => sector === 'fin' || sector === 'reg',
+        )
+        const pendingDeadline = process.deadlineRequests?.find(
+          ({ request }) => request.status === 'pending',
+        )?.request
+        const deadlineDecision =
+          method === 'POST'
+            ? /^preview-deadline-requests\/([^/]+)\/decision$/.exec(action)
+            : null
         if (method === 'GET') {
+          if (action === 'preview-deadline-requests') {
+            return json({
+              canRequest:
+                mayRequestDeadline &&
+                !pendingDeadline &&
+                !!process.prazo &&
+                openStatuses.includes(process.status),
+              canReview: permissions.edit,
+              pending: pendingDeadline
+                ? {
+                    id: pendingDeadline.id,
+                    additionalDays: pendingDeadline.additionalDays,
+                    ...(permissions.edit
+                      ? { reason: pendingDeadline.reason }
+                      : {}),
+                  }
+                : null,
+            })
+          }
           if (action === 'entries') {
             const invalid = queryError(url, ['kind', 'page', 'pageSize'])
             if (invalid) return error(400, invalid)
@@ -2170,6 +2211,67 @@ export class PreviewBackend {
           }
           if (action) return error(404, 'Recurso não encontrado no preview.')
           return json(this.project(process), 200, process.version)
+        }
+        if (method === 'POST' && action === 'preview-deadline-requests') {
+          if (!mayRequestDeadline)
+            return error(
+              403,
+              'A Regularidade e o Financeiro podem pedir aumento de prazo.',
+            )
+          const key = headers.get('Idempotency-Key') ?? ''
+          if (!/^[A-Za-z0-9._:-]{1,128}$/.test(key))
+            return error(400, 'Informe uma chave válida.')
+          const reason =
+            typeof body.reason === 'string' ? body.reason.trim() : ''
+          const additionalDays = body.additionalDays
+          if (
+            typeof additionalDays !== 'number' ||
+            !Number.isSafeInteger(additionalDays) ||
+            additionalDays < 1 ||
+            !reason
+          )
+            return error(
+              400,
+              'Informe os dias adicionais e o motivo do pedido.',
+            )
+          const previous = process.deadlineRequests?.find(
+            (item) => item.key === key && item.memberId === this.actor.id,
+          )
+          if (previous) {
+            return previous.request.additionalDays === additionalDays &&
+              previous.request.reason === reason
+              ? json(this.project(process), 200, process.version)
+              : error(409, 'A chave já pertence a outra solicitação de prazo.')
+          }
+          if (process.version !== body.version)
+            return error(
+              409,
+              'Outra operação alterou o processo. Recarregue e tente novamente.',
+            )
+          if (!process.prazo || !openStatuses.includes(process.status))
+            return error(
+              409,
+              'Somente processos abertos com prazo definido aceitam solicitações.',
+            )
+          if (pendingDeadline)
+            return error(409, 'Já existe um pedido de prazo em análise.')
+          if (!extendProcessDeadline(process.prazo, additionalDays))
+            return error(400, 'A quantidade de dias excede a data permitida.')
+          const deadlineRequests = (process.deadlineRequests ??= [])
+          deadlineRequests.push({
+            key,
+            memberId: this.actor.id,
+            request: {
+              id: crypto.randomUUID(),
+              status: 'pending',
+              additionalDays,
+              reason,
+            },
+          })
+          process.version++
+          process.atualizadoEm = now()
+          this.save()
+          return json(this.project(process), 201, process.version)
         }
         if (body.version !== process.version)
           return error(
@@ -2254,6 +2356,55 @@ export class PreviewBackend {
               { fields: Object.keys(patch) },
             ),
           )
+        } else if (deadlineDecision) {
+          if (!permissions.edit)
+            return error(403, 'Somente a Diretoria analisa pedidos de prazo.')
+          const saved = process.deadlineRequests?.find(
+            ({ request }) => request.id === deadlineDecision[1],
+          )?.request
+          if (!saved)
+            return error(
+              404,
+              'Solicitação de prazo não encontrada neste processo.',
+            )
+          if (saved.status !== 'pending')
+            return error(409, 'A solicitação de prazo já foi analisada.')
+          if (body.decision !== 'accept' && body.decision !== 'reject')
+            return error(400, 'Informe se o pedido foi aceito ou recusado.')
+          if (body.decision === 'accept') {
+            const previousDeadline = process.prazo
+            const nextDeadline =
+              previousDeadline &&
+              extendProcessDeadline(previousDeadline, saved.additionalDays)
+            if (!nextDeadline)
+              return error(
+                409,
+                'Não há um prazo vigente que permita o aumento solicitado.',
+              )
+            process.prazo = nextDeadline
+            const from = process.status
+            const days = processDaysUntilDue(process, organization.timezone)
+            if (days !== null) {
+              process.status = days < 0 ? 'atrasado' : 'andamento'
+              process.analysis.late = process.status === 'atrasado'
+              if (from !== process.status) process.statusChangedAt = now()
+            }
+            process.entries.push(
+              entry(
+                'edited',
+                'editou os dados do processo',
+                author,
+                this.actor.id,
+                false,
+                {
+                  fields: ['prazo'],
+                  before: { prazo: previousDeadline },
+                  after: { prazo: nextDeadline },
+                },
+              ),
+            )
+          }
+          saved.status = body.decision === 'accept' ? 'approved' : 'rejected'
         } else if (action === 'notes') {
           if (!permissions.note || !String(body.text ?? '').trim())
             return error(400, 'Escreva o comentário.')
@@ -2459,7 +2610,8 @@ export class PreviewBackend {
         if (action !== 'notes' && action !== 'notifications/retry')
           this.closeCommunicationSituations(
             process,
-            method === 'PATCH' && 'prazo' in body,
+            (method === 'PATCH' && 'prazo' in body) ||
+              (!!deadlineDecision && body.decision === 'accept'),
           )
         process.version++
         process.atualizadoEm = now()

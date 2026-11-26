@@ -10,7 +10,6 @@ import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = 'routine-manager.sidebar-collapsed'
-const desktopMediaQuery = '(min-width: 1024px)'
 
 interface AppLayoutProps {
   spreadsheets: SpreadsheetNavigationItem[]
@@ -23,9 +22,7 @@ function AppLayout({ spreadsheets, agendas }: AppLayoutProps) {
     readStoredSidebarState,
   )
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-  const navigationRef = useRef<HTMLElement | null>(null)
   const mobileMenuButtonRef = useRef<HTMLButtonElement | null>(null)
-  const mobileCloseButtonRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
     try {
@@ -42,98 +39,17 @@ function AppLayout({ spreadsheets, agendas }: AppLayoutProps) {
     setIsMobileSidebarOpen(false)
   }, [location.pathname, location.search])
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(desktopMediaQuery)
-
-    function closeDrawerOnDesktop(event: MediaQueryListEvent) {
-      if (event.matches) setIsMobileSidebarOpen(false)
-    }
-
-    mediaQuery.addEventListener('change', closeDrawerOnDesktop)
-    return () => mediaQuery.removeEventListener('change', closeDrawerOnDesktop)
-  }, [])
-
-  useEffect(() => {
-    if (!isMobileSidebarOpen) return undefined
-
-    const navigation = navigationRef.current
-    const returnFocusTarget = mobileMenuButtonRef.current
-    const previousOverflow = document.body.style.overflow
-    const focusableSelector = [
-      'button:not([disabled])',
-      '[href]',
-      '[tabindex]:not([tabindex="-1"])',
-    ].join(',')
-
-    function getFocusableElements(): HTMLElement[] {
-      if (!navigation) return []
-
-      return [
-        ...navigation.querySelectorAll<HTMLElement>(focusableSelector),
-      ].filter((element) => element.getClientRects().length > 0)
-    }
-
-    function handleNavigationKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        setIsMobileSidebarOpen(false)
-        return
-      }
-
-      if (event.key !== 'Tab') return
-
-      const focusableElements = getFocusableElements()
-      if (focusableElements.length === 0) {
-        event.preventDefault()
-        navigation?.focus()
-        return
-      }
-
-      const firstElement = focusableElements[0]!
-      const lastElement = focusableElements.at(-1)!
-
-      if (!navigation?.contains(document.activeElement)) {
-        event.preventDefault()
-        const nextElement = event.shiftKey ? lastElement : firstElement
-        nextElement.focus()
-      } else if (event.shiftKey && document.activeElement === firstElement) {
-        event.preventDefault()
-        lastElement.focus()
-      } else if (!event.shiftKey && document.activeElement === lastElement) {
-        event.preventDefault()
-        firstElement.focus()
-      }
-    }
-
-    document.body.style.overflow = 'hidden'
-    mobileCloseButtonRef.current?.focus()
-    document.addEventListener('keydown', handleNavigationKeyDown)
-
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', handleNavigationKeyDown)
-      if (returnFocusTarget?.isConnected) returnFocusTarget.focus()
-    }
-  }, [isMobileSidebarOpen])
-
   return (
     <div className={`workspace-shell min-h-screen ${appThemeClass.shell}`}>
       <a
         href="#main-content"
+        inert={isMobileSidebarOpen || undefined}
         className={`fixed left-3 top-3 z-[80] -translate-y-20 rounded-[var(--radius-control)] bg-[var(--color-button-primary-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-button-primary-text)] transition-transform focus:translate-y-0 ${focusRing}`}
       >
         Pular para o conteúdo
       </a>
 
       <div className="flex min-h-screen">
-        {isMobileSidebarOpen && (
-          <div
-            className="fixed inset-0 z-50 bg-[var(--color-overlay-bg)] backdrop-blur-[2px] lg:hidden"
-            onClick={() => setIsMobileSidebarOpen(false)}
-            aria-hidden="true"
-          />
-        )}
-
         <Sidebar
           spreadsheets={spreadsheets}
           agendas={agendas}
@@ -143,8 +59,7 @@ function AppLayout({ spreadsheets, agendas }: AppLayoutProps) {
             setIsSidebarCollapsed((isCollapsed) => !isCollapsed)
           }
           onMobileClose={() => setIsMobileSidebarOpen(false)}
-          navigationRef={navigationRef}
-          closeButtonRef={mobileCloseButtonRef}
+          menuButtonRef={mobileMenuButtonRef}
         />
 
         <div

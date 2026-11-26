@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Button from '../components/ui/Button'
+import { ROUTES } from '../constants/routes'
 import { useAppState } from '../hooks/useAppState'
 import { useAuth } from '../hooks/useAuth'
 import { installPreviewBackend, previewPersonas } from './mockBackend'
@@ -34,7 +35,12 @@ export default function PreviewControls() {
             value={backend.state.actor}
             onChange={(event) => {
               backend.selectActor(event.target.value)
-              location.assign('/hub')
+              const path = location.pathname.replace(/\/$/, '')
+              const viewingProcess = backend.state.processes.some(
+                (process) => path === `${ROUTES.PROCESSES}/${process.id}`,
+              )
+              if (viewingProcess) location.reload()
+              else location.assign(ROUTES.HUB)
             }}
           >
             {previewPersonas.map((persona) => (

@@ -6,6 +6,8 @@ Data inicial: 12/11/2026. A auditoria abaixo registra o estado encontrado antes 
 
 O inventário posterior de [padronização entre módulos](padronizacao-entre-modulos.md) registra as decisões sobre barra lateral, Home, retorno ao HUB e diferenças operacionais intencionais. A etapa atual permanece restrita a Honorários e componentes base. O [contrato confirmado do dashboard](contrato-dashboard-honorarios.md) registra a integração dos dados de oportunidades e do comparativo por regime da P12.
 
+O [plano de padronização de componentes](componentes/README.md) mapeia o frontend atual e reúne a ordem de adoção, o inventário de ocorrências e as pranchas de antes e depois.
+
 A conferência de [pendências funcionais de Honorários](pendencias-funcionais-honorarios.md) separa omissões do frontend, dependências de backend e diferenças intencionais. Inclui a reprodução da incompatibilidade com o CSV original e a retirada do seletor Organização ativa da barra lateral do módulo.
 
 [Abrir galeria do estado atual](index.html) · [Rotinas](rotinas.md) · [Processos e Honorários](processos-honorarios.md) · [Empresas, Equipe e áreas compartilhadas](cadastros-hub.md)

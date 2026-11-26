@@ -5,8 +5,9 @@ import ProcessDetails from '../../components/processes/ProcessDetails'
 import SidebarProfileLink from '../../components/common/SidebarProfileLink'
 import ModulesReturnLink from '../../components/common/ModulesReturnLink'
 import ProcessForm from '../../components/processes/ProcessForm'
-import ProcessIcon from '../../components/processes/ProcessIcon'
+import NavigationIcon from '../../components/common/NavigationIcon'
 import ProcessList from '../../components/processes/ProcessList'
+import NavigationDrawer from '../../components/ui/NavigationDrawer'
 import { PROCESS_VIEWS, processViewFilters } from '../../utils/processFilters'
 import ProcessMovements from '../../components/processes/ProcessMovements'
 import ProcessOverview from '../../components/processes/ProcessOverview'
@@ -81,7 +82,7 @@ const loadingPage: ProcessPage = {
 }
 
 export default function ProcessesPage() {
-  const { activeMembership, session, logout, refreshSession } = useAuth()
+  const { activeMembership, refreshSession } = useAuth()
   const { notify, dismiss } = useNotifications()
   const navigate = useNavigate()
   const location = useLocation()
@@ -107,7 +108,6 @@ export default function ProcessesPage() {
   const [editingResource, setEditingResource] =
     useState<ProcessResource | null>(null)
   const [initialType, setInitialType] = useState<ProcessTypeId>()
-  const [isLeaving, setIsLeaving] = useState(false)
   const [deniedDetail, setDeniedDetail] = useState<{
     key: string
     error: unknown
@@ -125,9 +125,7 @@ export default function ProcessesPage() {
   const createAttempt = useRef<{ body: string; key: string } | null>(null)
   const undoNotifications = useRef(new Set<string>())
   const deletedDetailContext = useRef<string | null>(null)
-  const navigationRef = useRef<HTMLElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
-  const closeButtonRef = useRef<HTMLButtonElement>(null)
   const restoredListLocation = useRef('')
   const page = location.pathname
     .slice(ROUTES.PROCESSES.length)
@@ -454,6 +452,9 @@ export default function ProcessesPage() {
     queryClient.removeQueries({
       queryKey: processQueryKeys.entries(scope, processId),
     })
+    queryClient.removeQueries({
+      queryKey: processQueryKeys.deadlineExtensions(scope, processId),
+    })
     queryClient.removeQueries({ queryKey: processQueryKeys.list(scope) })
     queryClient.removeQueries({ queryKey: processQueryKeys.indicators(scope) })
     queryClient.removeQueries({
@@ -472,43 +473,6 @@ export default function ProcessesPage() {
   useEffect(() => {
     setMenuOpen(false)
   }, [location.pathname, location.search])
-  useEffect(() => {
-    if (!menuOpen) return
-    const previousOverflow = document.body.style.overflow
-    const returnTarget = menuButtonRef.current
-    document.body.style.overflow = 'hidden'
-    closeButtonRef.current?.focus()
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        setMenuOpen(false)
-        return
-      }
-      if (event.key !== 'Tab') return
-      const items = [
-        ...(navigationRef.current?.querySelectorAll<HTMLElement>(
-          'a[href],button:not([disabled])',
-        ) ?? []),
-      ].filter((item) => item.getClientRects().length > 0)
-      const first = items[0]
-      const last = items.at(-1)
-      if (!first || !last) return
-      if (
-        !navigationRef.current?.contains(document.activeElement) ||
-        (!event.shiftKey && document.activeElement === last) ||
-        (event.shiftKey && document.activeElement === first)
-      ) {
-        event.preventDefault()
-        ;(event.shiftKey ? last : first).focus()
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', onKeyDown)
-      returnTarget?.focus()
-    }
-  }, [menuOpen])
 
   function updateSearch(patch: Record<string, string | string[]>) {
     const next = new URLSearchParams(searchParams)
@@ -655,6 +619,7 @@ export default function ProcessesPage() {
           for (const key of [
             processQueryKeys.detail(scope, original.id),
             processQueryKeys.entries(scope, original.id),
+            processQueryKeys.deadlineExtensions(scope, original.id),
             processQueryKeys.list(scope),
             processQueryKeys.indicators(scope),
             processQueryKeys.report(scope, '').slice(0, -1),
@@ -715,10 +680,16 @@ export default function ProcessesPage() {
     await queryClient.cancelQueries({
       queryKey: processQueryKeys.entries(scope, id),
     })
+    await queryClient.cancelQueries({
+      queryKey: processQueryKeys.deadlineExtensions(scope, id),
+    })
     queryClient.removeQueries({
       queryKey: processQueryKeys.detail(scope, id),
     })
     queryClient.removeQueries({ queryKey: processQueryKeys.entries(scope, id) })
+    queryClient.removeQueries({
+      queryKey: processQueryKeys.deadlineExtensions(scope, id),
+    })
     closeProcess()
     void queryClient.invalidateQueries({
       queryKey: processQueryKeys.root(scope),
@@ -765,19 +736,6 @@ export default function ProcessesPage() {
     })
     if (version !== null) undoNotifications.current.add(notificationId)
   }
-  async function leave() {
-    setIsLeaving(true)
-    try {
-      await logout()
-    } catch (error) {
-      notify({
-        tone: 'error',
-        title: 'Não foi possível sair',
-        message: getErrorPresentation(error).message,
-      })
-      setIsLeaving(false)
-    }
-  }
   const mainError =
     retainedScopeError ??
     catalogQuery.error ??
@@ -794,27 +752,26 @@ export default function ProcessesPage() {
       : null)
 
   return (
-    <div className={`processes-module ${menuOpen ? 'nav-open' : ''}`}>
-      <a href="#processes-main" className="process-skip">
+    <div className="processes-module">
+      <a
+        href="#processes-main"
+        className="process-skip"
+        inert={menuOpen || undefined}
+      >
         Ir para o conteúdo
       </a>
-      {menuOpen && (
-        <div
-          className="scrim process-nav-scrim"
-          onClick={() => setMenuOpen(false)}
-        />
-      )}
-      <aside
-        ref={navigationRef}
+      <NavigationDrawer
+        id="processes-sidebar"
         className="side"
-        aria-label="Navegação de Processos"
-        aria-modal={menuOpen ? true : undefined}
-        role={menuOpen ? 'dialog' : undefined}
+        label="Navegação de Processos"
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        returnFocusRef={menuButtonRef}
       >
         <div className="process-side-header">
           <Link className="side-head" to={ROUTES.PROCESSES}>
             <span className="logo">
-              <ProcessIcon name="list" />
+              <NavigationIcon name="list" />
             </span>
             <span>
               <b>Processos</b>
@@ -822,12 +779,13 @@ export default function ProcessesPage() {
             </span>
           </Link>
           <button
-            ref={closeButtonRef}
+            type="button"
             className="menu-btn"
             aria-label="Fechar menu"
+            data-overlay-close
             onClick={() => setMenuOpen(false)}
           >
-            <ProcessIcon name="x" />
+            <NavigationIcon name="close" />
           </button>
         </div>
         <div className="side-scroll">
@@ -841,7 +799,7 @@ export default function ProcessesPage() {
                 aria-current={!page ? 'page' : undefined}
                 to={ROUTES.PROCESSES}
               >
-                <ProcessIcon name="home" />
+                <NavigationIcon name="home" />
                 Início
               </Link>
               <button
@@ -849,7 +807,7 @@ export default function ProcessesPage() {
                 aria-current={view === 'fila' && isList ? 'page' : undefined}
                 onClick={() => openList('fila')}
               >
-                <ProcessIcon name="inbox" />
+                <NavigationIcon name="inbox" />
                 Minha fila
                 {chosenSector && (
                   <span className="ct">
@@ -864,7 +822,7 @@ export default function ProcessesPage() {
                 }
                 onClick={() => openList('responsabilidade')}
               >
-                <ProcessIcon name="users" />
+                <NavigationIcon name="people" />
                 Responsabilidade
               </button>
             </nav>
@@ -877,7 +835,7 @@ export default function ProcessesPage() {
               onClick={() => setDepartmentMenu((current) => !current)}
             >
               <span className="ico">
-                <ProcessIcon name="users" />
+                <NavigationIcon name="people" />
               </span>
               <span>
                 <b>
@@ -892,9 +850,9 @@ export default function ProcessesPage() {
                 </small>
               </span>
               <span className="chev">
-                <ProcessIcon
-                  name={departmentMenu ? 'chev' : 'chevr'}
-                  size={16}
+                <NavigationIcon
+                  name={departmentMenu ? 'chevron-down' : 'chevron-right'}
+                  className="size-4"
                 />
               </span>
             </button>
@@ -935,10 +893,10 @@ export default function ProcessesPage() {
                 aria-expanded={processMenu}
                 onClick={() => setProcessMenu((current) => !current)}
               >
-                <ProcessIcon name="list" />
+                <NavigationIcon name="list" />
                 Processos
                 <span className="cv">
-                  <ProcessIcon name="chev" size={16} />
+                  <NavigationIcon name="chevron-down" className="size-4" />
                 </span>
               </button>
               {processMenu && (
@@ -993,7 +951,7 @@ export default function ProcessesPage() {
                 aria-current={page === 'movimentacoes' ? 'page' : undefined}
                 to={`${ROUTES.PROCESSES}/movimentacoes`}
               >
-                <ProcessIcon name="chart" />
+                <NavigationIcon name="chart" />
                 Movimentações Empresariais
               </Link>
             </section>
@@ -1005,7 +963,7 @@ export default function ProcessesPage() {
                 aria-current={page === 'avisos' ? 'page' : undefined}
                 to={`${ROUTES.PROCESSES}/avisos`}
               >
-                <ProcessIcon name="mail" />
+                <NavigationIcon name="mail" />
                 Avisos por e-mail
                 {pendingAlertsQuery.isError ? (
                   <span
@@ -1025,33 +983,20 @@ export default function ProcessesPage() {
             </section>
           )}
         </div>
-        <div className="side-foot" data-sidebar-profile>
-          <SidebarProfileLink
-            name={activeMembership!.displayName}
-            description={session?.user.email ?? 'Perfil'}
-            avatar={activeMembership!.avatar}
-            onNavigate={() => setMenuOpen(false)}
-          />
-          <button
-            className="nav-i sm"
-            onClick={() => void leave()}
-            disabled={isLeaving}
-          >
-            <ProcessIcon name="out" size={16} />
-            {isLeaving ? 'Saindo…' : 'Sair da conta'}
-          </button>
-        </div>
-      </aside>
-      <div className="shell">
+        <SidebarProfileLink onNavigate={() => setMenuOpen(false)} />
+      </NavigationDrawer>
+      <div className="shell" inert={menuOpen || undefined}>
         <header className="top">
           <button
             ref={menuButtonRef}
+            type="button"
             className="menu-btn"
             onClick={() => setMenuOpen(true)}
             aria-label="Abrir menu"
+            aria-controls="processes-sidebar"
             aria-expanded={menuOpen}
           >
-            <ProcessIcon name="list" />
+            <NavigationIcon name="menu" />
           </button>
           <nav className="process-breadcrumb" aria-label="Localização">
             <Link to={ROUTES.PROCESSES}>Processos</Link>
@@ -1081,7 +1026,7 @@ export default function ProcessesPage() {
             aria-label="Atualizar processos"
             title="Atualizar processos"
           >
-            <ProcessIcon name="refresh" size={16} />
+            <NavigationIcon name="refresh" className="size-4" />
           </button>
           {catalog?.permissions.create && (
             <button
@@ -1089,7 +1034,7 @@ export default function ProcessesPage() {
               onClick={openCreate}
               aria-label="Novo processo"
             >
-              <ProcessIcon name="plus" />
+              <NavigationIcon name="plus" />
               <span>Novo processo</span>
             </button>
           )}

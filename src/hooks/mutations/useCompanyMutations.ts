@@ -6,6 +6,7 @@ import {
   upsertClientInOperationalContexts,
   upsertScreenInOperationalContexts,
 } from '../../query/routineControlCache'
+import { invalidateCompanyQueries } from '../../query/companyCache'
 import { queryKeys, type OrganizationQueryScope } from '../../query/queryKeys'
 import { toClientFromResource } from '../../query/routineControlMappers'
 import { isApiError } from '../../services/httpClient'
@@ -16,6 +17,7 @@ import {
   type ClientRoutineAssignmentResource,
 } from '../../services/companyService'
 import { screenService } from '../../services/screenService'
+import { companyEditConflictMessage } from '../../utils/companyIdentity'
 import {
   CompanySetupError,
   type CompanySetupInput,
@@ -64,6 +66,7 @@ export function useCompanyMutations({
         const createdCompanySummary = { id: client.id, name: client.name }
         company = createdCompanySummary
         upsertClientInOperationalContexts(queryClient, scope, client)
+        void invalidateCompanyQueries(queryClient, scope)
 
         for (const routineId of input.routineIds) {
           const assignment = await companyService.createRoutineAssignment(
@@ -170,42 +173,24 @@ export function useCompanyMutations({
     mutationFn: async ({
       companyId,
       changes,
+      etag,
     }: {
       companyId: string
       changes: ClientCompanyPatch
+      etag: string
     }) => {
-      const snapshot = await companyService.get(companyId)
-
-      if (!snapshot.etag) {
-        throw new Error(
-          'A API nao informou a versao atual da empresa para salvar as alteracoes.',
-        )
-      }
-
       let response
       try {
-        response = await companyService.update(
-          companyId,
-          changes,
-          snapshot.etag,
-        )
+        response = await companyService.update(companyId, changes, etag)
       } catch (error) {
         if (isApiError(error) && error.status === 412) {
-          const current = await companyService.get(companyId)
-          upsertClientInOperationalContexts(
-            queryClient,
-            scope,
-            toClientFromResource(current.data),
-          )
-          throw new Error(
-            'Esta empresa foi alterada por outra pessoa. Os dados mais recentes foram carregados.',
-            { cause: error },
-          )
+          throw new Error(companyEditConflictMessage, { cause: error })
         }
         throw error
       }
       const client = toClientFromResource(response.data)
       upsertClientInOperationalContexts(queryClient, scope, client)
+      void invalidateCompanyQueries(queryClient, scope)
       return client
     },
   })
@@ -242,13 +227,7 @@ export function useCompanyMutations({
         queryKey: queryKeys.companyRoutineAssignments(scope, companyId),
         exact: true,
       })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.routineControlRoot(scope),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.archivedCompanies(scope),
-        exact: true,
-      })
+      void invalidateCompanyQueries(queryClient, scope)
     },
   })
 
@@ -270,9 +249,7 @@ export function useCompanyMutations({
           queryKeys.archivedCompanies(scope),
           (current) => current?.filter((company) => company.id !== companyId),
         )
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.routineControlRoot(scope),
-        })
+        void invalidateCompanyQueries(queryClient, scope)
         return client
       } catch (error) {
         if (isApiError(error) && error.status === 412) {
@@ -295,8 +272,8 @@ export function useCompanyMutations({
   return {
     createCompany: createCompanyMutation.mutateAsync,
     updateCompany: useCallback(
-      (companyId: string, changes: ClientCompanyPatch) =>
-        updateCompanyMutation.mutateAsync({ companyId, changes }),
+      (companyId: string, changes: ClientCompanyPatch, etag: string) =>
+        updateCompanyMutation.mutateAsync({ companyId, changes, etag }),
       [updateCompanyMutation],
     ),
     archiveCompany: archiveCompanyMutation.mutateAsync,

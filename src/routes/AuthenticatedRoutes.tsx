@@ -66,6 +66,7 @@ interface AuthenticatedRoutesProps {
   onCompanyUpdate: (
     companyId: string,
     changes: ClientCompanyPatch,
+    etag: string,
   ) => Promise<Client>
   onCompanyArchive: (companyId: string) => Promise<void>
   onCompanyRestore: (companyId: string) => Promise<Client>
@@ -236,8 +237,9 @@ function renderOperationalRoutes({
   async function handleCompanyUpdate(
     companyId: string,
     changes: ClientCompanyPatch,
+    etag: string,
   ): Promise<void> {
-    await onCompanyUpdate(companyId, changes)
+    await onCompanyUpdate(companyId, changes, etag)
   }
 
   async function handleRoutineUpdate(
